@@ -16,7 +16,6 @@ async function getDashboardStats() {
     totalMembers,
     eventsThisMonth,
     recentLogs,
-    smsPending,
   ] = await Promise.all([
     db.member.count({ where: { status: "active" } }),
     db.member.count({ where: { status: "pending" } }),
@@ -28,8 +27,8 @@ async function getDashboardStats() {
       orderBy: { createdAt: "desc" },
       take: 8,
     }),
-    db.customSmsBatch.count({ where: { status: "pending" } }),
   ]);
+  const smsPending = 0; // SMS batch model coming in future phase
 
   return { totalActive, totalPending, totalMembers, eventsThisMonth, recentLogs, smsPending };
 }

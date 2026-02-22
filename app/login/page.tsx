@@ -115,7 +115,7 @@ export default function LoginPage() {
               onChange={(e) => setUsername(e.target.value)}
               required
               autoComplete="username"
-              placeholder="your.username or email@example.com"
+              placeholder="username or email@example.com"
               style={{
                 width: "100%",
                 padding: "0.75rem 1rem",

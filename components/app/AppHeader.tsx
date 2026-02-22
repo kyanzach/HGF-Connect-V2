@@ -4,11 +4,29 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 
+const PRIMARY = "#4EB1CB";
+
 function getGreeting() {
   const hour = new Date().getHours();
   if (hour < 12) return "Good morning";
   if (hour < 17) return "Good afternoon";
   return "Good evening";
+}
+
+// Simple SVG Bell (Facebook-style silhouette)
+function BellIcon() {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="white"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z" />
+    </svg>
+  );
 }
 
 export default function AppHeader() {
@@ -22,7 +40,7 @@ export default function AppHeader() {
         top: 0,
         zIndex: 50,
         height: "56px",
-        background: "#4EB1CB",
+        background: PRIMARY,
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
@@ -64,29 +82,34 @@ export default function AppHeader() {
         >
           v2.0.1
         </span>
+
+        {/* Bell — SVG, no emoji */}
         <Link
           href="/notifications"
           style={{
             position: "relative",
             color: "white",
             textDecoration: "none",
-            fontSize: "1.25rem",
-            lineHeight: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 32,
+            height: 32,
           }}
           aria-label="Notifications"
         >
-          🔔
-          {/* Notification badge — will be dynamic later */}
+          <BellIcon />
+          {/* Red dot badge */}
           <span
             style={{
               position: "absolute",
-              top: "-2px",
-              right: "-2px",
+              top: "2px",
+              right: "2px",
               width: "8px",
               height: "8px",
               background: "#ef4444",
               borderRadius: "50%",
-              border: "1.5px solid #4EB1CB",
+              border: "1.5px solid " + PRIMARY,
             }}
           />
         </Link>
