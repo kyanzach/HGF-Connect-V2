@@ -72,7 +72,11 @@ export async function PATCH(
     if (body.address !== undefined) updateData.address = body.address;
     if (body.birthdate !== undefined)
       updateData.birthdate = body.birthdate ? new Date(body.birthdate) : null;
+    if (body.baptismDate !== undefined)
+      updateData.baptismDate = body.baptismDate ? new Date(body.baptismDate) : null;
     if (body.favoriteVerse !== undefined) updateData.favoriteVerse = body.favoriteVerse;
+    if (body.invitedBy !== undefined) updateData.invitedBy = body.invitedBy;
+    if (body.familyMembers !== undefined) updateData.familyMembers = body.familyMembers;
     if (body.showEmail !== undefined) updateData.showEmail = body.showEmail;
     if (body.showPhone !== undefined) updateData.showPhone = body.showPhone;
     if (body.showAddress !== undefined) updateData.showAddress = body.showAddress;
