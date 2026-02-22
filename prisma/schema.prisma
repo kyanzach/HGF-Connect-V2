@@ -81,6 +81,7 @@ model Member {
   // Groups
   groupsCreated         Group[]               @relation("GroupCreator")
   groupMemberships      GroupMember[]         @relation("GroupMemberships")
+  listingShares         ListingShare[]        @relation("ListingSharer")
 
   // Biometrics
   webauthnCredentials   WebauthnCredential[]
@@ -344,6 +345,7 @@ model MarketplaceListing {
   status          MarketplaceListingStatus @default(active)
   isOfficialStore Boolean                @default(false) @map("is_official_store")
   viewCount       Int                    @default(0) @map("view_count")
+  loveGiftPercent Decimal?               @default(0) @map("love_gift_percent") @db.Decimal(5, 2)
   expiresAt       DateTime?              @map("expires_at") @db.Date
   soldAt          DateTime?              @map("sold_at")
   createdAt       DateTime               @default(now()) @map("created_at")
@@ -353,6 +355,7 @@ model MarketplaceListing {
   photos    MarketplaceListingPhoto[]
   messages  MarketplaceMessage[]
   reports   MarketplaceReport[]
+  shares    ListingShare[]
 
   @@index([memberId], name: "idx_member_id")
   @@index([status], name: "idx_status")
@@ -360,6 +363,7 @@ model MarketplaceListing {
   @@index([createdAt], name: "idx_created_at")
   @@map("marketplace_listings")
 }
+
 
 model MarketplaceListingPhoto {
   id          Int      @id @default(autoincrement())
@@ -407,6 +411,24 @@ model MarketplaceReport {
 
   @@index([listingId], name: "idx_listing_id")
   @@map("marketplace_reports")
+}
+
+// Love Gift — Sharing
+model ListingShare {
+  id             Int              @id @default(autoincrement())
+  listingId      Int              @map("listing_id")
+  sharerId       Int              @map("sharer_id")
+  shareCode      String           @unique @map("share_code") @db.VarChar(50)
+  loveGiftEarned Decimal          @default(0) @map("love_gift_earned") @db.Decimal(10, 2)
+  status         String           @default("pending") @db.VarChar(20)
+  createdAt      DateTime         @default(now()) @map("created_at")
+
+  listing MarketplaceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  sharer  Member             @relation("ListingSharer", fields: [sharerId], references: [id], onDelete: Cascade)
+
+  @@index([sharerId])
+  @@index([listingId])
+  @@map("listing_shares")
 }
 
 // ─────────────────────────────────────────────────────────────────
