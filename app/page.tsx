@@ -2,444 +2,583 @@ import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import Link from "next/link";
+import Image from "next/image";
 import PublicNav from "@/components/layout/PublicNav";
-import { FeatureCard, HomeEventCard } from "@/components/ui/InteractiveCards";
 
 export const metadata: Metadata = {
   title: "HGF Connect — House of Grace Fellowship",
   description:
-    "Welcome to HGF Connect — member portal for House of Grace Fellowship in Davao City, Philippines. Events, directory, ministries, and more.",
+    "Your comprehensive community platform for managing your profile, staying connected with events, accessing resources, and exploring our holistic marketplace.",
   openGraph: {
-    title: "HGF Connect — House of Grace Fellowship",
-    description:
-      "Your community hub for House of Grace Fellowship. Explore events, connect with members, and grow in faith together.",
-    images: ["/og-home.jpg"],
+    title: "HGF Connect",
+    description: "Community platform for House of Grace Fellowship members.",
+    type: "website",
   },
 };
 
-async function getUpcomingEvents() {
-  const now = new Date();
-  return db.event.findMany({
-    where: {
-      eventDate: { gte: now },
-      status: "scheduled",
-    },
-    orderBy: [{ eventDate: "asc" }, { startTime: "asc" }],
-    take: 4,
-  });
+// Bible verses for Daily Word (used in sidebar future, or home)
+const BIBLE_VERSES = [
+  { text: "For I know the plans I have for you, declares the Lord, plans to prosper you and not to harm you, to give you hope and a future.", reference: "Jeremiah 29:11" },
+  { text: "Trust in the Lord with all your heart and lean not on your own understanding; in all your ways submit to him, and he will make your paths straight.", reference: "Proverbs 3:5-6" },
+  { text: "Be strong and courageous. Do not be afraid; do not be discouraged, for the Lord your God will be with you wherever you go.", reference: "Joshua 1:9" },
+  { text: "Cast all your anxiety on him because he cares for you.", reference: "1 Peter 5:7" },
+];
+
+async function getData() {
+  const [memberCount, upcomingEvents, ministryCount] = await Promise.all([
+    db.member.count({ where: { status: "active" } }),
+    db.event.findMany({
+      where: {
+        eventDate: { gte: new Date() },
+        status: "scheduled",
+      },
+      orderBy: { eventDate: "asc" },
+      take: 10,
+      select: { id: true, title: true, location: true, eventDate: true },
+    }),
+    db.ministry.count({ where: { status: "active" } }),
+  ]);
+  return { memberCount, upcomingEvents, ministryCount };
 }
 
-async function getStats() {
-  const [totalMembers, upcomingCount] = await Promise.all([
-    db.member.count({ where: { status: "active" } }),
-    db.event.count({
-      where: { eventDate: { gte: new Date() }, status: "scheduled" },
-    }),
-  ]);
-  return { totalMembers, upcomingCount };
-}
+const PRIMARY = "#4EB1CB";
+const PRIMARY_DARK = "#3A95AD";
+const PRIMARY_HERO = "#2d8fa6"; // hero bg darker shade
 
 export default async function HomePage() {
-  const [session, events, stats] = await Promise.all([
-    auth(),
-    getUpcomingEvents(),
-    getStats(),
-  ]);
+  const session = await auth();
+  const { memberCount, upcomingEvents, ministryCount } = await getData();
+
+  // deterministic verse based on day of year
+  const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
+  const verse = BIBLE_VERSES[dayOfYear % BIBLE_VERSES.length];
 
   return (
     <>
       <PublicNav />
 
-      {/* Hero */}
+      {/* ── Hero Section ── */}
       <section
         style={{
-          background:
-            "linear-gradient(135deg, #0f2d3d 0%, #1a4a5e 50%, #1f6477 100%)",
+          background: `linear-gradient(135deg, ${PRIMARY_HERO} 0%, ${PRIMARY} 100%)`,
           color: "white",
-          padding: "5rem 1.5rem",
+          padding: "4rem 1rem",
           textAlign: "center",
-          position: "relative",
-          overflow: "hidden",
         }}
       >
-        {/* Decorative circles */}
-        <div
-          style={{
-            position: "absolute",
-            top: "-80px",
-            right: "-80px",
-            width: "320px",
-            height: "320px",
-            borderRadius: "50%",
-            background: "rgba(78,177,203,0.12)",
-            pointerEvents: "none",
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            bottom: "-60px",
-            left: "-60px",
-            width: "240px",
-            height: "240px",
-            borderRadius: "50%",
-            background: "rgba(78,177,203,0.08)",
-            pointerEvents: "none",
-          }}
-        />
-
-        <div style={{ maxWidth: "800px", margin: "0 auto", position: "relative" }}>
-          <div
-            style={{
-              display: "inline-block",
-              background: "rgba(78,177,203,0.2)",
-              border: "1px solid rgba(78,177,203,0.4)",
-              borderRadius: "999px",
-              padding: "0.375rem 1rem",
-              fontSize: "0.8125rem",
-              fontWeight: 600,
-              color: "#7ec8da",
-              marginBottom: "1.5rem",
-              letterSpacing: "0.05em",
-              textTransform: "uppercase",
-            }}
-          >
-            🙏 House of Grace Fellowship · Davao City
-          </div>
-
+        <div style={{ maxWidth: "800px", margin: "0 auto" }}>
           <h1
             style={{
-              fontSize: "clamp(2.25rem, 5vw, 3.5rem)",
+              fontSize: "clamp(1.75rem, 5vw, 2.75rem)",
               fontWeight: 800,
-              lineHeight: 1.1,
-              marginBottom: "1.25rem",
               letterSpacing: "-0.02em",
+              marginBottom: "1rem",
             }}
           >
-            Connected in{" "}
-            <span style={{ color: "#4eb1cb" }}>Faith,</span>
-            <br />
-            Rooted in{" "}
-            <span style={{ color: "#4eb1cb" }}>Community</span>
+            Welcome to HGF Connect
           </h1>
-
           <p
             style={{
-              fontSize: "1.125rem",
-              color: "rgba(255,255,255,0.75)",
-              maxWidth: "560px",
-              margin: "0 auto 2.5rem",
-              lineHeight: 1.65,
+              fontSize: "1.0625rem",
+              color: "rgba(255,255,255,0.85)",
+              marginBottom: "2rem",
+              lineHeight: 1.7,
             }}
           >
-            HGF Connect is your all-in-one portal for House of Grace Fellowship —
-            events, ministries, member directory, and more.
+            Your comprehensive community platform for managing your profile, staying
+            connected with events, accessing resources, and exploring our holistic marketplace.
           </p>
-
-          <div
-            style={{
-              display: "flex",
-              gap: "1rem",
-              justifyContent: "center",
-              flexWrap: "wrap",
-            }}
-          >
-            {session ? (
-              <Link
-                href={
-                  ["admin", "moderator"].includes(session.user.role)
-                    ? "/admin"
-                    : "/dashboard"
-                }
-                style={{
-                  background: "linear-gradient(135deg, #4eb1cb, #3a95ad)",
-                  color: "white",
-                  textDecoration: "none",
-                  padding: "0.875rem 2rem",
-                  borderRadius: "10px",
-                  fontWeight: 700,
-                  fontSize: "1rem",
-                }}
-              >
-                Go to Dashboard →
-              </Link>
-            ) : (
-              <>
-                <Link
-                  href="/register"
-                  style={{
-                    background: "linear-gradient(135deg, #4eb1cb, #3a95ad)",
-                    color: "white",
-                    textDecoration: "none",
-                    padding: "0.875rem 2rem",
-                    borderRadius: "10px",
-                    fontWeight: 700,
-                    fontSize: "1rem",
-                  }}
-                >
-                  Join HGF Connect
-                </Link>
-                <Link
-                  href="/login"
-                  style={{
-                    background: "rgba(255,255,255,0.1)",
-                    border: "1px solid rgba(255,255,255,0.25)",
-                    color: "white",
-                    textDecoration: "none",
-                    padding: "0.875rem 2rem",
-                    borderRadius: "10px",
-                    fontWeight: 600,
-                    fontSize: "1rem",
-                  }}
-                >
-                  Sign In
-                </Link>
-              </>
-            )}
+          {session ? (
             <Link
-              href="/events"
+              href="/dashboard"
               style={{
-                background: "transparent",
-                border: "1px solid rgba(255,255,255,0.25)",
-                color: "rgba(255,255,255,0.85)",
-                textDecoration: "none",
+                display: "inline-block",
+                background: "white",
+                color: PRIMARY,
+                fontWeight: 700,
                 padding: "0.875rem 2rem",
-                borderRadius: "10px",
-                fontWeight: 600,
+                borderRadius: "8px",
+                textDecoration: "none",
+                fontSize: "1rem",
+                transition: "transform 0.15s",
+              }}
+            >
+              Go to Dashboard
+            </Link>
+          ) : (
+            <Link
+              href="/login"
+              style={{
+                display: "inline-block",
+                background: "white",
+                color: PRIMARY,
+                fontWeight: 700,
+                padding: "0.875rem 2rem",
+                borderRadius: "8px",
+                textDecoration: "none",
                 fontSize: "1rem",
               }}
             >
-              View Events
+              Login to Access Member Services
             </Link>
-          </div>
-
-          {/* Stats */}
-          <div
-            style={{
-              display: "flex",
-              gap: "3rem",
-              justifyContent: "center",
-              marginTop: "3rem",
-              flexWrap: "wrap",
-            }}
-          >
-            <StatItem value={`${stats.totalMembers}+`} label="Active Members" />
-            <StatItem value={`${stats.upcomingCount}`} label="Upcoming Events" />
-            <StatItem value="6" label="Ministry Teams" />
-          </div>
+          )}
         </div>
       </section>
 
-      {/* Feature Grid */}
-      <section
-        style={{
-          padding: "5rem 1.5rem",
-          background: "white",
-        }}
-      >
-        <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: "3rem" }}>
-            <h2
-              style={{
-                fontSize: "2rem",
-                fontWeight: 800,
-                color: "#0f172a",
-                marginBottom: "0.75rem",
-                letterSpacing: "-0.02em",
-              }}
-            >
-              Everything Your Church Needs
-            </h2>
-            <p style={{ color: "#64748b", fontSize: "1.0625rem" }}>
-              One platform for members, ushers, and administrators
-            </p>
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-              gap: "1.5rem",
-            }}
-          >
-            <FeatureCard
-              icon="👥"
-              title="Member Directory"
-              description="Browse and connect with the HGF community. Privacy-controlled profiles with photos, ministries, and contact info."
-              href="/directory"
-              color="#4eb1cb"
-            />
-            <FeatureCard
-              icon="📅"
-              title="Events"
-              description="Stay updated on Sunday services, prayer meetings, Bible studies, grace nights, and special events."
-              href="/events"
-              color="#8b5cf6"
-            />
-            <FeatureCard
-              icon="🙌"
-              title="Ministries"
-              description="Join a ministry team — Worship, Admin, Ushering, and more. Serve your community with purpose."
-              href="/directory"
-              color="#f59e0b"
-            />
-            <FeatureCard
-              icon="📖"
-              title="Resources"
-              description="Access Sunday Word PDFs, devotionals, and church resources to grow deeper in your faith."
-              href="/resources"
-              color="#10b981"
-            />
-            <FeatureCard
-              icon="🏪"
-              title="Marketplace"
-              description="Members-only community marketplace — buy, sell, trade, or share. Support fellow members' businesses."
-              href="/marketplace"
-              color="#ec4899"
-            />
-            <FeatureCard
-              icon="📊"
-              title="Attendance"
-              description="Dedicated kiosk app for ushers — real-time check-in, birthday lookups, and attendance reports."
-              href="/attendance"
-              color="#3a95ad"
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Upcoming Events */}
-      {events.length > 0 && (
-        <section
+      {/* ── Main 2-Column Layout ── */}
+      <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "2.5rem 1rem" }}>
+        <div
           style={{
-            padding: "5rem 1.5rem",
-            background: "#f8fafc",
+            display: "grid",
+            gridTemplateColumns: "minmax(0,2fr) minmax(0,1fr)",
+            gap: "2rem",
+            alignItems: "start",
           }}
         >
-          <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+          {/* ── LEFT: Main Content ── */}
+          <div>
+            {/* Features Card */}
             <div
               style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-end",
+                background: "white",
+                borderRadius: "8px",
+                border: "1px solid #e2e8f0",
+                padding: "1.75rem",
                 marginBottom: "2rem",
-                flexWrap: "wrap",
-                gap: "1rem",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
               }}
             >
-              <div>
-                <h2
-                  style={{
-                    fontSize: "1.75rem",
-                    fontWeight: 800,
-                    color: "#0f172a",
-                    letterSpacing: "-0.02em",
-                    marginBottom: "0.25rem",
-                  }}
-                >
-                  Upcoming Events
-                </h2>
-                <p style={{ color: "#64748b", fontSize: "0.9375rem" }}>
-                  Join us for worship, fellowship, and growth
-                </p>
-              </div>
-              <Link
-                href="/events"
+              <h2
                 style={{
-                  color: "#4eb1cb",
-                  textDecoration: "none",
-                  fontSize: "0.9375rem",
-                  fontWeight: 600,
+                  fontSize: "1.375rem",
+                  fontWeight: 700,
+                  color: "#212529",
+                  marginBottom: "0.75rem",
                 }}
               >
-                See all events →
-              </Link>
-            </div>
+                HGF Connect Features
+              </h2>
+              <p style={{ color: "#555", marginBottom: "1rem", lineHeight: 1.7 }}>
+                Your all-in-one platform for community connection, spiritual growth, and holistic
+                living. Access member services, explore our marketplace, and stay connected with
+                the House of Grace Fellowship family.
+              </p>
 
+              {/* Info Alert */}
+              <div
+                style={{
+                  background: "#e8f4f8",
+                  border: "1px solid #bee3f8",
+                  borderRadius: "6px",
+                  padding: "0.875rem 1rem",
+                  marginBottom: "1.25rem",
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "0.5rem",
+                  color: "#2c6e8a",
+                  fontSize: "0.9375rem",
+                }}
+              >
+                <span style={{ flexShrink: 0 }}>ℹ️</span>
+                <span>
+                  <strong>Member Access Required:</strong> Please log in to access your personal
+                  dashboard and exclusive member features.
+                </span>
+              </div>
+
+              <p style={{ color: "#555", marginBottom: "1.5rem", lineHeight: 1.7 }}>
+                HGF Connect is more than just a member portal — it&apos;s your gateway to a
+                thriving community where faith meets daily life. Manage your profile, discover
+                events, connect with fellow members, and explore our unique holistic marketplace
+                designed to support one another in our spiritual and wellness journey.
+              </p>
+
+              {/* 6 Feature Icons */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                  gap: "1rem",
+                  marginTop: "1rem",
+                }}
+              >
+                {[
+                  { icon: "👤", label: "Profile Management", desc: "Update your personal information, contact details, and spiritual preferences.", color: PRIMARY },
+                  { icon: "📅", label: "Event Access", desc: "View upcoming events, RSVP, and receive automated reminders for fellowship activities.", color: PRIMARY },
+                  { icon: "👥", label: "Community Connect", desc: "Stay connected with fellow members through our social communication platform.", color: PRIMARY },
+                  { icon: "🛍️", label: "Holistic Marketplace", desc: "Discover and support member businesses offering holistic products and services.", color: "#28a745" },
+                  { icon: "🛒", label: "Official HGF Store", desc: "Shop exclusive HGF merchandise, books, and faith-based resources.", color: "#17a2b8" },
+                  { icon: "💬", label: "Social Hub", desc: "Engage in meaningful conversations and share your faith journey with the community.", color: "#ffc107" },
+                ].map((f) => (
+                  <div key={f.label} style={{ textAlign: "center", padding: "0.75rem" }}>
+                    <div style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>{f.icon}</div>
+                    <h5 style={{ fontSize: "0.9375rem", fontWeight: 700, color: "#212529", marginBottom: "0.375rem" }}>
+                      {f.label}
+                    </h5>
+                    <p style={{ fontSize: "0.8125rem", color: "#6c757d", lineHeight: 1.5 }}>
+                      {f.desc}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Coming Soon Section */}
+              <div style={{ marginTop: "2.5rem" }}>
+                <h3
+                  style={{
+                    textAlign: "center",
+                    fontSize: "1.25rem",
+                    fontWeight: 700,
+                    color: "#212529",
+                    marginBottom: "1.5rem",
+                  }}
+                >
+                  Coming Soon — Enhanced Features
+                </h3>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+                    gap: "1rem",
+                    marginBottom: "1.5rem",
+                  }}
+                >
+                  {/* Member Marketplace Card */}
+                  <div
+                    style={{
+                      border: "1px solid #28a745",
+                      borderRadius: "8px",
+                      padding: "1.25rem",
+                      background: "white",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.75rem" }}>
+                      <span style={{ fontSize: "1.5rem" }}>🌿</span>
+                      <h5 style={{ fontSize: "1rem", fontWeight: 700, color: "#212529", margin: 0 }}>
+                        Member Marketplace
+                      </h5>
+                    </div>
+                    <p style={{ fontSize: "0.9rem", color: "#495057", marginBottom: "0.75rem", lineHeight: 1.6 }}>
+                      A dedicated platform where HGF members can showcase and sell their holistic
+                      products and services. From handmade crafts to wellness services, support
+                      fellow members while discovering amazing offerings that align with our values.
+                    </p>
+                    <ul style={{ listStyle: "none", padding: 0, margin: 0, fontSize: "0.875rem", color: "#495057" }}>
+                      {["Member-to-member commerce", "Holistic and faith-based products", "Community-driven marketplace", "Secure transaction system"].map((item) => (
+                        <li key={item} style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
+                          <span style={{ color: "#28a745" }}>✓</span> {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Official HGF Store Card */}
+                  <div
+                    style={{
+                      border: "1px solid #17a2b8",
+                      borderRadius: "8px",
+                      padding: "1.25rem",
+                      background: "white",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.75rem" }}>
+                      <span style={{ fontSize: "1.5rem" }}>✝️</span>
+                      <h5 style={{ fontSize: "1rem", fontWeight: 700, color: "#212529", margin: 0 }}>
+                        Official HGF Store
+                      </h5>
+                    </div>
+                    <p style={{ fontSize: "0.9rem", color: "#495057", marginBottom: "0.75rem", lineHeight: 1.6 }}>
+                      Shop our exclusive collection of House of Grace Fellowship branded merchandise
+                      and spiritual resources. From inspirational books to branded apparel,
+                      everything you need to represent your faith community.
+                    </p>
+                    <ul style={{ listStyle: "none", padding: 0, margin: 0, fontSize: "0.875rem", color: "#495057" }}>
+                      {["Godly magazines and publications", "HGF branded apparel and bags", "Christian books and resources", "Faith-based accessories"].map((item) => (
+                        <li key={item} style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
+                          <span style={{ color: "#17a2b8" }}>✓</span> {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                {/* Additional Upcoming Features */}
+                <div
+                  style={{
+                    border: "1px solid #ffc107",
+                    borderRadius: "8px",
+                    padding: "1.25rem",
+                    background: "white",
+                    textAlign: "center",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.75rem", marginBottom: "1rem" }}>
+                    <span style={{ fontSize: "1.5rem" }}>🚀</span>
+                    <h5 style={{ fontSize: "1rem", fontWeight: 700, color: "#212529", margin: 0 }}>
+                      Additional Upcoming Features
+                    </h5>
+                  </div>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+                      gap: "0.5rem",
+                    }}
+                  >
+                    {[
+                      { icon: "📹", label: "Live Streaming Events" },
+                      { icon: "🙏", label: "Prayer Request System" },
+                      { icon: "📖", label: "Daily Devotionals" },
+                      { icon: "❤️", label: "Ministry Volunteer Portal" },
+                    ].map((f) => (
+                      <div key={f.label} style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.875rem", color: "#495057", justifyContent: "center" }}>
+                        <span>{f.icon}</span>
+                        <span>{f.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── RIGHT: Sticky Sidebar ── */}
+          <div style={{ position: "sticky", top: "1.25rem" }}>
+            {/* Upcoming Events */}
             <div
               style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-                gap: "1.25rem",
+                background: "white",
+                borderRadius: "8px",
+                border: "1px solid #e2e8f0",
+                marginBottom: "1.5rem",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                overflow: "hidden",
               }}
             >
-              {events.map((event) => (
-                <HomeEventCard key={event.id} event={event} />
+              <div
+                style={{
+                  background: PRIMARY,
+                  color: "white",
+                  padding: "0.875rem 1.25rem",
+                }}
+              >
+                <h5 style={{ margin: 0, fontWeight: 700, fontSize: "1rem" }}>Upcoming Events</h5>
+              </div>
+              <div style={{ padding: "1rem 1.25rem" }}>
+                {upcomingEvents.length > 0 ? (
+                  upcomingEvents.map((event, i) => (
+                    <div key={event.id}>
+                      <Link
+                        href={session ? `/event/${event.id}` : "/login"}
+                        style={{ textDecoration: "none" }}
+                      >
+                        <div
+                          style={{
+                            padding: "0.5rem",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <h6
+                            style={{
+                              fontSize: "0.9rem",
+                              fontWeight: 600,
+                              color: PRIMARY,
+                              marginBottom: "0.25rem",
+                            }}
+                          >
+                            {event.title}
+                          </h6>
+                          {event.location && (
+                            <div style={{ fontSize: "0.8125rem", color: "#6c757d" }}>
+                              📍 {event.location}
+                            </div>
+                          )}
+                        </div>
+                      </Link>
+                      {i < upcomingEvents.length - 1 && (
+                        <hr style={{ border: "none", borderTop: "1px solid #f1f5f9", margin: "0.5rem 0" }} />
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <p style={{ color: "#6c757d", textAlign: "center", fontSize: "0.9rem", margin: 0 }}>
+                    No upcoming events.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div
+              style={{
+                background: "white",
+                borderRadius: "8px",
+                border: "1px solid #e2e8f0",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  background: PRIMARY,
+                  color: "white",
+                  padding: "0.875rem 1.25rem",
+                }}
+              >
+                <h5 style={{ margin: 0, fontWeight: 700, fontSize: "1rem" }}>Quick Actions</h5>
+              </div>
+              <div style={{ padding: "1rem 1.25rem", display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+                {session ? (
+                  <>
+                    <QuickActionLink href="/profile" icon="✏️" label="Update Profile" />
+                    <QuickActionLink href="/events" icon="📅" label="View Events" />
+                    <QuickActionLink href="/directory" icon="👥" label="Member Directory" />
+                    <QuickActionLink href="/resources" icon="📚" label="Resources" />
+                  </>
+                ) : (
+                  <>
+                    <QuickActionLink href="/events" icon="📅" label="View Events" />
+                    <QuickActionLink href="/directory" icon="👥" label="Member Directory" />
+                    <QuickActionLink href="/resources" icon="📚" label="Resources" />
+                    <hr style={{ border: "none", borderTop: "1px solid #f1f5f9", margin: "0.25rem 0" }} />
+                    <Link
+                      href="/login"
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "0.5rem",
+                        padding: "0.625rem 1rem",
+                        background: PRIMARY,
+                        color: "white",
+                        borderRadius: "6px",
+                        textDecoration: "none",
+                        fontWeight: 600,
+                        fontSize: "0.9rem",
+                        textAlign: "center",
+                      }}
+                    >
+                      🔑 Member Login
+                    </Link>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Stats */}
+            <div
+              style={{
+                background: "white",
+                borderRadius: "8px",
+                border: "1px solid #e2e8f0",
+                padding: "1.25rem",
+                marginTop: "1.5rem",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr 1fr",
+                gap: "0.75rem",
+                textAlign: "center",
+              }}
+            >
+              <StatMini value={`${memberCount}+`} label="Members" />
+              <StatMini value={`${upcomingEvents.length}`} label="Events" />
+              <StatMini value={`${ministryCount}`} label="Ministries" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Footer ── */}
+      <footer
+        style={{
+          background: "#2d3748",
+          color: "rgba(255,255,255,0.75)",
+          padding: "3rem 1.5rem 1.5rem",
+          marginTop: "3rem",
+        }}
+      >
+        <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "2rem", marginBottom: "2rem" }}>
+            {/* Brand */}
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.75rem" }}>
+                <Image src="/HGF-icon-v1.0.png" alt="HGF Logo" width={40} height={40} style={{ borderRadius: "50%" }} />
+                <h5 style={{ color: "white", margin: 0, fontWeight: 700 }}>House of Grace Fellowship</h5>
+              </div>
+              <p style={{ fontSize: "0.875rem", lineHeight: 1.7, margin: 0 }}>
+                A Christ-centered, Spirit-led community where faith grows, grace flows, love serves, and transformation is a way of life.
+              </p>
+            </div>
+
+            {/* Quick Links */}
+            <div>
+              <h5 style={{ color: "white", fontWeight: 700, marginBottom: "0.75rem" }}>Quick Links</h5>
+              {[{ href: "/", label: "Home" }, { href: "/events", label: "Events" }, { href: "/directory", label: "Members" }, { href: "/resources", label: "Resources" }].map((l) => (
+                <div key={l.href} style={{ marginBottom: "0.375rem" }}>
+                  <Link href={l.href} style={{ color: "rgba(255,255,255,0.7)", textDecoration: "none", fontSize: "0.875rem" }}>
+                    {l.label}
+                  </Link>
+                </div>
+              ))}
+            </div>
+
+            {/* Contact */}
+            <div>
+              <h5 style={{ color: "white", fontWeight: 700, marginBottom: "0.75rem" }}>Contact Us</h5>
+              <p style={{ fontSize: "0.875rem", marginBottom: "0.375rem" }}>📧 Email: <a href="mailto:hello@houseofgrace.ph" style={{ color: "rgba(255,255,255,0.7)" }}>hello@houseofgrace.ph</a></p>
+              <p style={{ fontSize: "0.875rem", marginBottom: "0.375rem" }}>📞 Phone: +63 991 927 1810</p>
+              <p style={{ fontSize: "0.875rem", margin: 0 }}>📍 Address: Sazon Compound, 3 Gen. Douglas MacArthur Hwy, Matina, Davao City, Philippines, 8000</p>
+            </div>
+          </div>
+
+          <hr style={{ border: "none", borderTop: "1px solid rgba(255,255,255,0.1)", marginBottom: "1.25rem" }} />
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
+            <p style={{ margin: 0, fontSize: "0.875rem" }}>© 2026 House of Grace Fellowship. All rights reserved.</p>
+            <div style={{ display: "flex", gap: "1rem" }}>
+              {["f", "📷", "▶", "🐦"].map((icon, i) => (
+                <a key={i} href="#" style={{ color: "rgba(255,255,255,0.7)", fontSize: "1rem", textDecoration: "none" }}>
+                  {["Facebook", "Instagram", "YouTube", "Twitter"][i]}
+                </a>
               ))}
             </div>
           </div>
-        </section>
-      )}
-
-      {/* Footer */}
-      <footer
-        style={{
-          background: "#0f172a",
-          color: "rgba(255,255,255,0.6)",
-          padding: "3rem 1.5rem",
-          textAlign: "center",
-        }}
-      >
-        <p
-          style={{
-            fontWeight: 700,
-            fontSize: "1.125rem",
-            color: "white",
-            marginBottom: "0.5rem",
-          }}
-        >
-          House of Grace Fellowship
-        </p>
-        <p style={{ fontSize: "0.875rem", marginBottom: "1.5rem" }}>
-          Davao City, Philippines
-        </p>
-        <div
-          style={{
-            display: "flex",
-            gap: "1.5rem",
-            justifyContent: "center",
-            flexWrap: "wrap",
-            marginBottom: "2rem",
-          }}
-        >
-          {[
-            ["/", "Home"],
-            ["/events", "Events"],
-            ["/directory", "Directory"],
-            ["/resources", "Resources"],
-            ["/marketplace", "Marketplace"],
-            ["/login", "Sign In"],
-          ].map(([href, label]) => (
-            <Link
-              key={href}
-              href={href}
-              style={{
-                color: "rgba(255,255,255,0.5)",
-                textDecoration: "none",
-                fontSize: "0.875rem",
-              }}
-            >
-              {label}
-            </Link>
-          ))}
         </div>
-        <p style={{ fontSize: "0.8125rem", borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: "1.5rem" }}>
-          © {new Date().getFullYear()} House of Grace Fellowship. Built with HGF Connect v2.
-        </p>
       </footer>
     </>
   );
 }
 
-function StatItem({ value, label }: { value: string; label: string }) {
+function QuickActionLink({ href, icon, label }: { href: string; icon: string; label: string }) {
   return (
-    <div style={{ textAlign: "center" }}>
-      <div style={{ fontSize: "2rem", fontWeight: 800, color: "#4eb1cb" }}>
-        {value}
-      </div>
-      <div style={{ fontSize: "0.875rem", color: "rgba(255,255,255,0.6)" }}>
-        {label}
-      </div>
+    <Link
+      href={href}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "0.5rem",
+        padding: "0.5rem 0.75rem",
+        border: "1px solid #4EB1CB",
+        color: "#4EB1CB",
+        borderRadius: "6px",
+        textDecoration: "none",
+        fontWeight: 500,
+        fontSize: "0.875rem",
+        transition: "all 0.15s",
+      }}
+    >
+      <span>{icon}</span>
+      {label}
+    </Link>
+  );
+}
+
+function StatMini({ value, label }: { value: string; label: string }) {
+  return (
+    <div>
+      <div style={{ fontSize: "1.375rem", fontWeight: 800, color: "#4EB1CB" }}>{value}</div>
+      <div style={{ fontSize: "0.75rem", color: "#6c757d" }}>{label}</div>
     </div>
   );
 }

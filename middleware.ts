@@ -36,10 +36,9 @@ export default auth((request) => {
     return NextResponse.next();
   }
 
-  // Protected user routes
+  // Protected user routes (requires login)
   if (
     pathname.startsWith("/profile") ||
-    pathname.startsWith("/marketplace") ||
     pathname.startsWith("/dashboard")
   ) {
     if (!isLoggedIn) {
