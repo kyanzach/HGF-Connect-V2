@@ -4,7 +4,7 @@ import { useState, FormEvent } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import type { Metadata } from "next";
+import { startAuthentication } from "@simplewebauthn/browser";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -12,6 +12,56 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [bioLoading, setBioLoading] = useState(false);
+
+  async function handleBiometric() {
+    if (!username.trim()) { setError("Enter your username first"); return; }
+    setBioLoading(true);
+    setError("");
+    try {
+      // Get auth options for this user
+      const optRes = await fetch("/api/auth/webauthn/login-options", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: username.trim() }),
+      });
+      if (!optRes.ok) {
+        const { error: e } = await optRes.json();
+        throw new Error(e ?? "Biometric login not available");
+      }
+      const { memberId, ...options } = await optRes.json();
+
+      // Trigger platform authenticator
+      const assertionResp = await startAuthentication(options);
+
+      // Verify on server
+      const verRes = await fetch("/api/auth/webauthn/login-verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ memberId, ...assertionResp }),
+      });
+      if (!verRes.ok) throw new Error("Biometric verification failed");
+
+      // Sign in via NextAuth biometric credentials
+      const result = await signIn("credentials", {
+        memberId: String(memberId),
+        biometricVerified: "true",
+        redirect: false,
+      });
+      if (result?.error) throw new Error("Sign-in failed after biometric");
+      router.refresh();
+      router.push("/");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Biometric login failed";
+      if (msg.includes("cancelled") || msg.includes("NotAllowed")) {
+        setError("Biometric cancelled. Try your password instead.");
+      } else {
+        setError(msg);
+      }
+    } finally {
+      setBioLoading(false);
+    }
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -182,6 +232,37 @@ export default function LoginPage() {
           </button>
         </form>
 
+        {/* Biometric Login */}
+        <div style={{ textAlign: "center", margin: "1rem 0" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", margin: "0 0 1rem" }}>
+            <div style={{ flex: 1, height: 1, background: "#e5e7eb" }} />
+            <span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>or</span>
+            <div style={{ flex: 1, height: 1, background: "#e5e7eb" }} />
+          </div>
+          <button
+            type="button"
+            onClick={handleBiometric}
+            disabled={bioLoading}
+            style={{
+              width: "100%",
+              padding: "0.75rem",
+              background: bioLoading ? "#f8fafc" : "#f1f5f9",
+              color: "#374151",
+              border: "1px solid #e2e8f0",
+              borderRadius: "8px",
+              fontSize: "0.9375rem",
+              fontWeight: 600,
+              cursor: bioLoading ? "not-allowed" : "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "0.5rem",
+            }}
+          >
+            <span style={{ fontSize: "1.25rem" }}>🔐</span>
+            {bioLoading ? "Authenticating..." : "Sign in with Face ID / Touch ID"}
+          </button>
+        </div>
         <div
           style={{
             marginTop: "1.5rem",

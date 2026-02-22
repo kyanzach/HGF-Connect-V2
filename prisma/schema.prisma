@@ -84,6 +84,7 @@ model Member {
   listingShares         ListingShare[]        @relation("ListingSharer")
 
   // Biometrics
+  webauthnChallenge     String?              @map("webauthn_challenge") @db.VarChar(255)
   webauthnCredentials   WebauthnCredential[]
 
   @@index([invitedBy], name: "idx_referred_by")
