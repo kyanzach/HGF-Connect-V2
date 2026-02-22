@@ -78,6 +78,10 @@ model Member {
   prayerResponses       PrayerResponse[]      @relation("PrayerResponder")
   journalEntries        JournalEntry[]        @relation("JournalAuthor")
 
+  // Groups
+  groupsCreated         Group[]               @relation("GroupCreator")
+  groupMemberships      GroupMember[]         @relation("GroupMemberships")
+
   // Biometrics
   webauthnCredentials   WebauthnCredential[]
 
@@ -696,3 +700,35 @@ model WebauthnCredential {
 
   @@map("webauthn_credentials")
 }
+
+model Group {
+  id          Int           @id @default(autoincrement())
+  name        String        @db.VarChar(100)
+  description String?       @db.Text
+  coverImage  String?       @map("cover_image") @db.VarChar(500)
+  category    String        @default("General") @db.VarChar(50)
+  isPrivate   Boolean       @default(false) @map("is_private")
+  createdById Int           @map("created_by_id")
+  createdBy   Member        @relation("GroupCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  members     GroupMember[]
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  @@index([createdById])
+  @@map("groups")
+}
+
+model GroupMember {
+  id       Int      @id @default(autoincrement())
+  groupId  Int      @map("group_id")
+  memberId Int      @map("member_id")
+  role     String   @default("member") @db.VarChar(20)
+  group    Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  member   Member   @relation("GroupMemberships", fields: [memberId], references: [id], onDelete: Cascade)
+  joinedAt DateTime @default(now()) @map("joined_at")
+
+  @@unique([groupId, memberId])
+  @@index([memberId])
+  @@map("group_members")
+}
+
