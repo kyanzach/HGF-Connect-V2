@@ -1,0 +1,94 @@
+{
+  "categories": [
+    {
+      "id": "services",
+      "label": "Worship Services",
+      "articles": [
+        {
+          "title": "Sunday Schedule",
+          "content": "House of Grace holds two Sunday services. Service 1: 9:00 AM. Service 2: 11:00 AM. Both are held at the main HGF venue. Worship begins 15 minutes before the service start time."
+        },
+        {
+          "title": "Midweek Prayer",
+          "content": "Wednesday evening prayer meeting at 7:00 PM. Open to all members and visitors."
+        }
+      ]
+    },
+    {
+      "id": "cell_groups",
+      "label": "Cell Groups",
+      "articles": [
+        {
+          "title": "What is a Cell Group?",
+          "content": "Cell groups are small gatherings of 8-15 members that meet weekly for Bible study, prayer, and fellowship. They are the backbone of the HGF community."
+        },
+        {
+          "title": "Joining a Cell Group",
+          "content": "New members are encouraged to join a cell group within their first month. Contact the church office or your assigned coordinator to find a group near you."
+        }
+      ]
+    },
+    {
+      "id": "ministries",
+      "label": "Church Ministries",
+      "articles": [
+        {
+          "title": "Available Ministries",
+          "content": "HGF has the following active ministries: Worship Team, Kids Ministry (KIDS Church), Youth Ministry, Media Ministry, Ushering Ministry, Prayer Ministry, Cell Group Ministry, and Outreach Ministry."
+        },
+        {
+          "title": "Joining a Ministry",
+          "content": "To join a ministry, attend the ministry orientation held monthly. Express your interest to the ministry leader or at the church office."
+        }
+      ]
+    },
+    {
+      "id": "events",
+      "label": "Events & Special Services",
+      "articles": [
+        {
+          "title": "Event Schedule",
+          "content": "HGF hosts regular events including Praise Nights, Prayer Summits, Leadership Training, and Community Outreach. Check the Events section in HGF Connect for the latest schedule."
+        },
+        {
+          "title": "RSVP for Events",
+          "content": "You can RSVP for events through the HGF Connect app. Some events require pre-registration due to limited space."
+        }
+      ]
+    },
+    {
+      "id": "membership",
+      "label": "Membership",
+      "articles": [
+        {
+          "title": "Membership Process",
+          "content": "To become an official HGF member: (1) Attend regularly for at least 1 month, (2) Complete the membership form at the office or via HGF Connect, (3) Attend the New Member Orientation, (4) Get connected to a cell group and ministry."
+        },
+        {
+          "title": "Baptism",
+          "content": "Water baptism by immersion is offered periodically. Contact the church office or your cell group leader to express your interest in being baptized."
+        }
+      ]
+    },
+    {
+      "id": "giving",
+      "label": "Tithes & Offerings",
+      "articles": [
+        {
+          "title": "How to Give",
+          "content": "Tithes and offerings can be given during Sunday services in the offering envelopes. Online giving options are available — contact the church office for bank details."
+        }
+      ]
+    },
+    {
+      "id": "contact",
+      "label": "Contact & Location",
+      "articles": [
+        {
+          "title": "Church Contact",
+          "content": "House of Grace Fellowship. You can reach us through the HGF Connect app, or visit us during Sunday services. For urgent matters, contact your cell group leader."
+        }
+      ]
+    }
+  ]
+}
