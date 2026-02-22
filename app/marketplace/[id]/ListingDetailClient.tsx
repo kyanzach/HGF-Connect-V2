@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 
 const PRIMARY = "#4EB1CB";
 
@@ -34,7 +33,10 @@ interface ListingData {
   viewCount: number;
   createdAt: string;
   photos: { photoPath: string }[];
-  seller: { firstName: string; lastName: string; profilePicture: string | null };
+  seller: { id: number; firstName: string; lastName: string; profilePicture: string | null };
+  isOwner: boolean;
+  isLoggedIn: boolean;
+  shareToken: string | null;
 }
 
 // ── Shared input style ─────────────────────────────────────────────────────────
@@ -78,40 +80,22 @@ function Modal({ children, onClose }: { children: React.ReactNode; onClose: () =
 
 // ── Revealed price card ────────────────────────────────────────────────────────
 function RevealedCard({
-  ogPrice,
-  discountedPrice,
-  sellerName,
-  loveGiftAmount,
-  actionType,
+  ogPrice, discountedPrice, sellerName, loveGiftAmount, actionType,
 }: {
-  ogPrice: number | null;
-  discountedPrice: number;
-  sellerName: string;
-  loveGiftAmount: number;
-  actionType: "reveal" | "contact";
+  ogPrice: number | null; discountedPrice: number; sellerName: string;
+  loveGiftAmount: number; actionType: "reveal" | "contact";
 }) {
   const saving = ogPrice ? ogPrice - discountedPrice : 0;
   const pct = ogPrice ? Math.round((saving / ogPrice) * 100) : 0;
-
   return (
     <div style={{ background: "#f0fdf4", border: "1.5px solid #86efac", borderRadius: "14px", padding: "1.25rem", marginTop: "1rem" }}>
       <p style={{ textAlign: "center", color: "#16a34a", fontWeight: 700, fontSize: "0.9rem", margin: "0 0 0.625rem" }}>
-        🎉 {actionType === "contact" ? "Your contact request was sent!" : "Discount revealed!"}
+        🎉 {actionType === "contact" ? "Contact request sent!" : "Discount revealed!"}
       </p>
       <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "0.75rem", flexWrap: "wrap", marginBottom: "0.5rem" }}>
-        {ogPrice && (
-          <span style={{ fontSize: "1.1rem", color: "#94a3b8", textDecoration: "line-through" }}>
-            ₱{ogPrice.toLocaleString()}
-          </span>
-        )}
-        <span style={{ fontSize: "1.75rem", fontWeight: 900, color: "#16a34a" }}>
-          ₱{discountedPrice.toLocaleString()}
-        </span>
-        {pct > 0 && (
-          <span style={{ background: "#16a34a", color: "white", fontSize: "0.75rem", fontWeight: 700, padding: "0.2rem 0.6rem", borderRadius: "999px" }}>
-            {pct}% OFF
-          </span>
-        )}
+        {ogPrice && <span style={{ fontSize: "1.1rem", color: "#94a3b8", textDecoration: "line-through" }}>₱{ogPrice.toLocaleString()}</span>}
+        <span style={{ fontSize: "1.75rem", fontWeight: 900, color: "#16a34a" }}>₱{discountedPrice.toLocaleString()}</span>
+        {pct > 0 && <span style={{ background: "#16a34a", color: "white", fontSize: "0.75rem", fontWeight: 700, padding: "0.2rem 0.6rem", borderRadius: "999px" }}>{pct}% OFF</span>}
       </div>
       <p style={{ textAlign: "center", fontSize: "0.8rem", color: "#4b5563", margin: "0.5rem 0" }}>
         Contact <strong>{sellerName}</strong> to complete your purchase.
@@ -128,28 +112,127 @@ function RevealedCard({
   );
 }
 
+// ── Share & Bless Panel ────────────────────────────────────────────────────────
+function SharePanel({ listingId, loveGiftAmount, title }: { listingId: number; loveGiftAmount: number; title: string }) {
+  const [shareLink, setShareLink] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  // Fetch existing share link on mount
+  useEffect(() => {
+    fetch(`/api/marketplace/listings/${listingId}/share`)
+      .then((r) => r.json())
+      .then((d) => { if (d.shareLink) setShareLink(d.shareLink); })
+      .catch(() => {});
+  }, [listingId]);
+
+  async function generateLink() {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/marketplace/listings/${listingId}/share`, { method: "POST" });
+      const data = await res.json();
+      if (data.shareLink) setShareLink(data.shareLink);
+    } catch {
+      // silent fail
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function copyLink() {
+    if (!shareLink) return;
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      // fallback
+      const input = document.createElement("input");
+      input.value = shareLink;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand("copy");
+      document.body.removeChild(input);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    }
+  }
+
+  async function shareNative() {
+    if (!shareLink) return;
+    if (navigator.share) {
+      navigator.share({ title, text: `Check out this listing on HGF Connect Marketplace!`, url: shareLink }).catch(() => {});
+    } else {
+      copyLink();
+    }
+  }
+
+  return (
+    <div style={{ background: "linear-gradient(135deg, #fff1f2, #ffe4e6)", borderRadius: "16px", padding: "1rem", marginBottom: "0.75rem", border: "1px solid #fecdd3" }}>
+      <h3 style={{ fontSize: "0.875rem", fontWeight: 800, color: "#be123c", margin: "0 0 0.25rem" }}>
+        ❤️ Share &amp; Bless — Love Gift: ₱{loveGiftAmount.toLocaleString()}
+      </h3>
+      <p style={{ fontSize: "0.8rem", color: "#9f1239", margin: "0 0 0.875rem", lineHeight: 1.6 }}>
+        Share your unique link! If your shared link leads to a confirmed sale, you&apos;ll earn{" "}
+        <strong>₱{loveGiftAmount.toLocaleString()}</strong> as a Love Gift. 🎁
+      </p>
+      {shareLink ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+          <div style={{ background: "white", border: "1px solid #fecdd3", borderRadius: "8px", padding: "0.5rem 0.75rem", fontSize: "0.72rem", color: "#9f1239", wordBreak: "break-all", fontFamily: "monospace" }}>
+            {shareLink}
+          </div>
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <button
+              onClick={copyLink}
+              style={{ flex: 1, background: "#ef4444", color: "white", border: "none", borderRadius: "999px", padding: "0.45rem", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+            >
+              {copied ? "✅ Copied!" : "📋 Copy Link"}
+            </button>
+            <button
+              onClick={shareNative}
+              style={{ flex: 1, background: "white", color: "#be123c", border: "1.5px solid #f87171", borderRadius: "999px", padding: "0.45rem", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+            >
+              📤 Share
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={generateLink}
+          disabled={loading}
+          style={{ background: "#ef4444", color: "white", border: "none", borderRadius: "999px", padding: "0.45rem 1.25rem", fontSize: "0.8rem", fontWeight: 700, cursor: loading ? "wait" : "pointer", fontFamily: "inherit" }}
+        >
+          {loading ? "Generating…" : "🔗 Get My Share Link"}
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function ListingDetailClient({ listing }: { listing: ListingData }) {
-  const searchParams = useSearchParams();
-  const shareToken = searchParams.get("ref") ?? undefined;
+  const shareToken = listing.shareToken ?? undefined;
+
+  // Log CTA impression track helper
+  const logEvent = useCallback((event: string) => {
+    fetch("/api/marketplace/impressions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ listingId: listing.id, shareCode: shareToken ?? null, event }),
+    }).catch(() => {});
+  }, [listing.id, shareToken]);
 
   // Modal state
   const [modal, setModal] = useState<"reveal" | "contact" | null>(null);
-
-  // Form state (shared between modals)
   const [name, setName] = useState("");
   const [mobile, setMobile] = useState("");
   const [email, setEmail] = useState("");
   const [consented, setConsented] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-
-  // Revealed state
   const [revealed, setRevealed] = useState<{
-    discountedPrice: number;
-    ogPrice: number | null;
-    sellerName: string;
-    actionType: "reveal" | "contact";
+    discountedPrice: number; ogPrice: number | null;
+    sellerName: string; actionType: "reveal" | "contact";
   } | null>(null);
 
   const sellerName = `${listing.seller.firstName} ${listing.seller.lastName}`;
@@ -158,6 +241,7 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
   function openModal(type: "reveal" | "contact") {
     setModal(type);
     setError("");
+    logEvent(type === "reveal" ? "reveal_click" : "contact_click");
   }
 
   function closeModal() {
@@ -215,33 +299,29 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
       {/* Photo */}
       <div style={{ background: "#f1f5f9", width: "100%", height: 260, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "5rem" }}>
         {listing.photos[0] ? (
-          <Image
-            src={`/uploads/marketplace/${listing.photos[0].photoPath}`}
-            alt={listing.title}
-            fill
-            style={{ objectFit: "cover" }}
-          />
+          <Image src={`/uploads/marketplace/${listing.photos[0].photoPath}`} alt={listing.title} fill style={{ objectFit: "cover" }} />
         ) : "📦"}
-        {/* Type badge */}
         <span style={{ position: "absolute", top: "0.75rem", left: "0.75rem", background: TYPE_COLORS[listing.listingType] ?? PRIMARY, color: "white", fontSize: "0.7rem", fontWeight: 700, padding: "0.25rem 0.6rem", borderRadius: "6px", textTransform: "uppercase" }}>
           {TYPE_LABELS[listing.listingType] ?? listing.listingType}
         </span>
+        {listing.loveGiftAmount > 0 && (
+          <span style={{ position: "absolute", top: "0.75rem", right: "0.75rem", background: "#ef4444", color: "white", fontSize: "0.7rem", fontWeight: 700, padding: "0.25rem 0.6rem", borderRadius: "6px" }}>
+            ❤️ Love Gift ₱{listing.loveGiftAmount.toLocaleString()}
+          </span>
+        )}
       </div>
 
       <div style={{ padding: "1rem" }}>
-        {/* Title + Price card */}
+        {/* Title + Price */}
         <div style={{ background: "white", borderRadius: "16px", padding: "1rem", marginBottom: "0.75rem", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
           <h1 style={{ fontSize: "1.125rem", fontWeight: 800, color: "#1e293b", margin: "0 0 0.5rem" }}>{listing.title}</h1>
 
-          {/* Price display */}
           {listing.ogPrice ? (
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem", flexWrap: "wrap" }}>
-              <span style={{ fontSize: "1.625rem", fontWeight: 900, color: PRIMARY }}>
-                ₱{listing.ogPrice.toLocaleString()}
-              </span>
+              <span style={{ fontSize: "1.625rem", fontWeight: 900, color: PRIMARY }}>₱{listing.ogPrice.toLocaleString()}</span>
               {listing.hasDiscount && (
                 <span style={{ background: "#f0f9ff", color: PRIMARY, fontSize: "0.75rem", fontWeight: 700, padding: "0.2rem 0.6rem", borderRadius: "999px", border: `1px solid ${PRIMARY}` }}>
-                  🔒 Discount available — reveal below
+                  🔒 Discount available
                 </span>
               )}
             </div>
@@ -251,32 +331,18 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
             </div>
           )}
 
-          {/* Already revealed? Show the price */}
           {revealed && (
             <RevealedCard
-              ogPrice={revealed.ogPrice}
-              discountedPrice={revealed.discountedPrice}
-              sellerName={revealed.sellerName}
-              loveGiftAmount={listing.loveGiftAmount}
+              ogPrice={revealed.ogPrice} discountedPrice={revealed.discountedPrice}
+              sellerName={revealed.sellerName} loveGiftAmount={listing.loveGiftAmount}
               actionType={revealed.actionType}
             />
           )}
 
-          {/* Tags */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "0.75rem" }}>
-            {listing.conditionType && (
-              <span style={{ background: "#eff6ff", color: "#1d4ed8", fontSize: "0.72rem", padding: "0.2rem 0.625rem", borderRadius: "999px", fontWeight: 600 }}>
-                {CONDITION_LABELS[listing.conditionType] ?? listing.conditionType}
-              </span>
-            )}
-            {listing.category && (
-              <span style={{ background: "#f5f3ff", color: "#7c3aed", fontSize: "0.72rem", padding: "0.2rem 0.625rem", borderRadius: "999px", fontWeight: 600 }}>
-                {listing.category}
-              </span>
-            )}
-            {listing.locationArea && (
-              <span style={{ fontSize: "0.72rem", color: "#94a3b8" }}>📍 {listing.locationArea}</span>
-            )}
+            {listing.conditionType && <span style={{ background: "#eff6ff", color: "#1d4ed8", fontSize: "0.72rem", padding: "0.2rem 0.625rem", borderRadius: "999px", fontWeight: 600 }}>{CONDITION_LABELS[listing.conditionType] ?? listing.conditionType}</span>}
+            {listing.category && <span style={{ background: "#f5f3ff", color: "#7c3aed", fontSize: "0.72rem", padding: "0.2rem 0.625rem", borderRadius: "999px", fontWeight: 600 }}>{listing.category}</span>}
+            {listing.locationArea && <span style={{ fontSize: "0.72rem", color: "#94a3b8" }}>📍 {listing.locationArea}</span>}
             <span style={{ fontSize: "0.72rem", color: "#94a3b8" }}>👁 {listing.viewCount} views</span>
           </div>
         </div>
@@ -294,101 +360,77 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
           <div style={{ background: "white", borderRadius: "16px", padding: "1.25rem", marginBottom: "0.75rem", boxShadow: "0 2px 12px rgba(78,177,203,0.12)", border: "1.5px solid #bae6fd" }}>
             <p style={{ fontSize: "0.8rem", color: "#0369a1", textAlign: "center", margin: "0 0 1rem", lineHeight: 1.5 }}>
               {listing.hasDiscount
-                ? "🔒 Discounted price is available for this listing. Fill a short form to reveal it — this helps track referrals so sharers receive their Love Gifts."
-                : "Interested in this listing? Contact the seller to get more info."}
+                ? "🔒 A discounted price is available. Fill a short form to reveal it — this helps track referrals so sharers receive their Love Gifts."
+                : "Interested? Contact the seller to get more information about this listing."}
             </p>
-
             {listing.hasDiscount && (
               <button
                 onClick={() => openModal("reveal")}
-                style={{
-                  display: "block", width: "100%",
-                  background: PRIMARY, color: "white", border: "none",
-                  borderRadius: "999px", padding: "0.875rem",
-                  fontSize: "1rem", fontWeight: 700, cursor: "pointer",
-                  marginBottom: "0.625rem", fontFamily: "inherit",
-                }}
+                style={{ display: "block", width: "100%", background: PRIMARY, color: "white", border: "none", borderRadius: "999px", padding: "0.875rem", fontSize: "1rem", fontWeight: 700, cursor: "pointer", marginBottom: "0.625rem", fontFamily: "inherit" }}
               >
                 🔓 Reveal Discount
               </button>
             )}
-
             <button
               onClick={() => openModal("contact")}
-              style={{
-                display: "block", width: "100%",
-                background: "white", color: PRIMARY,
-                border: `2px solid ${PRIMARY}`,
-                borderRadius: "999px", padding: "0.75rem",
-                fontSize: "0.95rem", fontWeight: 700, cursor: "pointer",
-                fontFamily: "inherit",
-              }}
+              style={{ display: "block", width: "100%", background: "white", color: PRIMARY, border: `2px solid ${PRIMARY}`, borderRadius: "999px", padding: "0.75rem", fontSize: "0.95rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
             >
               💬 Contact the Seller
             </button>
-
             <p style={{ fontSize: "0.7rem", color: "#94a3b8", textAlign: "center", margin: "0.75rem 0 0", lineHeight: 1.5 }}>
-              We&apos;ll share your contact only with the seller to help complete this purchase. By submitting you agree to be contacted regarding this listing.
+              We&apos;ll share your contact only with the seller to help complete this purchase.
             </p>
           </div>
         )}
 
-        {/* Love Gift */}
-        {listing.loveGiftAmount > 0 && (
+        {/* ── Share & Bless Panel — logged in, not owner ────────────────────────── */}
+        {listing.loveGiftAmount > 0 && listing.isLoggedIn && !listing.isOwner && (
+          <SharePanel listingId={listing.id} loveGiftAmount={listing.loveGiftAmount} title={listing.title} />
+        )}
+
+        {/* Love Gift info — for guests or when loveGift set but user is guest */}
+        {listing.loveGiftAmount > 0 && !listing.isLoggedIn && (
           <div style={{ background: "linear-gradient(135deg, #fff1f2, #ffe4e6)", borderRadius: "16px", padding: "1rem", marginBottom: "0.75rem", border: "1px solid #fecdd3" }}>
             <h3 style={{ fontSize: "0.875rem", fontWeight: 800, color: "#be123c", margin: "0 0 0.375rem" }}>
               ❤️ Share &amp; Bless — Love Gift: ₱{listing.loveGiftAmount.toLocaleString()}
             </h3>
             <p style={{ fontSize: "0.8rem", color: "#9f1239", margin: "0 0 0.75rem", lineHeight: 1.6 }}>
-              Share this listing! If your shared link leads to a confirmed sale, you&apos;ll earn a Love Gift of{" "}
-              <strong>₱{listing.loveGiftAmount.toLocaleString()}</strong> as a thank-you. 🎁
+              HGF members can share this listing and earn ₱{listing.loveGiftAmount.toLocaleString()} Love Gift per confirmed sale.
             </p>
-            <button
-              onClick={() => {
-                if (navigator.share) {
-                  navigator.share({ title: listing.title, url: window.location.href });
-                } else {
-                  navigator.clipboard.writeText(window.location.href);
-                  alert("Link copied! Share it with someone who might be interested.");
-                }
-              }}
-              style={{
-                background: "#ef4444", color: "white", border: "none",
-                borderRadius: "999px", padding: "0.45rem 1.25rem",
-                fontSize: "0.8rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-              }}
-            >
-              📤 Share &amp; Earn
-            </button>
+            <Link href="/login" style={{ background: "#ef4444", color: "white", borderRadius: "999px", padding: "0.45rem 1.25rem", fontSize: "0.8rem", fontWeight: 700, textDecoration: "none", display: "inline-block" }}>
+              Login to Share &amp; Earn
+            </Link>
           </div>
         )}
 
-        {/* Seller card */}
+        {/* Seller */}
         <div style={{ background: "white", borderRadius: "16px", padding: "1rem", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", display: "flex", alignItems: "center", gap: "0.875rem" }}>
           <div style={{ width: 46, height: 46, borderRadius: "50%", background: PRIMARY, display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 800, fontSize: "1rem", flexShrink: 0 }}>
             {sellerInitials}
           </div>
           <div>
             <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "#1e293b" }}>{sellerName}</div>
-            <div style={{ fontSize: "0.75rem", color: "#94a3b8" }}>HGF Member · Seller</div>
+            <div style={{ fontSize: "0.75rem", color: "#94a3b8" }}>HGF Member · {listing.viewCount} views</div>
           </div>
+          {listing.isOwner && (
+            <Link href={`/marketplace/my-listings`} style={{ marginLeft: "auto", background: "#f1f5f9", color: "#64748b", borderRadius: "999px", padding: "0.35rem 0.875rem", fontSize: "0.75rem", fontWeight: 600, textDecoration: "none" }}>
+              My Listings →
+            </Link>
+          )}
         </div>
       </div>
 
       {/* ── REVEAL DISCOUNT MODAL (v1.1 §46–56) ──────────────────────────────── */}
       {modal === "reveal" && (
         <Modal onClose={closeModal}>
-          <h2 style={{ fontSize: "1.1rem", fontWeight: 800, color: "#1e293b", margin: "0 0 0.375rem" }}>
-            🔓 See discounted price
-          </h2>
+          <h2 style={{ fontSize: "1.1rem", fontWeight: 800, color: "#1e293b", margin: "0 0 0.375rem" }}>🔓 See discounted price</h2>
           <p style={{ fontSize: "0.85rem", color: "#64748b", margin: "0 0 1.25rem", lineHeight: 1.6 }}>
             Enter your full name to view the discounted price and receive seller contact. This helps us track referrals so we can thank the sharer with a Love Gift.
           </p>
-
           <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
             <div>
               <label style={{ fontSize: "0.8rem", fontWeight: 700, color: "#374151", display: "block", marginBottom: "0.375rem" }}>Full Name *</label>
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your full name" style={inputStyle} />
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your full name" style={inputStyle} autoFocus />
             </div>
             <div>
               <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "#64748b", display: "block", marginBottom: "0.375rem" }}>Email (optional)</label>
@@ -402,24 +444,15 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
               <input type="checkbox" checked={consented} onChange={(e) => setConsented(e.target.checked)} style={{ marginTop: "3px", flexShrink: 0 }} />
               <span style={{ fontSize: "0.8rem", color: "#64748b", lineHeight: 1.5 }}>I agree to be contacted by the seller regarding this listing (recommended)</span>
             </label>
-
             {error && <p style={{ color: "#ef4444", fontSize: "0.8rem", margin: 0 }}>{error}</p>}
-
             <button
-              onClick={handleSubmit}
-              disabled={submitting || !name.trim()}
-              style={{
-                padding: "0.875rem", background: submitting || !name.trim() ? "#94a3b8" : PRIMARY,
-                color: "white", border: "none", borderRadius: "999px",
-                fontSize: "1rem", fontWeight: 700,
-                cursor: submitting || !name.trim() ? "not-allowed" : "pointer",
-                fontFamily: "inherit",
-              }}
+              onClick={handleSubmit} disabled={submitting || !name.trim()}
+              style={{ padding: "0.875rem", background: (submitting || !name.trim()) ? "#94a3b8" : PRIMARY, color: "white", border: "none", borderRadius: "999px", fontSize: "1rem", fontWeight: 700, cursor: (submitting || !name.trim()) ? "not-allowed" : "pointer", fontFamily: "inherit" }}
             >
               {submitting ? "Checking…" : "🔓 Reveal Discount"}
             </button>
             <p style={{ fontSize: "0.7rem", color: "#94a3b8", textAlign: "center", lineHeight: 1.5, margin: 0 }}>
-              We&apos;ll share your contact only with the seller to help complete this purchase. See our privacy policy.
+              We&apos;ll share your contact only with the seller. See our privacy policy.
             </p>
           </div>
         </Modal>
@@ -428,18 +461,15 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
       {/* ── CONTACT THE SELLER MODAL (v1.1 §58–69) ───────────────────────────── */}
       {modal === "contact" && (
         <Modal onClose={closeModal}>
-          <h2 style={{ fontSize: "1.1rem", fontWeight: 800, color: "#1e293b", margin: "0 0 0.375rem" }}>
-            💬 Contact the Seller
-          </h2>
+          <h2 style={{ fontSize: "1.1rem", fontWeight: 800, color: "#1e293b", margin: "0 0 0.375rem" }}>💬 Contact the Seller</h2>
           <p style={{ fontSize: "0.85rem", color: "#64748b", margin: "0 0 1.25rem", lineHeight: 1.6 }}>
             Provide your full name and mobile number so the seller can follow up and help you with this offer.
             {listing.hasDiscount && " We'll also reveal the discounted price after submission."}
           </p>
-
           <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
             <div>
               <label style={{ fontSize: "0.8rem", fontWeight: 700, color: "#374151", display: "block", marginBottom: "0.375rem" }}>Full Name *</label>
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your full name" style={inputStyle} />
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your full name" style={inputStyle} autoFocus />
             </div>
             <div>
               <label style={{ fontSize: "0.8rem", fontWeight: 700, color: "#374151", display: "block", marginBottom: "0.375rem" }}>Mobile Number *</label>
@@ -453,25 +483,16 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
               <input type="checkbox" checked={consented} onChange={(e) => setConsented(e.target.checked)} style={{ marginTop: "3px", flexShrink: 0 }} />
               <span style={{ fontSize: "0.8rem", color: "#374151", fontWeight: 600, lineHeight: 1.5 }}>I agree to be contacted by the seller * (required)</span>
             </label>
-
             {error && <p style={{ color: "#ef4444", fontSize: "0.8rem", margin: 0 }}>{error}</p>}
-
             <button
               onClick={handleSubmit}
               disabled={submitting || !name.trim() || !mobile.trim() || !consented}
-              style={{
-                padding: "0.875rem",
-                background: (submitting || !name.trim() || !mobile.trim() || !consented) ? "#94a3b8" : PRIMARY,
-                color: "white", border: "none", borderRadius: "999px",
-                fontSize: "1rem", fontWeight: 700,
-                cursor: (submitting || !name.trim() || !mobile.trim() || !consented) ? "not-allowed" : "pointer",
-                fontFamily: "inherit",
-              }}
+              style={{ padding: "0.875rem", background: (submitting || !name.trim() || !mobile.trim() || !consented) ? "#94a3b8" : PRIMARY, color: "white", border: "none", borderRadius: "999px", fontSize: "1rem", fontWeight: 700, cursor: (submitting || !name.trim() || !mobile.trim() || !consented) ? "not-allowed" : "pointer", fontFamily: "inherit" }}
             >
               {submitting ? "Sending…" : "📤 Send Contact Request"}
             </button>
             <p style={{ fontSize: "0.7rem", color: "#94a3b8", textAlign: "center", lineHeight: 1.5, margin: 0 }}>
-              We&apos;ll share your contact only with the seller to help complete this purchase. By submitting you agree to be contacted regarding this listing.
+              We&apos;ll share your contact only with the seller to help complete this purchase.
             </p>
           </div>
         </Modal>

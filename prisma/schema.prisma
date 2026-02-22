@@ -357,12 +357,13 @@ model MarketplaceListing {
   createdAt       DateTime               @default(now()) @map("created_at")
   updatedAt       DateTime               @updatedAt @map("updated_at")
 
-  seller    Member                   @relation("ListingSeller", fields: [memberId], references: [id], onDelete: Cascade)
-  photos    MarketplaceListingPhoto[]
-  messages  MarketplaceMessage[]
-  reports   MarketplaceReport[]
-  shares    ListingShare[]
-  prospects MarketplaceProspect[]
+  seller      Member                   @relation("ListingSeller", fields: [memberId], references: [id], onDelete: Cascade)
+  photos      MarketplaceListingPhoto[]
+  messages    MarketplaceMessage[]
+  reports     MarketplaceReport[]
+  shares      ListingShare[]
+  prospects   MarketplaceProspect[]
+  impressions MarketplaceImpression[]
 
   @@index([memberId], name: "idx_member_id")
   @@index([status], name: "idx_status")
@@ -830,4 +831,26 @@ enum MarketplaceProspectStatus {
   contacted
   converted
   rejected
+}
+
+// ── Marketplace Impressions (Phase 2 — v1.1 §77) ─────────────────────────────
+model MarketplaceImpression {
+  id         Int      @id @default(autoincrement())
+  listingId  Int      @map("listing_id")
+  shareCode  String?  @map("share_code") @db.VarChar(50)
+  event      MarketplaceImpressionEvent
+  ipHash     String?  @map("ip_hash") @db.VarChar(16)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  listing MarketplaceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId], name: "idx_mi_listing")
+  @@index([shareCode], name: "idx_mi_share_code")
+  @@map("marketplace_impressions")
+}
+
+enum MarketplaceImpressionEvent {
+  impression
+  reveal_click
+  contact_click
 }
