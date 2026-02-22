@@ -1,0 +1,529 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Core Models
+// ─────────────────────────────────────────────────────────────────
+
+model Member {
+  id                    Int       @id @default(autoincrement())
+  firstName             String    @map("first_name") @db.VarChar(50)
+  lastName              String    @map("last_name") @db.VarChar(50)
+  email                 String?   @unique @db.VarChar(100)
+  profilePicture        String?   @map("profile_picture") @db.VarChar(255)
+  coverPhoto            String?   @map("cover_photo") @db.VarChar(255)
+  phone                 String?   @db.VarChar(20)
+  address               String?   @db.Text
+  birthdate             DateTime? @db.Date
+  joinDate              DateTime? @map("join_date") @db.Date
+  baptismDate           DateTime? @map("baptism_date") @db.Date
+  familyMembers         String?   @map("family_members") @db.Text
+  ministryInvolvement   String?   @map("ministry_involvement") @db.Text
+  favoriteVerse         String?   @map("favorite_verse") @db.Text
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+  status                MemberStatus @default(pending)
+  invitedBy             String?   @map("invited_by") @db.VarChar(255)
+  ageGroup              AgeGroup? @map("age_group")
+  type                  MemberType @default(FamilyMember) @map("type")
+  username              String?   @unique @db.VarChar(50)
+  password              String?   @db.VarChar(255)
+  role                  Role      @default(user)
+  lastLogin             DateTime? @map("last_login")
+  showEmail             Boolean   @default(true) @map("show_email")
+  showPhone             Boolean   @default(true) @map("show_phone")
+  showAddress           Boolean   @default(true) @map("show_address")
+  coverPhotoPositionX   Decimal   @default(50.00) @map("cover_photo_position_x") @db.Decimal(5, 2)
+  coverPhotoPositionY   Decimal   @default(50.00) @map("cover_photo_position_y") @db.Decimal(5, 2)
+  statusChangedAt       DateTime? @map("status_changed_at")
+  sms5dayReminder       Boolean   @default(true) @map("sms_5day_reminder")
+  sms3dayReminder       Boolean   @default(true) @map("sms_3day_reminder")
+  sms1dayReminder       Boolean   @default(true) @map("sms_1day_reminder")
+  smsSameDayReminder    Boolean   @default(true) @map("sms_same_day_reminder")
+
+  // Relations
+  eventsCreated         Event[]               @relation("EventCreatedBy")
+  attendanceRecorded    AttendanceRecord[]    @relation("RecordedBy")
+  attendance            AttendanceRecord[]    @relation("MemberAttendance")
+  ministries            MemberMinistry[]      @relation("MemberMinistryMember")
+  ministriesApproved    MemberMinistry[]      @relation("MemberMinistryApprovedBy")
+  statusHistory         MemberStatusHistory[] @relation("MemberStatusHistory")
+  statusChangedBy       MemberStatusHistory[] @relation("StatusChangedBy")
+  smsLogs               SmsLog[]
+  appLogs               AppLog[]
+  marketplaceListings   MarketplaceListing[]  @relation("ListingSeller")
+  marketplaceMessagesSent     MarketplaceMessage[] @relation("MessageSender")
+  marketplaceMessagesReceived MarketplaceMessage[] @relation("MessageReceiver")
+  marketplaceReports    MarketplaceReport[]   @relation("ReportedBy")
+  marketplaceReviewedBy MarketplaceReport[]   @relation("ReviewedBy")
+
+  @@index([invitedBy], name: "idx_referred_by")
+  @@index([ageGroup], name: "idx_age_group")
+  @@index([type], name: "idx_type")
+  @@index([username], name: "idx_username")
+  @@map("members")
+}
+
+model Event {
+  id          Int        @id @default(autoincrement())
+  title       String     @db.VarChar(100)
+  description String?    @db.Text
+  eventDate   DateTime   @map("event_date") @db.Date
+  startTime   DateTime   @map("start_time") @db.Time
+  endTime     DateTime?  @map("end_time") @db.Time
+  location    String?    @db.VarChar(255)
+  eventType   EventType  @map("event_type")
+  createdBy   Int        @map("created_by")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  status      EventStatus @default(scheduled)
+
+  creator         Member             @relation("EventCreatedBy", fields: [createdBy], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  attendance      AttendanceRecord[]
+  smsReminders    SmsReminder[]
+
+  @@index([eventDate], name: "idx_event_date")
+  @@index([eventType], name: "idx_event_type")
+  @@index([createdBy], name: "idx_created_by")
+  @@index([status], name: "idx_status")
+  @@map("events")
+}
+
+model AttendanceRecord {
+  id              Int       @id @default(autoincrement())
+  memberId        Int?      @map("member_id")
+  eventId         Int?      @map("event_id")
+  attendanceDate  DateTime? @map("attendance_date") @db.Date
+  attendanceTime  DateTime? @map("attendance_time") @db.Time
+  recordedById    Int?      @map("recorded_by")
+  isFirstVisit    Boolean   @default(false) @map("is_first_visit")
+  notes           String?   @db.Text
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  member      Member? @relation("MemberAttendance", fields: [memberId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  event       Event?  @relation(fields: [eventId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  recordedBy  Member? @relation("RecordedBy", fields: [recordedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([memberId], name: "idx_member_id")
+  @@index([eventId], name: "idx_event_id")
+  @@index([attendanceDate], name: "idx_attendance_date")
+  @@index([recordedById], name: "idx_recorded_by")
+  @@map("attendance_records")
+}
+
+model Ministry {
+  id          Int           @id @default(autoincrement())
+  name        String        @db.VarChar(100)
+  description String?       @db.Text
+  status      MinistryStatus @default(active)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  members     MemberMinistry[]
+
+  @@index([status], name: "idx_ministry_status")
+  @@map("ministries")
+}
+
+model MemberMinistry {
+  id          Int                    @id @default(autoincrement())
+  memberId    Int                    @map("member_id")
+  ministryId  Int                    @map("ministry_id")
+  role        String?                @db.VarChar(50)
+  joinedDate  DateTime?              @map("joined_date") @db.Date
+  notes       String?                @db.Text
+  status      MemberMinistryStatus   @default(pending)
+  createdAt   DateTime               @default(now()) @map("created_at")
+  requestedAt DateTime?              @map("requested_at")
+  approvedById Int?                  @map("approved_by")
+  approvedAt  DateTime?              @map("approved_at")
+  updatedAt   DateTime               @updatedAt @map("updated_at")
+
+  member      Member   @relation("MemberMinistryMember", fields: [memberId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  ministry    Ministry @relation(fields: [ministryId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  approvedBy  Member?  @relation("MemberMinistryApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([memberId], name: "idx_member_id")
+  @@index([ministryId], name: "idx_ministry_id")
+  @@index([status], name: "idx_status")
+  @@map("member_ministries")
+}
+
+
+
+model MemberStatusHistory {
+  id          Int           @id @default(autoincrement())
+  memberId    Int           @map("member_id")
+  oldStatus   MemberStatus? @map("old_status")
+  newStatus   MemberStatus? @map("new_status")
+  changedById Int?          @map("changed_by")
+  reason      String?       @db.Text
+  changedAt   DateTime      @default(now()) @map("changed_at")
+
+  member      Member  @relation("MemberStatusHistory", fields: [memberId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  changedBy   Member? @relation("StatusChangedBy", fields: [changedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([memberId], name: "idx_member_id")
+  @@index([changedById], name: "idx_changed_by")
+  @@map("member_status_history")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// SMS Models
+// ─────────────────────────────────────────────────────────────────
+
+model SmsReminder {
+  id            Int                 @id @default(autoincrement())
+  eventId       Int                 @map("event_id")
+  reminderType  SmsReminderType     @map("reminder_type")
+  scheduledTime DateTime            @map("scheduled_time") @db.DateTime
+  message       String              @db.Text
+  status        SmsReminderStatus   @default(pending)
+  batchStatus   SmsBatchStatus?     @default(pending) @map("batch_status")
+  batchGroup    String?             @map("batch_group") @db.VarChar(36)
+  retryCount    Int                 @default(0) @map("retry_count")
+  lastRetryAt   DateTime?           @map("last_retry_at")
+  priority      SmsPriority?        @default(normal)
+  createdAt     DateTime            @default(now()) @map("created_at")
+  sentAt        DateTime?           @map("sent_at")
+
+  event   Event    @relation(fields: [eventId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  logs    SmsLog[]
+
+  @@index([eventId], name: "idx_event_id")
+  @@index([scheduledTime], name: "idx_scheduled_time")
+  @@index([status], name: "idx_status")
+  @@map("sms_reminders")
+}
+
+model SmsLog {
+  id            Int       @id @default(autoincrement())
+  memberId      Int       @map("member_id")
+  reminderId    Int?      @map("reminder_id")
+  phoneNumber   String    @map("phone_number") @db.VarChar(20)
+  message       String    @db.Text
+  status        SmsLogStatus
+  errorMessage  String?   @map("error_message") @db.Text
+  sentAt        DateTime  @default(now()) @map("sent_at")
+  responseData  String?   @map("response_data") @db.Text
+  retryCount    Int       @default(0) @map("retry_count")
+
+  member    Member      @relation(fields: [memberId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  reminder  SmsReminder? @relation(fields: [reminderId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([memberId], name: "idx_member_id")
+  @@index([reminderId], name: "idx_reminder_id")
+  @@index([sentAt], name: "idx_sent_at")
+  @@map("sms_logs")
+}
+
+model SmsBatchStat {
+  id                      Int      @id @default(autoincrement())
+  date                    DateTime @unique @db.Date
+  totalSent               Int      @default(0) @map("total_sent")
+  totalFailed             Int      @default(0) @map("total_failed")
+  totalRetries            Int      @default(0) @map("total_retries")
+  totalProcessingTime     Decimal  @default(0.00) @map("total_processing_time") @db.Decimal(10, 2)
+  batchesProcessed        Int      @default(0) @map("batches_processed")
+  avgProcessingTime       Decimal? @map("avg_processing_time") @db.Decimal(10, 2)
+  averageBatchSize        Decimal  @default(0.00) @map("average_batch_size") @db.Decimal(5, 2)
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  @@map("sms_batch_stats")
+}
+
+model CustomSmsBatch {
+  id          Int                      @id @default(autoincrement())
+  source      String                   @db.VarChar(50)
+  status      CustomSmsBatchStatus     @default(pending)
+  priority    SmsPriority              @default(normal)
+  createdById Int?                     @map("created_by")
+  createdAt   DateTime                 @default(now()) @map("created_at")
+  updatedAt   DateTime                 @updatedAt @map("updated_at")
+
+  recipients  CustomSmsBatchRecipient[]
+
+  @@map("custom_sms_batches")
+}
+
+model CustomSmsBatchRecipient {
+  id                  Int                           @id @default(autoincrement())
+  batchId             Int                           @map("batch_id")
+  memberId            Int?                          @map("member_id")
+  phoneNumber         String                        @map("phone_number") @db.VarChar(20)
+  personalizedMessage String                        @map("personalized_message") @db.Text
+  sendStatus          CustomSmsBatchRecipientStatus @default(pending) @map("send_status")
+  sentAt              DateTime?                     @map("sent_at")
+  errorMessage        String?                       @map("error_message") @db.Text
+  retryCount          Int                           @default(0) @map("retry_count")
+  createdAt           DateTime                      @default(now()) @map("created_at")
+
+  batch CustomSmsBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@index([batchId], name: "idx_batch_id")
+  @@index([sendStatus], name: "idx_send_status")
+  @@map("custom_sms_batch_recipients")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Audit Log
+// ─────────────────────────────────────────────────────────────────
+
+model AppLog {
+  id                Int      @id @default(autoincrement())
+  appSection        String   @map("app_section") @db.VarChar(50)
+  pageTitle         String   @map("page_title") @db.VarChar(100)
+  actionType        String   @map("action_type") @db.VarChar(50)
+  description       String   @db.Text
+  targetType        String?  @map("target_type") @db.VarChar(50)
+  targetId          Int?     @map("target_id")
+  targetName        String?  @map("target_name") @db.VarChar(255)
+  changedFields     Json?    @map("changed_fields")
+  performedById     Int      @map("performed_by_id")
+  performedByName   String   @map("performed_by_name") @db.VarChar(255)
+  performedByRole   String   @map("performed_by_role") @db.VarChar(50)
+  ipAddress         String?  @map("ip_address") @db.VarChar(45)
+  userAgent         String?  @map("user_agent") @db.Text
+  sessionId         String?  @map("session_id") @db.VarChar(255)
+  createdAt         DateTime @default(now()) @map("created_at")
+  additionalData    Json?    @map("additional_data")
+
+  performedBy Member @relation(fields: [performedById], references: [id])
+
+  @@index([appSection], name: "idx_app_logs_app_section")
+  @@index([actionType], name: "idx_app_logs_action_type")
+  @@index([performedById], name: "idx_app_logs_performed_by")
+  @@index([createdAt], name: "idx_app_logs_created_at")
+  @@map("app_logs")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Marketplace
+// ─────────────────────────────────────────────────────────────────
+
+model MarketplaceListing {
+  id              Int                    @id @default(autoincrement())
+  memberId        Int                    @map("member_id")
+  title           String                 @db.VarChar(200)
+  description     String?                @db.Text
+  listingType     MarketplaceListingType @map("listing_type")
+  category        String?                @db.VarChar(100)
+  price           Decimal?               @db.Decimal(10, 2)
+  priceLabel      String?                @map("price_label") @db.VarChar(50)
+  conditionType   MarketplaceCondition?  @map("condition_type")
+  locationArea    String?                @map("location_area") @db.VarChar(200)
+  status          MarketplaceListingStatus @default(active)
+  isOfficialStore Boolean                @default(false) @map("is_official_store")
+  viewCount       Int                    @default(0) @map("view_count")
+  expiresAt       DateTime?              @map("expires_at") @db.Date
+  soldAt          DateTime?              @map("sold_at")
+  createdAt       DateTime               @default(now()) @map("created_at")
+  updatedAt       DateTime               @updatedAt @map("updated_at")
+
+  seller    Member                   @relation("ListingSeller", fields: [memberId], references: [id], onDelete: Cascade)
+  photos    MarketplaceListingPhoto[]
+  messages  MarketplaceMessage[]
+  reports   MarketplaceReport[]
+
+  @@index([memberId], name: "idx_member_id")
+  @@index([status], name: "idx_status")
+  @@index([listingType], name: "idx_listing_type")
+  @@index([createdAt], name: "idx_created_at")
+  @@map("marketplace_listings")
+}
+
+model MarketplaceListingPhoto {
+  id          Int      @id @default(autoincrement())
+  listingId   Int      @map("listing_id")
+  photoPath   String   @map("photo_path") @db.VarChar(255)
+  sortOrder   Int      @default(0) @map("sort_order") @db.TinyInt
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  listing MarketplaceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId], name: "idx_listing_id")
+  @@map("marketplace_listing_photos")
+}
+
+model MarketplaceMessage {
+  id          Int      @id @default(autoincrement())
+  listingId   Int      @map("listing_id")
+  senderId    Int      @map("sender_id")
+  receiverId  Int      @map("receiver_id")
+  message     String   @db.Text
+  isRead      Boolean  @default(false) @map("is_read")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  listing  MarketplaceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  sender   Member             @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver Member             @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@index([listingId], name: "idx_listing_id")
+  @@map("marketplace_messages")
+}
+
+model MarketplaceReport {
+  id          Int                       @id @default(autoincrement())
+  listingId   Int                       @map("listing_id")
+  reportedById Int                      @map("reported_by")
+  reason      MarketplaceReportReason
+  details     String?                   @db.Text
+  status      MarketplaceReportStatus   @default(pending)
+  reviewedById Int?                     @map("reviewed_by")
+  createdAt   DateTime                  @default(now()) @map("created_at")
+
+  listing    MarketplaceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  reportedBy Member             @relation("ReportedBy", fields: [reportedById], references: [id], onDelete: Cascade)
+  reviewedBy Member?            @relation("ReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([listingId], name: "idx_listing_id")
+  @@map("marketplace_reports")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────────────────────────
+
+enum MemberStatus {
+  active
+  inactive
+  pending
+}
+
+enum AgeGroup {
+  Adult
+  Youth
+  Kids
+}
+
+enum MemberType {
+  FamilyMember  @map("Family Member")
+  GrowingFriend @map("Growing Friend")
+  NewFriend     @map("New Friend")
+}
+
+enum Role {
+  user
+  admin
+  moderator
+  usher
+}
+
+enum EventType {
+  sunday_service
+  prayer_meeting
+  bible_study
+  special_event
+  grace_night
+  other
+}
+
+enum EventStatus {
+  scheduled
+  cancelled
+  completed
+}
+
+enum MinistryStatus {
+  active
+  inactive
+}
+
+enum MemberMinistryStatus {
+  active
+  inactive
+  pending
+}
+
+enum SmsReminderType {
+  fiveday  @map("5day")
+  threeday @map("3day")
+  oneday   @map("1day")
+  same_day
+}
+
+enum SmsReminderStatus {
+  pending
+  sent
+  failed
+}
+
+enum SmsBatchStatus {
+  pending
+  processing
+  completed
+  failed
+}
+
+enum SmsPriority {
+  low
+  normal
+  high
+}
+
+enum SmsLogStatus {
+  Sent
+  Failed
+}
+
+enum CustomSmsBatchStatus {
+  pending
+  processing
+  completed
+  failed
+  cancelled
+}
+
+enum CustomSmsBatchRecipientStatus {
+  pending
+  sent
+  failed
+}
+
+enum MarketplaceListingType {
+  sale
+  trade
+  free
+  service
+  borrow
+  official_store
+}
+
+enum MarketplaceCondition {
+  new      @map("new")
+  like_new
+  good
+  fair
+}
+
+enum MarketplaceListingStatus {
+  active
+  sold
+  reserved
+  expired
+  removed
+}
+
+enum MarketplaceReportReason {
+  inappropriate
+  spam
+  scam
+  wrong_category
+  other
+}
+
+enum MarketplaceReportStatus {
+  pending
+  reviewed
+  dismissed
+}
