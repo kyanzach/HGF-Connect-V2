@@ -18,6 +18,11 @@ export const metadata: Metadata = {
   description:
     "House of Grace Fellowship — Church management portal for members, events, and community.",
   keywords: ["church", "HGF", "House of Grace Fellowship", "Davao", "Philippines"],
+  icons: {
+    icon: "/HGF-icon-v1.0.png",
+    apple: "/HGF-icon-v1.0.png",
+    shortcut: "/HGF-icon-v1.0.png",
+  },
   openGraph: {
     type: "website",
     locale: "en_PH",

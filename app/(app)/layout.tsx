@@ -24,27 +24,28 @@ export default async function AppLayout({
         display: "flex",
         flexDirection: "column",
         background: "#f8fafc",
-        maxWidth: "500px",
-        margin: "0 auto",
-        position: "relative",
+        // NO maxWidth here — header and footer must be full width
       }}
     >
-      {/* Sticky Top Header */}
+      {/* Sticky Top Header — full width */}
       <AppHeader />
 
-      {/* Scrollable Page Content — pb-28 to clear bottom dock */}
+      {/* Scrollable Page Content — constrained to 500px, centered */}
       <main
         style={{
           flex: 1,
           overflowY: "auto",
           paddingBottom: "calc(64px + env(safe-area-inset-bottom) + 8px)",
           WebkitOverflowScrolling: "touch" as any,
+          maxWidth: "500px",
+          width: "100%",
+          margin: "0 auto",
         }}
       >
         {children}
       </main>
 
-      {/* Fixed Bottom Dock */}
+      {/* Fixed Bottom Dock — full width via position:fixed left:0 right:0 */}
       <BottomDock />
     </div>
   );
