@@ -665,8 +665,10 @@ model JournalEntry {
   authorId    Int            @map("author_id")
   title       String?        @db.VarChar(255)
   content     String         @db.LongText
+  mood        String?        @db.VarChar(50)
   imageUrl    String?        @map("image_url") @db.VarChar(500)
   verseRef    String?        @map("verse_ref") @db.VarChar(200)
+  verseText   String?        @map("verse_text") @db.Text
   visibility  PostVisibility @default(PRIVATE)
   crossPosted Boolean        @default(false) @map("cross_posted")
   author      Member         @relation("JournalAuthor", fields: [authorId], references: [id], onDelete: Cascade)
