@@ -8,40 +8,36 @@ import type { Metadata } from "next";
 
 const PRIMARY = "#4EB1CB";
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-function formatDate(d: Date | string | null | undefined): string {
-  if (!d) return "Not specified";
+function fmt(d: Date | string | null | undefined): string {
+  if (!d) return "";
   return new Date(d).toLocaleDateString("en-US", {
     month: "long", day: "numeric", year: "numeric", timeZone: "Asia/Manila",
   });
 }
 
-function memberDuration(joinDate: Date | string | null | undefined): string {
+function duration(joinDate: Date | string | null | undefined): string {
   if (!joinDate) return "";
   const start = new Date(joinDate);
   const now = new Date();
-  let months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
-  const days = now.getDate() - start.getDate();
-  const adjustedDays = days < 0 ? (months--, new Date(now.getFullYear(), now.getMonth(), 0).getDate() + days) : days;
-  if (months < 0) return "New member";
-  if (months === 0) return `${adjustedDays} Day${adjustedDays !== 1 ? "s" : ""}`;
-  return `${months} Month${months !== 1 ? "s" : ""}${adjustedDays > 0 ? ` ${adjustedDays} Day${adjustedDays !== 1 ? "s" : ""}` : ""}`;
+  let m = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+  const rawDays = now.getDate() - start.getDate();
+  const days = rawDays < 0 ? (m--, new Date(now.getFullYear(), now.getMonth(), 0).getDate() + rawDays) : rawDays;
+  if (m < 0) return "New member";
+  if (m === 0) return `${days} Day${days !== 1 ? "s" : ""}`;
+  return `${m} Month${m !== 1 ? "s" : ""}${days > 0 ? ` ${days} Day${days !== 1 ? "s" : ""}` : ""}`;
 }
 
-// ── Metadata ─────────────────────────────────────────────────────────────────
-export async function generateMetadata(
-  { params }: { params: Promise<{ id: string }> }
-): Promise<Metadata> {
+// All photos — both profile_*.jpg and cover_*.jpg — live in profile_pictures/
+const picPath = (f: string | null) => f ? `/uploads/profile_pictures/${f}` : null;
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
-  const member = await db.member.findUnique({ where: { id: parseInt(id) }, select: { firstName: true, lastName: true } });
-  if (!member) return { title: "Member Not Found" };
-  return { title: `${member.firstName} ${member.lastName} — HGF Connect` };
+  const m = await db.member.findUnique({ where: { id: parseInt(id) }, select: { firstName: true, lastName: true } });
+  if (!m) return { title: "Member Not Found" };
+  return { title: `${m.firstName} ${m.lastName} — HGF Connect` };
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────────
-export default async function MemberProfilePage(
-  { params }: { params: Promise<{ id: string }> }
-) {
+export default async function MemberProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idStr } = await params;
   const id = parseInt(idStr);
   const session = await auth();
@@ -62,178 +58,211 @@ export default async function MemberProfilePage(
   const isOwn = session?.user?.id === String(id);
   const isAdmin = session && ["admin", "moderator"].includes(session.user.role ?? "");
   const initials = `${member.firstName?.[0] ?? ""}${member.lastName?.[0] ?? ""}`;
-  const coverSrc = member.coverPhoto ? `/uploads/cover_photos/${member.coverPhoto}` : null;
-  const avatarSrc = member.profilePicture ? `/uploads/profile_pictures/${member.profilePicture}` : null;
-  const duration = memberDuration(member.joinDate);
-  const since = formatDate(member.joinDate);
-  const familyArr = member.familyMembers ? member.familyMembers.split(",").map((s) => s.trim()).filter(Boolean) : [];
-
-  // ── Layout helpers ────────────────────────────────────────────────────────
-  const card = (children: React.ReactNode) => (
-    <div style={{ background: "white", borderRadius: "16px", padding: "1.5rem", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", border: "1px solid #e8edf3" }}>
-      {children}
-    </div>
-  );
-
-  const sectionTitle = (icon: string, label: string) => (
-    <h3 style={{ fontSize: "1rem", fontWeight: 800, color: PRIMARY, marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-      {icon} {label}
-    </h3>
-  );
-
-  const detailRow = (icon: string, label: string, value: string | null | undefined, addNow?: boolean) => (
-    <div style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", marginBottom: "0.875rem" }}>
-      <span style={{ fontSize: "1.1rem", width: 22, flexShrink: 0, marginTop: 1 }}>{icon}</span>
-      <div>
-        <div style={{ fontSize: "0.72rem", fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</div>
-        <div style={{ fontSize: "0.925rem", fontWeight: 600, color: value ? "#1e293b" : "#94a3b8" }}>
-          {value || "Not specified"}
-          {!value && addNow && isOwn && (
-            <Link href="/profile/edit" style={{ marginLeft: "0.5rem", fontSize: "0.75rem", color: PRIMARY, textDecoration: "none", fontWeight: 700 }}>
-              Add Now +
-            </Link>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+  const coverSrc = picPath(member.coverPhoto);
+  const avatarSrc = picPath(member.profilePicture);
+  const dur = duration(member.joinDate);
+  const since = fmt(member.joinDate);
+  const familyArr = member.familyMembers
+    ? member.familyMembers.split(",").map((s) => s.trim()).filter(Boolean)
+    : [];
 
   return (
     <>
       <PublicNav />
-      <div style={{ minHeight: "100vh", background: "#f8fafc" }}>
+      <div style={{ minHeight: "100vh", background: "#f1f5f9", maxWidth: 480, margin: "0 auto" }}>
 
-        {/* ── Cover Photo ── */}
-        <div style={{ position: "relative", height: "clamp(200px, 30vw, 320px)", background: "linear-gradient(135deg, #1a4a5e 0%, #4EB1CB 100%)", overflow: "hidden" }}>
+        {/* ── Cover photo ──────────────────────────────────────────── */}
+        <div style={{ position: "relative", height: 240, background: `linear-gradient(160deg, #0f2d3d 0%, ${PRIMARY} 100%)`, overflow: "hidden" }}>
           {coverSrc && (
-            <Image src={coverSrc} alt="Cover" fill style={{ objectFit: "cover", objectPosition: `${member.coverPhotoPositionX ?? 50}% ${member.coverPhotoPositionY ?? 50}%` }} />
+            <Image
+              src={coverSrc}
+              alt="Cover"
+              fill
+              sizes="480px"
+              style={{
+                objectFit: "cover",
+                objectPosition: `${Number(member.coverPhotoPositionX) || 50}% ${Number(member.coverPhotoPositionY) || 50}%`,
+              }}
+            />
           )}
-          {/* Back & Edit buttons */}
-          <div style={{ position: "absolute", top: "1rem", left: "1rem", right: "1rem", display: "flex", justifyContent: "space-between" }}>
-            <Link href="/directory" style={{ background: "rgba(0,0,0,0.35)", backdropFilter: "blur(6px)", color: "white", textDecoration: "none", padding: "0.5rem 1rem", borderRadius: "10px", fontSize: "0.825rem", fontWeight: 700 }}>
-              ← Back to Directory
+          {/* Top action bar */}
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, padding: "0.875rem 1rem", display: "flex", justifyContent: "space-between", alignItems: "center", background: "linear-gradient(to bottom, rgba(0,0,0,0.4), transparent)" }}>
+            <Link href="/directory" style={{ color: "white", textDecoration: "none", fontSize: "0.825rem", fontWeight: 700, display: "flex", alignItems: "center", gap: "0.375rem", background: "rgba(0,0,0,0.3)", backdropFilter: "blur(8px)", padding: "0.4rem 0.875rem", borderRadius: "999px" }}>
+              ← Directory
             </Link>
             {isOwn && (
-              <Link href="/profile/edit" style={{ background: PRIMARY, color: "white", textDecoration: "none", padding: "0.5rem 1rem", borderRadius: "10px", fontSize: "0.825rem", fontWeight: 700, display: "flex", alignItems: "center", gap: "0.375rem" }}>
-                ✏️ Edit Profile
+              <Link href="/profile/edit" style={{ color: "white", textDecoration: "none", fontSize: "0.825rem", fontWeight: 700, background: PRIMARY, padding: "0.4rem 0.875rem", borderRadius: "999px", display: "flex", alignItems: "center", gap: "0.3rem" }}>
+                ✏️ Edit
               </Link>
             )}
           </div>
         </div>
 
-        {/* ── Avatar + Name ── */}
-        <div style={{ maxWidth: 960, margin: "0 auto", padding: "0 1.5rem" }}>
-          <div style={{ position: "relative", marginTop: -48, display: "flex", alignItems: "flex-end", gap: "1rem", marginBottom: "1rem" }}>
-            {/* Avatar */}
-            <div style={{ width: 96, height: 96, borderRadius: "50%", border: "4px solid white", boxShadow: "0 4px 16px rgba(0,0,0,0.15)", background: `${PRIMARY}30`, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 }}>
+        {/* ── Avatar + name hero card ──────────────────────────────── */}
+        <div style={{ background: "white", margin: "0 0 0.75rem", padding: "0 1rem 1.25rem" }}>
+          {/* Avatar — overlaps cover */}
+          <div style={{ position: "relative", marginTop: -44 }}>
+            <div style={{ width: 88, height: 88, borderRadius: "50%", border: "4px solid white", boxShadow: "0 4px 20px rgba(0,0,0,0.18)", overflow: "hidden", background: `${PRIMARY}25`, display: "flex", alignItems: "center", justifyContent: "center" }}>
               {avatarSrc ? (
-                <Image src={avatarSrc} alt={`${member.firstName} ${member.lastName}`} width={96} height={96} style={{ objectFit: "cover" }} />
+                <Image src={avatarSrc} alt={`${member.firstName} ${member.lastName}`} width={88} height={88} style={{ objectFit: "cover" }} />
               ) : (
-                <span style={{ fontSize: "2rem", fontWeight: 800, color: PRIMARY }}>{initials}</span>
-              )}
-            </div>
-            {/* Name block */}
-            <div style={{ paddingBottom: "0.25rem" }}>
-              <h1 style={{ fontSize: "1.5rem", fontWeight: 800, color: "#0f172a", margin: "0 0 0.375rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                {member.firstName} {member.lastName}
-                {isOwn && (
-                  <Link href="/profile/edit" style={{ fontSize: "0.875rem", color: "#94a3b8", textDecoration: "none" }}>✏️</Link>
-                )}
-              </h1>
-              {member.joinDate && (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", background: "white", border: `1.5px solid ${PRIMARY}`, color: PRIMARY, fontSize: "0.775rem", fontWeight: 700, padding: "0.2rem 0.75rem", borderRadius: "999px" }}>
-                  📅 Member since {since}
-                </span>
+                <span style={{ fontSize: "2rem", fontWeight: 900, color: PRIMARY }}>{initials}</span>
               )}
             </div>
           </div>
 
-          {/* Favorite Verse */}
-          {member.favoriteVerse && (
-            <div style={{ background: "white", borderRadius: "14px", padding: "1.25rem 1.5rem", marginBottom: "1.25rem", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", border: "1px solid #e8edf3" }}>
-              <span style={{ fontSize: "1.5rem", color: PRIMARY, marginRight: "0.5rem", verticalAlign: "middle" }}>&ldquo;&ldquo;</span>
-              <span style={{ fontSize: "0.925rem", fontStyle: "italic", color: "#374151", lineHeight: 1.7 }}>
-                {member.favoriteVerse}
-              </span>
-              <span style={{ fontSize: "1.5rem", color: PRIMARY, marginLeft: "0.5rem", verticalAlign: "middle" }}>&rdquo;&rdquo;</span>
-            </div>
+          {/* Name */}
+          <h1 style={{ fontSize: "1.375rem", fontWeight: 900, color: "#0f172a", margin: "0.75rem 0 0.375rem", letterSpacing: "-0.02em" }}>
+            {member.firstName} {member.lastName}
+          </h1>
+
+          {/* Member since chip */}
+          {since && (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", background: `${PRIMARY}12`, color: PRIMARY, fontSize: "0.75rem", fontWeight: 700, padding: "0.3rem 0.75rem", borderRadius: "999px", border: `1px solid ${PRIMARY}30` }}>
+              📅 Member since {since}
+            </span>
           )}
 
-          {/* Two-column layout */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr minmax(240px, 340px)", gap: "1.25rem", marginBottom: "1.25rem" }}>
-            {/* Left column */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-
-              {/* Personal Details */}
-              {card(<>
-                {sectionTitle("ℹ️", "Personal Details")}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 1rem" }}>
-                  {detailRow("🎂", "Birthday", member.birthdate ? formatDate(member.birthdate) : null, true)}
-                  {detailRow("🌊", "Baptism Date", member.baptismDate ? formatDate(member.baptismDate) : null, true)}
-                  {detailRow("👥", "Invited By", member.invitedBy)}
-                </div>
-              </>)}
-
-              {/* Ministry Involvement */}
-              {member.ministries.length > 0 && card(<>
-                {sectionTitle("🤲", "Ministry Involvement")}
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
-                  {member.ministries.map((mm) => (
-                    <span key={mm.id} style={{ background: PRIMARY, color: "white", padding: "0.35rem 0.875rem", borderRadius: "8px", fontSize: "0.825rem", fontWeight: 700 }}>
-                      {mm.ministry.name}
-                    </span>
-                  ))}
-                </div>
-              </>)}
-
-              {/* Family Members */}
-              {familyArr.length > 0 && card(<>
-                {sectionTitle("🏠", "Family Members")}
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
-                  {familyArr.map((name, i) => (
-                    <span key={i} style={{ background: "#f1f5f9", color: "#475569", padding: "0.3rem 0.75rem", borderRadius: "999px", fontSize: "0.825rem", fontWeight: 600 }}>
-                      {name}
-                    </span>
-                  ))}
-                </div>
-              </>)}
+          {/* Verse */}
+          {member.favoriteVerse && (
+            <div style={{ marginTop: "1rem", padding: "0.875rem", background: "#f8fafc", borderRadius: "12px", borderLeft: `3px solid ${PRIMARY}` }}>
+              <p style={{ fontSize: "0.875rem", fontStyle: "italic", color: "#475569", lineHeight: 1.65, margin: 0 }}>
+                &ldquo;{member.favoriteVerse}&rdquo;
+              </p>
             </div>
+          )}
+        </div>
 
-            {/* Right column */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-
-              {/* Contact Information */}
-              {card(<>
-                {sectionTitle("📋", "Contact Information")}
-                {(member.showEmail || isAdmin || isOwn) && member.email &&
-                  detailRow("✉️", "Email", member.showEmail || isAdmin || isOwn ? member.email : "— (hidden)")}
-                {(member.showPhone || isAdmin || isOwn) && member.phone &&
-                  detailRow("📞", "Phone", member.showPhone || isAdmin || isOwn ? member.phone : "— (hidden)")}
-                {(member.showAddress || isAdmin || isOwn) && member.address &&
-                  detailRow("📍", "Address", member.showAddress || isAdmin || isOwn ? member.address : "— (hidden)")}
-                {!member.email && !member.phone && !member.address && (
-                  <p style={{ color: "#94a3b8", fontSize: "0.875rem" }}>No contact info shared.</p>
-                )}
-              </>)}
-
-              {/* Member Status */}
-              {card(<>
-                {sectionTitle("📈", "Member Status")}
-                {duration && (
-                  <div style={{ textAlign: "center", marginBottom: "1rem" }}>
-                    <div style={{ fontSize: "1.875rem", fontWeight: 900, color: PRIMARY, lineHeight: 1.1 }}>{duration}</div>
-                    <div style={{ fontSize: "0.775rem", color: "#94a3b8", fontWeight: 600, marginTop: "0.25rem" }}>Member Duration</div>
-                  </div>
-                )}
-                {member.joinDate && (
-                  <p style={{ fontSize: "0.825rem", color: "#64748b", textAlign: "center", margin: 0 }}>
-                    Joined on {since}
-                  </p>
-                )}
-              </>)}
+        {/* ── Ministry Involvement ─────────────────────────────────── */}
+        {member.ministries.length > 0 && (
+          <div style={{ background: "white", margin: "0 0 0.75rem", padding: "1rem" }}>
+            <h2 style={{ fontSize: "0.75rem", fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 0.75rem" }}>
+              🤲 Ministry Involvement
+            </h2>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+              {member.ministries.map((mm) => (
+                <span key={mm.id} style={{ background: PRIMARY, color: "white", padding: "0.35rem 0.875rem", borderRadius: "8px", fontSize: "0.8rem", fontWeight: 700 }}>
+                  {mm.ministry.name}
+                </span>
+              ))}
             </div>
           </div>
+        )}
+
+        {/* ── Personal Details ─────────────────────────────────────── */}
+        <div style={{ background: "white", margin: "0 0 0.75rem", padding: "1rem" }}>
+          <h2 style={{ fontSize: "0.75rem", fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 0.875rem" }}>
+            ℹ️ Personal Details
+          </h2>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            {member.birthdate && (
+              <div style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
+                <span style={{ fontSize: "1.125rem", width: 24, textAlign: "center" }}>🎂</span>
+                <div>
+                  <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.04em" }}>Birthday</div>
+                  <div style={{ fontSize: "0.9rem", fontWeight: 600, color: "#1e293b" }}>{fmt(member.birthdate)}</div>
+                </div>
+              </div>
+            )}
+            {member.baptismDate && (
+              <div style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
+                <span style={{ fontSize: "1.125rem", width: 24, textAlign: "center" }}>🌊</span>
+                <div>
+                  <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.04em" }}>Baptism Date</div>
+                  <div style={{ fontSize: "0.9rem", fontWeight: 600, color: "#1e293b" }}>{fmt(member.baptismDate)}</div>
+                </div>
+              </div>
+            )}
+            {member.invitedBy && (
+              <div style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
+                <span style={{ fontSize: "1.125rem", width: 24, textAlign: "center" }}>👥</span>
+                <div>
+                  <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.04em" }}>Invited By</div>
+                  <div style={{ fontSize: "0.9rem", fontWeight: 600, color: "#1e293b" }}>{member.invitedBy}</div>
+                </div>
+              </div>
+            )}
+            {!member.birthdate && !member.baptismDate && !member.invitedBy && (
+              <p style={{ color: "#94a3b8", fontSize: "0.875rem", margin: 0 }}>No personal details shared.</p>
+            )}
+          </div>
         </div>
+
+        {/* ── Contact Info ─────────────────────────────────────────── */}
+        {(member.email || member.phone || member.address) && (
+          <div style={{ background: "white", margin: "0 0 0.75rem", padding: "1rem" }}>
+            <h2 style={{ fontSize: "0.75rem", fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 0.875rem" }}>
+              📋 Contact Information
+            </h2>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              {member.email && (member.showEmail || isAdmin || isOwn) && (
+                <div style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
+                  <span style={{ fontSize: "1.125rem", width: 24, textAlign: "center" }}>✉️</span>
+                  <div>
+                    <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.04em" }}>Email</div>
+                    <div style={{ fontSize: "0.875rem", fontWeight: 600, color: "#1e293b" }}>{member.email}</div>
+                  </div>
+                </div>
+              )}
+              {member.phone && (member.showPhone || isAdmin || isOwn) && (
+                <div style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
+                  <span style={{ fontSize: "1.125rem", width: 24, textAlign: "center" }}>📞</span>
+                  <div>
+                    <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.04em" }}>Phone</div>
+                    <div style={{ fontSize: "0.875rem", fontWeight: 600, color: "#1e293b" }}>{member.phone}</div>
+                  </div>
+                </div>
+              )}
+              {member.address && (member.showAddress || isAdmin || isOwn) && (
+                <div style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
+                  <span style={{ fontSize: "1.125rem", width: 24, textAlign: "center" }}>📍</span>
+                  <div>
+                    <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.04em" }}>Address</div>
+                    <div style={{ fontSize: "0.875rem", fontWeight: 600, color: "#1e293b" }}>{member.address}</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Family Members ───────────────────────────────────────── */}
+        {familyArr.length > 0 && (
+          <div style={{ background: "white", margin: "0 0 0.75rem", padding: "1rem" }}>
+            <h2 style={{ fontSize: "0.75rem", fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 0.75rem" }}>
+              🏠 Family Members
+            </h2>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+              {familyArr.map((name, i) => (
+                <span key={i} style={{ background: "#f1f5f9", color: "#475569", padding: "0.35rem 0.75rem", borderRadius: "999px", fontSize: "0.825rem", fontWeight: 600 }}>
+                  {name}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Member Status ────────────────────────────────────────── */}
+        {dur && (
+          <div style={{ background: "white", margin: "0 0 0.75rem", padding: "1rem" }}>
+            <h2 style={{ fontSize: "0.75rem", fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 0.875rem" }}>
+              📈 Member Status
+            </h2>
+            <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+              <div style={{ background: `${PRIMARY}12`, borderRadius: "14px", padding: "0.875rem 1.25rem", flex: 1, textAlign: "center" }}>
+                <div style={{ fontSize: "1.625rem", fontWeight: 900, color: PRIMARY, letterSpacing: "-0.02em" }}>{dur}</div>
+                <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "#94a3b8", marginTop: "0.2rem", textTransform: "uppercase", letterSpacing: "0.04em" }}>Member Duration</div>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "0.25rem" }}>Joined</div>
+                <div style={{ fontSize: "0.875rem", fontWeight: 700, color: "#1e293b" }}>{since}</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* bottom padding for dock */}
+        <div style={{ height: "2rem" }} />
       </div>
     </>
   );
