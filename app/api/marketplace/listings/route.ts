@@ -28,6 +28,7 @@ export async function GET(req: Request) {
       listingType: true,
       category: true,
       price: true,
+      ogPrice: true,
       priceLabel: true,
       conditionType: true,
       locationArea: true,
@@ -47,18 +48,39 @@ export async function POST(req: Request) {
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { title, description, listingType, category, price, priceLabel, conditionType, locationArea, loveGiftAmount } = body;
+  const {
+    title,
+    description,
+    listingType,
+    category,
+    price,
+    ogPrice,
+    discountedPrice,
+    priceLabel,
+    conditionType,
+    locationArea,
+    loveGiftAmount,
+  } = body;
 
   if (!title?.trim()) return NextResponse.json({ error: "Title required" }, { status: 400 });
+
+  // Validate listingType against Prisma enum
+  const validTypes = Object.values(ListingType);
+  const safeType = validTypes.includes(listingType as ListingType)
+    ? (listingType as ListingType)
+    : ListingType.sale;
 
   const listing = await db.marketplaceListing.create({
     data: {
       memberId: parseInt(session.user.id),
       title: title.trim(),
       description: description?.trim() || null,
-      listingType: listingType ?? "sell",
+      listingType: safeType,
       category: category || "Other",
       price: price ?? null,
+      ogPrice: ogPrice ?? null,
+      // discountedPrice stored in DB but NEVER returned publicly — gated server-side (v1.1 spec)
+      discountedPrice: discountedPrice ?? null,
       priceLabel: priceLabel?.trim() || null,
       conditionType: conditionType || null,
       locationArea: locationArea?.trim() || null,

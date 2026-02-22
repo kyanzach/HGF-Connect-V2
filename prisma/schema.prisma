@@ -343,6 +343,8 @@ model MarketplaceListing {
   listingType     MarketplaceListingType @map("listing_type")
   category        String?                @db.VarChar(100)
   price           Decimal?               @db.Decimal(10, 2)
+  ogPrice         Decimal?               @map("og_price") @db.Decimal(10, 2)
+  discountedPrice Decimal?               @map("discounted_price") @db.Decimal(10, 2)
   priceLabel      String?                @map("price_label") @db.VarChar(50)
   conditionType   MarketplaceCondition?  @map("condition_type")
   locationArea    String?                @map("location_area") @db.VarChar(200)

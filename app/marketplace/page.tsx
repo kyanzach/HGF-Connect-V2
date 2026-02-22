@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { auth } from "@/lib/auth";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -23,13 +24,19 @@ const CATEGORY_ICONS: Record<string, string> = {
 };
 
 const TYPE_LABELS: Record<string, string> = {
-  sale: "For Sale", trade: "Trade", free: "Free", service: "Service", borrow: "Borrow", official_store: "Official Store",
+  sale: "For Sale", trade: "Trade", free: "Free", service: "Service",
+  borrow: "Borrow", official_store: "Official Store",
 };
 const TYPE_COLORS: Record<string, string> = {
-  sale: "#10b981", trade: "#3b82f6", free: "#f59e0b", service: "#8b5cf6", borrow: "#f97316", official_store: "#ec4899",
+  sale: "#10b981", trade: "#3b82f6", free: "#f59e0b", service: "#8b5cf6",
+  borrow: "#f97316", official_store: "#ec4899",
 };
 
 export default async function MarketplaceSSRPage() {
+  // Check session server-side so we can show auth-aware CTAs
+  const session = await auth();
+  const isLoggedIn = !!session?.user;
+
   const rawListings = await db.marketplaceListing.findMany({
     where: { status: "active" },
     orderBy: { createdAt: "desc" },
@@ -48,11 +55,12 @@ export default async function MarketplaceSSRPage() {
       <div style={{ background: PRIMARY, padding: "2rem 1rem 1.5rem", textAlign: "center", color: "white" }}>
         <h1 style={{ fontSize: "1.75rem", fontWeight: 800, margin: "0 0 0.375rem" }}>🛍️ Marketplace</h1>
         <p style={{ fontSize: "0.875rem", opacity: 0.85, margin: "0 0 1rem" }}>
-          Buy, sell & trade with your church family
+          Buy, sell &amp; trade with your church family
         </p>
         <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center", flexWrap: "wrap" }}>
+          {/* Auth-aware: logged in goes to /marketplace/sell, guest goes to /login */}
           <Link
-            href="/login"
+            href={isLoggedIn ? "/marketplace/sell" : "/login"}
             style={{
               display: "inline-block",
               background: "white",
@@ -91,21 +99,40 @@ export default async function MarketplaceSSRPage() {
             <div style={{ fontSize: "4rem", marginBottom: "0.75rem" }}>🛍️</div>
             <h2 style={{ fontSize: "1.125rem", color: "#64748b", fontWeight: 700 }}>No listings yet</h2>
             <p style={{ fontSize: "0.9rem" }}>Be the first to post something!</p>
-            <Link
-              href="/login"
-              style={{
-                display: "inline-block",
-                marginTop: "1rem",
-                background: PRIMARY,
-                color: "white",
-                padding: "0.75rem 2rem",
-                borderRadius: "999px",
-                textDecoration: "none",
-                fontWeight: 700,
-              }}
-            >
-              Login to Post
-            </Link>
+            {/* Only show login prompt if guest — logged-in users already see the button above */}
+            {isLoggedIn ? (
+              <Link
+                href="/marketplace/sell"
+                style={{
+                  display: "inline-block",
+                  marginTop: "1rem",
+                  background: PRIMARY,
+                  color: "white",
+                  padding: "0.75rem 2rem",
+                  borderRadius: "999px",
+                  textDecoration: "none",
+                  fontWeight: 700,
+                }}
+              >
+                + Post a Listing
+              </Link>
+            ) : (
+              <Link
+                href="/login"
+                style={{
+                  display: "inline-block",
+                  marginTop: "1rem",
+                  background: PRIMARY,
+                  color: "white",
+                  padding: "0.75rem 2rem",
+                  borderRadius: "999px",
+                  textDecoration: "none",
+                  fontWeight: 700,
+                }}
+              >
+                Login to Post
+              </Link>
+            )}
           </div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
@@ -161,7 +188,7 @@ export default async function MarketplaceSSRPage() {
                         textTransform: "uppercase",
                       }}
                     >
-                      {TYPE_LABELS[listing.listingType]}
+                      {TYPE_LABELS[listing.listingType] ?? listing.listingType}
                     </span>
                     {/* Love Gift badge */}
                     {Number(listing.loveGiftAmount) > 0 && (
@@ -178,7 +205,7 @@ export default async function MarketplaceSSRPage() {
                           borderRadius: "4px",
                         }}
                       >
-                        ❤️ {Number(listing.loveGiftAmount)}%
+                        ❤️ ₱{Number(listing.loveGiftAmount).toLocaleString()}
                       </span>
                     )}
                   </div>
@@ -198,10 +225,13 @@ export default async function MarketplaceSSRPage() {
                     >
                       {listing.title}
                     </div>
+                    {/* Show OG price with "from" indicator — discounted price is gated */}
                     <div style={{ fontWeight: 800, fontSize: "0.9rem", color: PRIMARY }}>
-                      {listing.price
-                        ? `₱${Number(listing.price).toLocaleString()}`
-                        : listing.priceLabel ?? "Free"}
+                      {listing.ogPrice
+                        ? `₱${Number(listing.ogPrice).toLocaleString()}`
+                        : listing.price
+                          ? `₱${Number(listing.price).toLocaleString()}`
+                          : listing.priceLabel ?? "Free"}
                     </div>
                     {listing.locationArea && (
                       <div style={{ fontSize: "0.675rem", color: "#94a3b8", marginTop: "0.25rem" }}>
