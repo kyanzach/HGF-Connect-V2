@@ -12,7 +12,7 @@ const TYPE_LABELS: Record<string, string> = {
   service: "Service", borrow: "Borrow", official_store: "HGF Store",
 };
 const STATUS_COLORS: Record<string, string> = {
-  active: "#10b981", sold: "#6366f1", expired: "#f59e0b", deleted: "#94a3b8",
+  active: "#10b981", sold: "#6366f1", expired: "#f59e0b", removed: "#94a3b8", reserved: "#f59e0b",
 };
 
 interface Listing {
@@ -27,6 +27,7 @@ export default function MyListingsPage() {
   const router = useRouter();
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
+  const [acting, setActing] = useState<number | null>(null);
 
   useEffect(() => {
     fetch("/api/marketplace/listings/mine")
@@ -35,6 +36,22 @@ export default function MyListingsPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  async function handleAction(listingId: number, action: string, confirmMsg: string) {
+    if (!confirm(confirmMsg)) return;
+    setActing(listingId);
+    try {
+      const res = await fetch(`/api/marketplace/listings/${listingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const data = await res.json();
+      if (data.ok || data.status) {
+        setListings((prev) => prev.map((l) => l.id === listingId ? { ...l, status: data.status } : l));
+      }
+    } catch { /* silent fail */ } finally { setActing(null); }
+  }
 
   return (
     <div style={{ paddingBottom: "2rem" }}>
@@ -97,14 +114,49 @@ export default function MyListingsPage() {
                   </div>
                 </div>
 
-                {/* Actions */}
-                <div style={{ borderTop: "1px solid #f1f5f9", display: "flex" }}>
-                  <Link href={`/marketplace/${listing.id}`} style={{ flex: 1, textAlign: "center", padding: "0.5rem", fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textDecoration: "none" }}>
-                    View
-                  </Link>
-                  <Link href={`/marketplace/my-listings/${listing.id}/prospects`} style={{ flex: 1, textAlign: "center", padding: "0.5rem", fontSize: "0.75rem", fontWeight: 700, color: PRIMARY, textDecoration: "none", borderLeft: "1px solid #f1f5f9" }}>
-                    Prospects {listing.prospectCount > 0 && `(${listing.prospectCount})`}
-                  </Link>
+                {/* Action row */}
+                <div style={{ borderTop: "1px solid #f1f5f9" }}>
+                  <div style={{ display: "flex" }}>
+                    <Link href={`/marketplace/${listing.id}`} style={{ flex: 1, textAlign: "center", padding: "0.5rem", fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textDecoration: "none" }}>
+                      View
+                    </Link>
+                    <Link href={`/marketplace/my-listings/${listing.id}/prospects`} style={{ flex: 1, textAlign: "center", padding: "0.5rem", fontSize: "0.75rem", fontWeight: 700, color: PRIMARY, textDecoration: "none", borderLeft: "1px solid #f1f5f9" }}>
+                      Prospects {listing.prospectCount > 0 && `(${listing.prospectCount})`}
+                    </Link>
+                    <Link href={`/marketplace/my-listings/${listing.id}/edit`} style={{ flex: 1, textAlign: "center", padding: "0.5rem", fontSize: "0.75rem", fontWeight: 700, color: "#f59e0b", textDecoration: "none", borderLeft: "1px solid #f1f5f9" }}>
+                      ✏️ Edit
+                    </Link>
+                  </div>
+                  {/* Status actions */}
+                  <div style={{ borderTop: "1px solid #f1f5f9", display: "flex", gap: "0.5rem", padding: "0.5rem 0.875rem", background: "#f8fafc" }}>
+                    {listing.status === "active" && (
+                      <button
+                        onClick={() => handleAction(listing.id, "mark_sold", "Mark this listing as sold?")}
+                        disabled={acting === listing.id}
+                        style={{ fontSize: "0.7rem", fontWeight: 700, color: "#6366f1", background: "#ede9fe", border: "none", borderRadius: "6px", padding: "0.25rem 0.625rem", cursor: "pointer", fontFamily: "inherit" }}
+                      >
+                        {acting === listing.id ? "…" : "✅ Mark Sold"}
+                      </button>
+                    )}
+                    {(listing.status === "sold" || listing.status === "removed" || listing.status === "expired") && (
+                      <button
+                        onClick={() => handleAction(listing.id, "reactivate", "Reactivate this listing?")}
+                        disabled={acting === listing.id}
+                        style={{ fontSize: "0.7rem", fontWeight: 700, color: "#10b981", background: "#d1fae5", border: "none", borderRadius: "6px", padding: "0.25rem 0.625rem", cursor: "pointer", fontFamily: "inherit" }}
+                      >
+                        {acting === listing.id ? "…" : "♻️ Reactivate"}
+                      </button>
+                    )}
+                    {listing.status !== "removed" && (
+                      <button
+                        onClick={() => handleAction(listing.id, "delete", "Remove this listing? It won't be visible to buyers.")}
+                        disabled={acting === listing.id}
+                        style={{ fontSize: "0.7rem", fontWeight: 700, color: "#ef4444", background: "#fee2e2", border: "none", borderRadius: "6px", padding: "0.25rem 0.625rem", cursor: "pointer", fontFamily: "inherit" }}
+                      >
+                        {acting === listing.id ? "…" : "🗑️ Remove"}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );
