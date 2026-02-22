@@ -66,6 +66,21 @@ model Member {
   marketplaceReports    MarketplaceReport[]   @relation("ReportedBy")
   marketplaceReviewedBy MarketplaceReport[]   @relation("ReviewedBy")
 
+  // Social Feed relations
+  posts                 Post[]                @relation("PostAuthor")
+  postLikes             PostLike[]            @relation("PostLikeMember")
+  comments              Comment[]             @relation("CommentAuthor")
+  following             Follow[]              @relation("Follower")
+  followers             Follow[]              @relation("Following")
+
+  // Prayer & Journal relations
+  prayerRequests        PrayerRequest[]       @relation("PrayerAuthor")
+  prayerResponses       PrayerResponse[]      @relation("PrayerResponder")
+  journalEntries        JournalEntry[]        @relation("JournalAuthor")
+
+  // Biometrics
+  webauthnCredentials   WebauthnCredential[]
+
   @@index([invitedBy], name: "idx_referred_by")
   @@index([ageGroup], name: "idx_age_group")
   @@index([type], name: "idx_type")
@@ -526,4 +541,156 @@ enum MarketplaceReportStatus {
   pending
   reviewed
   dismissed
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Social Feed Models (Phase 1)
+// ─────────────────────────────────────────────────────────────────
+
+enum PostType {
+  TEXT
+  DEVO
+  VERSE_CARD
+  EVENT
+  PRAYER
+  PRAISE
+}
+
+enum PostVisibility {
+  PUBLIC
+  MEMBERS_ONLY
+  PRIVATE
+}
+
+model Post {
+  id         Int            @id @default(autoincrement())
+  authorId   Int            @map("author_id")
+  type       PostType       @default(TEXT)
+  content    String?        @db.Text
+  imageUrl   String?        @map("image_url") @db.VarChar(500)
+  aiCaption  String?        @map("ai_caption") @db.Text
+  verseRef   String?        @map("verse_ref") @db.VarChar(200)
+  verseText  String?        @map("verse_text") @db.Text
+  visibility PostVisibility @default(MEMBERS_ONLY)
+  author     Member         @relation("PostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  likes      PostLike[]
+  comments   Comment[]
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+
+  @@index([authorId])
+  @@index([createdAt])
+  @@map("posts")
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  postId    Int      @map("post_id")
+  authorId  Int      @map("author_id")
+  content   String   @db.Text
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author    Member   @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([postId])
+  @@map("post_comments")
+}
+
+model PostLike {
+  postId    Int    @map("post_id")
+  memberId  Int    @map("member_id")
+  post      Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  member    Member @relation("PostLikeMember", fields: [memberId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@id([postId, memberId])
+  @@map("post_likes")
+}
+
+model Follow {
+  followerId  Int    @map("follower_id")
+  followingId Int    @map("following_id")
+  follower    Member @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following   Member @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@id([followerId, followingId])
+  @@map("member_follows")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Prayer Wall (Phase 3)
+// ─────────────────────────────────────────────────────────────────
+
+enum PrayerResponseType {
+  PRAYER
+  SCRIPTURE
+  ENCOURAGEMENT
+}
+
+model PrayerRequest {
+  id          Int               @id @default(autoincrement())
+  authorId    Int               @map("author_id")
+  request     String            @db.Text
+  isAnswered  Boolean           @default(false) @map("is_answered")
+  prayerCount Int               @default(0) @map("prayer_count")
+  visibility  PostVisibility    @default(MEMBERS_ONLY)
+  author      Member            @relation("PrayerAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  responses   PrayerResponse[]
+  createdAt   DateTime          @default(now()) @map("created_at")
+
+  @@index([authorId])
+  @@map("prayer_requests")
+}
+
+model PrayerResponse {
+  id        Int                @id @default(autoincrement())
+  requestId Int                @map("request_id")
+  authorId  Int                @map("author_id")
+  message   String             @db.Text
+  type      PrayerResponseType @default(PRAYER)
+  request   PrayerRequest      @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  author    Member             @relation("PrayerResponder", fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt DateTime           @default(now()) @map("created_at")
+
+  @@map("prayer_responses")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Journal / Blog (Phase 4)
+// ─────────────────────────────────────────────────────────────────
+
+model JournalEntry {
+  id          Int            @id @default(autoincrement())
+  authorId    Int            @map("author_id")
+  title       String?        @db.VarChar(255)
+  content     String         @db.LongText
+  imageUrl    String?        @map("image_url") @db.VarChar(500)
+  verseRef    String?        @map("verse_ref") @db.VarChar(200)
+  visibility  PostVisibility @default(PRIVATE)
+  crossPosted Boolean        @default(false) @map("cross_posted")
+  author      Member         @relation("JournalAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  @@index([authorId])
+  @@map("journal_entries")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// WebAuthn Biometrics (Phase 7)
+// ─────────────────────────────────────────────────────────────────
+
+model WebauthnCredential {
+  id           Int      @id @default(autoincrement())
+  memberId     Int      @map("member_id")
+  credentialId String   @unique @map("credential_id") @db.VarChar(512)
+  publicKey    String   @map("public_key") @db.Text
+  counter      BigInt   @default(0)
+  deviceName   String?  @map("device_name") @db.VarChar(255)
+  transports   String?  @db.Text
+  member       Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("webauthn_credentials")
 }

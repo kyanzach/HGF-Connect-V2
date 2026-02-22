@@ -39,7 +39,13 @@ export default auth((request) => {
   // Protected user routes (requires login)
   if (
     pathname.startsWith("/profile") ||
-    pathname.startsWith("/dashboard")
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/feed") ||
+    pathname.startsWith("/me") ||
+    pathname.startsWith("/prayer") ||
+    pathname.startsWith("/devo") ||
+    pathname.startsWith("/journal") ||
+    pathname.startsWith("/groups")
   ) {
     if (!isLoggedIn) {
       return NextResponse.redirect(new URL("/login", request.url));
@@ -56,7 +62,7 @@ export default auth((request) => {
       if (role === "usher") {
         return NextResponse.redirect(new URL("/attendance", request.url));
       }
-      return NextResponse.redirect(new URL("/dashboard", request.url));
+      return NextResponse.redirect(new URL("/feed", request.url));
     }
   }
 
@@ -65,7 +71,9 @@ export default auth((request) => {
     isLoggedIn &&
     status === "pending" &&
     !pathname.startsWith("/dashboard") &&
+    !pathname.startsWith("/admin") &&
     !pathname.startsWith("/login") &&
+    !pathname.startsWith("/api") &&
     pathname !== "/"
   ) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
