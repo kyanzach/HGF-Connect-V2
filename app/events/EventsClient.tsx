@@ -37,9 +37,12 @@ function fmtDate(d: string | Date) {
 }
 function fmtTime(t: string | Date) {
   try {
-    const base = typeof t === "string" && t.includes("T") ? t : `1970-01-01T${t}`;
-    return new Date(base).toLocaleTimeString("en-PH", { hour: "numeric", minute: "2-digit", hour12: true });
-  } catch { return String(t).slice(0, 5); }
+    // Prisma returns time fields as full Date objects (or ISO strings like 1970-01-01T05:30:00.000Z)
+    // We can pass them directly to Date constructor — no wrapping needed
+    const d = t instanceof Date ? t : new Date(t);
+    if (isNaN(d.getTime())) return String(t).slice(11, 16); // fallback: slice HH:MM
+    return d.toLocaleTimeString("en-PH", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "UTC" });
+  } catch { return String(t).slice(11, 16); }
 }
 
 type EventRow = {

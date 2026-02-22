@@ -71,6 +71,24 @@ async function incrementUsage(memberId: number, today: string): Promise<void> {
   `;
 }
 
+// ── Conversation helpers (§5.3) ───────────────────────────────────────────────
+async function getOrCreateConversation(memberId: number, convId: number | null): Promise<number> {
+  if (convId) {
+    const existing = await db.aiConversation.findFirst({ where: { id: convId, memberId } });
+    if (existing) return convId;
+  }
+  const created = await db.aiConversation.create({ data: { memberId } });
+  return created.id;
+}
+
+async function saveMessage(convId: number, memberId: number, role: "user" | "assistant", content: string): Promise<void> {
+  await db.aiMessage.create({ data: { conversationId: convId, memberId, role, content } });
+  await db.aiConversation.update({
+    where: { id: convId },
+    data: { messageCount: { increment: 1 } },
+  });
+}
+
 // ── System prompt builder ─────────────────────────────────────────────────────
 function buildSystemPrompt(memberName: string): string {
   return `You are HGF Connect AI, a helpful assistant for House of Grace church members.
@@ -105,7 +123,7 @@ export async function POST(request: Request) {
   const memberId = parseInt(session.user.id);
 
   try {
-    const { message, conversationHistory } = await request.json();
+    const { message, conversation_id, conversationHistory } = await request.json();
     if (!message?.trim()) {
       return NextResponse.json({ reply: "Please ask me something! 🙏", questions_remaining: DAILY_LIMIT });
     }
@@ -155,7 +173,14 @@ export async function POST(request: Request) {
 
     // ── Call Straico AI ───────────────────────────────────────────────────────
     inFlight.add(memberId);
+    let convId: number | null = null;
     try {
+      // Get or create this conversation session — best-effort, never blocks AI
+      try { convId = await getOrCreateConversation(memberId, conversation_id ? parseInt(conversation_id) : null); } catch { /* degraded OK */ }
+
+      // Save user's message — best-effort
+      try { if (convId) await saveMessage(convId, memberId, "user", message); } catch { /* degraded OK */ }
+
       // Best-effort count increment — never let this block the AI call
       if (rateCheckPassed) {
         try { await incrementUsage(memberId, todayDate); } catch { /* degraded OK */ }
@@ -182,8 +207,12 @@ export async function POST(request: Request) {
         response.data?.data?.completion?.choices?.[0]?.message?.content ||
         "I'm having a bit of trouble right now. Please try again in a moment. 🙏";
 
+      // Save AI reply — best-effort (§5.4: DB failure must never block the response)
+      try { if (convId) await saveMessage(convId, memberId, "assistant", reply); } catch { /* degraded OK */ }
+
       const questionsRemaining = rateCheckPassed ? Math.max(0, DAILY_LIMIT - usedToday - 1) : undefined;
-      return NextResponse.json({ reply, questions_remaining: questionsRemaining });
+      // Return conversation_id so frontend can link turns (§5.4)
+      return NextResponse.json({ reply, questions_remaining: questionsRemaining, conversation_id: convId });
 
     } finally {
       inFlight.delete(memberId); // ALWAYS release the lock

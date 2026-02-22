@@ -87,6 +87,9 @@ model Member {
   webauthnChallenge     String?              @map("webauthn_challenge") @db.VarChar(255)
   webauthnCredentials   WebauthnCredential[]
 
+  // AI chat history
+  aiConversations       AiConversation[]
+
   @@index([invitedBy], name: "idx_referred_by")
   @@index([ageGroup], name: "idx_age_group")
   @@index([type], name: "idx_type")
@@ -755,3 +758,37 @@ model GroupMember {
   @@map("group_members")
 }
 
+
+// ── AI Chat History (Part 5 — v1.1 guide) ────────────────────────────────────
+model AiConversation {
+  id            Int          @id @default(autoincrement())
+  memberId      Int          @map("member_id")
+  startedAt     DateTime     @default(now()) @map("started_at")
+  lastMessageAt DateTime     @default(now()) @updatedAt @map("last_message_at")
+  messageCount  Int          @default(0) @map("message_count")
+
+  member        Member       @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  messages      AiMessage[]
+
+  @@index([memberId, startedAt], name: "idx_ai_conv_user_date")
+  @@map("ai_conversations")
+}
+
+model AiMessage {
+  id             Int            @id @default(autoincrement())
+  conversationId Int            @map("conversation_id")
+  memberId       Int            @map("member_id")
+  role           AiMessageRole
+  content        String         @db.Text
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  conversation   AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId], name: "idx_ai_msg_conv")
+  @@map("ai_messages")
+}
+
+enum AiMessageRole {
+  user
+  assistant
+}

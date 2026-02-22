@@ -23,32 +23,23 @@ const CATEGORY_ICONS: Record<string, string> = {
 };
 
 const TYPE_LABELS: Record<string, string> = {
-  sell: "For Sale", buy: "Wanted", service: "Service", donate: "Free / Donate", rent: "For Rent",
+  sale: "For Sale", trade: "Trade", free: "Free", service: "Service", borrow: "Borrow", official_store: "Official Store",
 };
 const TYPE_COLORS: Record<string, string> = {
-  sell: "#10b981", buy: "#3b82f6", service: "#8b5cf6", donate: "#f59e0b", rent: "#f97316",
+  sale: "#10b981", trade: "#3b82f6", free: "#f59e0b", service: "#8b5cf6", borrow: "#f97316", official_store: "#ec4899",
 };
 
 export default async function MarketplaceSSRPage() {
-  const listings = await db.marketplaceListing.findMany({
+  const rawListings = await db.marketplaceListing.findMany({
     where: { status: "active" },
     orderBy: { createdAt: "desc" },
     take: 40,
-    select: {
-      id: true,
-      title: true,
-      listingType: true,
-      category: true,
-      price: true,
-      priceLabel: true,
-      conditionType: true,
-      locationArea: true,
-      loveGiftAmount: true,
-      createdAt: true,
+    include: {
       seller: { select: { firstName: true, lastName: true } },
-      photos: { take: 1, select: { photoPath: true }, orderBy: { sortOrder: "asc" } },
+      photos: { take: 1, orderBy: { sortOrder: "asc" } },
     },
   });
+  const listings = rawListings as any[];
 
   return (
     <>
