@@ -362,6 +362,7 @@ model MarketplaceListing {
   messages  MarketplaceMessage[]
   reports   MarketplaceReport[]
   shares    ListingShare[]
+  prospects MarketplaceProspect[]
 
   @@index([memberId], name: "idx_member_id")
   @@index([status], name: "idx_status")
@@ -793,4 +794,40 @@ model AiMessage {
 enum AiMessageRole {
   user
   assistant
+}
+
+// ── Marketplace Prospect Tracking (v1.1 spec) ─────────────────────────────────
+model MarketplaceProspect {
+  id             Int      @id @default(autoincrement())
+  listingId      Int      @map("listing_id")
+  shareToken     String?  @map("share_token") @db.VarChar(50)
+  sharerUserId   Int?     @map("sharer_user_id")
+  prospectName   String   @map("prospect_name") @db.VarChar(200)
+  prospectMobile String?  @map("prospect_mobile") @db.VarChar(30)
+  prospectEmail  String?  @map("prospect_email") @db.VarChar(200)
+  ipHash         String?  @map("ip_hash") @db.VarChar(64)
+  userAgent      String?  @map("user_agent") @db.Text
+  actionType     MarketplaceProspectAction  @map("action_type")
+  status         MarketplaceProspectStatus  @default(pending)
+  consented      Boolean  @default(false)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  listing MarketplaceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId], name: "idx_mp_listing")
+  @@index([sharerUserId], name: "idx_mp_sharer")
+  @@map("marketplace_prospects")
+}
+
+enum MarketplaceProspectAction {
+  reveal
+  contact
+}
+
+enum MarketplaceProspectStatus {
+  pending
+  revealed
+  contacted
+  converted
+  rejected
 }

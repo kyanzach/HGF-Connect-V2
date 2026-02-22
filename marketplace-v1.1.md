@@ -161,7 +161,7 @@ Sample flow summary
 
 Example short copy for social preview
 
-- OG Title: “Ryan has shared this discounted Bible Study Guide: PHP 1,200 → PHP 900”
+- OG Title: “Ryan has shared this discounted Bible Study Guide. Exclusive discount!”
 - OG Description: “Ryan thinks you’ll be interested and wanted to share this discount with you.”
 - OG Image: Item image
 
