@@ -22,7 +22,7 @@ export default function SellPage() {
     priceLabel: "",
     conditionType: "good",
     locationArea: "",
-    loveGiftPercent: "0",
+    loveGiftAmount: "0",
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -51,7 +51,7 @@ export default function SellPage() {
         body: JSON.stringify({
           ...form,
           price: form.price ? parseFloat(form.price) : null,
-          loveGiftPercent: parseFloat(form.loveGiftPercent) || 0,
+          loveGiftAmount: parseInt(form.loveGiftAmount) || 0,
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Failed");
@@ -64,9 +64,7 @@ export default function SellPage() {
     }
   }
 
-  const loveGiftPct = parseFloat(form.loveGiftPercent) || 0;
-  const examplePrice = parseFloat(form.price) || 500;
-  const loveGiftAmount = (examplePrice * loveGiftPct) / 100;
+  const loveGiftAmt = parseInt(form.loveGiftAmount) || 0;
 
   return (
     <div style={{ paddingBottom: "2rem" }}>
@@ -168,24 +166,31 @@ export default function SellPage() {
           </div>
         </div>
 
-        {/* Love Gift */}
+        {/* Share & Bless Love Gift */}
         <div style={{ background: "linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%)", borderRadius: "16px", padding: "1rem", border: "1px solid #fecdd3" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.625rem" }}>
-            <span style={{ fontWeight: 700, fontSize: "0.9rem", color: "#be123c" }}>❤️ Love Gift %</span>
-            <span style={{ fontWeight: 800, fontSize: "1.125rem", color: "#be123c" }}>{loveGiftPct}%</span>
+            <span style={{ fontWeight: 700, fontSize: "0.9rem", color: "#be123c" }}>❤️ Share &amp; Bless — Love Gift</span>
+            <span style={{ fontWeight: 800, fontSize: "1.25rem", color: "#be123c" }}>
+              {loveGiftAmt > 0 ? `₱${loveGiftAmt.toLocaleString()}` : "None"}
+            </span>
           </div>
           <input
-            type="range"
+            type="number"
             min="0"
-            max="30"
-            step="1"
-            value={form.loveGiftPercent}
-            onChange={(e) => set("loveGiftPercent", e.target.value)}
-            style={{ width: "100%", accentColor: "#ef4444" }}
+            step="10"
+            value={form.loveGiftAmount === "0" ? "" : form.loveGiftAmount}
+            onChange={(e) => set("loveGiftAmount", e.target.value || "0")}
+            placeholder="e.g. 100"
+            style={{
+              width: "100%", border: "1px solid #fecdd3", borderRadius: "8px",
+              padding: "0.5rem 0.75rem", fontSize: "1rem", fontFamily: "inherit",
+              background: "white", color: "#9f1239", outline: "none", boxSizing: "border-box",
+            }}
           />
-          <p style={{ fontSize: "0.75rem", color: "#9f1239", margin: "0.5rem 0 0" }}>
-            When someone shares your listing and the buyer mentions them, they receive{" "}
-            <strong>{loveGiftPct}% of ₱{examplePrice.toLocaleString()} = ₱{loveGiftAmount.toLocaleString()}</strong> as a love gift. 🎁
+          <p style={{ fontSize: "0.75rem", color: "#9f1239", margin: "0.5rem 0 0", lineHeight: 1.5 }}>
+            {loveGiftAmt > 0
+              ? `Share this listing to bless others — earn a Love Gift of ₱${loveGiftAmt.toLocaleString()} when your shared link leads to a confirmed sale. 🎁`
+              : "No Love Gift set. You can add one to encourage members to share your listing."}
           </p>
         </div>
 

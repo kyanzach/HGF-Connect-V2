@@ -3,10 +3,8 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { verifyRegistrationResponse } from "@simplewebauthn/server";
 
-const RP_ID = process.env.NEXTAUTH_URL
-  ? new URL(process.env.NEXTAUTH_URL).hostname
-  : "localhost";
-const ORIGIN = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+const RP_ID = process.env.WEBAUTHN_RP_ID ?? "localhost";
+const ORIGIN = process.env.WEBAUTHN_ORIGIN ?? "http://localhost:3000";
 
 export async function POST(req: Request) {
   const session = await auth();

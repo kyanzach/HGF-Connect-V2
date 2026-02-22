@@ -43,7 +43,7 @@ export default async function MarketplaceSSRPage() {
       priceLabel: true,
       conditionType: true,
       locationArea: true,
-      loveGiftPercent: true,
+      loveGiftAmount: true,
       createdAt: true,
       seller: { select: { firstName: true, lastName: true } },
       photos: { take: 1, select: { photoPath: true }, orderBy: { sortOrder: "asc" } },
@@ -173,7 +173,7 @@ export default async function MarketplaceSSRPage() {
                       {TYPE_LABELS[listing.listingType]}
                     </span>
                     {/* Love Gift badge */}
-                    {Number(listing.loveGiftPercent) > 0 && (
+                    {Number(listing.loveGiftAmount) > 0 && (
                       <span
                         style={{
                           position: "absolute",
@@ -187,7 +187,7 @@ export default async function MarketplaceSSRPage() {
                           borderRadius: "4px",
                         }}
                       >
-                        ❤️ {Number(listing.loveGiftPercent)}%
+                        ❤️ {Number(listing.loveGiftAmount)}%
                       </span>
                     )}
                   </div>

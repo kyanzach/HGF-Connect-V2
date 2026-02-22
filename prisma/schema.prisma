@@ -346,7 +346,7 @@ model MarketplaceListing {
   status          MarketplaceListingStatus @default(active)
   isOfficialStore Boolean                @default(false) @map("is_official_store")
   viewCount       Int                    @default(0) @map("view_count")
-  loveGiftPercent Decimal?               @default(0) @map("love_gift_percent") @db.Decimal(5, 2)
+  loveGiftAmount  Int?                   @default(0) @map("love_gift_amount")
   expiresAt       DateTime?              @map("expires_at") @db.Date
   soldAt          DateTime?              @map("sold_at")
   createdAt       DateTime               @default(now()) @map("created_at")

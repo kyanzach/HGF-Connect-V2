@@ -8,7 +8,7 @@ const PRIMARY = "#4EB1CB";
 
 interface Share {
   id: number;
-  listing: { id: number; title: string; price: string | null; loveGiftPercent: string | null };
+  listing: { id: number; title: string; price: string | null; loveGiftAmount: string | null };
   loveGiftEarned: string;
   status: string;
   createdAt: string;
@@ -151,7 +151,7 @@ export default function LoveGiftsDashboard() {
                   {share.listing.title}
                 </div>
                 <div style={{ fontSize: "0.75rem", color: "#94a3b8" }}>
-                  {share.listing.loveGiftPercent}% of ₱{Number(share.listing.price ?? 0).toLocaleString()}
+                  {share.listing.loveGiftAmount}% of ₱{Number(share.listing.price ?? 0).toLocaleString()}
                 </div>
               </div>
               <div style={{ textAlign: "right", flexShrink: 0 }}>

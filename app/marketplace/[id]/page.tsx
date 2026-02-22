@@ -46,7 +46,7 @@ export default async function ListingDetailPage({ params }: Props) {
   db.marketplaceListing.update({ where: { id: listing.id }, data: { viewCount: { increment: 1 } } }).catch(() => {});
 
   const sellerInitials = `${listing.seller.firstName[0]}${listing.seller.lastName?.[0] ?? ""}`;
-  const loveGift = Number(listing.loveGiftPercent ?? 0);
+  const loveGift = Number(listing.loveGiftAmount ?? 0);
   const price = Number(listing.price ?? 0);
   const loveGiftAmt = (price * loveGift) / 100;
 

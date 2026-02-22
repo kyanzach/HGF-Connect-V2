@@ -31,7 +31,7 @@ export async function GET(req: Request) {
       priceLabel: true,
       conditionType: true,
       locationArea: true,
-      loveGiftPercent: true,
+      loveGiftAmount: true,
       createdAt: true,
       seller: { select: { id: true, firstName: true, lastName: true } },
       photos: { take: 1, select: { photoPath: true }, orderBy: { sortOrder: "asc" } },
@@ -47,7 +47,7 @@ export async function POST(req: Request) {
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { title, description, listingType, category, price, priceLabel, conditionType, locationArea, loveGiftPercent } = body;
+  const { title, description, listingType, category, price, priceLabel, conditionType, locationArea, loveGiftAmount } = body;
 
   if (!title?.trim()) return NextResponse.json({ error: "Title required" }, { status: 400 });
 
@@ -62,7 +62,7 @@ export async function POST(req: Request) {
       priceLabel: priceLabel?.trim() || null,
       conditionType: conditionType || null,
       locationArea: locationArea?.trim() || null,
-      loveGiftPercent: loveGiftPercent ?? 0,
+      loveGiftAmount: loveGiftAmount ?? 0,
       status: "active",
     },
   });

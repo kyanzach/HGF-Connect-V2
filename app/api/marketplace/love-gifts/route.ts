@@ -12,7 +12,7 @@ export async function GET() {
     orderBy: { createdAt: "desc" },
     include: {
       listing: {
-        select: { id: true, title: true, price: true, loveGiftPercent: true },
+        select: { id: true, title: true, price: true, loveGiftAmount: true },
       },
     },
   });

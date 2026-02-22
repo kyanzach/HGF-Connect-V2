@@ -4,9 +4,7 @@ import { auth } from "@/lib/auth";
 import { generateRegistrationOptions } from "@simplewebauthn/server";
 
 const RP_NAME = "HGF Connect";
-const RP_ID = process.env.NEXTAUTH_URL
-  ? new URL(process.env.NEXTAUTH_URL).hostname
-  : "localhost";
+const RP_ID = process.env.WEBAUTHN_RP_ID ?? "localhost"; // bare domain, no protocol
 
 function b64ToBuffer(b64url: string): Buffer {
   const b64 = b64url.replace(/-/g, "+").replace(/_/g, "/");
@@ -39,7 +37,7 @@ export async function POST() {
     })),
     authenticatorSelection: {
       residentKey: "preferred",
-      userVerification: "preferred",
+      userVerification: "required", // guide §2.12: enforce biometric, not just tap
       authenticatorAttachment: "platform",
     },
   });

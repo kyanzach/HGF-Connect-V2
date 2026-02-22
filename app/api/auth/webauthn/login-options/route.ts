@@ -3,9 +3,7 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { generateAuthenticationOptions } from "@simplewebauthn/server";
 
-const RP_ID = process.env.NEXTAUTH_URL
-  ? new URL(process.env.NEXTAUTH_URL).hostname
-  : "localhost";
+const RP_ID = process.env.WEBAUTHN_RP_ID ?? "localhost";
 
 function b64ToBuffer(b64url: string): Buffer {
   const b64 = b64url.replace(/-/g, "+").replace(/_/g, "/");
@@ -36,7 +34,7 @@ export async function POST(req: Request) {
 
   const options = await generateAuthenticationOptions({
     rpID: RP_ID,
-    userVerification: "preferred",
+    userVerification: "required",
     allowCredentials: credentials.map((c) => ({
       id: b64ToBuffer(c.credentialId),
       type: "public-key" as const,
