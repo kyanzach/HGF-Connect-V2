@@ -26,6 +26,7 @@ export default function EditProfilePage() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const profileInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
     firstName: "", lastName: "",
@@ -38,6 +39,7 @@ export default function EditProfilePage() {
     sms1dayReminder: true, smsSameDayReminder: true,
   });
   const [profilePic, setProfilePic] = useState<string | null>(null);
+  const [coverPic, setCoverPic] = useState<string | null>(null);
 
   const memberId = session?.user?.id;
 
@@ -65,6 +67,7 @@ export default function EditProfilePage() {
           smsSameDayReminder: data.smsSameDayReminder ?? true,
         });
         if (data.profilePicture) setProfilePic(`/uploads/profile_pictures/${data.profilePicture}`);
+        if (data.coverPhoto) setCoverPic(`/uploads/profile_pictures/${data.coverPhoto}`);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -156,32 +159,64 @@ export default function EditProfilePage() {
       </div>
 
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "1.5rem 1rem 0" }}>
-        {/* Avatar quick-change */}
-        <div style={{ display: "flex", alignItems: "center", gap: "1rem", background: "white", borderRadius: "14px", padding: "1rem 1.25rem", marginBottom: "1.25rem", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+        {/* Photos section */}
+        <div style={{ background: "white", borderRadius: "14px", overflow: "hidden", marginBottom: "1.25rem", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+
+          {/* Profile photo row */}
           <div
             onClick={() => profileInputRef.current?.click()}
-            style={{ width: 64, height: 64, borderRadius: "50%", overflow: "hidden", background: `${PRIMARY}20`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, border: `2.5px solid ${PRIMARY}` }}
+            style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "1rem 1.25rem", cursor: "pointer", borderBottom: "1px solid #f1f5f9", transition: "background 0.15s" }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "white")}
           >
-            {profilePic ? (
-              <Image src={profilePic} alt="Profile" width={64} height={64} style={{ objectFit: "cover" }} />
-            ) : (
-              <span style={{ fontSize: "1.5rem", fontWeight: 800, color: PRIMARY }}>
-                {form.firstName?.[0]?.toUpperCase() ?? "?"}
-              </span>
-            )}
-          </div>
-          <div>
-            <p style={{ margin: 0, fontWeight: 700, color: "#1e293b", fontSize: "0.9rem" }}>Profile Photo</p>
-            <p style={{ margin: "0.125rem 0 0", fontSize: "0.775rem", color: "#94a3b8" }}>Tap to upload new photo (JPG, PNG — max 5MB)</p>
+            <div style={{ width: 56, height: 56, borderRadius: "50%", overflow: "hidden", background: `${PRIMARY}20`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, border: `2.5px solid ${PRIMARY}` }}>
+              {profilePic ? (
+                <Image src={profilePic} alt="Profile" width={56} height={56} style={{ objectFit: "cover" }} />
+              ) : (
+                <span style={{ fontSize: "1.375rem", fontWeight: 800, color: PRIMARY }}>{form.firstName?.[0]?.toUpperCase() ?? "?"}</span>
+              )}
+            </div>
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: 0, fontWeight: 700, color: "#1e293b", fontSize: "0.875rem" }}>Profile Photo</p>
+              <p style={{ margin: "0.125rem 0 0", fontSize: "0.75rem", color: "#94a3b8" }}>Tap to change · JPG, PNG · max 5MB</p>
+            </div>
+            <span style={{ color: "#cbd5e1", fontSize: "1.1rem" }}>›</span>
           </div>
           <input ref={profileInputRef} type="file" accept="image/png,image/jpeg,image/webp" style={{ display: "none" }} onChange={async (e) => {
-            const file = e.target.files?.[0];
-            if (!file) return;
-            const fd = new FormData();
-            fd.append("file", file);
-            fd.append("type", "profile");
+            const file = e.target.files?.[0]; if (!file) return;
+            const fd = new FormData(); fd.append("file", file); fd.append("type", "profile");
             const res = await fetch(`/api/members/${memberId}/photo`, { method: "POST", body: fd });
             if (res.ok) { const { path } = await res.json(); setProfilePic(path); }
+          }} />
+
+          {/* Cover photo row */}
+          <div
+            onClick={() => coverInputRef.current?.click()}
+            style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "1rem 1.25rem", cursor: "pointer", transition: "background 0.15s" }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "white")}
+          >
+            {/* Cover preview — landscape rectangle */}
+            <div style={{ width: 80, height: 48, borderRadius: "8px", overflow: "hidden", flexShrink: 0, border: "2px solid #e2e8f0", background: coverPic ? "transparent" : `linear-gradient(135deg, #0f2d3d, ${PRIMARY})`, position: "relative" }}>
+              {coverPic ? (
+                <Image src={coverPic} alt="Cover" fill style={{ objectFit: "cover" }} sizes="80px" />
+              ) : (
+                <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <span style={{ fontSize: "1.25rem" }}>🌅</span>
+                </div>
+              )}
+            </div>
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: 0, fontWeight: 700, color: "#1e293b", fontSize: "0.875rem" }}>Cover Photo</p>
+              <p style={{ margin: "0.125rem 0 0", fontSize: "0.75rem", color: "#94a3b8" }}>Tap to change · JPG, PNG · max 5MB</p>
+            </div>
+            <span style={{ color: "#cbd5e1", fontSize: "1.1rem" }}>›</span>
+          </div>
+          <input ref={coverInputRef} type="file" accept="image/png,image/jpeg,image/webp" style={{ display: "none" }} onChange={async (e) => {
+            const file = e.target.files?.[0]; if (!file) return;
+            const fd = new FormData(); fd.append("file", file); fd.append("type", "cover");
+            const res = await fetch(`/api/members/${memberId}/photo`, { method: "POST", body: fd });
+            if (res.ok) { const { path } = await res.json(); setCoverPic(path); }
           }} />
         </div>
 

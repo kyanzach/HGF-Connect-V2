@@ -29,10 +29,13 @@ const navLinks = [
 export default function PublicNav() {
   const { data: session } = useSession();
   const pathname = usePathname();
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
+  const [dropOpen, setDropOpen] = useState(false);
 
+  // Close both menus on route change
   useEffect(() => {
-    setMenuOpen(false);
+    setNavOpen(false);
+    setDropOpen(false);
   }, [pathname]);
 
   const isActive = (href: string) =>
@@ -106,7 +109,7 @@ export default function PublicNav() {
           {session && (
             <div style={{ position: "relative" }}>
               <button
-                onClick={() => setMenuOpen(!menuOpen)}
+                onClick={() => { setDropOpen((o) => !o); setNavOpen(false); }}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -140,7 +143,7 @@ export default function PublicNav() {
                 {session.user.firstName || session.user.name?.split(" ")[0]} ▾
               </button>
 
-              {menuOpen && (
+              {dropOpen && (
                 <div
                   style={{
                     position: "absolute",
@@ -214,7 +217,7 @@ export default function PublicNav() {
 
           {/* Hamburger — ALWAYS visible */}
           <button
-            onClick={() => setMenuOpen(!menuOpen)}
+            onClick={() => { setNavOpen((o) => !o); setDropOpen(false); }}
             style={{
               background: "rgba(255,255,255,0.15)",
               border: "none",
@@ -237,7 +240,7 @@ export default function PublicNav() {
       </div>
 
       {/* ── Slide-down menu ── */}
-      {menuOpen && (
+      {navOpen && (
         <div style={{ background: "#3A95AD", borderTop: "1px solid rgba(255,255,255,0.1)", maxWidth: "500px", margin: "0 auto" }}>
           {navLinks.map(({ href, label, Icon }) => (
             <Link
