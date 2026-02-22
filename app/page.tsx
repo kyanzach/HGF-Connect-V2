@@ -80,13 +80,7 @@ export default async function HomePage() {
           <div style={{ position: "absolute", bottom: -20, left: -20, width: 80, height: 80, background: "rgba(255,255,255,0.05)", borderRadius: "50%" }} />
 
           <div style={{ position: "relative" }}>
-            <Image
-              src="/HGF-icon-v1.0.png"
-              alt="HGF"
-              width={64}
-              height={64}
-              style={{ borderRadius: "50%", border: "3px solid rgba(255,255,255,0.4)", marginBottom: "0.875rem" }}
-            />
+  
             <h1 style={{ color: "white", fontSize: "1.5rem", fontWeight: 800, margin: "0 0 0.375rem", letterSpacing: "-0.01em" }}>
               HGF Connect
             </h1>
@@ -418,7 +412,7 @@ export default async function HomePage() {
             📧 hello@houseofgrace.ph · 📞 +63 991 927 1810
           </p>
           <p style={{ fontSize: "0.7rem", margin: "0 0 0.75rem" }}>
-            📍 Sazon Compound, Matina, Davao City
+            📍 11-A Iñigo St., Obrero, Davao City
           </p>
           <div style={{ display: "flex", justifyContent: "center", gap: "1.25rem", marginBottom: "0.75rem" }}>
             {["Events", "Directory", "Resources"].map((l) => (
