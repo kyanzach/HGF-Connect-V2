@@ -9,23 +9,22 @@ import { usePathname } from "next/navigation";
 const PRIMARY = "#4EB1CB";
 const APP_VERSION = "2.0.1";
 
+const navLinks = [
+  { href: "/", label: "🏠 Home" },
+  { href: "/directory", label: "👥 Member Directory" },
+  { href: "/events", label: "📅 Events" },
+  { href: "/marketplace", label: "🛍️ Marketplace" },
+  { href: "/resources", label: "📚 Resources" },
+];
+
 export default function PublicNav() {
   const { data: session } = useSession();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // Close mobile menu on route change
   useEffect(() => {
     setMenuOpen(false);
   }, [pathname]);
-
-  const navLinks = [
-    { href: "/", label: "🏠 Home" },
-    { href: "/directory", label: "👥 Member Directory" },
-    { href: "/events", label: "📅 Events" },
-    { href: "/marketplace", label: "🛍️ Marketplace" },
-    { href: "/resources", label: "📚 Resources" },
-  ];
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname?.startsWith(href);
@@ -41,6 +40,7 @@ export default function PublicNav() {
         boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
       }}
     >
+      {/* ── Top bar ── */}
       <div
         style={{
           maxWidth: "500px",
@@ -49,10 +49,9 @@ export default function PublicNav() {
           display: "flex",
           alignItems: "center",
           height: "56px",
-          gap: "0.75rem",
         }}
       >
-        {/* Brand */}
+        {/* Brand — left */}
         <Link
           href="/"
           style={{
@@ -83,56 +82,26 @@ export default function PublicNav() {
               fontWeight: 600,
               letterSpacing: "0.04em",
               color: "rgba(255,255,255,0.85)",
-              alignSelf: "center",
             }}
           >
             v{APP_VERSION}
           </span>
         </Link>
-        {/* Desktop Nav Links */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "0.125rem",
-            flex: 1,
-            // Hide on small screens via CSS class is not available; use JS-driven logic
-          }}
-          className="hgf-desktop-nav"
-        >
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              style={{
-                padding: "0.375rem 0.75rem",
-                borderRadius: "6px",
-                textDecoration: "none",
-                fontSize: "0.875rem",
-                fontWeight: isActive(link.href) ? 700 : 500,
-                color: isActive(link.href) ? "white" : "rgba(255,255,255,0.85)",
-                background: isActive(link.href)
-                  ? "rgba(255,255,255,0.18)"
-                  : "transparent",
-                transition: "background 0.15s",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {link.label}
-            </Link>
-          ))}
-        </div>
 
-        {/* Right side: auth */}
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexShrink: 0 }}>
-          {session ? (
+        {/* Spacer */}
+        <div style={{ flex: 1 }} />
+
+        {/* Right controls — floated right, always visible */}
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          {/* User dropdown (logged in) */}
+          {session && (
             <div style={{ position: "relative" }}>
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: "0.5rem",
+                  gap: "0.375rem",
                   background: "rgba(255,255,255,0.15)",
                   border: "none",
                   color: "white",
@@ -169,16 +138,16 @@ export default function PublicNav() {
                     top: "calc(100% + 8px)",
                     right: 0,
                     background: "white",
-                    borderRadius: "8px",
+                    borderRadius: "10px",
                     boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
-                    minWidth: "180px",
+                    minWidth: "190px",
                     zIndex: 200,
                     overflow: "hidden",
                     border: "1px solid #e2e8f0",
                   }}
                 >
-                  <DropdownItem href="/dashboard" label="🏠 My Dashboard" />
-                  <DropdownItem href="/profile" label="✏️ Edit Profile" />
+                  <DropdownItem href="/feed" label="🏠 Community Feed" />
+                  <DropdownItem href="/me" label="👤 My Profile" />
                   {["admin", "moderator", "usher"].includes(session.user.role) && (
                     <>
                       <hr style={{ border: "none", borderTop: "1px solid #f1f5f9", margin: 0 }} />
@@ -188,7 +157,7 @@ export default function PublicNav() {
                   {["admin", "moderator"].includes(session.user.role) && (
                     <>
                       <hr style={{ border: "none", borderTop: "1px solid #f1f5f9", margin: 0 }} />
-                      <div style={{ padding: "0.25rem 0.75rem", fontSize: "0.7rem", color: "#94a3b8", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      <div style={{ padding: "0.25rem 0.875rem", fontSize: "0.7rem", color: "#94a3b8", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                         Management
                       </div>
                       <DropdownItem href="/admin" label="⚙️ Admin Dashboard" />
@@ -214,99 +183,83 @@ export default function PublicNav() {
                 </div>
               )}
             </div>
-          ) : (
-            <>
-              <Link
-                href="/login"
-                style={{
-                  padding: "0.375rem 0.75rem",
-                  borderRadius: "6px",
-                  textDecoration: "none",
-                  fontSize: "0.875rem",
-                  fontWeight: isActive("/login") ? 700 : 500,
-                  color: "rgba(255,255,255,0.9)",
-                  background: isActive("/login") ? "rgba(255,255,255,0.18)" : "transparent",
-                }}
-              >
-                🔑 Login
-              </Link>
-              <Link
-                href="/register"
-                style={{
-                  padding: "0.375rem 0.75rem",
-                  borderRadius: "6px",
-                  textDecoration: "none",
-                  fontSize: "0.875rem",
-                  fontWeight: 500,
-                  color: "rgba(255,255,255,0.9)",
-                }}
-              >
-                📝 Register
-              </Link>
-            </>
           )}
 
-          {/* Mobile hamburger */}
+          {/* Guest: Login link */}
+          {!session && (
+            <Link
+              href="/login"
+              style={{
+                padding: "0.375rem 0.875rem",
+                borderRadius: "999px",
+                textDecoration: "none",
+                fontSize: "0.875rem",
+                fontWeight: 600,
+                color: PRIMARY,
+                background: "white",
+              }}
+            >
+              Login
+            </Link>
+          )}
+
+          {/* Hamburger — ALWAYS visible */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="hgf-mobile-menu-btn"
             style={{
               background: "rgba(255,255,255,0.15)",
               border: "none",
               color: "white",
               width: "36px",
               height: "36px",
-              borderRadius: "6px",
+              borderRadius: "8px",
               cursor: "pointer",
               fontSize: "1.125rem",
-              display: "none", // shown via CSS
+              display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              flexShrink: 0,
             }}
+            aria-label="Menu"
           >
             ☰
           </button>
         </div>
       </div>
 
-      {/* Mobile dropdown menu */}
+      {/* ── Slide-down menu ── */}
       {menuOpen && (
-        <div
-          style={{
-            background: "#3A95AD",
-            borderTop: "1px solid rgba(255,255,255,0.1)",
-          }}
-          className="hgf-mobile-nav"
-        >
+        <div style={{ background: "#3A95AD", borderTop: "1px solid rgba(255,255,255,0.1)", maxWidth: "500px", margin: "0 auto" }}>
           {navLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
               style={{
                 display: "block",
-                padding: "0.75rem 1.25rem",
+                padding: "0.875rem 1.25rem",
                 color: "white",
                 textDecoration: "none",
                 fontWeight: isActive(link.href) ? 700 : 400,
                 borderBottom: "1px solid rgba(255,255,255,0.1)",
                 background: isActive(link.href) ? "rgba(255,255,255,0.1)" : "transparent",
+                fontSize: "0.9rem",
               }}
             >
               {link.label}
             </Link>
           ))}
+          {!session && (
+            <>
+              <Link href="/login" style={{ display: "block", padding: "0.875rem 1.25rem", color: "white", textDecoration: "none", fontWeight: 600, borderBottom: "1px solid rgba(255,255,255,0.1)", fontSize: "0.9rem" }}>
+                🔑 Login
+              </Link>
+              <Link href="/register" style={{ display: "block", padding: "0.875rem 1.25rem", color: "rgba(255,255,255,0.85)", textDecoration: "none", fontSize: "0.9rem" }}>
+                📝 Register
+              </Link>
+            </>
+          )}
         </div>
       )}
-
-      <style jsx global>{`
-        @media (max-width: 768px) {
-          .hgf-desktop-nav { display: none !important; }
-          .hgf-mobile-menu-btn { display: flex !important; }
-        }
-        @media (min-width: 769px) {
-          .hgf-mobile-nav { display: none !important; }
-        }
-      `}</style>
     </nav>
   );
 }

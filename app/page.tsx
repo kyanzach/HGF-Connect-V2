@@ -29,7 +29,7 @@ const DAILY_VERSES = [
 const APP_FEATURES = [
   { icon: "📖", label: "Daily Devo", desc: "Share & read devotionals" },
   { icon: "🙏", label: "Prayer Wall", desc: "Pray for one another" },
-  { icon: "✝️", label: "AI Chat", desc: "Church AI assistant" },
+  { icon: "✝️", label: "AI Helper", desc: "Church AI assistant" },
   { icon: "📔", label: "Journal", desc: "Private spiritual diary" },
   { icon: "📅", label: "Events", desc: "RSVP & get reminders" },
   { icon: "🛍️", label: "Marketplace", desc: "Member listings" },
