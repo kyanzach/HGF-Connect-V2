@@ -7,7 +7,7 @@ import { useSession, signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
 
 const PRIMARY = "#4EB1CB";
-const APP_VERSION = "2.0.0";
+const APP_VERSION = "2.0.1";
 
 export default function PublicNav() {
   const { data: session } = useSession();

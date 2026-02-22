@@ -1,17 +1,19 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Profile pictures and uploads served from /public/uploads/
+  // Access via /uploads/profile_pictures/{filename}
   images: {
+    // Allow unoptimized for local uploads served as static files
+    unoptimized: false,
     remotePatterns: [
-      {
-        protocol: "http",
-        hostname: "localhost",
-        pathname: "/connect.houseofgrace.ph/uploads/**",
-      },
       {
         protocol: "https",
         hostname: "connect.houseofgrace.ph",
-        pathname: "/uploads/**",
+      },
+      {
+        protocol: "http",
+        hostname: "localhost",
       },
     ],
   },

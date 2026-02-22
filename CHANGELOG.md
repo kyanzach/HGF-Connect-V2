@@ -7,7 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.0.1] — 2026-02-22
+
+### Added — Data Migration & Live Deploy
+
+#### Data Migration (Real Production Data)
+- Imported full SQL backup (`hgfapp-353032350995.sql`) with all production members, events, attendance records, SMS logs, and ministries
+- Copied 34 member profile pictures from old PHP app uploads to `public/uploads/profile_pictures/`
+- Copied 15 Sunday Word PDF resources to `public/uploads/sunday_word/`
+
+#### UI Changes
+- Home page redesigned to match old PHP site (2-col layout, features card, sticky sidebar)
+- Marketplace page updated with exact old-site content (Coming Soon, 3 feature cards, daily bible verse)
+- `PublicNav` updated: HGF icon, v2.0.1 badge, old-site nav links (Home, Member Directory, Events, Marketplace, Resources)
+- `/marketplace` route made public (no login required) — matches old site behavior
+
+#### Infrastructure
+- `next.config.ts` updated to serve uploads as static assets from `public/uploads/`
+- First live deployment to DigitalOcean Droplet (159.65.15.225)
+
+---
+
 ## [v2.0.0] — 2026-02-22
+
 
 ### Added — Initial Next.js 14 Rewrite
 
