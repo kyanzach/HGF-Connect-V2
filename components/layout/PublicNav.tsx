@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useSession, signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
 
@@ -49,9 +50,45 @@ export default function PublicNav() {
           alignItems: "center",
           height: "56px",
           gap: "0.75rem",
-          justifyContent: "flex-end",
         }}
       >
+        {/* Brand */}
+        <Link
+          href="/"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            textDecoration: "none",
+            color: "white",
+            fontWeight: 700,
+            fontSize: "1.0625rem",
+            flexShrink: 0,
+          }}
+        >
+          <Image
+            src="/HGF-icon-v1.0.png"
+            alt="HGF Logo"
+            width={32}
+            height={32}
+            style={{ borderRadius: "50%", objectFit: "cover" }}
+          />
+          HGF Connect
+          <span
+            style={{
+              fontSize: "0.625rem",
+              background: "rgba(255,255,255,0.2)",
+              padding: "0.1rem 0.375rem",
+              borderRadius: "999px",
+              fontWeight: 600,
+              letterSpacing: "0.04em",
+              color: "rgba(255,255,255,0.85)",
+              alignSelf: "center",
+            }}
+          >
+            v{APP_VERSION}
+          </span>
+        </Link>
         {/* Desktop Nav Links */}
         <div
           style={{
