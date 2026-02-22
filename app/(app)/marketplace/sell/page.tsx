@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import Image from "next/image";
 
 const PRIMARY = "#4EB1CB";
 
@@ -14,14 +15,12 @@ const CONDITIONS = ["new", "like_new", "good", "fair", "poor"];
 const CONDITION_LABELS: Record<string, string> = {
   new: "Brand New", like_new: "Like New", good: "Good", fair: "Fair", poor: "For Parts",
 };
-
-// Prisma enum values
 const LISTING_TYPES = [
-  { value: "sale",           label: "For Sale",      emoji: "🏷️" },
-  { value: "free",           label: "Free / Donate", emoji: "🎁" },
-  { value: "service",        label: "Service",        emoji: "🛠️" },
-  { value: "borrow",         label: "Borrow / Lend",  emoji: "🔄" },
-  { value: "trade",          label: "Trade / Swap",   emoji: "🔃" },
+  { value: "sale",    label: "For Sale",     emoji: "🏷️" },
+  { value: "free",    label: "Free / Donate",emoji: "🎁" },
+  { value: "service", label: "Service",      emoji: "🛠️" },
+  { value: "borrow",  label: "Borrow / Lend",emoji: "🔄" },
+  { value: "trade",   label: "Trade / Swap", emoji: "🔃" },
 ];
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -43,17 +42,13 @@ export default function SellPage() {
   const { data: session } = useSession();
 
   const [form, setForm] = useState({
-    title: "",
-    description: "",
-    listingType: "sale",
-    category: "Other",
-    ogPrice: "",          // Original / reference price (always visible)
-    discountedPrice: "",  // Gated — revealed only after prospect submits form (v1.1)
-    priceLabel: "",
-    conditionType: "good",
-    locationArea: "",
-    loveGiftAmount: "0",
+    title: "", description: "", listingType: "sale", category: "Other",
+    ogPrice: "", discountedPrice: "", priceLabel: "",
+    conditionType: "good", locationArea: "", loveGiftAmount: "0",
   });
+  const [photoPaths, setPhotoPaths] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -69,19 +64,39 @@ export default function SellPage() {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    if (photoPaths.length + files.length > 5) { setError("Max 5 photos"); return; }
+    setUploading(true); setError("");
+    try {
+      const uploaded: string[] = [];
+      for (const file of files) {
+        const fd = new FormData();
+        fd.append("file", file);
+        const res = await fetch("/api/marketplace/upload", { method: "POST", body: fd });
+        if (!res.ok) throw new Error((await res.json()).error ?? "Upload failed");
+        const data = await res.json();
+        uploaded.push(data.photoPath);
+      }
+      setPhotoPaths((prev) => [...prev, ...uploaded]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
   const isFreeType = form.listingType === "free";
   const isBorrowOrTrade = form.listingType === "borrow" || form.listingType === "trade";
   const showPrice = !isFreeType;
-  const showDiscount = form.listingType === "sale"; // Only sale listings can have a gated discount
+  const showDiscount = form.listingType === "sale";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.title.trim()) { setError("Title is required"); return; }
-    if (showPrice && !form.ogPrice && !isBorrowOrTrade) {
-      setError("Please enter a price"); return;
-    }
-    setSubmitting(true);
-    setError("");
+    setSubmitting(true); setError("");
     try {
       const res = await fetch("/api/marketplace/listings", {
         method: "POST",
@@ -97,6 +112,7 @@ export default function SellPage() {
           conditionType: form.conditionType,
           locationArea: form.locationArea,
           loveGiftAmount: parseInt(form.loveGiftAmount) || 0,
+          photoPaths,
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Failed");
@@ -117,10 +133,7 @@ export default function SellPage() {
     <div style={{ paddingBottom: "2rem" }}>
       {/* Header */}
       <div style={{ background: PRIMARY, padding: "1rem", color: "white" }}>
-        <button
-          onClick={() => router.back()}
-          style={{ background: "none", border: "none", color: "white", fontSize: "1rem", cursor: "pointer", marginBottom: "0.375rem" }}
-        >
+        <button onClick={() => router.back()} style={{ background: "none", border: "none", color: "white", fontSize: "1rem", cursor: "pointer", marginBottom: "0.375rem" }}>
           ← Back
         </button>
         <h1 style={{ margin: 0, fontSize: "1.125rem", fontWeight: 800 }}>📦 Post a Listing</h1>
@@ -137,18 +150,13 @@ export default function SellPage() {
           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
             {LISTING_TYPES.map(({ value, label, emoji }) => (
               <button
-                key={value}
-                type="button"
-                onClick={() => set("listingType", value)}
+                key={value} type="button" onClick={() => set("listingType", value)}
                 style={{
-                  padding: "0.375rem 0.875rem",
-                  borderRadius: "999px",
+                  padding: "0.375rem 0.875rem", borderRadius: "999px",
                   border: `2px solid ${form.listingType === value ? PRIMARY : "#e2e8f0"}`,
                   background: form.listingType === value ? PRIMARY : "white",
                   color: form.listingType === value ? "white" : "#64748b",
-                  fontWeight: 600,
-                  fontSize: "0.8rem",
-                  cursor: "pointer",
+                  fontWeight: 600, fontSize: "0.8rem", cursor: "pointer",
                 }}
               >
                 {emoji} {label}
@@ -157,24 +165,52 @@ export default function SellPage() {
           </div>
         </div>
 
+        {/* Photos */}
+        <div style={{ background: "white", borderRadius: "14px", padding: "1rem", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+          <label style={{ fontSize: "0.8rem", fontWeight: 700, color: "#64748b", display: "block", marginBottom: "0.5rem" }}>
+            Photos {uploading ? "(Uploading…)" : `(${photoPaths.length}/5)`}
+          </label>
+          {photoPaths.length > 0 && (
+            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "0.75rem" }}>
+              {photoPaths.map((path) => (
+                <div key={path} style={{ position: "relative", width: 72, height: 72 }}>
+                  <Image src={`/uploads/marketplace/${path}`} alt="photo" fill style={{ objectFit: "cover", borderRadius: "8px" }} />
+                  <button
+                    type="button"
+                    onClick={() => setPhotoPaths((prev) => prev.filter((p) => p !== path))}
+                    style={{ position: "absolute", top: -6, right: -6, background: "#ef4444", color: "white", border: "none", borderRadius: "50%", width: 20, height: 20, fontSize: "0.65rem", cursor: "pointer", lineHeight: "20px", padding: 0 }}
+                  >✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+          {photoPaths.length < 5 && (
+            <>
+              <input ref={fileInputRef} type="file" multiple accept="image/*" onChange={handlePhotoChange} style={{ display: "none" }} />
+              <button
+                type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading}
+                style={{ width: "100%", border: "2px dashed #bae6fd", borderRadius: "10px", padding: "0.875rem", background: "#f0f9ff", color: "#0369a1", fontSize: "0.875rem", fontWeight: 600, cursor: uploading ? "wait" : "pointer", fontFamily: "inherit" }}
+              >
+                {uploading ? "Uploading…" : "📷 Add Photos (up to 5)"}
+              </button>
+            </>
+          )}
+        </div>
+
         {/* Title */}
         <Field label="Title *">
           <input
-            value={form.title}
-            onChange={(e) => set("title", e.target.value)}
-            placeholder="What are you listing?"
-            style={INPUT_STYLE}
+            value={form.title} onChange={(e) => set("title", e.target.value)}
+            placeholder="What are you listing?" style={INPUT_STYLE}
           />
         </Field>
 
         {/* Description */}
         <Field label="Description">
           <textarea
-            value={form.description}
-            onChange={(e) => set("description", e.target.value)}
-            placeholder="Describe your item — condition, size, reason for selling, included accessories…"
-            rows={4}
-            style={{ ...INPUT_STYLE, resize: "none" }}
+            value={form.description} onChange={(e) => set("description", e.target.value)}
+            placeholder="Describe your item — condition, size, reason for selling…"
+            rows={4} style={{ ...INPUT_STYLE, resize: "none" }}
           />
         </Field>
 
@@ -194,7 +230,7 @@ export default function SellPage() {
           </div>
         </div>
 
-        {/* Pricing — OG Price + Discounted Price (only for Sale type) */}
+        {/* Pricing */}
         {showPrice && (
           <div style={{ background: "white", borderRadius: "14px", padding: "1rem", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
             <div style={{ display: "grid", gridTemplateColumns: showDiscount ? "1fr 1fr" : "1fr", gap: "0.75rem" }}>
@@ -203,31 +239,23 @@ export default function SellPage() {
                   {showDiscount ? "Original Price (₱) *" : "Price (₱)"}
                 </label>
                 <input
-                  type="number"
-                  value={form.ogPrice}
-                  onChange={(e) => set("ogPrice", e.target.value)}
-                  placeholder="e.g. 1200"
-                  min="0"
-                  step="1"
+                  type="number" value={form.ogPrice} onChange={(e) => set("ogPrice", e.target.value)}
+                  placeholder="e.g. 1200" min="0" step="1"
                   style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: "8px", padding: "0.5rem 0.75rem", fontSize: "1rem", fontFamily: "inherit", outline: "none", boxSizing: "border-box" }}
                 />
-                {showDiscount && <p style={{ fontSize: "0.7rem", color: "#94a3b8", margin: "0.25rem 0 0" }}>Visible to everyone (reference price)</p>}
+                {showDiscount && <p style={{ fontSize: "0.7rem", color: "#94a3b8", margin: "0.25rem 0 0" }}>Visible to everyone</p>}
               </div>
               {showDiscount && (
                 <div>
-                  <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "#4EB1CB", display: "block", marginBottom: "0.375rem" }}>
+                  <label style={{ fontSize: "0.75rem", fontWeight: 700, color: PRIMARY, display: "block", marginBottom: "0.375rem" }}>
                     🔒 Discounted Price (₱)
                   </label>
                   <input
-                    type="number"
-                    value={form.discountedPrice}
-                    onChange={(e) => set("discountedPrice", e.target.value)}
-                    placeholder="e.g. 900"
-                    min="0"
-                    step="1"
+                    type="number" value={form.discountedPrice} onChange={(e) => set("discountedPrice", e.target.value)}
+                    placeholder="e.g. 900" min="0" step="1"
                     style={{ width: "100%", border: "1px solid #bae6fd", borderRadius: "8px", padding: "0.5rem 0.75rem", fontSize: "1rem", fontFamily: "inherit", outline: "none", boxSizing: "border-box", background: "#f0f9ff" }}
                   />
-                  <p style={{ fontSize: "0.7rem", color: "#0369a1", margin: "0.25rem 0 0" }}>Only revealed after prospect submits their info</p>
+                  <p style={{ fontSize: "0.7rem", color: "#0369a1", margin: "0.25rem 0 0" }}>Revealed only after prospect submits info</p>
                 </div>
               )}
             </div>
@@ -241,13 +269,12 @@ export default function SellPage() {
           </div>
         )}
 
-        {/* Price Label (for non-cash listings) */}
+        {/* Price Label (for non-cash listing types) */}
         {(isBorrowOrTrade || isFreeType) && (
           <Field label="Price Label (optional)">
             <input
-              value={form.priceLabel}
-              onChange={(e) => set("priceLabel", e.target.value)}
-              placeholder={isFreeType ? "e.g. Free to pickup" : isBorrowOrTrade ? "e.g. For borrow, 1 week" : ""}
+              value={form.priceLabel} onChange={(e) => set("priceLabel", e.target.value)}
+              placeholder={isFreeType ? "e.g. Free to pickup" : "e.g. For borrow, 1 week"}
               style={INPUT_STYLE}
             />
           </Field>
@@ -256,14 +283,12 @@ export default function SellPage() {
         {/* Location */}
         <Field label="Location Area">
           <input
-            value={form.locationArea}
-            onChange={(e) => set("locationArea", e.target.value)}
-            placeholder="e.g. Buhangin, Davao City"
-            style={INPUT_STYLE}
+            value={form.locationArea} onChange={(e) => set("locationArea", e.target.value)}
+            placeholder="e.g. Buhangin, Davao City" style={INPUT_STYLE}
           />
         </Field>
 
-        {/* Share & Bless — Love Gift */}
+        {/* Love Gift */}
         <div style={{ background: "linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%)", borderRadius: "16px", padding: "1rem", border: "1px solid #fecdd3" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.625rem" }}>
             <div>
@@ -277,17 +302,11 @@ export default function SellPage() {
             </span>
           </div>
           <input
-            type="number"
-            min="0"
-            step="10"
+            type="number" min="0" step="10"
             value={form.loveGiftAmount === "0" ? "" : form.loveGiftAmount}
             onChange={(e) => set("loveGiftAmount", e.target.value || "0")}
             placeholder="e.g. 100"
-            style={{
-              width: "100%", border: "1px solid #fecdd3", borderRadius: "8px",
-              padding: "0.5rem 0.75rem", fontSize: "1rem", fontFamily: "inherit",
-              background: "white", color: "#9f1239", outline: "none", boxSizing: "border-box",
-            }}
+            style={{ width: "100%", border: "1px solid #fecdd3", borderRadius: "8px", padding: "0.5rem 0.75rem", fontSize: "1rem", fontFamily: "inherit", background: "white", color: "#9f1239", outline: "none", boxSizing: "border-box" }}
           />
           <p style={{ fontSize: "0.75rem", color: "#9f1239", margin: "0.5rem 0 0", lineHeight: 1.5 }}>
             {loveGiftAmt > 0
@@ -300,16 +319,13 @@ export default function SellPage() {
 
         <button
           type="submit"
-          disabled={submitting || !form.title.trim()}
+          disabled={submitting || !form.title.trim() || uploading}
           style={{
             padding: "0.875rem",
-            background: submitting || !form.title.trim() ? "#94a3b8" : PRIMARY,
-            color: "white",
-            border: "none",
-            borderRadius: "14px",
-            fontSize: "1rem",
-            fontWeight: 700,
-            cursor: submitting || !form.title.trim() ? "not-allowed" : "pointer",
+            background: (submitting || !form.title.trim() || uploading) ? "#94a3b8" : PRIMARY,
+            color: "white", border: "none", borderRadius: "14px",
+            fontSize: "1rem", fontWeight: 700,
+            cursor: (submitting || !form.title.trim() || uploading) ? "not-allowed" : "pointer",
           }}
         >
           {submitting ? "Posting…" : "📦 Post Listing"}

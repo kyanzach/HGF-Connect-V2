@@ -60,11 +60,11 @@ export async function POST(req: Request) {
     conditionType,
     locationArea,
     loveGiftAmount,
+    photoPaths,
   } = body;
 
   if (!title?.trim()) return NextResponse.json({ error: "Title required" }, { status: 400 });
 
-  // Validate listingType against Prisma enum
   const validTypes = Object.values(ListingType);
   const safeType = validTypes.includes(listingType as ListingType)
     ? (listingType as ListingType)
@@ -79,7 +79,6 @@ export async function POST(req: Request) {
       category: category || "Other",
       price: price ?? null,
       ogPrice: ogPrice ?? null,
-      // discountedPrice stored in DB but NEVER returned publicly — gated server-side (v1.1 spec)
       discountedPrice: discountedPrice ?? null,
       priceLabel: priceLabel?.trim() || null,
       conditionType: conditionType || null,
@@ -88,6 +87,17 @@ export async function POST(req: Request) {
       status: "active",
     },
   });
+
+  // Save photo records
+  if (Array.isArray(photoPaths) && photoPaths.length > 0) {
+    await db.marketplaceListingPhoto.createMany({
+      data: photoPaths.slice(0, 5).map((photoPath: string, idx: number) => ({
+        listingId: listing.id,
+        photoPath,
+        sortOrder: idx,
+      })),
+    });
+  }
 
   return NextResponse.json({ listing }, { status: 201 });
 }
