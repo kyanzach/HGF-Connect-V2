@@ -86,7 +86,7 @@ export default async function MemberProfilePage({ params }: { params: Promise<{ 
             />
           )}
           {/* Top action bar */}
-          <div style={{ position: "absolute", top: 0, left: 0, right: 0, padding: "0.875rem 1rem", display: "flex", justifyContent: "space-between", alignItems: "center", background: "linear-gradient(to bottom, rgba(0,0,0,0.4), transparent)" }}>
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, paddingTop: "calc(env(safe-area-inset-top) + 0.875rem)", paddingBottom: "0.875rem", paddingLeft: "1rem", paddingRight: "1rem", display: "flex", justifyContent: "space-between", alignItems: "center", background: "linear-gradient(to bottom, rgba(0,0,0,0.4), transparent)" }}>
             <Link href="/directory" style={{ color: "white", textDecoration: "none", fontSize: "0.825rem", fontWeight: 700, display: "flex", alignItems: "center", gap: "0.375rem", background: "rgba(0,0,0,0.3)", backdropFilter: "blur(8px)", padding: "0.4rem 0.875rem", borderRadius: "999px" }}>
               ← Directory
             </Link>
