@@ -7,7 +7,7 @@ import { useSession, signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
 
 const PRIMARY = "#4EB1CB";
-const APP_VERSION = "2.2.0";
+const APP_VERSION = "2.3.0";
 
 // SVG icons matching old PHP site style
 const IconHome = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>;

@@ -89,7 +89,7 @@ export default function AppHeader() {
             letterSpacing: "0.04em",
           }}
         >
-          v2.2.0
+          v2.3.0
         </span>
 
         {/* Live Notification Bell */}
