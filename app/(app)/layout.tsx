@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import AppHeader from "@/components/app/AppHeader";
 import BottomDock from "@/components/app/BottomDock";
+import BiometricEnrollTrigger from "@/components/BiometricEnrollTrigger";
 
 export default async function AppLayout({
   children,
@@ -47,6 +48,9 @@ export default async function AppLayout({
 
       {/* Fixed Bottom Dock — full width via position:fixed left:0 right:0 */}
       <BottomDock />
+
+      {/* Biometric enrollment modal — fires once after first OTP login on a new device */}
+      <BiometricEnrollTrigger />
     </div>
   );
 }

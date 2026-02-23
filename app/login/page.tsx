@@ -95,6 +95,9 @@ export default function LoginPage() {
       return;
     }
 
+    // Set flag so BiometricEnrollTrigger shows biometric enrollment modal
+    sessionStorage.setItem("hgf-just-logged-in", "1");
+
     // Redirect based on role
     router.refresh();
     router.push("/");
