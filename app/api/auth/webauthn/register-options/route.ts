@@ -36,8 +36,8 @@ export async function POST() {
       transports: c.transports ? JSON.parse(c.transports) : [],
     })),
     authenticatorSelection: {
-      residentKey: "preferred",
-      userVerification: "required", // guide §2.12: enforce biometric, not just tap
+      residentKey: "required",        // must be discoverable for usernameless login
+      userVerification: "required",   // enforce biometric, not just tap
       authenticatorAttachment: "platform",
     },
   });

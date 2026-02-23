@@ -4,7 +4,12 @@ import { useState, useEffect, FormEvent } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { startAuthentication } from "@simplewebauthn/browser";
+import {
+  hasAnyEnrolledDevice,
+  getBiometricLabel,
+  isPlatformAuthenticatorAvailable,
+  authenticatePasskey,
+} from "@/lib/webauthnService";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,64 +18,53 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [bioLoading, setBioLoading] = useState(false);
-  // Only show biometric button if device supports WebAuthn platform authenticator
+  // Show passkey button if: device supports biometrics AND has an enrolled credential
   const [showBiometric, setShowBiometric] = useState(false);
+  const [biometricLabel, setBiometricLabel] = useState("Face ID / Touch ID");
 
   useEffect(() => {
-    if (
-      typeof window !== "undefined" &&
-      window.PublicKeyCredential &&
-      typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === "function"
-    ) {
-      PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
-        .then((available) => setShowBiometric(available))
-        .catch(() => setShowBiometric(false));
+    async function checkBiometric() {
+      if (typeof window === "undefined") return;
+      const available = await isPlatformAuthenticatorAvailable();
+      const enrolled = hasAnyEnrolledDevice();
+      setShowBiometric(available && enrolled);
+      setBiometricLabel(getBiometricLabel());
     }
+    checkBiometric();
   }, []);
 
+  // ── Usernameless passkey login — no username needed ────────────────────────
   async function handleBiometric() {
-    if (!username.trim()) { setError("Enter your username first"); return; }
     setBioLoading(true);
     setError("");
     try {
-      // Get auth options for this user
-      const optRes = await fetch("/api/auth/webauthn/login-options", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: username.trim() }),
-      });
-      if (!optRes.ok) {
-        const { error: e } = await optRes.json();
-        throw new Error(e ?? "Biometric login not available");
-      }
-      const { memberId, ...options } = await optRes.json();
+      const { verified, memberId } = await authenticatePasskey();
+      if (!verified) throw new Error("Biometric verification failed");
 
-      // Trigger platform authenticator
-      const assertionResp = await startAuthentication(options);
-
-      // Verify on server
-      const verRes = await fetch("/api/auth/webauthn/login-verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ memberId, ...assertionResp }),
-      });
-      if (!verRes.ok) throw new Error("Biometric verification failed");
-
-      // Sign in via NextAuth biometric credentials
       const result = await signIn("credentials", {
         memberId: String(memberId),
         biometricVerified: "true",
         redirect: false,
       });
       if (result?.error) throw new Error("Sign-in failed after biometric");
-      router.refresh();
-      router.push("/");
+
+      sessionStorage.setItem("hgf-just-logged-in", "1");
+      router.push("/feed");
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Biometric login failed";
-      if (msg.includes("cancelled") || msg.includes("NotAllowed")) {
-        setError("Biometric cancelled. Try your password instead.");
+      // Two-case error handling:
+      // 1. User explicitly cancelled (NotAllowedError) → show a brief message
+      // 2. Any other error (credential not found, hardware error, etc.)
+      //    → silent fallback: hide biometric button, let password form shine
+      const isUserCancelled =
+        (err instanceof Error && err.name === "NotAllowedError") ||
+        (err instanceof Error && (err.message.includes("cancelled") || err.message.includes("NotAllowed")));
+
+      if (isUserCancelled) {
+        setError("Biometric cancelled. Use your password below.");
       } else {
-        setError(msg);
+        // Silent fallback — don't show a cryptic WebAuthn error
+        setShowBiometric(false);
+        setError(""); // clear any previous error
       }
     } finally {
       setBioLoading(false);
@@ -95,12 +89,11 @@ export default function LoginPage() {
       return;
     }
 
-    // Set flag so BiometricEnrollTrigger shows biometric enrollment modal
+    // Set flag so BiometricEnrollTrigger shows modals (PWA first, then biometrics)
     sessionStorage.setItem("hgf-just-logged-in", "1");
 
-    // Redirect based on role
-    router.refresh();
-    router.push("/");
+    // Go straight to /feed — AppLayout territory, where modals fire
+    router.push("/feed");
   }
 
   return (
@@ -149,6 +142,43 @@ export default function LoginPage() {
             Sign in to HGF Connect
           </p>
         </div>
+        {/* ── Passkey / Face ID button — FIRST if enrolled ── */}
+        {showBiometric && (
+          <>
+            <button
+              type="button"
+              onClick={handleBiometric}
+              disabled={bioLoading}
+              style={{
+                width: "100%",
+                padding: "0.9rem",
+                background: bioLoading
+                  ? "#94a3b8"
+                  : "linear-gradient(135deg, #4eb1cb, #3a95ad)",
+                color: "white",
+                border: "none",
+                borderRadius: "10px",
+                fontSize: "1rem",
+                fontWeight: 700,
+                cursor: bioLoading ? "not-allowed" : "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "0.5rem",
+                fontFamily: "inherit",
+                marginBottom: "0.25rem",
+              }}
+            >
+              <span style={{ fontSize: "1.25rem" }}>🔐</span>
+              {bioLoading ? "Authenticating..." : `Sign in with ${biometricLabel}`}
+            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", margin: "1rem 0" }}>
+              <div style={{ flex: 1, height: 1, background: "#e5e7eb" }} />
+              <span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>or sign in with password</span>
+              <div style={{ flex: 1, height: 1, background: "#e5e7eb" }} />
+            </div>
+          </>
+        )}
 
         {error && (
           <div
@@ -249,40 +279,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Biometric Login — only shown if device supports platform authenticator */}
-        {showBiometric && (
-          <div style={{ textAlign: "center", margin: "1rem 0" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", margin: "0 0 1rem" }}>
-              <div style={{ flex: 1, height: 1, background: "#e5e7eb" }} />
-              <span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>or</span>
-              <div style={{ flex: 1, height: 1, background: "#e5e7eb" }} />
-            </div>
-            <button
-              type="button"
-              onClick={handleBiometric}
-              disabled={bioLoading}
-              style={{
-                width: "100%",
-                padding: "0.75rem",
-                background: bioLoading ? "#f8fafc" : "#f1f5f9",
-                color: "#374151",
-                border: "1px solid #e2e8f0",
-                borderRadius: "8px",
-                fontSize: "0.9375rem",
-                fontWeight: 600,
-                cursor: bioLoading ? "not-allowed" : "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "0.5rem",
-                fontFamily: "inherit",
-              }}
-            >
-              <span style={{ fontSize: "1.25rem" }}>🔐</span>
-              {bioLoading ? "Authenticating..." : "Sign in with Face ID / Touch ID"}
-            </button>
-          </div>
-        )}
+
         <div
           style={{
             marginTop: "1.5rem",

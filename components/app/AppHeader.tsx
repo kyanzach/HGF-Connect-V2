@@ -40,24 +40,32 @@ export default function AppHeader() {
         position: "sticky",
         top: 0,
         zIndex: 50,
-        height: "56px",
         background: PRIMARY,
+        // ↓ Grows to include the status bar height on notched iPhones
+        paddingTop: "env(safe-area-inset-top)",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+      }}
+    >
+      {/* Inner row — always 56px tall, sits below the safe area */}
+      <div style={{
+        height: "56px",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
         padding: "0 1rem",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-      }}
-    >
+      }}>
+
       {/* Left: Logo + Greeting */}
       <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
-        <Image
-          src="/HGF-icon-v1.0.png"
-          alt="HGF"
-          width={32}
-          height={32}
-          style={{ borderRadius: "50%", objectFit: "cover" }}
-        />
+        <div style={{ width: 32, height: 32, borderRadius: "50%", background: "white", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 }}>
+          <Image
+            src="/HGF-icon-v1.0.png"
+            alt="HGF"
+            width={28}
+            height={28}
+            style={{ objectFit: "contain" }}
+          />
+        </div>
         <div>
           <div style={{ fontSize: "0.6875rem", color: "rgba(255,255,255,0.75)", lineHeight: 1 }}>
             {getGreeting()},
@@ -81,12 +89,13 @@ export default function AppHeader() {
             letterSpacing: "0.04em",
           }}
         >
-          v2.0.1
+          v2.2.0
         </span>
 
         {/* Live Notification Bell */}
         <NotificationBell />
       </div>
+      </div>{/* end inner row */}
     </header>
   );
 }

@@ -7,7 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.2.0] — 2026-02-23
+
+### Added
+- **PWA Install Modal**: Full-featured install prompt ported from MaskPro GetSales — handles iOS Safari (step-by-step guide), iOS Chrome (copy link to Safari), Android Chrome (native `beforeinstallprompt`), and desktop. Shows real HGF logo. 1-day dismiss cooldown + permanent "already installed" option
+- **Staggered modal flow**: PWA install modal shows first (1.2s after login), then biometric enrollment modal (after PWA is handled). Only one modal visible at a time — never stacked
+- **Usernameless biometric login (Passkeys)**: WebAuthn discoverable credentials — Face ID / Touch ID on login page requires no username. Device auto-discovers its own credential. Silent fallback if credential not found, error message only on deliberate cancel (`NotAllowedError`)
+- **`beforeinstallprompt` capture**: `ServiceWorkerRegistration` now captures the browser install event globally so `PWAInstallModal` can trigger native Android/desktop install
+
+### Changed
+- **Login redirects to `/feed` directly** (was `/`) — AppLayout territory where modals fire immediately
+- **`residentKey: "preferred"` → `"required"`** in WebAuthn registration — all new enrollments create discoverable credentials
+- **Biometric button moved to top of login card** — prominent teal button, no username required
+- Login page biometric button only appears if device has an enrolled credential (`hasAnyEnrolledDevice()` check)
+
+### Fixed
+- **App header safe area**: Added `paddingTop: env(safe-area-inset-top)` — header no longer overlaps iPhone status bar / notch
+- **HGF icon white background**: Both app header and PWA modal now show the HGF logo inside a white rounded container — no dark border artifact
+- **Version badge**: `AppHeader` now shows correct version (was hardcoded `v2.0.1`)
+
+---
+
 ## [v2.1.1] — 2026-02-23
+
 
 ### Fixed
 - **Biometric login**: `authorize()` in `lib/auth.ts` now handles the `biometricVerified` + `memberId` credentials path — previously returned `null` immediately (no password), causing "Sign-in failed after biometric" error
@@ -17,8 +39,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v2.1.0] — 2026-02-23
 
 ### Added
-- **PWA**: Install HGF Connect to iPhone home screen — standalone mode, offline fallback, service worker caching, 4 icon sizes, UpdateToast
-- **Biometric Login (WebAuthn)**: Face ID / Touch ID enrollment modal after first login, `webauthnService.ts` client helpers, EnrollTrigger in AppLayout
+- **PWA**: Install HGF Connect to home screen on iOS & Android — standalone mode, offline fallback, service worker caching, 4 icon sizes, UpdateToast
+- **Biometric Login (WebAuthn)**: Face ID (iPhone) / Fingerprint (Android) enrollment modal after first login, `webauthnService.ts` client helpers, EnrollTrigger in AppLayout
 - **Submit Button UX**: Animated spinner on loading, button shakes on empty validation, animated error banner — applied to devo, prayer, journal, feed forms via reusable `SubmitButton` component
 - **Deploy infrastructure**: `deploy.sh`, `ecosystem.config.js`, `CHANGELOG.md`
 

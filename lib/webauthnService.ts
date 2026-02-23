@@ -26,9 +26,9 @@ export async function isPlatformAuthenticatorAvailable(): Promise<boolean> {
 export function getBiometricType(): "face-id" | "touch-id" | "fingerprint" {
   if (typeof navigator === "undefined") return "fingerprint";
   const ua = navigator.userAgent;
-  if (/iPad|iPhone|iPod/.test(ua)) return "face-id";   // Most modern iPhones
+  if (/iPad|iPhone|iPod/.test(ua)) return "face-id";
   if (/Macintosh/.test(ua)) return "touch-id";
-  return "fingerprint";   // Android / Windows Hello
+  return "fingerprint";
 }
 
 export function getBiometricLabel(): string {
@@ -62,6 +62,22 @@ export function isEnrolled(username: string | undefined): boolean {
   }
 }
 
+/**
+ * Returns true if ANY username on this device has been enrolled.
+ * Used by the login page to decide whether to show the passkey button
+ * WITHOUT requiring the user to type a username first.
+ */
+export function hasAnyEnrolledDevice(): boolean {
+  try {
+    const enrolled: Record<string, boolean> = JSON.parse(
+      localStorage.getItem(ENROLLED_KEY) ?? "{}"
+    );
+    return Object.values(enrolled).some(Boolean);
+  } catch {
+    return false;
+  }
+}
+
 export function dismissEnrollment(): void {
   try {
     localStorage.setItem(DISMISSED_KEY, Date.now().toString());
@@ -79,9 +95,7 @@ export function isEnrollmentDismissed(): boolean {
 }
 
 // ── Registration (call after login, requires active NextAuth session) ──────────
-// RP verify endpoint uses the session cookie — no Bearer token needed (NextAuth)
 export async function registerBiometric(deviceName?: string): Promise<void> {
-  // Step 1: Get registration options from server
   const optRes = await fetch("/api/auth/webauthn/register-options", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -92,10 +106,8 @@ export async function registerBiometric(deviceName?: string): Promise<void> {
   }
   const options = await optRes.json();
 
-  // Step 2: Platform authenticator creates credential (triggers Face ID / Touch ID)
   const credential = await startRegistration(options);
 
-  // Step 3: Verify and store on server
   const verRes = await fetch("/api/auth/webauthn/register-verify", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -107,11 +119,42 @@ export async function registerBiometric(deviceName?: string): Promise<void> {
   }
 }
 
-// ── Authentication (public — pass username, returns { verified, memberId }) ────
+// ── Usernameless Passkey Authentication ────────────────────────────────────────
+// No username required — device discovers its own resident credential.
+// Returns { verified, memberId } so caller can sign in via NextAuth.
+export async function authenticatePasskey(): Promise<{ verified: boolean; memberId: number }> {
+  // Step 1: Get options (no username sent)
+  const optRes = await fetch("/api/auth/webauthn/login-options", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}), // empty body = usernameless mode
+  });
+  if (!optRes.ok) {
+    const d = await optRes.json().catch(() => ({}));
+    throw new Error(d.error ?? "Failed to get login options");
+  }
+  const { sessionToken, ...options } = await optRes.json();
+
+  // Step 2: Device picks credential and authenticates (triggers Face ID / Touch ID)
+  const assertion = await startAuthentication(options);
+
+  // Step 3: Verify — send sessionToken so server can look up the challenge
+  const verRes = await fetch("/api/auth/webauthn/login-verify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionToken, ...assertion }),
+  });
+  if (!verRes.ok) {
+    const d = await verRes.json().catch(() => ({}));
+    throw new Error(d.error ?? "Biometric verification failed");
+  }
+  return await verRes.json();
+}
+
+// ── Username-first Authentication (kept for legacy fallback) ───────────────────
 export async function authenticateWithBiometric(
   username: string
 ): Promise<{ verified: boolean; memberId: number }> {
-  // Step 1: Get login options
   const optRes = await fetch("/api/auth/webauthn/login-options", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -123,10 +166,8 @@ export async function authenticateWithBiometric(
   }
   const { memberId, ...options } = await optRes.json();
 
-  // Step 2: Device authenticates with biometric
   const assertion = await startAuthentication(options);
 
-  // Step 3: Verify on server
   const verRes = await fetch("/api/auth/webauthn/login-verify", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -139,7 +180,7 @@ export async function authenticateWithBiometric(
   return await verRes.json();
 }
 
-// ── Cross-device check — show biometric button even on new devices ─────────────
+// ── Cross-device check ─────────────────────────────────────────────────────────
 export async function checkServerCredentials(username: string): Promise<boolean> {
   try {
     const res = await fetch(
@@ -148,6 +189,6 @@ export async function checkServerCredentials(username: string): Promise<boolean>
     const d = await res.json();
     return !!d.hasCredentials;
   } catch {
-    return false; // Never throw — biometric is an optional enhancement
+    return false;
   }
 }
