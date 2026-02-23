@@ -76,3 +76,67 @@ body {
   background: var(--color-primary);
   border-radius: 3px;
 }
+
+/* ── Global animations ─────────────────────────────────────────────────── */
+
+/* Spinner — used in loading buttons */
+@keyframes hgf-spin {
+  to { transform: rotate(360deg); }
+}
+.hgf-spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2.5px solid rgba(255,255,255,0.35);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: hgf-spin 0.7s linear infinite;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+/* Shake — used when form validation fails */
+@keyframes hgf-shake {
+  0%,100% { transform: translateX(0); }
+  15%      { transform: translateX(-8px); }
+  30%      { transform: translateX(7px); }
+  45%      { transform: translateX(-6px); }
+  60%      { transform: translateX(5px); }
+  75%      { transform: translateX(-3px); }
+  90%      { transform: translateX(2px); }
+}
+.hgf-shake {
+  animation: hgf-shake 0.45s ease;
+}
+
+/* Error banner slide-in */
+@keyframes hgf-slide-down {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.hgf-error-banner {
+  animation: hgf-slide-down 0.2s ease;
+}
+
+/* Button press scale — for native tap feel on mobile */
+.hgf-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.hgf-btn {
+  transition: transform 0.1s ease, opacity 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.hgf-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Success pulse */
+@keyframes hgf-success-pop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+.hgf-success-pop {
+  animation: hgf-success-pop 0.3s ease;
+}

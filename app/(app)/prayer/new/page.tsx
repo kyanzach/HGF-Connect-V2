@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import SubmitButton from "@/components/SubmitButton";
 
 export default function NewPrayerPage() {
   const router = useRouter();
@@ -9,11 +10,15 @@ export default function NewPrayerPage() {
   const [visibility, setVisibility] = useState("MEMBERS_ONLY");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [shakeKey, setShakeKey] = useState(0);
+  const [touched, setTouched] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!request.trim()) {
-      setError("Please write your prayer request.");
+      setError("Please write your prayer request first.");
+      setShakeKey((k) => k + 1);
+      setTouched(true);
       return;
     }
     setSubmitting(true);
@@ -67,10 +72,9 @@ export default function NewPrayerPage() {
           </label>
           <textarea
             value={request}
-            onChange={(e) => setRequest(e.target.value)}
-            placeholder="Share your prayer request with the community... 
-
-E.g. 'Please pray for my mother who is in the hospital. Thank you for your prayers and support.'"
+            onChange={(e) => { setRequest(e.target.value); if (e.target.value.trim()) setError(""); }}
+            onBlur={() => setTouched(true)}
+            placeholder={`Share your prayer request with the community... \n\nE.g. 'Please pray for my mother who is in the hospital. Thank you for your prayers and support.'`}
             rows={8}
             style={{
               width: "100%",
@@ -82,6 +86,8 @@ E.g. 'Please pray for my mother who is in the hospital. Thank you for your praye
               lineHeight: 1.7,
               fontFamily: "inherit",
               boxSizing: "border-box",
+              background: touched && !request.trim() ? "#fff8f8" : "transparent",
+              transition: "background 0.2s",
             }}
           />
           <div style={{ textAlign: "right", fontSize: "0.7rem", color: request.length > 500 ? "#ef4444" : "#94a3b8" }}>
@@ -120,24 +126,33 @@ E.g. 'Please pray for my mother who is in the hospital. Thank you for your praye
           </select>
         </div>
 
-        {error && <p style={{ color: "#ef4444", fontSize: "0.875rem", margin: 0 }}>{error}</p>}
+        {error && (
+          <div
+            className="hgf-error-banner"
+            style={{
+              background: "#fef2f2",
+              border: "1px solid #fecaca",
+              borderRadius: "10px",
+              padding: "0.625rem 0.875rem",
+              color: "#ef4444",
+              fontSize: "0.85rem",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+            }}
+          >
+            ⚠️ {error}
+          </div>
+        )}
 
-        <button
-          type="submit"
-          disabled={submitting || request.trim().length === 0}
-          style={{
-            padding: "0.875rem",
-            background: submitting ? "#94a3b8" : "#7c3aed",
-            color: "white",
-            border: "none",
-            borderRadius: "14px",
-            fontSize: "1rem",
-            fontWeight: 700,
-            cursor: submitting ? "not-allowed" : "pointer",
-          }}
+        <SubmitButton
+          loading={submitting}
+          shakeKey={shakeKey}
+          color="#7c3aed"
+          disabledColor="#a78bfa"
         >
-          {submitting ? "Submitting..." : "🙏 Submit Prayer Request"}
-        </button>
+          🙏 Submit Prayer Request
+        </SubmitButton>
 
         <p style={{ textAlign: "center", fontSize: "0.8rem", color: "#94a3b8", margin: 0 }}>
           Your request will be visible on the Prayer Wall for the community to pray over.

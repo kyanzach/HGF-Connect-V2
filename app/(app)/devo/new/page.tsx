@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import SubmitButton from "@/components/SubmitButton";
 
 const PRIMARY = "#4EB1CB";
 
@@ -20,6 +21,7 @@ export default function DeVoNewPage() {
   const [generatingCaption, setGeneratingCaption] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [shakeKey, setShakeKey] = useState(0);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -53,7 +55,8 @@ export default function DeVoNewPage() {
 
   async function handlePost() {
     if (!userCaption.trim() && !aiCaption.trim()) {
-      setError("Add a caption before posting.");
+      setError("Add a caption or reflection before posting.");
+      setShakeKey((k) => k + 1);
       return;
     }
     setSubmitting(true);
@@ -335,27 +338,33 @@ export default function DeVoNewPage() {
             )}
 
             {error && (
-              <p style={{ color: "#ef4444", fontSize: "0.875rem", margin: 0 }}>{error}</p>
+              <div
+                className="hgf-error-banner"
+                style={{
+                  background: "#fef2f2",
+                  border: "1px solid #fecaca",
+                  borderRadius: "10px",
+                  padding: "0.625rem 0.875rem",
+                  color: "#ef4444",
+                  fontSize: "0.85rem",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                }}
+              >
+                ⚠️ {error}
+              </div>
             )}
 
-            <button
+            <SubmitButton
+              loading={submitting}
+              shakeKey={shakeKey}
               onClick={handlePost}
-              disabled={submitting}
-              style={{
-                padding: "0.875rem",
-                background: submitting ? "#94a3b8" : PRIMARY,
-                color: "white",
-                border: "none",
-                borderRadius: "14px",
-                fontSize: "1rem",
-                fontWeight: 700,
-                cursor: submitting ? "not-allowed" : "pointer",
-                fontFamily: "inherit",
-                WebkitTapHighlightColor: "transparent",
-              }}
+              type="button"
+              color={PRIMARY}
             >
-              {submitting ? "⏳ Posting..." : "📖 Share Devotional"}
-            </button>
+              📖 Share Devotional
+            </SubmitButton>
           </>
         )}
 

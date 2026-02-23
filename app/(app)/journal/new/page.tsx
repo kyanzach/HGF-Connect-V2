@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import SubmitButton from "@/components/SubmitButton";
 
 const MOODS = [
   { value: "grateful", emoji: "🙏", label: "Grateful" },
@@ -21,6 +22,7 @@ export default function NewJournalPage() {
   const [verseRef, setVerseRef] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [shakeKey, setShakeKey] = useState(0);
   const [loadingVerse, setLoadingVerse] = useState(false);
   const [suggestedVerse, setSuggestedVerse] = useState<{ verse: string; reference: string } | null>(null);
 
@@ -53,6 +55,7 @@ export default function NewJournalPage() {
   async function handleSave() {
     if (!content.trim()) {
       setError("Write something in your journal first.");
+      setShakeKey((k) => k + 1);
       return;
     }
     setSubmitting(true);
@@ -101,22 +104,24 @@ export default function NewJournalPage() {
           <h1 style={{ margin: 0, fontSize: "1rem", fontWeight: 700 }}>New Journal Entry</h1>
           <p style={{ margin: 0, fontSize: "0.7rem", opacity: 0.8 }}>{today}</p>
         </div>
-        <button
+        <SubmitButton
+          loading={submitting}
+          shakeKey={shakeKey}
+          color="rgba(255,255,255,0.25)"
+          disabledColor="rgba(255,255,255,0.12)"
+          type="button"
           onClick={handleSave}
-          disabled={submitting}
           style={{
-            background: "rgba(255,255,255,0.2)",
-            border: "1px solid rgba(255,255,255,0.4)",
-            borderRadius: "999px",
+            width: "auto",
             padding: "0.375rem 0.875rem",
-            color: "white",
+            borderRadius: "999px",
             fontSize: "0.8125rem",
-            fontWeight: 700,
-            cursor: submitting ? "not-allowed" : "pointer",
+            border: "1px solid rgba(255,255,255,0.4)",
+            gap: "0.375rem",
           }}
         >
-          {submitting ? "Saving..." : "Save ✓"}
-        </button>
+          {!submitting && <>Save ✓</>}
+        </SubmitButton>
       </div>
 
       <div style={{ padding: "1rem", display: "flex", flexDirection: "column", gap: "0.875rem", flex: 1 }}>
@@ -256,7 +261,24 @@ export default function NewJournalPage() {
           />
         </div>
 
-        {error && <p style={{ color: "#ef4444", fontSize: "0.875rem" }}>{error}</p>}
+        {error && (
+          <div
+            className="hgf-error-banner"
+            style={{
+              background: "#fef2f2",
+              border: "1px solid #fecaca",
+              borderRadius: "10px",
+              padding: "0.625rem 0.875rem",
+              color: "#ef4444",
+              fontSize: "0.85rem",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+            }}
+          >
+            ⚠️ {error}
+          </div>
+        )}
       </div>
     </div>
   );

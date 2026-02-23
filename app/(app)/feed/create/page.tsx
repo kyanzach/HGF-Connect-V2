@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import SubmitButton from "@/components/SubmitButton";
 
 const PRIMARY = "#4EB1CB";
 
@@ -22,11 +23,13 @@ export default function CreatePostPage() {
   const [visibility, setVisibility] = useState("MEMBERS_ONLY");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [shakeKey, setShakeKey] = useState(0);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!content.trim() && !verseText.trim()) {
-      setError("Write something to share!");
+      setError("Write something to share first! ✍️");
+      setShakeKey((k) => k + 1);
       return;
     }
     setSubmitting(true);
@@ -226,29 +229,32 @@ export default function CreatePostPage() {
         </div>
 
         {error && (
-          <p style={{ color: "#ef4444", fontSize: "0.875rem", marginBottom: "0.75rem" }}>
-            {error}
-          </p>
+          <div
+            className="hgf-error-banner"
+            style={{
+              background: "#fef2f2",
+              border: "1px solid #fecaca",
+              borderRadius: "10px",
+              padding: "0.625rem 0.875rem",
+              color: "#ef4444",
+              fontSize: "0.85rem",
+              marginBottom: "0.75rem",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+            }}
+          >
+            ⚠️ {error}
+          </div>
         )}
 
-        <button
-          type="submit"
-          disabled={submitting}
-          style={{
-            width: "100%",
-            padding: "0.875rem",
-            background: submitting ? "#94a3b8" : PRIMARY,
-            color: "white",
-            border: "none",
-            borderRadius: "14px",
-            fontSize: "1rem",
-            fontWeight: 700,
-            cursor: submitting ? "not-allowed" : "pointer",
-            transition: "background 0.15s",
-          }}
+        <SubmitButton
+          loading={submitting}
+          shakeKey={shakeKey}
+          color={PRIMARY}
         >
-          {submitting ? "Posting..." : `${selectedType.icon} Post ${selectedType.label}`}
-        </button>
+          {selectedType.icon} Post {selectedType.label}
+        </SubmitButton>
       </form>
     </div>
   );
