@@ -45,6 +45,22 @@ export async function POST(req: NextRequest) {
     const ipHash = crypto.createHash("sha256").update(ip).digest("hex").slice(0, 16);
     const userAgent = req.headers.get("user-agent") ?? "";
 
+    // Phase 9: Rate limit — max 5 submissions per IP per listing per hour
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const recentCount = await db.marketplaceProspect.count({
+      where: {
+        listingId: listing.id,
+        ipHash,
+        createdAt: { gte: oneHourAgo },
+      },
+    });
+    if (recentCount >= 5) {
+      return NextResponse.json(
+        { error: "Too many submissions. Please try again in an hour." },
+        { status: 429 }
+      );
+    }
+
     // Resolve sharer user from share token if present
     let sharerUserId: number | null = null;
     if (shareToken) {

@@ -87,6 +87,9 @@ model Member {
   webauthnChallenge     String?              @map("webauthn_challenge") @db.VarChar(255)
   webauthnCredentials   WebauthnCredential[]
 
+  // Seller verification badge (Phase 9)
+  isVerified            Boolean              @default(false) @map("is_verified")
+
   // AI chat history
   aiConversations       AiConversation[]
 

@@ -6,6 +6,72 @@ import Link from "next/link";
 
 const PRIMARY = "#4EB1CB";
 
+// ── Photo Carousel ─────────────────────────────────────────────────────────────
+function PhotoCarousel({ photos, title }: { photos: { photoPath: string }[]; title: string }) {
+  const [idx, setIdx] = useState(0);
+  const touchStartX = useRef<number | null>(null);
+
+  if (photos.length === 0) {
+    return (
+      <div style={{ background: "#f1f5f9", width: "100%", height: 260, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "5rem" }}>
+        📦
+      </div>
+    );
+  }
+
+  function prev() { setIdx((i) => (i - 1 + photos.length) % photos.length); }
+  function next() { setIdx((i) => (i + 1) % photos.length); }
+
+  return (
+    <div
+      style={{ position: "relative", width: "100%", height: 260, background: "#f1f5f9", overflow: "hidden", userSelect: "none" }}
+      onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+      onTouchEnd={(e) => {
+        if (touchStartX.current === null) return;
+        const dx = e.changedTouches[0].clientX - touchStartX.current;
+        if (dx > 40) prev();
+        else if (dx < -40) next();
+        touchStartX.current = null;
+      }}
+    >
+      <Image
+        src={`/uploads/marketplace/${photos[idx].photoPath}`}
+        alt={`${title} — photo ${idx + 1}`}
+        fill
+        style={{ objectFit: "cover", transition: "opacity 0.2s" }}
+      />
+      {photos.length > 1 && (
+        <>
+          {/* Prev arrow */}
+          <button
+            onClick={prev}
+            style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.45)", color: "white", border: "none", borderRadius: "50%", width: 32, height: 32, fontSize: "1rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit", WebkitTapHighlightColor: "transparent" }}
+          >‹</button>
+          {/* Next arrow */}
+          <button
+            onClick={next}
+            style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.45)", color: "white", border: "none", borderRadius: "50%", width: 32, height: 32, fontSize: "1rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit", WebkitTapHighlightColor: "transparent" }}
+          >›</button>
+          {/* Dot indicators */}
+          <div style={{ position: "absolute", bottom: 8, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 5 }}>
+            {photos.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setIdx(i)}
+                style={{ width: i === idx ? 16 : 8, height: 8, borderRadius: 4, background: i === idx ? "white" : "rgba(255,255,255,0.55)", border: "none", cursor: "pointer", padding: 0, transition: "all 0.2s", WebkitTapHighlightColor: "transparent" }}
+              />
+            ))}
+          </div>
+          {/* Counter badge */}
+          <span style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.5)", color: "white", fontSize: "0.68rem", fontWeight: 700, padding: "0.2rem 0.5rem", borderRadius: 999 }}>
+            {idx + 1} / {photos.length}
+          </span>
+        </>
+      )}
+    </div>
+  );
+}
+
 const TYPE_LABELS: Record<string, string> = {
   sale: "For Sale", trade: "Trade", free: "Free",
   service: "Service", borrow: "Borrow", official_store: "Official Store",
@@ -26,7 +92,7 @@ interface ListingData {
   locationArea: string | null; loveGiftAmount: number;
   viewCount: number; createdAt: string;
   photos: { photoPath: string }[];
-  seller: { id: number; firstName: string; lastName: string; profilePicture: string | null };
+  seller: { id: number; firstName: string; lastName: string; profilePicture: string | null; isVerified: boolean };
   isOwner: boolean; isLoggedIn: boolean; shareToken: string | null;
 }
 
@@ -340,11 +406,9 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
         </Link>
       </div>
 
-      {/* Photo */}
-      <div style={{ background: "#f1f5f9", width: "100%", height: 260, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "5rem" }}>
-        {listing.photos[0] ? (
-          <Image src={`/uploads/marketplace/${listing.photos[0].photoPath}`} alt={listing.title} fill style={{ objectFit: "cover" }} />
-        ) : "📦"}
+      {/* Photo Carousel — swipeable on mobile, arrows + dot indicators */}
+      <div style={{ position: "relative" }}>
+        <PhotoCarousel photos={listing.photos} title={listing.title} />
         <span style={{ position: "absolute", top: "0.75rem", left: "0.75rem", background: TYPE_COLORS[listing.listingType] ?? PRIMARY, color: "white", fontSize: "0.7rem", fontWeight: 700, padding: "0.25rem 0.6rem", borderRadius: "6px", textTransform: "uppercase" }}>
           {TYPE_LABELS[listing.listingType] ?? listing.listingType}
         </span>
@@ -400,14 +464,17 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
           </div>
         )}
 
-        {/* ── GATED CTAs — hidden once revealed */}
+        {/* ── GATED CTAs — hidden once revealed. hasDiscount=false: only show Contact */}
         {!revealed && (
           <div style={{ background: "white", borderRadius: "16px", padding: "1.25rem", marginBottom: "0.75rem", boxShadow: "0 2px 12px rgba(78,177,203,0.12)", border: "1.5px solid #bae6fd" }}>
             <p style={{ fontSize: "0.8rem", color: "#0369a1", textAlign: "center", margin: "0 0 1rem", lineHeight: 1.5 }}>
               {listing.hasDiscount
                 ? "🔒 A discounted price is available. Reveal it to see your discount code — show the code to the seller at purchase to claim your discount!"
-                : "Interested? Contact the seller to get more information about this listing."}
+                : listing.ogPrice
+                  ? "Interested? Contact the seller to discuss pricing or arrange a purchase."
+                  : "Interested? Contact the seller to get more information about this listing."}
             </p>
+            {/* Only show Reveal button if hasDiscount is true */}
             {listing.hasDiscount && (
               <button
                 onClick={() => openModal("reveal")}
@@ -454,7 +521,14 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
             {sellerInitials}
           </div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "#1e293b" }}>{sellerName}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.375rem" }}>
+              <span style={{ fontWeight: 700, fontSize: "0.9rem", color: "#1e293b" }}>{sellerName}</span>
+              {listing.seller.isVerified && (
+                <span style={{ fontSize: "0.65rem", fontWeight: 700, background: "#0d9488", color: "white", borderRadius: "999px", padding: "0.1rem 0.45rem", display: "inline-flex", alignItems: "center", gap: 2 }}>
+                  ✓ Verified
+                </span>
+              )}
+            </div>
             <div style={{ fontSize: "0.75rem", color: "#94a3b8" }}>HGF Member · {listing.viewCount} views</div>
           </div>
           {listing.isOwner && (
