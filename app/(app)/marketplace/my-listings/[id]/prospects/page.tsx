@@ -27,6 +27,15 @@ export default function ProspectsPage({ params }: { params: Promise<{ id: string
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState<number | null>(null);
   const [message, setMessage] = useState("");
+  const [search, setSearch] = useState("");
+
+  const filtered = search.trim()
+    ? prospects.filter((p) =>
+        p.prospectName.toLowerCase().includes(search.toLowerCase()) ||
+        (p.shareToken?.toLowerCase().includes(search.toLowerCase())) ||
+        (p.sharerName?.toLowerCase().includes(search.toLowerCase()))
+      )
+    : prospects;
 
   useEffect(() => {
     fetch(`/api/marketplace/listings/${id}/prospects`)
@@ -80,6 +89,16 @@ export default function ProspectsPage({ params }: { params: Promise<{ id: string
           </div>
         )}
 
+        {/* Search by name or coupon code */}
+        <div style={{ marginBottom: "1rem" }}>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="🔍 Search by name or coupon code (e.g. RYANP01)…"
+            style={{ width: "100%", border: "1.5px solid #e2e8f0", borderRadius: "999px", padding: "0.625rem 1rem", fontSize: "0.875rem", fontFamily: "inherit", outline: "none", boxSizing: "border-box" }}
+          />
+        </div>
+
         {loading && <p style={{ textAlign: "center", color: "#94a3b8", padding: "2rem" }}>Loading…</p>}
 
         {!loading && prospects.length === 0 && (
@@ -90,8 +109,12 @@ export default function ProspectsPage({ params }: { params: Promise<{ id: string
           </div>
         )}
 
+        {!loading && prospects.length > 0 && filtered.length === 0 && (
+          <p style={{ textAlign: "center", color: "#94a3b8", padding: "1.5rem" }}>No results for &quot;{search}&quot;</p>
+        )}
+
         <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-          {prospects.map((p) => (
+          {filtered.map((p) => (
             <div key={p.id} style={{ background: "white", borderRadius: "14px", padding: "0.875rem", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
               {/* Prospect header */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.5rem" }}>
@@ -123,11 +146,18 @@ export default function ProspectsPage({ params }: { params: Promise<{ id: string
                 )}
               </div>
 
-              {/* Sharer attribution */}
-              {p.sharerName && (
-                <p style={{ fontSize: "0.72rem", color: "#9f1239", background: "#fff1f2", border: "1px solid #fecdd3", borderRadius: "8px", padding: "0.25rem 0.625rem", margin: "0 0 0.625rem" }}>
-                  ❤️ Via share link by <strong>{p.sharerName}</strong>
-                </p>
+              {/* Sharer attribution + coupon code */}
+              {(p.sharerName || p.shareToken) && (
+                <div style={{ background: "#fff1f2", border: "1px solid #fecdd3", borderRadius: "8px", padding: "0.375rem 0.625rem", marginBottom: "0.625rem", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.375rem" }}>
+                  <span style={{ fontSize: "0.72rem", color: "#9f1239" }}>
+                    ❤️ Via {p.sharerName ? <strong>{p.sharerName}</strong> : "share link"}
+                  </span>
+                  {p.shareToken && (
+                    <span style={{ background: "white", border: "1.5px dashed #f87171", borderRadius: "6px", padding: "0.15rem 0.5rem", fontSize: "0.72rem", fontWeight: 900, color: "#be123c", letterSpacing: "0.08em", fontFamily: "monospace" }}>
+                      {p.shareToken}
+                    </span>
+                  )}
+                </div>
               )}
 
               {/* Actions */}
