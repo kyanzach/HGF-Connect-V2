@@ -41,3 +41,7 @@ yarn-error.log*
 next-env.d.ts
 *.sql
 backup upload files and sql/
+
+# Deployment — never commit
+deploy.sh
+CREDENTIALS_REFERENCE.md

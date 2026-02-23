@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.1.0] — 2026-02-23
+
+### Added
+- **PWA**: Install HGF Connect to iPhone home screen — standalone mode, offline fallback, service worker caching, 4 icon sizes, UpdateToast
+- **Biometric Login (WebAuthn)**: Face ID / Touch ID enrollment modal after first login, `webauthnService.ts` client helpers, EnrollTrigger in AppLayout
+- **Submit Button UX**: Animated spinner on loading, button shakes on empty validation, animated error banner — applied to devo, prayer, journal, feed forms via reusable `SubmitButton` component
+- **Deploy infrastructure**: `deploy.sh`, `ecosystem.config.js`, `CHANGELOG.md`
+
+---
+
 ## [v2.0.1] — 2026-02-22
 
 ### Added — Data Migration & Live Deploy
