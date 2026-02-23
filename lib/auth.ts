@@ -15,8 +15,40 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       credentials: {
         username: { label: "Username or Email", type: "text" },
         password: { label: "Password", type: "password" },
+        memberId: { label: "Member ID", type: "text" },
+        biometricVerified: { label: "Biometric Verified", type: "text" },
       },
       async authorize(credentials) {
+        // ── Biometric (WebAuthn) path ─────────────────────────────────────────
+        // The login page sends biometricVerified:"true" + memberId after a
+        // successful WebAuthn assertion. We trust it because the API route
+        // (/api/auth/webauthn/login-verify) already verified the cryptographic
+        // signature server-side before signIn() is ever called.
+        if (credentials?.biometricVerified === "true" && credentials?.memberId) {
+          const member = await db.member.findUnique({
+            where: { id: Number(credentials.memberId) },
+          });
+          if (!member) return null;
+
+          await db.member.update({
+            where: { id: member.id },
+            data: { lastLogin: new Date() },
+          });
+
+          return {
+            id: String(member.id),
+            name: `${member.firstName} ${member.lastName}`,
+            email: member.email,
+            role: member.role,
+            status: member.status,
+            firstName: member.firstName,
+            lastName: member.lastName,
+            username: member.username,
+            profilePicture: member.profilePicture,
+          };
+        }
+
+        // ── Password path ─────────────────────────────────────────────────────
         if (!credentials?.username || !credentials?.password) return null;
 
         const identifier = credentials.username as string;
