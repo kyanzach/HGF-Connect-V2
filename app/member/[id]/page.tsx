@@ -85,19 +85,16 @@ export default async function MemberProfilePage({ params }: { params: Promise<{ 
               }}
             />
           )}
-          {/* Subtle top gradient so iPhone status bar area reads cleanly */}
-          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "calc(env(safe-area-inset-top) + 48px)", background: "linear-gradient(to bottom, rgba(0,0,0,0.25), transparent)", pointerEvents: "none" }} />
+          {/* Top gradient vignette */}
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 80, background: "linear-gradient(to bottom, rgba(0,0,0,0.35), transparent)", pointerEvents: "none" }} />
 
-          {/* Small circle buttons — bottom corners, over the dark bottom gradient */}
-          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 72, background: "linear-gradient(to top, rgba(0,0,0,0.45), transparent)", pointerEvents: "none" }} />
-
-          {/* ← Back circle */}
+          {/* ← Back circle — top-left, visible over photo, not behind avatar */}
           <Link
             href="/directory"
             title="Back to Directory"
             style={{
               position: "absolute",
-              bottom: "0.875rem",
+              top: "0.875rem",
               left: "0.875rem",
               width: 36,
               height: 36,
@@ -126,7 +123,7 @@ export default async function MemberProfilePage({ params }: { params: Promise<{ 
               title="Edit Profile"
               style={{
                 position: "absolute",
-                bottom: "0.875rem",
+                top: "0.875rem",
                 right: "0.875rem",
                 width: 36,
                 height: 36,
