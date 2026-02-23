@@ -85,18 +85,68 @@ export default async function MemberProfilePage({ params }: { params: Promise<{ 
               }}
             />
           )}
-          {/* Top action bar */}
-          <div style={{ position: "absolute", top: 0, left: 0, right: 0, paddingTop: "calc(env(safe-area-inset-top) + 0.875rem)", paddingBottom: "0.875rem", paddingLeft: "1rem", paddingRight: "1rem", display: "flex", justifyContent: "space-between", alignItems: "center", background: "linear-gradient(to bottom, rgba(0,0,0,0.4), transparent)" }}>
-            <Link href="/directory" style={{ color: "white", textDecoration: "none", fontSize: "0.825rem", fontWeight: 700, display: "flex", alignItems: "center", gap: "0.375rem", background: "rgba(0,0,0,0.3)", backdropFilter: "blur(8px)", padding: "0.4rem 0.875rem", borderRadius: "999px" }}>
-              ← Directory
+          {/* Subtle top gradient so iPhone status bar area reads cleanly */}
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "calc(env(safe-area-inset-top) + 48px)", background: "linear-gradient(to bottom, rgba(0,0,0,0.25), transparent)", pointerEvents: "none" }} />
+
+          {/* Small circle buttons — bottom corners, over the dark bottom gradient */}
+          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 72, background: "linear-gradient(to top, rgba(0,0,0,0.45), transparent)", pointerEvents: "none" }} />
+
+          {/* ← Back circle */}
+          <Link
+            href="/directory"
+            title="Back to Directory"
+            style={{
+              position: "absolute",
+              bottom: "0.875rem",
+              left: "0.875rem",
+              width: 36,
+              height: 36,
+              borderRadius: "50%",
+              background: "rgba(0,0,0,0.35)",
+              backdropFilter: "blur(10px)",
+              WebkitBackdropFilter: "blur(10px)",
+              border: "1px solid rgba(255,255,255,0.25)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "white",
+              textDecoration: "none",
+              fontSize: "1rem",
+              fontWeight: 700,
+              lineHeight: 1,
+            }}
+          >
+            ←
+          </Link>
+
+          {/* ✏️ Edit circle — own profile only */}
+          {isOwn && (
+            <Link
+              href="/profile/edit"
+              title="Edit Profile"
+              style={{
+                position: "absolute",
+                bottom: "0.875rem",
+                right: "0.875rem",
+                width: 36,
+                height: 36,
+                borderRadius: "50%",
+                background: PRIMARY,
+                border: "1px solid rgba(255,255,255,0.3)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "white",
+                textDecoration: "none",
+                fontSize: "1rem",
+                lineHeight: 1,
+              }}
+            >
+              ✏️
             </Link>
-            {isOwn && (
-              <Link href="/profile/edit" style={{ color: "white", textDecoration: "none", fontSize: "0.825rem", fontWeight: 700, background: PRIMARY, padding: "0.4rem 0.875rem", borderRadius: "999px", display: "flex", alignItems: "center", gap: "0.3rem" }}>
-                ✏️ Edit
-              </Link>
-            )}
-          </div>
+          )}
         </div>
+
 
         {/* ── Avatar + name hero card ──────────────────────────────── */}
         <div style={{ background: "white", margin: "0 0 0.75rem", padding: "0 1rem 1.25rem" }}>
