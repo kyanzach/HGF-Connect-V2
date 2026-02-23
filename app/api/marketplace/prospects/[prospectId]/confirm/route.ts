@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { notifySharerSaleConfirmed } from "@/lib/marketplace/notifySharer";
 
 interface Props { params: Promise<{ prospectId: string }> }
 
@@ -58,8 +59,13 @@ export async function POST(_req: NextRequest, { params }: Props) {
       });
       sharerCredited = true;
 
-      // TODO Phase 7: send notification to sharer
-      // await sendSharerNotification(share.sharerId, prospect.listing.title, loveGiftAmount);
+      // Phase 7: notify sharer of confirmed sale (fire-and-forget)
+      void notifySharerSaleConfirmed(
+        share.sharerId,
+        prospect.listing.title,
+        prospect.listingId,
+        loveGiftAmount
+      );
     }
   }
 

@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import NotificationBell from "@/components/NotificationBell";
 
 const PRIMARY = "#4EB1CB";
 
@@ -83,36 +84,8 @@ export default function AppHeader() {
           v2.0.1
         </span>
 
-        {/* Bell — SVG, no emoji */}
-        <Link
-          href="/notifications"
-          style={{
-            position: "relative",
-            color: "white",
-            textDecoration: "none",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: 32,
-            height: 32,
-          }}
-          aria-label="Notifications"
-        >
-          <BellIcon />
-          {/* Red dot badge */}
-          <span
-            style={{
-              position: "absolute",
-              top: "2px",
-              right: "2px",
-              width: "8px",
-              height: "8px",
-              background: "#ef4444",
-              borderRadius: "50%",
-              border: "1.5px solid " + PRIMARY,
-            }}
-          />
-        </Link>
+        {/* Live Notification Bell */}
+        <NotificationBell />
       </div>
     </header>
   );

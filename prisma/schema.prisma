@@ -90,6 +90,9 @@ model Member {
   // AI chat history
   aiConversations       AiConversation[]
 
+  // Notifications
+  notifications         Notification[]
+
   @@index([invitedBy], name: "idx_referred_by")
   @@index([ageGroup], name: "idx_age_group")
   @@index([type], name: "idx_type")
@@ -853,4 +856,27 @@ enum MarketplaceImpressionEvent {
   impression
   reveal_click
   contact_click
+}
+
+// ── In-App Notifications (Phase 7) ────────────────────────────────────────────
+model Notification {
+  id        Int      @id @default(autoincrement())
+  memberId  Int      @map("member_id")
+  type      NotificationType
+  title     String   @db.VarChar(200)
+  body      String   @db.VarChar(500)
+  link      String?  @db.VarChar(300)    // e.g. /marketplace/123 or /marketplace/my-shares
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId, isRead], name: "idx_notif_member_read")
+  @@map("notifications")
+}
+
+enum NotificationType {
+  marketplace_prospect   // Someone revealed/contacted via sharer's link
+  marketplace_sale       // Sale confirmed — love gift credited
+  general
 }

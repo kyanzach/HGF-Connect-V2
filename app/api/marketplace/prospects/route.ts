@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import crypto from "crypto";
+import { notifySharerProspect } from "@/lib/marketplace/notifySharer";
 
 // POST /api/marketplace/prospects — log a reveal or contact prospect submission
 export async function POST(req: NextRequest) {
@@ -70,6 +71,17 @@ export async function POST(req: NextRequest) {
         consented: !!consented,
       },
     });
+
+    // Phase 7: notify sharer (fire-and-forget)
+    if (sharerUserId) {
+      void notifySharerProspect(
+        sharerUserId,
+        listing.title,
+        listing.id,
+        prospectName.trim(),
+        actionType as "reveal" | "contact"
+      );
+    }
 
     // Gate: only reveal discountedPrice AFTER prospect record saved (v1.1 §170)
     const discountedPrice = listing.discountedPrice
