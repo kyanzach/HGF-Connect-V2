@@ -20,6 +20,7 @@ model Member {
   lastName              String    @map("last_name") @db.VarChar(50)
   email                 String?   @unique @db.VarChar(100)
   profilePicture        String?   @map("profile_picture") @db.VarChar(255)
+  profilePictureThumbnail String? @map("profile_picture_thumbnail") @db.VarChar(255)
   coverPhoto            String?   @map("cover_photo") @db.VarChar(255)
   phone                 String?   @db.VarChar(20)
   address               String?   @db.Text

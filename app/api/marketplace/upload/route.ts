@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { writeFile, mkdir } from "fs/promises";
-import { join, extname } from "path";
+import { join } from "path";
 import { randomBytes } from "crypto";
+import { processImage } from "@/lib/processImage";
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
-const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/heic"];
+const MAX_BYTES = 10 * 1024 * 1024; // 10 MB input
+const ALLOWED_MIME = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 
-// POST /api/marketplace/upload — upload listing photo
+// POST /api/marketplace/upload — upload listing photo (→ WebP)
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -17,20 +18,22 @@ export async function POST(req: NextRequest) {
     const file = formData.get("file") as File | null;
 
     if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
-    if (!ALLOWED_TYPES.includes(file.type)) {
+    if (!ALLOWED_MIME.includes(file.type)) {
       return NextResponse.json({ error: "Invalid file type. Use JPG, PNG, or WebP." }, { status: 400 });
     }
-    if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json({ error: "File too large. Max 5 MB." }, { status: 400 });
+    if (file.size > MAX_BYTES) {
+      return NextResponse.json({ error: "File too large. Max 10 MB." }, { status: 400 });
     }
 
-    const ext = extname(file.name) || ".jpg";
-    const filename = `${randomBytes(8).toString("hex")}${ext}`;
+    const rawBuffer = Buffer.from(await file.arrayBuffer());
+
+    // ✅ Convert to WebP via Sharp (max 1200px wide, preserve aspect)
+    const { buffer } = await processImage(rawBuffer, "listing");
+
+    const filename = `${randomBytes(8).toString("hex")}.webp`;
     const uploadDir = join(process.cwd(), "public", "uploads", "marketplace");
 
     await mkdir(uploadDir, { recursive: true });
-
-    const buffer = Buffer.from(await file.arrayBuffer());
     await writeFile(join(uploadDir, filename), buffer);
 
     return NextResponse.json({ photoPath: filename });

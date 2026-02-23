@@ -17,11 +17,13 @@
     "@types/bcryptjs": "^2.4.6",
     "axios": "^1.13.5",
     "bcryptjs": "^3.0.3",
+    "mysql2": "^3.18.0",
     "next": "16.1.6",
     "next-auth": "^5.0.0-beta.30",
     "prisma": "^5.22.0",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
