@@ -16,7 +16,9 @@ export const viewport: Viewport = {
   themeColor: "#4EB1CB",
   width: "device-width",
   initialScale: 1,
-  viewportFit: "cover",
+  maximumScale: 1,       // prevent accidental pinch-zoom
+  userScalable: false,   // locks zoom — same as GetSales
+  viewportFit: "cover",  // safe-area-inset support for notch/island
 };
 
 export const metadata: Metadata = {
