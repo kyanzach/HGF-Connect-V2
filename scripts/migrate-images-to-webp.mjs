@@ -20,13 +20,27 @@
 
 import sharp from "sharp";
 import fs from "fs/promises";
+import { readFileSync, existsSync } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import mysql from "mysql2/promise";
-import dotenv from "dotenv";
 
-dotenv.config({ path: ".env" });
-dotenv.config({ path: ".env.local", override: true });
+// ── Load env vars from .env.production or .env.local (no dotenv needed) ──────
+function loadEnv(...files) {
+  for (const f of files) {
+    if (!existsSync(f)) continue;
+    for (const line of readFileSync(f, "utf8").split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const idx = trimmed.indexOf("=");
+      if (idx < 0) continue;
+      const key = trimmed.slice(0, idx).trim();
+      const val = trimmed.slice(idx + 1).trim().replace(/^["']|["']$/g, "");
+      if (!process.env[key]) process.env[key] = val;
+    }
+  }
+}
+loadEnv(".env.production", ".env.local", ".env");
 
 const DRY_RUN = process.argv.includes("--dry-run");
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
