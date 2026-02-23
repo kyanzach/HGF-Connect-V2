@@ -1,6 +1,6 @@
-// HGF Connect — Service Worker v1
+// HGF Connect — Service Worker v2.2.0
 // Strategy: network-first for navigation, cache-first for assets, offline fallback for everything
-const CACHE_NAME = 'hgf-connect-v1';
+const CACHE_NAME = 'hgf-connect-v2.2.0';
 
 const PRECACHE = [
   '/',
