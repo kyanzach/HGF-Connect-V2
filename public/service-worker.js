@@ -29,12 +29,12 @@ async function offlineFallback() {
 
 // ── Install: pre-cache essentials ──────────────────────────────────────────────
 self.addEventListener('install', (e) => {
+  self.skipWaiting(); // take over immediately — don't wait for existing clients to close
   e.waitUntil(
     caches.open(CACHE_NAME)
       .then((c) => c.addAll(PRECACHE))
       .then(() => console.log('[SW] Pre-cached', PRECACHE.length, 'files'))
   );
-  // Don't skipWaiting — let the update toast handle it gracefully
 });
 
 // ── Activate: clean up old caches ─────────────────────────────────────────────
