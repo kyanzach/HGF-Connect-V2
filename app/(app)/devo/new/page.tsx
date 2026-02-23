@@ -71,18 +71,26 @@ export default function DeVoNewPage() {
           visibility: "MEMBERS_ONLY",
         }),
       });
-      if (!res.ok) throw new Error();
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error ?? "Failed to post");
+      }
       setStep("done");
-      setTimeout(() => router.push("/feed"), 1200);
-    } catch {
-      setError("Failed to post. Please try again.");
-    } finally {
+      // Delay redirect so iOS Safari can settle before navigation
+      setTimeout(() => router.push("/feed"), 1500);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to post. Please try again.");
       setSubmitting(false);
     }
+    // Note: don't setSubmitting(false) on success — page will navigate away
   }
 
   return (
-    <div style={{ minHeight: "100%", display: "flex", flexDirection: "column" }}>
+    <div style={{ minHeight: "100%", display: "flex", flexDirection: "column", position: "relative" }}>
+      {/* iOS Safari: block all touch input during submission to prevent dock freeze */}
+      {submitting && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 9999, pointerEvents: "all" }} />
+      )}
       {/* Header */}
       <div
         style={{
@@ -342,9 +350,11 @@ export default function DeVoNewPage() {
                 fontSize: "1rem",
                 fontWeight: 700,
                 cursor: submitting ? "not-allowed" : "pointer",
+                fontFamily: "inherit",
+                WebkitTapHighlightColor: "transparent",
               }}
             >
-              {submitting ? "Posting..." : "📖 Share Devotional"}
+              {submitting ? "⏳ Posting..." : "📖 Share Devotional"}
             </button>
           </>
         )}

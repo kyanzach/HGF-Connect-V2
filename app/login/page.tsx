@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useState, useEffect, FormEvent } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -13,6 +13,20 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [bioLoading, setBioLoading] = useState(false);
+  // Only show biometric button if device supports WebAuthn platform authenticator
+  const [showBiometric, setShowBiometric] = useState(false);
+
+  useEffect(() => {
+    if (
+      typeof window !== "undefined" &&
+      window.PublicKeyCredential &&
+      typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === "function"
+    ) {
+      PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+        .then((available) => setShowBiometric(available))
+        .catch(() => setShowBiometric(false));
+    }
+  }, []);
 
   async function handleBiometric() {
     if (!username.trim()) { setError("Enter your username first"); return; }
@@ -232,37 +246,40 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Biometric Login */}
-        <div style={{ textAlign: "center", margin: "1rem 0" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", margin: "0 0 1rem" }}>
-            <div style={{ flex: 1, height: 1, background: "#e5e7eb" }} />
-            <span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>or</span>
-            <div style={{ flex: 1, height: 1, background: "#e5e7eb" }} />
+        {/* Biometric Login — only shown if device supports platform authenticator */}
+        {showBiometric && (
+          <div style={{ textAlign: "center", margin: "1rem 0" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", margin: "0 0 1rem" }}>
+              <div style={{ flex: 1, height: 1, background: "#e5e7eb" }} />
+              <span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>or</span>
+              <div style={{ flex: 1, height: 1, background: "#e5e7eb" }} />
+            </div>
+            <button
+              type="button"
+              onClick={handleBiometric}
+              disabled={bioLoading}
+              style={{
+                width: "100%",
+                padding: "0.75rem",
+                background: bioLoading ? "#f8fafc" : "#f1f5f9",
+                color: "#374151",
+                border: "1px solid #e2e8f0",
+                borderRadius: "8px",
+                fontSize: "0.9375rem",
+                fontWeight: 600,
+                cursor: bioLoading ? "not-allowed" : "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "0.5rem",
+                fontFamily: "inherit",
+              }}
+            >
+              <span style={{ fontSize: "1.25rem" }}>🔐</span>
+              {bioLoading ? "Authenticating..." : "Sign in with Face ID / Touch ID"}
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={handleBiometric}
-            disabled={bioLoading}
-            style={{
-              width: "100%",
-              padding: "0.75rem",
-              background: bioLoading ? "#f8fafc" : "#f1f5f9",
-              color: "#374151",
-              border: "1px solid #e2e8f0",
-              borderRadius: "8px",
-              fontSize: "0.9375rem",
-              fontWeight: 600,
-              cursor: bioLoading ? "not-allowed" : "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "0.5rem",
-            }}
-          >
-            <span style={{ fontSize: "1.25rem" }}>🔐</span>
-            {bioLoading ? "Authenticating..." : "Sign in with Face ID / Touch ID"}
-          </button>
-        </div>
+        )}
         <div
           style={{
             marginTop: "1.5rem",
