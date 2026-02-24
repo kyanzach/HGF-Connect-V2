@@ -164,14 +164,14 @@ export default async function MarketplaceSSRPage({
           </div>
         ) : (
           <>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.625rem", width: "100%" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: "0.625rem", width: "100%" }}>
               {listings.map((listing) => (
                 <Link
                   key={listing.id}
                   href={`/marketplace/${listing.id}`}
                   style={{ textDecoration: "none" }}
                 >
-                  <div style={{ background: "white", borderRadius: "14px", overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.09)" }}>
+                  <div style={{ background: "white", borderRadius: "14px", overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.09)", minWidth: 0, width: "100%" }}>
                     {/* Photo or placeholder */}
                     <div style={{ width: "100%", height: 130, background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2.5rem", position: "relative" }}>
                       {listing.photos[0] ? (

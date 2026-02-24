@@ -14,29 +14,8 @@ export default function PublicLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <div
-      style={{
-        minHeight: "100dvh",
-        display: "flex",
-        flexDirection: "column",
-        background: "#f8fafc",
-        // Header / nav rendered per-page — must be full-width, so NO maxWidth here
-      }}
-    >
-      {/* Page content — fluid 500px column, fills 100% on mobile */}
-      <main
-        style={{
-          flex: 1,
-          width: "100%",
-          maxWidth: "500px",
-          margin: "0 auto",
-          overflowX: "hidden",
-          boxSizing: "border-box",
-        }}
-      >
-        {children}
-      </main>
-    </div>
-  );
+  // No maxWidth here — PublicNav must be full-width.
+  // Overflow prevention is handled by body { overflow-x: hidden } in globals.css.
+  // Each page's own content manages its column centering via PublicNav internals.
+  return <>{children}</>;
 }
