@@ -260,7 +260,7 @@ export default function NotificationBell() {
 
           {notifications.length > 0 && (
             <Link
-              href="/feed"
+              href="/notifications"
               style={{ display: "block", textAlign: "center", padding: "10px", fontSize: 13, color: "#3b82f6", fontWeight: 600, borderTop: "1px solid #f3f4f6", textDecoration: "none" }}
               onClick={() => setOpen(false)}
             >
