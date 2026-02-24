@@ -92,6 +92,9 @@ model Member {
   // Seller verification badge (Phase 9)
   isVerified            Boolean              @default(false) @map("is_verified")
 
+  // Photo history
+  photoHistory          MemberPhotoHistory[]
+
   // AI chat history
   aiConversations       AiConversation[]
 
@@ -191,6 +194,20 @@ model MemberMinistry {
 }
 
 
+
+model MemberPhotoHistory {
+  id        Int      @id @default(autoincrement())
+  memberId  Int      @map("member_id")
+  type      String   @db.VarChar(10)    // "profile" | "cover"
+  fileName  String   @db.VarChar(255)
+  thumbName String?  @db.VarChar(255)   // null for cover (no thumb)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId, type])
+  @@map("member_photo_history")
+}
 
 model MemberStatusHistory {
   id          Int           @id @default(autoincrement())

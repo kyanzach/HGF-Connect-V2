@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import PhotoViewerModal, { type HistoryPhoto } from "@/components/PhotoViewerModal";
 
 const PRIMARY = "#4EB1CB";
 
@@ -22,6 +23,11 @@ export default function EditProfilePage() {
   const { data: session } = useSession();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabKey>("personal");
+  const [profileHistory, setProfileHistory] = useState<HistoryPhoto[]>([]);
+  const [coverHistory,   setCoverHistory]   = useState<HistoryPhoto[]>([]);
+  const [viewerPhotos,   setViewerPhotos]   = useState<HistoryPhoto[]>([]);
+  const [viewerStart,    setViewerStart]    = useState(0);
+  const [viewerOpen,     setViewerOpen]     = useState(false);
   const [pwCurrent, setPwCurrent] = useState("");
   const [pwNew, setPwNew]         = useState("");
   const [pwConfirm, setPwConfirm] = useState("");
@@ -79,8 +85,21 @@ export default function EditProfilePage() {
       .catch(() => setLoading(false));
   }, [memberId]);
 
+  // Fetch photo history
+  useEffect(() => {
+    if (!memberId) return;
+    fetch(`/api/members/${memberId}/photo-history?type=profile`).then(r => r.json()).then(data => { if (Array.isArray(data)) setProfileHistory(data); }).catch(() => {});
+    fetch(`/api/members/${memberId}/photo-history?type=cover`).then(r => r.json()).then(data => { if (Array.isArray(data)) setCoverHistory(data); }).catch(() => {});
+  }, [memberId]);
+
   function set(field: string, value: string | boolean) {
     setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  function openViewer(photos: HistoryPhoto[], start = 0) {
+    setViewerPhotos(photos);
+    setViewerStart(start);
+    setViewerOpen(true);
   }
 
   async function handleSave() {
@@ -153,6 +172,7 @@ export default function EditProfilePage() {
   );
 
   return (
+    <>
     <div style={{ minHeight: "100vh", background: "#f8fafc", paddingBottom: "4rem" }}>
       {/* Header */}
       <div style={{ background: PRIMARY, padding: "1rem 1rem 1.25rem", color: "white", position: "sticky", top: 0, zIndex: 20 }}>
@@ -184,15 +204,40 @@ export default function EditProfilePage() {
             </div>
             <div style={{ flex: 1 }}>
               <p style={{ margin: 0, fontWeight: 700, color: "#1e293b", fontSize: "0.875rem" }}>Profile Photo</p>
-              <p style={{ margin: "0.125rem 0 0", fontSize: "0.75rem", color: "#94a3b8" }}>Tap to change · JPG, PNG · max 5MB</p>
+              <p style={{ margin: "0.125rem 0 0", fontSize: "0.75rem", color: "#94a3b8" }}>Tap to upload new · JPG, PNG, HEIC · max 10MB</p>
             </div>
             <span style={{ color: "#cbd5e1", fontSize: "1.1rem" }}>›</span>
           </div>
-          <input ref={profileInputRef} type="file" accept="image/png,image/jpeg,image/webp" style={{ display: "none" }} onChange={async (e) => {
+
+          {/* Profile photo history strip */}
+          {profileHistory.length > 0 && (
+            <div style={{ display: "flex", gap: "0.5rem", padding: "0.625rem 1.25rem", overflowX: "auto", borderBottom: "1px solid #f1f5f9", alignItems: "center" }}>
+              <span style={{ fontSize: "0.7rem", color: "#94a3b8", fontWeight: 600, whiteSpace: "nowrap", flexShrink: 0 }}>Past &nbsp;photos:</span>
+              {profileHistory.slice(0, 4).map((h, i) => (
+                <button key={h.id} onClick={() => openViewer(profileHistory, i)}
+                  style={{ flexShrink: 0, width: 44, height: 44, borderRadius: "50%", overflow: "hidden", border: "2px solid #e2e8f0", background: "#f1f5f9", cursor: "pointer", padding: 0 }}>
+                  <img src={h.thumbUrl ?? h.url} alt="past" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                </button>
+              ))}
+              {profileHistory.length > 4 && (
+                <button onClick={() => openViewer(profileHistory, 4)}
+                  style={{ flexShrink: 0, width: 44, height: 44, borderRadius: "50%", background: "#f1f5f9", border: "2px solid #e2e8f0", cursor: "pointer", fontSize: "0.65rem", fontWeight: 700, color: PRIMARY }}>
+                  +{profileHistory.length - 4}<br />more
+                </button>
+              )}
+            </div>
+          )}
+
+          <input ref={profileInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/heic,image/heif" style={{ display: "none" }} onChange={async (e) => {
             const file = e.target.files?.[0]; if (!file) return;
             const fd = new FormData(); fd.append("file", file); fd.append("type", "profile");
             const res = await fetch(`/api/members/${memberId}/photo`, { method: "POST", body: fd });
-            if (res.ok) { const { path } = await res.json(); setProfilePic(path); }
+            if (res.ok) {
+              const { path } = await res.json();
+              setProfilePic(path);
+              // Refresh history
+              fetch(`/api/members/${memberId}/photo-history?type=profile`).then(r => r.json()).then(data => { if (Array.isArray(data)) setProfileHistory(data); }).catch(() => {});
+            }
           }} />
 
           {/* Cover photo row */}
@@ -202,7 +247,6 @@ export default function EditProfilePage() {
             onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
             onMouseLeave={(e) => (e.currentTarget.style.background = "white")}
           >
-            {/* Cover preview — landscape rectangle */}
             <div style={{ width: 80, height: 48, borderRadius: "8px", overflow: "hidden", flexShrink: 0, border: "2px solid #e2e8f0", background: coverPic ? "transparent" : `linear-gradient(135deg, #0f2d3d, ${PRIMARY})`, position: "relative" }}>
               {coverPic ? (
                 <Image src={coverPic} alt="Cover" fill style={{ objectFit: "cover" }} sizes="80px" />
@@ -214,15 +258,39 @@ export default function EditProfilePage() {
             </div>
             <div style={{ flex: 1 }}>
               <p style={{ margin: 0, fontWeight: 700, color: "#1e293b", fontSize: "0.875rem" }}>Cover Photo</p>
-              <p style={{ margin: "0.125rem 0 0", fontSize: "0.75rem", color: "#94a3b8" }}>Tap to change · JPG, PNG · max 5MB</p>
+              <p style={{ margin: "0.125rem 0 0", fontSize: "0.75rem", color: "#94a3b8" }}>Tap to upload new · JPG, PNG, HEIC · max 10MB</p>
             </div>
             <span style={{ color: "#cbd5e1", fontSize: "1.1rem" }}>›</span>
           </div>
-          <input ref={coverInputRef} type="file" accept="image/png,image/jpeg,image/webp" style={{ display: "none" }} onChange={async (e) => {
+
+          {/* Cover photo history strip */}
+          {coverHistory.length > 0 && (
+            <div style={{ display: "flex", gap: "0.5rem", padding: "0.625rem 1.25rem", overflowX: "auto", alignItems: "center" }}>
+              <span style={{ fontSize: "0.7rem", color: "#94a3b8", fontWeight: 600, whiteSpace: "nowrap", flexShrink: 0 }}>Past &nbsp;covers:</span>
+              {coverHistory.slice(0, 3).map((h, i) => (
+                <button key={h.id} onClick={() => openViewer(coverHistory, i)}
+                  style={{ flexShrink: 0, width: 70, height: 42, borderRadius: 6, overflow: "hidden", border: "2px solid #e2e8f0", background: "#f1f5f9", cursor: "pointer", padding: 0 }}>
+                  <img src={h.url} alt="past cover" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                </button>
+              ))}
+              {coverHistory.length > 3 && (
+                <button onClick={() => openViewer(coverHistory, 3)}
+                  style={{ flexShrink: 0, width: 44, height: 42, borderRadius: 6, background: "#f1f5f9", border: "2px solid #e2e8f0", cursor: "pointer", fontSize: "0.65rem", fontWeight: 700, color: PRIMARY }}>
+                  +{coverHistory.length - 3}<br />more
+                </button>
+              )}
+            </div>
+          )}
+
+          <input ref={coverInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/heic,image/heif" style={{ display: "none" }} onChange={async (e) => {
             const file = e.target.files?.[0]; if (!file) return;
             const fd = new FormData(); fd.append("file", file); fd.append("type", "cover");
             const res = await fetch(`/api/members/${memberId}/photo`, { method: "POST", body: fd });
-            if (res.ok) { const { path } = await res.json(); setCoverPic(path); }
+            if (res.ok) {
+              const { path } = await res.json();
+              setCoverPic(path);
+              fetch(`/api/members/${memberId}/photo-history?type=cover`).then(r => r.json()).then(data => { if (Array.isArray(data)) setCoverHistory(data); }).catch(() => {});
+            }
           }} />
         </div>
 
@@ -388,5 +456,25 @@ export default function EditProfilePage() {
         </div>
       </div>
     </div>
+
+    {/* Photo Viewer Modal */}
+    {viewerOpen && viewerPhotos.length > 0 && (
+      <PhotoViewerModal
+        photos={viewerPhotos}
+        startIndex={viewerStart}
+        memberId={parseInt(memberId!)}
+        onClose={() => setViewerOpen(false)}
+        onRestore={(photo) => {
+          if (photo.type === "profile") {
+            setProfilePic(photo.url);
+            fetch(`/api/members/${memberId}/photo-history?type=profile`).then(r => r.json()).then(data => { if (Array.isArray(data)) setProfileHistory(data); }).catch(() => {});
+          } else {
+            setCoverPic(photo.url);
+            fetch(`/api/members/${memberId}/photo-history?type=cover`).then(r => r.json()).then(data => { if (Array.isArray(data)) setCoverHistory(data); }).catch(() => {});
+          }
+        }}
+      />
+    )}
+    </>
   );
 }

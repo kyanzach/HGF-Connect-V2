@@ -58,6 +58,28 @@ export async function POST(
     await writeFile(path.join(uploadDir, thumbName), thumb);
   }
 
+  // ── Archive current photo to history BEFORE overwriting ──────────────────
+  const current = await (db as any).member.findUnique({
+    where: { id },
+    select: { profilePicture: true, profilePictureThumbnail: true, coverPhoto: true },
+  });
+  const prevName  = purpose === "cover" ? current?.coverPhoto       : current?.profilePicture;
+  const prevThumb = purpose === "profile" ? current?.profilePictureThumbnail as string | null ?? null : null;
+  if (prevName) {
+    await (db as any).memberPhotoHistory.create({
+      data: { memberId: id, type: purpose, fileName: prevName, thumbName: prevThumb ?? null },
+    });
+    // Prune: keep newest 30 per type
+    const old = await (db as any).memberPhotoHistory.findMany({
+      where: { memberId: id, type: purpose },
+      orderBy: { createdAt: "desc" },
+      skip: 30, select: { id: true },
+    });
+    if (old.length) {
+      await (db as any).memberPhotoHistory.deleteMany({ where: { id: { in: old.map((r: any) => r.id) } } });
+    }
+  }
+
   const updateData: Record<string, string | null> =
     purpose === "cover"
       ? { coverPhoto: fullName }
