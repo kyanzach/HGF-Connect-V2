@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -58,6 +58,19 @@ export default function PostCard({ post }: PostCardProps) {
   const [loading, setLoading] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
+
+  // Live count polling every 20s
+  useEffect(() => {
+    const poll = async () => {
+      try {
+        const d = await fetch(`/api/posts/${post.id}/count`).then((r) => r.json());
+        setCommentCount(d.commentCount ?? 0);
+        setLikeCount(d.likeCount ?? 0);
+      } catch { /* silent */ }
+    };
+    const id = setInterval(poll, 20000);
+    return () => clearInterval(id);
+  }, [post.id]);
 
   const authorName = `${post.author.firstName} ${post.author.lastName}`;
   const initials = `${post.author.firstName[0]}${post.author.lastName[0]}`.toUpperCase();

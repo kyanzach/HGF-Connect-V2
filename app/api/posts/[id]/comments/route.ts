@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { createNotification } from "@/lib/notify";
 
 interface Props { params: Promise<{ id: string }> }
 
-// GET /api/posts/[id]/comments — fetch all comments (pinned first, then date desc)
+// GET /api/posts/[id]/comments — fetch all comments (pinned first, then date asc)
 export async function GET(
   _request: NextRequest,
   { params }: Props
@@ -15,19 +16,16 @@ export async function GET(
   const viewerId = session?.user?.id ? parseInt(session.user.id) : null;
 
   try {
-    // Fetch top-level comments
     const rows = await (db as any).comment.findMany({
       where: { postId, parentId: null },
       include: {
         author: { select: { id: true, firstName: true, lastName: true, profilePicture: true } },
-        // Fetch replies
         replies: {
           include: {
             author: { select: { id: true, firstName: true, lastName: true, profilePicture: true } },
           },
           orderBy: { createdAt: "asc" },
         },
-        // Check if viewer liked each comment
         ...(viewerId
           ? { commentLikes: { where: { memberId: viewerId }, select: { memberId: true } } }
           : {}),
@@ -61,7 +59,7 @@ export async function GET(
   }
 }
 
-// POST /api/posts/[id]/comments — create a new comment or reply
+// POST /api/posts/[id]/comments — create comment or reply
 export async function POST(
   request: NextRequest,
   { params }: Props
@@ -71,15 +69,17 @@ export async function POST(
 
   const { id } = await params;
   const postId = parseInt(id);
+  const authorId = parseInt(session.user.id);
 
   try {
-    const { content, parentId } = await request.json();
+    const { content, parentId, mentionedMemberIds } = await request.json();
     if (!content?.trim()) return NextResponse.json({ error: "Comment cannot be empty" }, { status: 400 });
 
+    // Create comment
     const comment = await (db as any).comment.create({
       data: {
         postId,
-        authorId: parseInt(session.user.id),
+        authorId,
         content: content.trim(),
         parentId: parentId ? parseInt(parentId) : null,
       },
@@ -87,6 +87,65 @@ export async function POST(
         author: { select: { id: true, firstName: true, lastName: true, profilePicture: true } },
       },
     });
+
+    const authorName = `${comment.author.firstName} ${comment.author.lastName}`;
+    const preview = content.trim().slice(0, 80);
+    const postLink = `/feed?post=${postId}`;
+
+    // ── Notifications (fire-and-forget) ──────────────────
+
+    // 1. Fetch post author
+    const post = await (db as any).post.findUnique({
+      where: { id: postId },
+      select: { authorId: true },
+    });
+
+    if (parentId) {
+      // REPLY — notify the parent comment's author
+      const parent = await (db as any).comment.findUnique({
+        where: { id: parseInt(parentId) },
+        select: { authorId: true },
+      });
+      if (parent && parent.authorId !== authorId) {
+        createNotification({
+          memberId: parent.authorId,
+          type: "comment_reply",
+          title: `${authorName} replied to your comment`,
+          body: preview,
+          link: postLink,
+          actorId: authorId,
+        });
+      }
+    } else {
+      // TOP-LEVEL COMMENT — notify post author
+      if (post && post.authorId !== authorId) {
+        createNotification({
+          memberId: post.authorId,
+          type: "new_comment",
+          title: `${authorName} commented on your post`,
+          body: preview,
+          link: postLink,
+          actorId: authorId,
+        });
+      }
+    }
+
+    // 2. @Mention notifications (deduped, exclude actor and already-notified)
+    const mentionIds: number[] = (mentionedMemberIds ?? [])
+      .map((x: any) => parseInt(x))
+      .filter((id: number) => !isNaN(id) && id !== authorId);
+
+    for (const targetId of mentionIds) {
+      createNotification({
+        memberId: targetId,
+        type: "mention",
+        title: `${authorName} mentioned you in a comment`,
+        body: preview,
+        link: postLink,
+        actorId: authorId,
+      });
+    }
+    // ─────────────────────────────────────────────────────
 
     return NextResponse.json({ comment }, { status: 201 });
   } catch (error) {

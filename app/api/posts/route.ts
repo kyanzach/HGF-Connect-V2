@@ -75,6 +75,7 @@ export async function GET(request: Request) {
   }
 }
 
+
 export async function POST(request: Request) {
   const session = await auth();
   if (!session) {
@@ -89,7 +90,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Post must have content, image, or verse" }, { status: 400 });
     }
 
-    const post = await db.post.create({
+    const post = await (db as any).post.create({
       data: {
         authorId: parseInt(session.user.id),
         type: type ?? "TEXT",
@@ -113,6 +114,25 @@ export async function POST(request: Request) {
         _count: { select: { likes: true, comments: true } },
       },
     });
+
+    // ------ Notify all members (fire-and-forget) ------
+    const TYPE_LABEL: Record<string, string> = {
+      TEXT: "a reflection", DEVO: "a devotional", VERSE_CARD: "a Bible verse",
+      PRAYER: "a prayer", PRAISE: "a praise report", EVENT: "an event"
+    };
+    const label = TYPE_LABEL[type ?? "TEXT"] ?? "something";
+    const authorName = `${post.author.firstName} ${post.author.lastName}`;
+    const preview = (content ?? verseText ?? "")?.slice(0, 80);
+    import("@/lib/notify").then(({ notifyAllMembers }) =>
+      notifyAllMembers({
+        actorId: parseInt(session.user.id),
+        type: "new_post",
+        title: `${authorName} shared ${label}`,
+        body: preview || "(No preview)",
+        link: "/feed",
+      })
+    );
+    // --------------------------------------------------
 
     return NextResponse.json(post, { status: 201 });
   } catch (error) {

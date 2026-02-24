@@ -70,6 +70,11 @@ export default function NotificationBell() {
   function typeIcon(type: string) {
     if (type === "marketplace_sale") return "💰";
     if (type === "marketplace_prospect") return "🎉";
+    if (type === "new_post") return "📝";
+    if (type === "new_comment") return "💬";
+    if (type === "comment_reply") return "↩️";
+    if (type === "mention") return "🏷️";
+    if (type === "new_marketplace") return "🛍️";
     return "🔔";
   }
 
@@ -241,20 +246,11 @@ export default function NotificationBell() {
 
           {notifications.length > 0 && (
             <Link
-              href="/marketplace/my-shares"
-              style={{
-                display: "block",
-                textAlign: "center",
-                padding: "10px",
-                fontSize: 13,
-                color: "#3b82f6",
-                fontWeight: 600,
-                borderTop: "1px solid #f3f4f6",
-                textDecoration: "none",
-              }}
+              href="/feed"
+              style={{ display: "block", textAlign: "center", padding: "10px", fontSize: 13, color: "#3b82f6", fontWeight: 600, borderTop: "1px solid #f3f4f6", textDecoration: "none" }}
               onClick={() => setOpen(false)}
             >
-              View My Shares →
+              View Community Feed →
             </Link>
           )}
         </div>

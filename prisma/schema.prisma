@@ -890,7 +890,8 @@ model Notification {
   type      NotificationType
   title     String   @db.VarChar(200)
   body      String   @db.VarChar(500)
-  link      String?  @db.VarChar(300)    // e.g. /marketplace/123 or /marketplace/my-shares
+  link      String?  @db.VarChar(300)
+  actorId   Int?     @map("actor_id")   // who triggered this notification
   isRead    Boolean  @default(false) @map("is_read")
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -901,7 +902,12 @@ model Notification {
 }
 
 enum NotificationType {
-  marketplace_prospect   // Someone revealed/contacted via sharer's link
-  marketplace_sale       // Sale confirmed — love gift credited
+  marketplace_prospect  // Someone revealed/contacted via sharer's link
+  marketplace_sale      // Sale confirmed — love gift credited
   general
+  new_post              // New community post — broadcast to all
+  new_comment           // Someone commented on your post
+  comment_reply         // Someone replied to your comment
+  mention               // Someone @-mentioned you in a comment
+  new_marketplace       // New marketplace listing — broadcast to all
 }
