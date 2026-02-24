@@ -6,20 +6,28 @@ import type { Prisma } from "@prisma/client";
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const page = parseInt(searchParams.get("page") ?? "1");
+  const memberId = searchParams.get("member") ? parseInt(searchParams.get("member")!) : null;
   const limit = 20;
   const skip = (page - 1) * limit;
 
   const session = await auth();
 
+  const visibilityFilter = {
+    OR: [
+      { visibility: "PUBLIC" as const },
+      ...(session ? [{ visibility: "MEMBERS_ONLY" as const }] : []),
+    ],
+  };
+
+  const where: any = {
+    ...visibilityFilter,
+    ...(memberId ? { authorId: memberId } : {}),
+  };
+
   try {
     const [posts, total] = await Promise.all([
       db.post.findMany({
-        where: {
-          OR: [
-            { visibility: "PUBLIC" as const },
-            ...(session ? [{ visibility: "MEMBERS_ONLY" as const }] : []),
-          ],
-        },
+        where,
         include: {
           author: {
             select: {
@@ -46,20 +54,13 @@ export async function GET(request: Request) {
         skip,
         take: limit,
       }),
-      db.post.count({
-        where: {
-          OR: [
-            { visibility: "PUBLIC" as const },
-            ...(session ? [{ visibility: "MEMBERS_ONLY" as const }] : []),
-          ],
-        },
-      }),
+      db.post.count({ where }),
     ]);
 
     const postsWithLiked = posts.map((p: any) => ({
       ...p,
       isLiked: session ? (p.likes?.length ?? 0) > 0 : false,
-      likes: undefined, // strip raw likes array from response
+      likes: undefined,
     }));
 
     return NextResponse.json({
