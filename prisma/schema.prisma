@@ -71,6 +71,7 @@ model Member {
   posts                 Post[]                @relation("PostAuthor")
   postLikes             PostLike[]            @relation("PostLikeMember")
   comments              Comment[]             @relation("CommentAuthor")
+  commentLikes          CommentLike[]         @relation("CommentLikeMember")
   following             Follow[]              @relation("Follower")
   followers             Follow[]              @relation("Following")
 
@@ -625,16 +626,36 @@ model Post {
 }
 
 model Comment {
-  id        Int      @id @default(autoincrement())
-  postId    Int      @map("post_id")
-  authorId  Int      @map("author_id")
-  content   String   @db.Text
+  id          Int       @id @default(autoincrement())
+  postId      Int       @map("post_id")
+  authorId    Int       @map("author_id")
+  content     String    @db.Text
+  isPinned    Boolean   @default(false) @map("is_pinned")
+  pinnedById  Int?      @map("pinned_by_id")
+  likeCount   Int       @default(0) @map("like_count")
+  parentId    Int?      @map("parent_id")
+
   post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
   author    Member   @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  parent    Comment? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   Comment[] @relation("CommentReplies")
+  commentLikes CommentLike[]
+
   createdAt DateTime @default(now()) @map("created_at")
 
   @@index([postId])
   @@map("post_comments")
+}
+
+model CommentLike {
+  commentId Int      @map("comment_id")
+  memberId  Int      @map("member_id")
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  member    Member   @relation("CommentLikeMember", fields: [memberId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@id([commentId, memberId])
+  @@map("comment_likes")
 }
 
 model PostLike {

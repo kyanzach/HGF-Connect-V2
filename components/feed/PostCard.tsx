@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import CommentDrawer from "./CommentDrawer";
 
 const PRIMARY = "#4EB1CB";
 
@@ -27,7 +28,6 @@ interface PostCardProps {
     _count?: { likes: number; comments: number };
     isLiked?: boolean;
   };
-  onOpenComments?: (postId: number) => void;
 }
 
 function timeAgo(date: Date | string) {
@@ -49,7 +49,7 @@ const TYPE_LABELS: Record<string, { icon: string; label: string; color: string }
   EVENT:      { icon: "📅",  label: "Event",         color: "#E74C3C" },
 };
 
-export default function PostCard({ post, onOpenComments }: PostCardProps) {
+export default function PostCard({ post }: PostCardProps) {
   const { data: session } = useSession();
   const router = useRouter();
   const [liked, setLiked] = useState(post.isLiked ?? false);
@@ -57,7 +57,7 @@ export default function PostCard({ post, onOpenComments }: PostCardProps) {
   const [commentCount, setCommentCount] = useState(post._count?.comments ?? 0);
   const [loading, setLoading] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const [commentsOpen, setCommentsOpen] = useState(false);
 
   const authorName = `${post.author.firstName} ${post.author.lastName}`;
   const initials = `${post.author.firstName[0]}${post.author.lastName[0]}`.toUpperCase();
@@ -66,18 +66,6 @@ export default function PostCard({ post, onOpenComments }: PostCardProps) {
     ? `/uploads/profile_pictures/${post.author.profilePicture}`
     : null;
   const isOwnPost = session?.user?.id === String(post.author.id);
-
-  // Close menu on outside click
-  useEffect(() => {
-    if (!menuOpen) return;
-    function handler(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [menuOpen]);
 
   async function toggleLike() {
     if (!session || loading) return;
@@ -111,235 +99,134 @@ export default function PostCard({ post, onOpenComments }: PostCardProps) {
     window.location.reload();
   }
 
-  function goToProfile() {
-    router.push(`/member/${post.author.id}`);
-  }
-
   return (
-    <div
-      style={{
-        background: "white",
-        borderRadius: "16px",
-        marginBottom: "0.75rem",
-        overflow: "hidden",
-        boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
-      }}
-    >
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", padding: "0.875rem 1rem 0.5rem", gap: "0.625rem" }}>
-        {/* Avatar — clickable circle */}
-        <button
-          onClick={goToProfile}
-          aria-label={`View ${authorName}'s profile`}
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: "50%",
-            overflow: "hidden",
-            flexShrink: 0,
-            border: "none",
-            padding: 0,
-            cursor: "pointer",
-            background: PRIMARY,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          {profilePic ? (
-            <Image
-              src={profilePic}
-              alt={authorName}
-              width={40}
-              height={40}
-              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-            />
-          ) : (
-            <span style={{ color: "white", fontWeight: 700, fontSize: "0.875rem" }}>{initials}</span>
-          )}
-        </button>
-
-        <div style={{ flex: 1, minWidth: 0 }}>
-          {/* Author name — also clickable */}
+    <>
+      <div
+        style={{ background: "white", borderRadius: "16px", marginBottom: "0.75rem", overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}
+      >
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", padding: "0.875rem 1rem 0.5rem", gap: "0.625rem" }}>
+          {/* Avatar */}
           <button
-            onClick={goToProfile}
-            style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left" }}
+            onClick={() => router.push(`/member/${post.author.id}`)}
+            aria-label={`View ${authorName}'s profile`}
+            style={{ width: 40, height: 40, borderRadius: "50%", overflow: "hidden", flexShrink: 0, border: "none", padding: 0, cursor: "pointer", background: PRIMARY, display: "flex", alignItems: "center", justifyContent: "center" }}
           >
-            <span style={{ fontWeight: 700, fontSize: "0.9rem", color: "#1e293b" }}>{authorName}</span>
+            {profilePic ? (
+              <Image src={profilePic} alt={authorName} width={40} height={40} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+            ) : (
+              <span style={{ color: "white", fontWeight: 700, fontSize: "0.875rem" }}>{initials}</span>
+            )}
           </button>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.375rem" }}>
-            <span style={{ fontSize: "0.7rem", color: "#94a3b8" }}>{timeAgo(post.createdAt)}</span>
-            <span style={{ fontSize: "0.6rem", color: "#94a3b8" }}>·</span>
-            <span style={{ fontSize: "0.6875rem", color: typeInfo.color, fontWeight: 600 }}>
-              {typeInfo.icon} {typeInfo.label}
-            </span>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <button onClick={() => router.push(`/member/${post.author.id}`)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left" }}>
+              <span style={{ fontWeight: 700, fontSize: "0.9rem", color: "#1e293b" }}>{authorName}</span>
+            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.375rem" }}>
+              <span style={{ fontSize: "0.7rem", color: "#94a3b8" }}>{timeAgo(post.createdAt)}</span>
+              <span style={{ fontSize: "0.6rem", color: "#94a3b8" }}>·</span>
+              <span style={{ fontSize: "0.6875rem", color: typeInfo.color, fontWeight: 600 }}>
+                {typeInfo.icon} {typeInfo.label}
+              </span>
+            </div>
+          </div>
+
+          {/* Three-dots menu */}
+          <div style={{ position: "relative" }}>
+            <button
+              onClick={() => setMenuOpen((o) => !o)}
+              style={{ background: "none", border: "none", fontSize: "1.1rem", color: "#94a3b8", cursor: "pointer", padding: "4px 8px", borderRadius: "8px" }}
+            >•••</button>
+            {menuOpen && (
+              <div
+                onClick={() => setMenuOpen(false)}
+                style={{ position: "fixed", inset: 0, zIndex: 10 }}
+              />
+            )}
+            {menuOpen && (
+              <div style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", background: "white", borderRadius: "12px", boxShadow: "0 4px 20px rgba(0,0,0,0.15)", minWidth: 160, zIndex: 11, overflow: "hidden" }}>
+                <button onClick={() => { setMenuOpen(false); router.push(`/member/${post.author.id}`); }} style={menuItemStyle}>👤 View Profile</button>
+                <button onClick={() => { setMenuOpen(false); setCommentsOpen(true); }} style={menuItemStyle}>💬 View Comments</button>
+                {isOwnPost && <button onClick={handleDelete} style={{ ...menuItemStyle, color: "#ef4444" }}>🗑️ Delete Post</button>}
+                <button onClick={() => { setMenuOpen(false); handleShare(); }} style={menuItemStyle}>📤 Share Post</button>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Three-dots menu */}
-        <div ref={menuRef} style={{ position: "relative" }}>
-          <button
-            onClick={() => setMenuOpen((o) => !o)}
-            aria-label="Post options"
-            style={{
-              background: "none",
-              border: "none",
-              fontSize: "1.1rem",
-              color: "#94a3b8",
-              cursor: "pointer",
-              padding: "4px 8px",
-              borderRadius: "8px",
-              lineHeight: 1,
-            }}
-          >
-            •••
+        {/* Content */}
+        {post.content && (
+          <div style={{ padding: "0 1rem 0.5rem", fontSize: "0.9375rem", color: "#334155", lineHeight: 1.65, whiteSpace: "pre-line" }}>
+            {post.content}
+          </div>
+        )}
+
+        {/* Image */}
+        {post.imageUrl && (
+          <div style={{ margin: "0.25rem 0" }}>
+            <Image
+              src={post.imageUrl.startsWith("http") ? post.imageUrl : `/uploads/${post.imageUrl}`}
+              alt="Post image" width={500} height={300}
+              style={{ width: "100%", height: "auto", maxHeight: "300px", objectFit: "cover" }}
+            />
+          </div>
+        )}
+
+        {/* AI Caption */}
+        {post.aiCaption && post.type === "DEVO" && (
+          <div style={{ margin: "0 1rem 0.5rem", background: "#f0f9ff", borderLeft: `3px solid ${PRIMARY}`, padding: "0.625rem 0.75rem", borderRadius: "0 8px 8px 0", fontSize: "0.875rem", color: "#334155", fontStyle: "italic" }}>
+            {post.aiCaption}
+          </div>
+        )}
+
+        {/* Verse card */}
+        {post.verseText && (
+          <div style={{ margin: "0.25rem 1rem 0.5rem", background: "linear-gradient(135deg, #2d8fa6 0%, #4EB1CB 100%)", borderRadius: "12px", padding: "1rem", color: "white" }}>
+            <div style={{ fontSize: "1.25rem", opacity: 0.5, lineHeight: 1, marginBottom: "0.25rem" }}>❝</div>
+            <p style={{ fontSize: "0.9rem", lineHeight: 1.7, margin: "0 0 0.5rem", fontStyle: "italic" }}>&ldquo;{post.verseText}&rdquo;</p>
+            {post.verseRef && (
+              <span style={{ display: "inline-block", background: "rgba(255,255,255,0.2)", padding: "0.2rem 0.625rem", borderRadius: "999px", fontSize: "0.75rem", fontWeight: 600 }}>
+                — {post.verseRef}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Actions */}
+        <div style={{ display: "flex", borderTop: "1px solid #f1f5f9", padding: "0.1rem 0" }}>
+          <button onClick={toggleLike} style={{ ...actionBtnStyle, color: liked ? "#ef4444" : "#64748b", fontWeight: liked ? 700 : 400 }}>
+            {liked ? "❤️" : "🤍"} {likeCount > 0 && likeCount}
           </button>
-          {menuOpen && (
-            <div
-              style={{
-                position: "absolute",
-                right: 0,
-                top: "calc(100% + 4px)",
-                background: "white",
-                borderRadius: "12px",
-                boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
-                minWidth: 160,
-                zIndex: 100,
-                overflow: "hidden",
-              }}
-            >
-              <button
-                onClick={() => { setMenuOpen(false); router.push(`/member/${post.author.id}`); }}
-                style={menuItemStyle}
-              >
-                👤 View Profile
-              </button>
-              {isOwnPost && (
-                <button onClick={handleDelete} style={{ ...menuItemStyle, color: "#ef4444" }}>
-                  🗑️ Delete Post
-                </button>
-              )}
-              <button onClick={() => { setMenuOpen(false); handleShare(); }} style={menuItemStyle}>
-                📤 Share Post
-              </button>
-            </div>
-          )}
+          <button onClick={() => setCommentsOpen(true)} style={actionBtnStyle}>
+            💬 {commentCount > 0 && commentCount}
+          </button>
+          <button onClick={handleShare} style={actionBtnStyle}>
+            📤 Share
+          </button>
         </div>
       </div>
 
-      {/* Content */}
-      {post.content && (
-        <div style={{ padding: "0 1rem 0.5rem", fontSize: "0.9375rem", color: "#334155", lineHeight: 1.65, whiteSpace: "pre-line" }}>
-          {post.content}
-        </div>
-      )}
-
-      {/* Devo Image */}
-      {post.imageUrl && (
-        <div style={{ margin: "0.25rem 0" }}>
-          <Image
-            src={post.imageUrl.startsWith("http") ? post.imageUrl : `/uploads/${post.imageUrl}`}
-            alt="Devotional"
-            width={500}
-            height={300}
-            style={{ width: "100%", height: "auto", maxHeight: "300px", objectFit: "cover" }}
-          />
-        </div>
-      )}
-
-      {/* AI Caption */}
-      {post.aiCaption && post.type === "DEVO" && (
-        <div
-          style={{
-            margin: "0 1rem 0.5rem",
-            background: "#f0f9ff",
-            borderLeft: `3px solid ${PRIMARY}`,
-            padding: "0.625rem 0.75rem",
-            borderRadius: "0 8px 8px 0",
-            fontSize: "0.875rem",
-            color: "#334155",
-            fontStyle: "italic",
-          }}
-        >
-          {post.aiCaption}
-        </div>
-      )}
-
-      {/* Bible Verse Card */}
-      {post.verseText && (
-        <div
-          style={{
-            margin: "0.25rem 1rem 0.5rem",
-            background: "linear-gradient(135deg, #2d8fa6 0%, #4EB1CB 100%)",
-            borderRadius: "12px",
-            padding: "1rem",
-            color: "white",
-          }}
-        >
-          <div style={{ fontSize: "1.25rem", opacity: 0.5, lineHeight: 1, marginBottom: "0.25rem" }}>❝</div>
-          <p style={{ fontSize: "0.9rem", lineHeight: 1.7, margin: "0 0 0.5rem", fontStyle: "italic" }}>
-            &ldquo;{post.verseText}&rdquo;
-          </p>
-          {post.verseRef && (
-            <span
-              style={{
-                display: "inline-block",
-                background: "rgba(255,255,255,0.2)",
-                padding: "0.2rem 0.625rem",
-                borderRadius: "999px",
-                fontSize: "0.75rem",
-                fontWeight: 600,
-              }}
-            >
-              — {post.verseRef}
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Actions */}
-      <div style={{ display: "flex", borderTop: "1px solid #f1f5f9", padding: "0.1rem 0" }}>
-        <button onClick={toggleLike} style={{ ...actionBtnStyle, color: liked ? "#ef4444" : "#64748b", fontWeight: liked ? 700 : 400 }}>
-          {liked ? "❤️" : "🤍"} {likeCount > 0 && likeCount}
-        </button>
-        <button
-          onClick={() => onOpenComments ? onOpenComments(post.id) : router.push(`/feed?post=${post.id}&comments=1`)}
-          style={actionBtnStyle}
-        >
-          💬 {commentCount > 0 && commentCount}
-        </button>
-        <button onClick={handleShare} style={actionBtnStyle}>
-          📤 Share
-        </button>
-      </div>
-    </div>
+      {/* Comment Drawer */}
+      <CommentDrawer
+        postId={post.id}
+        postAuthorId={post.author.id}
+        isOpen={commentsOpen}
+        onClose={() => setCommentsOpen(false)}
+        onCommentCountChange={(delta) => setCommentCount((c) => c + delta)}
+      />
+    </>
   );
 }
 
 const actionBtnStyle: React.CSSProperties = {
-  flex: 1,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: "0.375rem",
-  padding: "0.625rem",
-  background: "none",
-  border: "none",
-  cursor: "pointer",
-  fontSize: "0.875rem",
-  color: "#64748b",
-  transition: "color 0.15s",
+  flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
+  gap: "0.375rem", padding: "0.625rem", background: "none", border: "none",
+  cursor: "pointer", fontSize: "0.875rem", color: "#64748b", transition: "color 0.15s",
 };
 
 const menuItemStyle: React.CSSProperties = {
-  display: "block",
-  width: "100%",
-  textAlign: "left",
-  padding: "0.75rem 1rem",
-  background: "none",
-  border: "none",
-  cursor: "pointer",
-  fontSize: "0.875rem",
-  color: "#334155",
-  transition: "background 0.1s",
+  display: "block", width: "100%", textAlign: "left",
+  padding: "0.75rem 1rem", background: "none", border: "none",
+  cursor: "pointer", fontSize: "0.875rem", color: "#334155",
 };
