@@ -500,20 +500,7 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
           <SharePanel listingId={listing.id} loveGiftAmount={listing.loveGiftAmount} title={listing.title} />
         )}
 
-        {/* Love Gift info for guests */}
-        {listing.loveGiftAmount > 0 && !listing.isLoggedIn && (
-          <div style={{ background: "linear-gradient(135deg, #fff1f2, #ffe4e6)", borderRadius: "16px", padding: "1rem", marginBottom: "0.75rem", border: "1px solid #fecdd3" }}>
-            <h3 style={{ fontSize: "0.875rem", fontWeight: 800, color: "#be123c", margin: "0 0 0.375rem" }}>
-              ❤️ Share &amp; Bless — Love Gift: ₱{listing.loveGiftAmount.toLocaleString()}
-            </h3>
-            <p style={{ fontSize: "0.8rem", color: "#9f1239", margin: "0 0 0.75rem", lineHeight: 1.6 }}>
-              HGF members can share this listing and earn ₱{listing.loveGiftAmount.toLocaleString()} Love Gift per confirmed sale.
-            </p>
-            <Link href="/login" style={{ background: "#ef4444", color: "white", borderRadius: "999px", padding: "0.45rem 1.25rem", fontSize: "0.8rem", fontWeight: 700, textDecoration: "none", display: "inline-block" }}>
-              Login to Share &amp; Earn
-            </Link>
-          </div>
-        )}
+
 
         {/* Seller card */}
         <div style={{ background: "white", borderRadius: "16px", padding: "1rem", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", display: "flex", alignItems: "center", gap: "0.875rem" }}>
