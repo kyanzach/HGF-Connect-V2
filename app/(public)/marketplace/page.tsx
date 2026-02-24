@@ -201,8 +201,8 @@ export default async function MarketplaceSSRPage({
                       <div style={{ fontWeight: 700, fontSize: "0.8rem", color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: "0.25rem" }}>
                         {listing.title}
                       </div>
-                      {/* Price row with discount badge */}
-                      <div style={{ display: "flex", alignItems: "center", gap: "0.3rem", flexWrap: "wrap" }}>
+                      {/* Price row — single line, truncates if too long */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.3rem", flexWrap: "nowrap", overflow: "hidden", minWidth: 0 }}>
                         {Number(listing.discountedPrice) > 0 && Number(listing.ogPrice) > 0 ? (
                           <>
                             <span style={{ fontWeight: 800, fontSize: "0.9rem", color: PRIMARY }}>
@@ -213,7 +213,7 @@ export default async function MarketplaceSSRPage({
                             </span>
                           </>
                         ) : (
-                          <span style={{ fontWeight: 800, fontSize: "0.9rem", color: PRIMARY }}>
+                          <span style={{ fontWeight: 800, fontSize: "0.9rem", color: PRIMARY, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>
                             {listing.ogPrice
                               ? `₱${Number(listing.ogPrice).toLocaleString()}`
                               : listing.price
