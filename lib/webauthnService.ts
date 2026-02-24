@@ -80,18 +80,73 @@ export function hasAnyEnrolledDevice(): boolean {
 
 export function dismissEnrollment(): void {
   try {
-    localStorage.setItem(DISMISSED_KEY, Date.now().toString());
+    dismissEnrollmentLater(); // map to 1-min snooze (back-compat)
   } catch {}
 }
 
 export function isEnrollmentDismissed(): boolean {
+  return isEnrollmentSnoozed(); // alias (back-compat)
+}
+
+// ── Smart Snooze (biometric) ─────────────────────────────────────────────
+const SNOOZE_KEY = "hgf-webauthn-snooze";
+
+/** Snooze biometric for 1 minute ("Remind me later") */
+export function dismissEnrollmentLater(): void {
   try {
-    const t = localStorage.getItem(DISMISSED_KEY);
-    if (!t) return false;
-    return Date.now() - parseInt(t) < 24 * 60 * 60 * 1000; // 24 hours
-  } catch {
-    return false;
-  }
+    localStorage.setItem(SNOOZE_KEY, (Date.now() + 60 * 1000).toString());
+  } catch {}
+}
+
+/** Snooze until next day at 05:00 Asia/Manila ("Remind me tomorrow") */
+export function dismissEnrollmentTomorrow(): void {
+  try {
+    localStorage.setItem(SNOOZE_KEY, _nextDayAt5amPH().toString());
+  } catch {}
+}
+
+function _nextDayAt5amPH(): number {
+  const now = new Date();
+  const fmt = new Intl.DateTimeFormat("en-PH", {
+    timeZone: "Asia/Manila",
+    year: "numeric", month: "2-digit", day: "2-digit",
+  });
+  const parts = Object.fromEntries(
+    fmt.formatToParts(now).filter((p) => p.type !== "literal").map((p) => [p.type, p.value])
+  );
+  const d = new Date(`${parts.year}-${parts.month}-${parts.day}T05:00:00+08:00`);
+  if (d <= now) d.setDate(d.getDate() + 1);
+  return d.getTime();
+}
+
+/** True if biometric is currently snoozed */
+export function isEnrollmentSnoozed(): boolean {
+  try {
+    const snooze = localStorage.getItem(SNOOZE_KEY);
+    if (!snooze) return false;
+    return Date.now() < parseInt(snooze);
+  } catch { return false; }
+}
+
+// ── PWA Snooze (mirrors biometric pattern) ───────────────────────────────
+export function snoozePWALater(): void {
+  try {
+    localStorage.setItem("pwa-snooze-until", (Date.now() + 60 * 1000).toString());
+  } catch {}
+}
+
+export function snoozePWATomorrow(): void {
+  try {
+    localStorage.setItem("pwa-snooze-until", _nextDayAt5amPH().toString());
+  } catch {}
+}
+
+export function isPWASnoozed(): boolean {
+  try {
+    const snooze = localStorage.getItem("pwa-snooze-until");
+    if (!snooze) return false;
+    return Date.now() < parseInt(snooze);
+  } catch { return false; }
 }
 
 // ── Registration (call after login, requires active NextAuth session) ──────────

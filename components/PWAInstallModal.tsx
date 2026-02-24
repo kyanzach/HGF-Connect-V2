@@ -14,8 +14,8 @@ export default function PWAInstallModal({ onClose }: { onClose: () => void }) {
       (window.navigator as any).standalone === true;
     if (standalone) { onClose(); return; }
     if (localStorage.getItem("pwa-installed") === "true") { onClose(); return; }
-    const dismissed = localStorage.getItem("pwa-install-dismissed");
-    if (dismissed && Date.now() - parseInt(dismissed) < 24 * 60 * 60 * 1000) { onClose(); return; }
+    const snooze = localStorage.getItem("pwa-snooze-until");
+    if (snooze && Date.now() < parseInt(snooze)) { onClose(); return; }
 
     const ua = navigator.userAgent;
     const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -60,8 +60,19 @@ export default function PWAInstallModal({ onClose }: { onClose: () => void }) {
     (window as any).__pwaInstallPrompt = null;
   }, [deferredPrompt, onClose]);
 
-  const handleDismiss = useCallback(() => {
-    localStorage.setItem("pwa-install-dismissed", Date.now().toString());
+  const handleRemindLater = useCallback(() => {
+    localStorage.setItem("pwa-snooze-until", (Date.now() + 60 * 1000).toString());
+    setShowModal(false);
+    onClose();
+  }, [onClose]);
+
+  const handleRemindTomorrow = useCallback(() => {
+    const now = new Date();
+    const fmt = new Intl.DateTimeFormat("en-PH", { timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit" });
+    const parts = Object.fromEntries(fmt.formatToParts(now).filter((p) => p.type !== "literal").map((p) => [p.type, p.value]));
+    const d = new Date(`${parts.year}-${parts.month}-${parts.day}T05:00:00+08:00`);
+    if (d <= now) d.setDate(d.getDate() + 1);
+    localStorage.setItem("pwa-snooze-until", d.getTime().toString());
     setShowModal(false);
     onClose();
   }, [onClose]);
@@ -184,14 +195,16 @@ export default function PWAInstallModal({ onClose }: { onClose: () => void }) {
                 </button>
               )}
               <button style={btnGreen} onClick={handleAlreadyInstalled}>✅ I&apos;ve already installed it</button>
-              <button style={btnGhost} onClick={handleDismiss}>Remind me later</button>
+              <button style={btnGhost} onClick={handleRemindLater}>⏱ Remind me later</button>
+              <button style={{ ...btnGhost, fontSize: "0.72rem", paddingTop: "0.35rem" }} onClick={handleRemindTomorrow}>Remind me tomorrow</button>
             </div>
 
           ) : hasInstallPrompt ? (
             <div>
               <button style={btnPrimary} onClick={handleInstall}>📲 Install App Now</button>
               <button style={btnGreen} onClick={handleAlreadyInstalled}>✅ I&apos;ve already installed it</button>
-              <button style={btnGhost} onClick={handleDismiss}>Remind me tomorrow</button>
+              <button style={btnGhost} onClick={handleRemindLater}>⏱ Remind me later</button>
+              <button style={{ ...btnGhost, fontSize: "0.72rem", paddingTop: "0.35rem" }} onClick={handleRemindTomorrow}>Remind me tomorrow</button>
             </div>
 
           ) : (
@@ -213,7 +226,8 @@ export default function PWAInstallModal({ onClose }: { onClose: () => void }) {
                 )}
               </div>
               <button style={btnGreen} onClick={handleAlreadyInstalled}>✅ I&apos;ve already installed it</button>
-              <button style={btnGhost} onClick={handleDismiss}>Remind me later</button>
+              <button style={btnGhost} onClick={handleRemindLater}>⏱ Remind me later</button>
+              <button style={{ ...btnGhost, fontSize: "0.72rem", paddingTop: "0.35rem" }} onClick={handleRemindTomorrow}>Remind me tomorrow</button>
             </div>
           )}
         </div>

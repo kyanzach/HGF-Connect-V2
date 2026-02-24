@@ -5,7 +5,8 @@ import {
   registerBiometric,
   getBiometricLabel,
   setEnrolled,
-  dismissEnrollment,
+  dismissEnrollmentLater,
+  dismissEnrollmentTomorrow,
   isWebAuthnSupported,
 } from "@/lib/webauthnService";
 
@@ -49,8 +50,13 @@ export default function BiometricEnrollModal({ username, onClose }: Props) {
     }
   }
 
-  function handleDismiss() {
-    dismissEnrollment(); // 24h cooldown
+  function handleRemindLater() {
+    dismissEnrollmentLater(); // 1 minute snooze
+    onClose();
+  }
+
+  function handleRemindTomorrow() {
+    dismissEnrollmentTomorrow(); // next day 5am PH
     onClose();
   }
 
@@ -113,10 +119,16 @@ export default function BiometricEnrollModal({ username, onClose }: Props) {
             {enrolling ? "Setting up…" : `Enable ${label}`}
           </button>
           <button
-            onClick={handleDismiss}
+            onClick={handleRemindLater}
             style={{ width: "100%", padding: "0.75rem", background: "transparent", color: "#94a3b8", border: "none", borderRadius: "999px", fontSize: "0.875rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
           >
-            Not now
+            ⏱ Remind me later
+          </button>
+          <button
+            onClick={handleRemindTomorrow}
+            style={{ width: "100%", padding: "0.5rem", background: "transparent", color: "#94a3b8", border: "none", borderRadius: "999px", fontSize: "0.75rem", fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}
+          >
+            Remind me tomorrow
           </button>
           <p style={{ textAlign: "center", fontSize: "0.7rem", color: "#cbd5e1" }}>
             Your biometric data never leaves your device

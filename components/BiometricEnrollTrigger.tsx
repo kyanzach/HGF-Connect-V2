@@ -1,108 +1,112 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
+import { usePathname } from "next/navigation";
 import BiometricEnrollModal from "@/components/BiometricEnrollModal";
 import PWAInstallModal from "@/components/PWAInstallModal";
 import {
   isWebAuthnSupported,
   isEnrolled,
-  isEnrollmentDismissed,
+  isEnrollmentSnoozed,
   isPlatformAuthenticatorAvailable,
+  isPWASnoozed,
 } from "@/lib/webauthnService";
 
 /**
  * Staggered modal trigger — mounts inside AppLayout (authenticated pages only).
  *
  * ORDER (user-first logic):
- *   1. PWA Install Modal  — first, so user bookmarks/installs the app before anything else.
- *      They must have the app saved before we ask about biometrics.
- *   2. Biometric Enrollment — after PWA is handled (enrolled, dismissed, or already installed).
- *      Only fires on fresh password logins (sessionStorage flag).
+ *   1. PWA Install Modal  — prompts to bookmark/install the app first.
+ *   2. Biometric Enrollment — after PWA is handled.
  *
- * Only ONE modal visible at a time. No stacking.
+ * Smart snooze behaviour (upgraded from legacy 24h):
+ *   - "Remind me later"   → 1-minute snooze (pwa-snooze-until / hgf-webauthn-snooze)
+ *   - "Remind me tomorrow" → next day 05:00 Asia/Manila
+ *   - "I've installed" / "Enable" → permanent dismiss
  *
- * PWA modal fires:
- *   - Always on fresh login (if not already installed/dismissed)
- *   - Also on any app page visit if not installed/dismissed (1.5s delay)
- *
- * Biometric modal fires:
- *   - Only if sessionStorage("hgf-just-logged-in") is set (fresh password login)
- *   - And device supports platform authenticator (Face ID / Fingerprint)
- *   - And this username is not already enrolled on this device
+ * Re-surface triggers:
+ *   - Route change (usePathname) — re-evaluates snooze on navigation
+ *   - 60-second polling           — re-evaluates while user browses
  */
 export default function BiometricEnrollTrigger() {
   const { data: session } = useSession();
+  const pathname = usePathname();
   const [showPWA, setShowPWA] = useState(false);
   const [showBiometric, setShowBiometric] = useState(false);
   const [pwaDone, setPWADone] = useState(false);
 
-  // ── Step 1: PWA Install Modal (always first) ──────────────────────────────
-  useEffect(() => {
-    // Already installed as PWA? Skip entirely.
+  // ── Guard helpers ─────────────────────────────────────────────────────────
+  const isPWAEligible = () => {
+    if (typeof window === "undefined") return false;
     const standalone =
       window.matchMedia("(display-mode: standalone)").matches ||
       (window.navigator as any).standalone === true;
-    if (standalone) { setPWADone(true); return; }
+    if (standalone) return false;
+    if (localStorage.getItem("pwa-installed") === "true") return false;
+    if (isPWASnoozed()) return false;
+    return true;
+  };
 
-    // Permanently dismissed?
-    if (localStorage.getItem("pwa-installed") === "true") { setPWADone(true); return; }
+  const isBiometricEligible = async () => {
+    if (!session?.user) return false;
+    if (!isWebAuthnSupported()) return false;
+    const username = (session.user as any).username as string;
+    if (isEnrolled(username)) return false;
+    if (isEnrollmentSnoozed()) return false;
+    return await isPlatformAuthenticatorAvailable();
+  };
 
-    // Temporary dismiss (1-day cooldown)?
-    const dismissed = localStorage.getItem("pwa-install-dismissed");
-    if (dismissed && Date.now() - parseInt(dismissed) < 24 * 60 * 60 * 1000) {
+  // ── Initial trigger ───────────────────────────────────────────────────────
+  useEffect(() => {
+    if (isPWAEligible()) {
+      const timer = setTimeout(() => setShowPWA(true), 1200);
+      return () => clearTimeout(timer);
+    } else {
       setPWADone(true);
-      return;
     }
-
-    // Show PWA modal after short delay (let page render first)
-    const timer = setTimeout(() => setShowPWA(true), 1200);
-    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Step 2: Biometric Enrollment (only after PWA is handled) ─────────────
+  // ── Biometric: after PWA is handled ──────────────────────────────────────
   useEffect(() => {
-    if (!pwaDone) return;
-    if (!session?.user) return;
-
-    // Only fire on fresh password logins
-    const justLoggedIn = sessionStorage.getItem("hgf-just-logged-in");
-    if (!justLoggedIn) return;
-
-    const username = (session.user as any).username as string;
-
-    async function check() {
-      if (!isWebAuthnSupported()) return;
-      const available = await isPlatformAuthenticatorAvailable();
-      if (!available) return;
-      if (isEnrolled(username)) return;
-      if (isEnrollmentDismissed()) return;
-
-      setTimeout(() => setShowBiometric(true), 900);
-    }
-    check();
+    if (!pwaDone || !session?.user) return;
+    isBiometricEligible().then((eligible) => {
+      if (eligible) setTimeout(() => setShowBiometric(true), 900);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pwaDone, session]);
+
+  // ── Route-change re-surface ───────────────────────────────────────────────
+  useEffect(() => {
+    if (showPWA || showBiometric) return; // already showing one
+    if (isPWAEligible()) { setShowPWA(true); return; }
+    if (pwaDone) {
+      isBiometricEligible().then((eligible) => { if (eligible) setShowBiometric(true); });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
+  // ── 60-second polling ─────────────────────────────────────────────────────
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (showPWA || showBiometric) return;
+      if (isPWAEligible()) { setShowPWA(true); return; }
+      if (pwaDone && (await isBiometricEligible())) setShowBiometric(true);
+    }, 60 * 1000);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showPWA, showBiometric, pwaDone, session]);
 
   const username = ((session?.user as any)?.username as string) ?? "";
 
-  const handlePWAClose = () => {
-    setShowPWA(false);
-    setPWADone(true); // Trigger biometric check
-  };
-
+  const handlePWAClose = () => { setShowPWA(false); setPWADone(true); };
   const handleBiometricClose = () => {
     setShowBiometric(false);
-    sessionStorage.removeItem("hgf-just-logged-in");
+    sessionStorage.removeItem("hgf-just-logged-in"); // keep legacy cleanup
   };
 
-  // Only one modal at a time
-  if (showPWA) {
-    return <PWAInstallModal onClose={handlePWAClose} />;
-  }
-
-  if (showBiometric) {
-    return <BiometricEnrollModal username={username} onClose={handleBiometricClose} />;
-  }
-
+  if (showPWA) return <PWAInstallModal onClose={handlePWAClose} />;
+  if (showBiometric) return <BiometricEnrollModal username={username} onClose={handleBiometricClose} />;
   return null;
 }
