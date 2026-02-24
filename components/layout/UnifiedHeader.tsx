@@ -296,8 +296,8 @@ export default function UnifiedHeader() {
                     minWidth: 210, zIndex: 200,
                     overflow: "hidden", border: "1px solid #e2e8f0",
                   }}>
-                    {/* User header — clickable → full profile */}
-                    <Link href="/me" onClick={() => setDropOpen(false)} style={{ textDecoration: "none" }}>
+                    {/* User header — clickable → full public profile */}
+                    <Link href={`/member/${user?.id}`} onClick={() => setDropOpen(false)} style={{ textDecoration: "none" }}>
                     <div style={{ padding: "0.75rem 0.875rem 0.5rem", display: "flex",
                       alignItems: "center", gap: "0.5rem", borderBottom: "1px solid #f1f5f9",
                       background: "transparent" }}>
