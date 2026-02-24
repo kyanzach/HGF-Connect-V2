@@ -92,22 +92,28 @@ export async function POST(
     const preview = content.trim().slice(0, 80);
     const postLink = `/feed?post=${postId}`;
 
-    // ── Notifications (fire-and-forget) ──────────────────
+    // ── Notifications (fire-and-forget, never blocks response) ───────────────
 
-    // 1. Fetch post author
+    // Fetch post author once — needed for all branches
     const post = await (db as any).post.findUnique({
       where: { id: postId },
       select: { authorId: true },
     });
+    const postAuthorId: number | null = post?.authorId ?? null;
+
+    // Track who we've already notified to avoid duplicates
+    const notified = new Set<number>([authorId]);
 
     if (parentId) {
-      // REPLY — notify the parent comment's author
+      // ── REPLY ──
+      // 1. Notify parent comment's author (comment_reply)
       const parent = await (db as any).comment.findUnique({
         where: { id: parseInt(parentId) },
         select: { authorId: true },
       });
-      if (parent && parent.authorId !== authorId) {
-        createNotification({
+      if (parent && !notified.has(parent.authorId)) {
+        notified.add(parent.authorId);
+        void createNotification({
           memberId: parent.authorId,
           type: "comment_reply",
           title: `${authorName} replied to your comment`,
@@ -116,11 +122,26 @@ export async function POST(
           actorId: authorId,
         });
       }
+
+      // 2. Also notify post author (new_comment) if different from parent author and commenter
+      if (postAuthorId && !notified.has(postAuthorId)) {
+        notified.add(postAuthorId);
+        void createNotification({
+          memberId: postAuthorId,
+          type: "new_comment",
+          title: `${authorName} replied in your post`,
+          body: preview,
+          link: postLink,
+          actorId: authorId,
+        });
+      }
     } else {
-      // TOP-LEVEL COMMENT — notify post author
-      if (post && post.authorId !== authorId) {
-        createNotification({
-          memberId: post.authorId,
+      // ── TOP-LEVEL COMMENT ──
+      // Notify post author (new_comment)
+      if (postAuthorId && !notified.has(postAuthorId)) {
+        notified.add(postAuthorId);
+        void createNotification({
+          memberId: postAuthorId,
           type: "new_comment",
           title: `${authorName} commented on your post`,
           body: preview,
@@ -130,13 +151,14 @@ export async function POST(
       }
     }
 
-    // 2. @Mention notifications (deduped, exclude actor and already-notified)
+    // ── @Mention notifications (deduped) ──────────────────────────────────
     const mentionIds: number[] = (mentionedMemberIds ?? [])
       .map((x: any) => parseInt(x))
-      .filter((id: number) => !isNaN(id) && id !== authorId);
+      .filter((mid: number) => !isNaN(mid) && !notified.has(mid));
 
     for (const targetId of mentionIds) {
-      createNotification({
+      notified.add(targetId);
+      void createNotification({
         memberId: targetId,
         type: "mention",
         title: `${authorName} mentioned you in a comment`,
@@ -145,7 +167,7 @@ export async function POST(
         actorId: authorId,
       });
     }
-    // ─────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────
 
     return NextResponse.json({ comment }, { status: 201 });
   } catch (error) {

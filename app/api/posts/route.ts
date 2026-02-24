@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { Prisma } from "@prisma/client";
+import { notifyAllMembers } from "@/lib/notify";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -118,20 +119,18 @@ export async function POST(request: Request) {
     // ------ Notify all members (fire-and-forget) ------
     const TYPE_LABEL: Record<string, string> = {
       TEXT: "a reflection", DEVO: "a devotional", VERSE_CARD: "a Bible verse",
-      PRAYER: "a prayer", PRAISE: "a praise report", EVENT: "an event"
+      PRAYER: "a prayer", PRAISE: "a praise report", EVENT: "an event",
     };
     const label = TYPE_LABEL[type ?? "TEXT"] ?? "something";
     const authorName = `${post.author.firstName} ${post.author.lastName}`;
     const preview = (content ?? verseText ?? "")?.slice(0, 80);
-    import("@/lib/notify").then(({ notifyAllMembers }) =>
-      notifyAllMembers({
-        actorId: parseInt(session.user.id),
-        type: "new_post",
-        title: `${authorName} shared ${label}`,
-        body: preview || "(No preview)",
-        link: "/feed",
-      })
-    );
+    void notifyAllMembers({
+      actorId: parseInt(session.user.id),
+      type: "new_post",
+      title: `${authorName} shared ${label}`,
+      body: preview || "(No preview)",
+      link: "/feed",
+    });
     // --------------------------------------------------
 
     return NextResponse.json(post, { status: 201 });
