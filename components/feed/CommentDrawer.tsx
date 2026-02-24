@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -10,23 +10,18 @@ const PRIMARY = "#4EB1CB";
 interface CommentAuthor {
   id: number; firstName: string; lastName: string; profilePicture: string | null;
 }
-
 interface Reply {
   id: number; content: string; createdAt: string;
   likeCount: number; isLiked: boolean; author: CommentAuthor;
 }
-
 interface Comment {
   id: number; postId: number; content: string; createdAt: string;
   isPinned: boolean; likeCount: number; isLiked: boolean;
   author: CommentAuthor; replies: Reply[];
 }
-
 interface Props {
-  postId: number;
-  postAuthorId: number;
-  isOpen: boolean;
-  onClose: () => void;
+  postId: number; postAuthorId: number;
+  isOpen: boolean; onClose: () => void;
   onCommentCountChange?: (delta: number) => void;
 }
 
@@ -38,64 +33,101 @@ function timeAgo(d: string): string {
   return `${Math.floor(s / 86400)}d`;
 }
 
-/** Clickable avatar that navigates to member profile */
+/** Avatar — clickable, navigates to /member/{id} */
 function Avatar({ author, size = 36 }: { author: CommentAuthor; size?: number }) {
   const router = useRouter();
-  const initials = `${author.firstName[0]}${author.lastName[0]}`.toUpperCase();
+  const initials = `${author.firstName[0] ?? ""}${author.lastName[0] ?? ""}`.toUpperCase();
   const pic = author.profilePicture ? `/uploads/profile_pictures/${author.profilePicture}` : null;
   return (
     <button
       onClick={() => router.push(`/member/${author.id}`)}
       style={{ width: size, height: size, borderRadius: "50%", overflow: "hidden", flexShrink: 0, background: `${PRIMARY}20`, display: "flex", alignItems: "center", justifyContent: "center", padding: 0, border: "none", cursor: "pointer", WebkitTapHighlightColor: "transparent" }}
     >
-      {pic ? (
-        <Image src={pic} alt={initials} width={size} height={size} style={{ objectFit: "cover", width: "100%", height: "100%" }} />
-      ) : (
-        <span style={{ fontSize: size * 0.35, fontWeight: 800, color: PRIMARY }}>{initials}</span>
-      )}
+      {pic
+        ? <Image src={pic} alt={initials} width={size} height={size} style={{ objectFit: "cover", width: "100%", height: "100%" }} />
+        : <span style={{ fontSize: size * 0.35, fontWeight: 800, color: PRIMARY }}>{initials}</span>}
     </button>
   );
 }
 
-/** Parse comment text and turn @mentions into clickable links */
-function CommentText({ content, authors }: { content: string; authors: CommentAuthor[] }) {
-  // Build a lookup: "First Last" → id
-  const authorMap: Record<string, number> = {};
-  authors.forEach((a) => { authorMap[`${a.firstName} ${a.lastName}`] = a.id; });
+/**
+ * Build a map of {nameVariant → memberId} from a list of authors.
+ * Includes full name AND firstName alone so "@Karen Joan" works even if
+ * the stored firstName is "Karen Joan Tan" etc.
+ */
+function buildAuthorMap(authors: CommentAuthor[]): Record<string, number> {
+  const map: Record<string, number> = {};
+  for (const a of authors) {
+    const full = `${a.firstName} ${a.lastName}`.trim();
+    map[full] = a.id;
+    // Also index firstName alone
+    if (a.firstName && a.firstName !== full) map[a.firstName] = a.id;
+    // Index firstName + first word of lastName (e.g. "Karen Joan")
+    const firstWordOfLast = a.lastName.split(" ")[0];
+    if (firstWordOfLast) map[`${a.firstName} ${firstWordOfLast}`] = a.id;
+  }
+  return map;
+}
+
+/**
+ * Parse comment text, turning @Name into a clickable profile link.
+ * Builds a regex from known author names (longest first) to avoid greedy mismatch.
+ */
+function CommentText({ content, authorMap }: { content: string; authorMap: Record<string, number> }) {
+  const names = Object.keys(authorMap).sort((a, b) => b.length - a.length);
+  if (names.length === 0) return <>{content}</>;
+
+  const escaped = names.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const regex = new RegExp(`@(${escaped.join("|")})`, "g");
 
   const parts: React.ReactNode[] = [];
-  const regex = /@([A-Za-zÀ-ÖØ-öø-ÿ]+(?:\s[A-Za-zÀ-ÖØ-öø-ÿ]+)*)/g;
-  let last = 0; let m: RegExpExecArray | null;
+  let last = 0;
+  let m: RegExpExecArray | null;
   let key = 0;
   while ((m = regex.exec(content)) !== null) {
     if (m.index > last) parts.push(content.slice(last, m.index));
     const name = m[1];
     const memberId = authorMap[name];
-    if (memberId) {
-      parts.push(
-        <a key={key++} href={`/member/${memberId}`} style={{ color: PRIMARY, fontWeight: 700, textDecoration: "none" }}>
-          @{name}
-        </a>
-      );
-    } else {
-      parts.push(`@${name}`);
-    }
+    parts.push(
+      <a key={key++} href={`/member/${memberId}`} style={{ color: PRIMARY, fontWeight: 700, textDecoration: "none" }}>
+        @{name}
+      </a>
+    );
     last = m.index + m[0].length;
   }
   if (last < content.length) parts.push(content.slice(last));
   return <>{parts}</>;
 }
 
+/** Resolve @mentions in text to member IDs using the author map */
+function resolveMentions(text: string, authorMap: Record<string, number>): number[] {
+  const names = Object.keys(authorMap).sort((a, b) => b.length - a.length);
+  if (!names.length) return [];
+  const escaped = names.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const regex = new RegExp(`@(${escaped.join("|")})`, "g");
+  const ids: Set<number> = new Set();
+  let m: RegExpExecArray | null;
+  while ((m = regex.exec(text)) !== null) {
+    const id = authorMap[m[1]];
+    if (id) ids.add(id);
+  }
+  return Array.from(ids);
+}
+
+/** Single comment + action row.
+ *  For top-level comments: shows Reply (onReply prop)
+ *  For replies: also shows Reply — clicking it replies in the same parent thread (Facebook-style flat, 1 deep)
+ */
 function CommentBubble({
-  comment, sessionUserId, postAuthorId, allAuthors,
+  comment, sessionUserId, postAuthorId, authorMap,
   onLike, onPin, onDelete, onReply,
 }: {
   comment: Comment | Reply;
   sessionUserId: number | null;
   postAuthorId: number;
-  allAuthors: CommentAuthor[];
-  onLike: (id: number, currentlyLiked: boolean) => void;
-  onPin?: (id: number, currentlyPinned: boolean) => void;
+  authorMap: Record<string, number>;
+  onLike: (id: number, currently: boolean) => void;
+  onPin?: (id: number, currently: boolean) => void;
   onDelete: (id: number) => void;
   onReply?: (author: CommentAuthor) => void;
 }) {
@@ -103,33 +135,27 @@ function CommentBubble({
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const isPinnable = "isPinned" in comment;
-  const isPinned = "isPinned" in comment ? comment.isPinned : false;
+  const isPinned = isPinnable && (comment as Comment).isPinned;
 
   useEffect(() => {
     if (!showMenu) return;
-    function h(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setShowMenu(false);
-    }
+    const h = (e: MouseEvent) => { if (menuRef.current && !menuRef.current.contains(e.target as Node)) setShowMenu(false); };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, [showMenu]);
 
   const isOwn = sessionUserId === comment.author.id;
   const isPostOwner = sessionUserId === postAuthorId;
-  const canDelete = isOwn || isPostOwner;
-  const canPin = isPostOwner && isPinnable;
 
   return (
     <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.875rem", position: "relative" }}>
       <Avatar author={comment.author} size={32} />
       <div style={{ flex: 1, minWidth: 0 }}>
         {isPinned && (
-          <div style={{ display: "flex", alignItems: "center", gap: "0.25rem", fontSize: "0.65rem", color: PRIMARY, fontWeight: 700, marginBottom: "0.25rem" }}>
-            📌 Pinned comment
-          </div>
+          <div style={{ fontSize: "0.65rem", color: PRIMARY, fontWeight: 700, marginBottom: "0.25rem" }}>📌 Pinned comment</div>
         )}
         <div style={{ background: isPinned ? `${PRIMARY}10` : "#f1f5f9", borderRadius: "0 14px 14px 14px", padding: "0.5rem 0.75rem", border: isPinned ? `1px solid ${PRIMARY}30` : "none", display: "inline-block", maxWidth: "100%" }}>
-          {/* Clickable name */}
+          {/* Clickable author name */}
           <button
             onClick={() => router.push(`/member/${comment.author.id}`)}
             style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "0.78rem", fontWeight: 700, color: PRIMARY, display: "block", marginBottom: "0.15rem", textAlign: "left" }}
@@ -137,37 +163,40 @@ function CommentBubble({
             {comment.author.firstName} {comment.author.lastName}
           </button>
           <span style={{ fontSize: "0.875rem", color: "#1e293b", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
-            <CommentText content={comment.content} authors={allAuthors} />
+            <CommentText content={comment.content} authorMap={authorMap} />
           </span>
         </div>
 
+        {/* Actions */}
         <div style={{ display: "flex", alignItems: "center", gap: "0.875rem", marginTop: "0.3rem", paddingLeft: "0.25rem" }}>
           <span style={{ fontSize: "0.65rem", color: "#94a3b8" }}>{timeAgo(comment.createdAt)}</span>
+
           {sessionUserId && (
             <button onClick={() => onLike(comment.id, comment.isLiked)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "0.72rem", fontWeight: 700, color: comment.isLiked ? "#ef4444" : "#94a3b8", padding: 0, display: "flex", alignItems: "center", gap: "0.2rem" }}>
               {comment.isLiked ? "❤️" : "🤍"} {comment.likeCount > 0 && comment.likeCount}
             </button>
           )}
+
+          {/* Reply always shown for logged-in users — on replies it goes to same parent thread */}
           {onReply && sessionUserId && (
             <button onClick={() => onReply(comment.author)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "0.72rem", fontWeight: 700, color: "#94a3b8", padding: 0 }}>
               Reply
             </button>
           )}
-          {(canDelete || canPin) && (
+
+          {(isOwn || isPostOwner) && (
             <div ref={menuRef} style={{ position: "relative" }}>
               <button onClick={() => setShowMenu((v) => !v)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "0.75rem", color: "#94a3b8", padding: 0, lineHeight: 1 }}>•••</button>
               {showMenu && (
                 <div style={{ position: "absolute", left: 0, bottom: "100%", background: "white", borderRadius: "10px", boxShadow: "0 4px 20px rgba(0,0,0,0.15)", zIndex: 50, minWidth: 130, overflow: "hidden" }}>
-                  {canPin && onPin && (
-                    <button onClick={() => { onPin(comment.id, isPinned); setShowMenu(false); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "0.6rem 0.875rem", background: "none", border: "none", cursor: "pointer", fontSize: "0.8rem", color: "#334155" }}>
+                  {isPostOwner && isPinnable && (
+                    <button onClick={() => { (onPin as any)?.(comment.id, isPinned); setShowMenu(false); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "0.6rem 0.875rem", background: "none", border: "none", cursor: "pointer", fontSize: "0.8rem", color: "#334155" }}>
                       {isPinned ? "📌 Unpin" : "📌 Pin comment"}
                     </button>
                   )}
-                  {canDelete && (
-                    <button onClick={() => { onDelete(comment.id); setShowMenu(false); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "0.6rem 0.875rem", background: "none", border: "none", cursor: "pointer", fontSize: "0.8rem", color: "#ef4444" }}>
-                      🗑️ Delete
-                    </button>
-                  )}
+                  <button onClick={() => { onDelete(comment.id); setShowMenu(false); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "0.6rem 0.875rem", background: "none", border: "none", cursor: "pointer", fontSize: "0.8rem", color: "#ef4444" }}>
+                    🗑️ Delete
+                  </button>
                 </div>
               )}
             </div>
@@ -178,20 +207,7 @@ function CommentBubble({
   );
 }
 
-/** Extract @Name mentions from text and resolve to member IDs using known authors */
-function resolveMentions(text: string, authors: CommentAuthor[]): number[] {
-  const authorMap: Record<string, number> = {};
-  authors.forEach((a) => { authorMap[`${a.firstName} ${a.lastName}`] = a.id; });
-  const regex = /@([A-Za-zÀ-ÖØ-öø-ÿ]+(?:\s[A-Za-zÀ-ÖØ-öø-ÿ]+)*)/g;
-  const ids: Set<number> = new Set();
-  let m: RegExpExecArray | null;
-  while ((m = regex.exec(text)) !== null) {
-    const id = authorMap[m[1]];
-    if (id) ids.add(id);
-  }
-  return Array.from(ids);
-}
-
+/* ── Main CommentDrawer ─────────────────────────────────────────────────────── */
 export default function CommentDrawer({ postId, postAuthorId, isOpen, onClose, onCommentCountChange }: Props) {
   const { data: session } = useSession();
   const sessionUserId = session?.user?.id ? parseInt(session.user.id) : null;
@@ -200,17 +216,20 @@ export default function CommentDrawer({ postId, postAuthorId, isOpen, onClose, o
   const [loading, setLoading] = useState(false);
   const [text, setText] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [replyTo, setReplyTo] = useState<{ id: number; name: string; author: CommentAuthor } | null>(null);
+  /** replyTo: { parentCommentId (top-level!), name to @-mention } */
+  const [replyTo, setReplyTo] = useState<{ parentId: number; name: string } | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // All unique authors in thread (for @mention resolution)
-  const allAuthors: CommentAuthor[] = Array.from(
+  /** All unique authors — used to resolve @mentions */
+  const allAuthors: CommentAuthor[] = useMemo(() => Array.from(
     new Map([
       ...comments.map((c) => [c.author.id, c.author] as [number, CommentAuthor]),
       ...comments.flatMap((c) => (c.replies ?? []).map((r) => [r.author.id, r.author] as [number, CommentAuthor])),
     ]).values()
-  );
+  ), [comments]);
+
+  const authorMap = useMemo(() => buildAuthorMap(allAuthors), [allAuthors]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -221,29 +240,31 @@ export default function CommentDrawer({ postId, postAuthorId, isOpen, onClose, o
   }, [postId]);
 
   useEffect(() => { if (isOpen) load(); }, [isOpen, load]);
-  useEffect(() => { if (isOpen) document.body.style.overflow = "hidden"; else document.body.style.overflow = ""; return () => { document.body.style.overflow = ""; }; }, [isOpen]);
+  useEffect(() => { document.body.style.overflow = isOpen ? "hidden" : ""; return () => { document.body.style.overflow = ""; }; }, [isOpen]);
 
   async function submit() {
     if (!text.trim() || submitting || !session) return;
     setSubmitting(true);
     try {
-      const mentionedMemberIds = resolveMentions(text, allAuthors);
+      const mentionedMemberIds = resolveMentions(text, authorMap);
       const res = await fetch(`/api/posts/${postId}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: text.trim(), parentId: replyTo?.id ?? null, mentionedMemberIds }),
+        body: JSON.stringify({ content: text.trim(), parentId: replyTo?.parentId ?? null, mentionedMemberIds }),
       });
       if (!res.ok) return;
       const { comment } = await res.json();
+      const newReply = { ...comment, likeCount: 0, isLiked: false };
+
       if (replyTo) {
+        // Facebook-style flat: all replies land in same top-level parent thread
         setComments((prev) => prev.map((c) =>
-          c.id === replyTo.id ? { ...c, replies: [...(c.replies ?? []), { ...comment, likeCount: 0, isLiked: false }] } : c
+          c.id === replyTo.parentId ? { ...c, replies: [...(c.replies ?? []), newReply] } : c
         ));
-        onCommentCountChange?.(1); // replies count too
       } else {
         setComments((prev) => [...prev, { ...comment, isPinned: false, likeCount: 0, isLiked: false, replies: [] }]);
-        onCommentCountChange?.(1);
       }
+      onCommentCountChange?.(1); // replies count in total
       setText(""); setReplyTo(null);
       setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }), 100);
     } finally { setSubmitting(false); }
@@ -270,20 +291,21 @@ export default function CommentDrawer({ postId, postAuthorId, isOpen, onClose, o
   async function handleDelete(id: number) {
     if (!confirm("Delete this comment?")) return;
     await fetch(`/api/comments/${id}`, { method: "DELETE" });
-    const top = comments.find((c) => c.id === id);
-    if (top) {
+    const isTop = comments.some((c) => c.id === id);
+    if (isTop) {
       setComments((prev) => prev.filter((c) => c.id !== id));
-      onCommentCountChange?.(-1);
     } else {
       setComments((prev) => prev.map((c) => ({ ...c, replies: (c.replies ?? []).filter((r) => r.id !== id) })));
-      onCommentCountChange?.(-1); // reply also counted
     }
+    onCommentCountChange?.(-1);
   }
 
-  function handleReply(author: CommentAuthor, parentId: number) {
-    setReplyTo({ id: parentId, name: `${author.firstName} ${author.lastName}`, author });
+  /** Reply to a comment (top-level) or a reply — both land in the same parent thread */
+  function handleReply(author: CommentAuthor, parentCommentId: number) {
+    const fullName = `${author.firstName} ${author.lastName}`;
+    setReplyTo({ parentId: parentCommentId, name: fullName });
     setText(`@${author.firstName} ${author.lastName} `);
-    setTimeout(() => inputRef.current?.focus(), 100);
+    setTimeout(() => { inputRef.current?.focus(); inputRef.current?.setSelectionRange(9999, 9999); }, 80);
   }
 
   if (!isOpen) return null;
@@ -295,24 +317,26 @@ export default function CommentDrawer({ postId, postAuthorId, isOpen, onClose, o
     profilePicture: (session?.user as any)?.profilePicture ?? null,
   };
 
+  const totalCount = comments.reduce((acc, c) => acc + 1 + (c.replies?.length ?? 0), 0);
+
   return (
     <>
       <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, backdropFilter: "blur(2px)" }} />
       <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, height: "75vh", background: "white", borderRadius: "20px 20px 0 0", zIndex: 201, display: "flex", flexDirection: "column", boxShadow: "0 -4px 30px rgba(0,0,0,0.18)", animation: "slideUp 0.25s ease" }}>
         <style>{`@keyframes slideUp { from { transform: translateX(-50%) translateY(100%); } to { transform: translateX(-50%) translateY(0); } }`}</style>
 
-        {/* Handle + header */}
+        {/* Header */}
         <div style={{ padding: "0.75rem 1rem 0.5rem", borderBottom: "1px solid #f1f5f9", flexShrink: 0 }}>
           <div style={{ width: 36, height: 4, background: "#e2e8f0", borderRadius: 99, margin: "0 auto 0.625rem" }} />
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontWeight: 800, fontSize: "0.9rem", color: "#1e293b" }}>
-              💬 Comments {comments.length > 0 && `· ${comments.reduce((acc, c) => acc + 1 + (c.replies?.length ?? 0), 0)}`}
+              💬 Comments {totalCount > 0 && `· ${totalCount}`}
             </span>
             <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1.1rem", color: "#94a3b8", padding: "0.25rem" }}>✕</button>
           </div>
         </div>
 
-        {/* Comment list */}
+        {/* List */}
         <div ref={listRef} style={{ flex: 1, overflowY: "auto", padding: "0.875rem 1rem" }}>
           {loading ? (
             <div style={{ textAlign: "center", padding: "2rem 0", color: "#94a3b8", fontSize: "0.875rem" }}>Loading…</div>
@@ -324,18 +348,22 @@ export default function CommentDrawer({ postId, postAuthorId, isOpen, onClose, o
           ) : (
             comments.map((comment) => (
               <div key={comment.id}>
+                {/* Top-level comment */}
                 <CommentBubble
                   comment={comment} sessionUserId={sessionUserId} postAuthorId={postAuthorId}
-                  allAuthors={allAuthors} onLike={handleLike} onPin={handlePin}
-                  onDelete={handleDelete} onReply={(author) => handleReply(author, comment.id)}
+                  authorMap={authorMap} onLike={handleLike} onPin={handlePin}
+                  onDelete={handleDelete}
+                  onReply={(author) => handleReply(author, comment.id)}
                 />
+                {/* Replies — indented, Reply button also present (flat threading) */}
                 {(comment.replies ?? []).length > 0 && (
                   <div style={{ marginLeft: "2.5rem", marginTop: "-0.375rem" }}>
                     {comment.replies.map((reply) => (
                       <CommentBubble
                         key={reply.id} comment={reply} sessionUserId={sessionUserId}
-                        postAuthorId={postAuthorId} allAuthors={allAuthors}
+                        postAuthorId={postAuthorId} authorMap={authorMap}
                         onLike={handleLike} onDelete={handleDelete}
+                        onReply={(author) => handleReply(author, comment.id)}
                       />
                     ))}
                   </div>
@@ -345,7 +373,7 @@ export default function CommentDrawer({ postId, postAuthorId, isOpen, onClose, o
           )}
         </div>
 
-        {/* Input area */}
+        {/* Input */}
         {session ? (
           <div style={{ padding: "0.625rem 1rem", borderTop: "1px solid #f1f5f9", background: "white", flexShrink: 0 }}>
             {replyTo && (
@@ -358,8 +386,7 @@ export default function CommentDrawer({ postId, postAuthorId, isOpen, onClose, o
               <Avatar author={currentUser} size={32} />
               <div style={{ flex: 1, background: "#f8fafc", borderRadius: "20px", padding: "0.5rem 0.875rem", border: "1.5px solid #e2e8f0", display: "flex", alignItems: "flex-end", gap: "0.5rem" }}>
                 <textarea
-                  ref={inputRef}
-                  value={text}
+                  ref={inputRef} value={text}
                   onChange={(e) => setText(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } }}
                   placeholder={replyTo ? `Reply to ${replyTo.name}…` : "Write a comment…"}

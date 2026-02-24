@@ -67,7 +67,7 @@ export default function PublicNav() {
       >
         {/* Brand — left */}
         <Link
-          href="/"
+          href="/feed"
           style={{
             display: "flex",
             alignItems: "center",
