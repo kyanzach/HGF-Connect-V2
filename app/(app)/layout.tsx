@@ -36,6 +36,7 @@ export default async function AppLayout({
         style={{
           flex: 1,
           overflowY: "auto",
+          overflowX: "hidden",
           paddingBottom: "calc(64px + env(safe-area-inset-bottom) + 8px)",
           WebkitOverflowScrolling: "touch" as any,
           maxWidth: "500px",

@@ -126,7 +126,7 @@ export default async function MarketplaceSSRPage({
         maxPrice={sp.maxPrice ?? ""}
       />
 
-      <div style={{ maxWidth: "600px", margin: "0 auto", padding: "0 1rem 1.5rem" }}>
+      <div style={{ width: "100%", boxSizing: "border-box", padding: "0 0.75rem 1.5rem" }}>
         {hasFilters && (
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem", flexWrap: "wrap" }}>
             <span style={{ fontSize: "0.8rem", color: "#64748b" }}>
@@ -164,7 +164,7 @@ export default async function MarketplaceSSRPage({
           </div>
         ) : (
           <>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.625rem", width: "100%" }}>
               {listings.map((listing) => (
                 <Link
                   key={listing.id}
