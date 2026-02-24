@@ -48,7 +48,7 @@ export async function POST(request: Request) {
 
     const prayer = await db.prayerRequest.create({
       data: {
-        authorId: session.user.id as unknown as number,
+        authorId: parseInt(session.user.id),
         request: prayerText.trim(),
         visibility: visibility ?? "MEMBERS_ONLY",
       },

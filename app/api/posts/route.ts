@@ -36,7 +36,7 @@ export async function GET(request: Request) {
           ...(session
             ? {
                 likes: {
-                  where: { memberId: session.user.id as unknown as number },
+                  where: { memberId: parseInt(session.user.id) },
                   select: { memberId: true },
                 },
               }
@@ -90,7 +90,7 @@ export async function POST(request: Request) {
 
     const post = await db.post.create({
       data: {
-        authorId: session.user.id as unknown as number,
+        authorId: parseInt(session.user.id),
         type: type ?? "TEXT",
         content: content ?? null,
         imageUrl: imageUrl ?? null,

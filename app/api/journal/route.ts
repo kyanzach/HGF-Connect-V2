@@ -8,7 +8,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const memberId = session.user.id as unknown as number;
+  const memberId = parseInt(session.user.id);
 
   try {
     const entries = await db.journalEntry.findMany({
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const memberId = session.user.id as unknown as number;
+  const memberId = parseInt(session.user.id);
 
   try {
     const { title, content, mood, verseRef, verseText } = await request.json();

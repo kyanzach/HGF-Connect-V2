@@ -13,7 +13,7 @@ export async function POST(
 
   const { id } = await params;
   const postId = parseInt(id);
-  const memberId = session.user.id as unknown as number;
+  const memberId = parseInt(session.user.id);
 
   try {
     const existing = await db.postLike.findUnique({
