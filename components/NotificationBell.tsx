@@ -139,14 +139,14 @@ export default function NotificationBell() {
         )}
       </button>
 
-      {/* Dropdown panel */}
+      {/* Dropdown panel — position:fixed so it doesn't overflow on narrow viewports */}
       {open && (
         <div
           style={{
-            position: "absolute",
-            top: "calc(100% + 8px)",
-            right: 0,
-            width: 320,
+            position: "fixed",
+            top: "calc(56px + env(safe-area-inset-top) + 6px)",
+            right: 8,
+            width: "min(320px, calc(100vw - 16px))",
             maxHeight: "70vh",
             background: "#fff",
             borderRadius: 16,

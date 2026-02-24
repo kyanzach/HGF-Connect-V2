@@ -5,7 +5,7 @@ import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { processImage } from "@/lib/processImage";
 
-const ALLOWED_MIME = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+const ALLOWED_MIME = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/heic", "image/heif"];
 const MAX_BYTES = 10 * 1024 * 1024; // 10 MB input — Sharp will compress output to <120 KB
 
 export async function POST(
@@ -27,8 +27,8 @@ export async function POST(
   const type = (formData.get("type") as string) ?? "profile";
 
   if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
-  if (!ALLOWED_MIME.includes(file.type)) {
-    return NextResponse.json({ error: "Invalid file type. Use JPG, PNG, or WebP." }, { status: 400 });
+  if (!ALLOWED_MIME.includes(file.type.toLowerCase())) {
+    return NextResponse.json({ error: "Invalid file type. Use JPG, PNG, WebP, or HEIC." }, { status: 400 });
   }
   if (file.type === "image/gif") {
     return NextResponse.json({ error: "GIF not supported for profile photos." }, { status: 400 });
