@@ -214,10 +214,16 @@ export default function NotificationBell() {
                     textDecoration: "none",
                   }}
                   onClick={async () => {
-                    // Mark this notif read
+                    // Persist read to server immediately — prevents 5s poll from
+                    // resetting the count back up
                     if (!n.isRead) {
-                      setNotifications((prev) => prev.map((x) => x.id === n.id ? { ...x, isRead: true } : x));
+                      // Optimistic update
+                      setNotifications((prev) =>
+                        prev.map((x) => (x.id === n.id ? { ...x, isRead: true } : x))
+                      );
                       setUnreadCount((c) => Math.max(0, c - 1));
+                      // Persist (fire-and-forget)
+                      fetch(`/api/notifications?id=${n.id}`, { method: "PATCH" });
                     }
                     setOpen(false);
                     if (n.link) router.push(n.link);
