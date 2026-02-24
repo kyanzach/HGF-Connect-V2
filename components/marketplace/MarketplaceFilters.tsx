@@ -9,7 +9,7 @@ const TYPE_OPTIONS = [
   { value: "free", label: "Free" },
   { value: "trade", label: "Trade" },
   { value: "service", label: "Service" },
-  { value: "borrow", label: "Borrow" },
+  { value: "rent", label: "Rent" },
   { value: "official_store", label: "Official Store" },
 ];
 

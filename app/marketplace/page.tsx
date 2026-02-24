@@ -26,11 +26,11 @@ const CATEGORY_ICONS: Record<string, string> = {
 
 const TYPE_LABELS: Record<string, string> = {
   sale: "For Sale", trade: "Trade", free: "Free", service: "Service",
-  borrow: "Borrow", official_store: "Official Store",
+  rent: "Rent", official_store: "Official Store",
 };
 const TYPE_COLORS: Record<string, string> = {
   sale: "#10b981", trade: "#3b82f6", free: "#f59e0b", service: "#8b5cf6",
-  borrow: "#f97316", official_store: "#ec4899",
+  rent: "#f97316", official_store: "#ec4899",
 };
 
 const PAGE_SIZE = 24;
@@ -201,12 +201,31 @@ export default async function MarketplaceSSRPage({
                       <div style={{ fontWeight: 700, fontSize: "0.8rem", color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: "0.25rem" }}>
                         {listing.title}
                       </div>
-                      <div style={{ fontWeight: 800, fontSize: "0.9rem", color: PRIMARY }}>
-                        {listing.ogPrice
-                          ? `₱${Number(listing.ogPrice).toLocaleString()}`
-                          : listing.price
-                            ? `₱${Number(listing.price).toLocaleString()}`
-                            : listing.priceLabel ?? "Free"}
+                      {/* Price row with discount badge */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.3rem", flexWrap: "wrap" }}>
+                        {Number(listing.discountedPrice) > 0 && Number(listing.ogPrice) > 0 ? (
+                          <>
+                            <span style={{ fontWeight: 800, fontSize: "0.9rem", color: PRIMARY }}>
+                              ₱{Number(listing.discountedPrice).toLocaleString()}
+                            </span>
+                            <span style={{ fontSize: "0.65rem", color: "#94a3b8", textDecoration: "line-through" }}>
+                              ₱{Number(listing.ogPrice).toLocaleString()}
+                            </span>
+                          </>
+                        ) : (
+                          <span style={{ fontWeight: 800, fontSize: "0.9rem", color: PRIMARY }}>
+                            {listing.ogPrice
+                              ? `₱${Number(listing.ogPrice).toLocaleString()}`
+                              : listing.price
+                                ? `₱${Number(listing.price).toLocaleString()}`
+                                : listing.priceLabel ?? "Free"}
+                          </span>
+                        )}
+                        {Number(listing.discountedPrice) > 0 && Number(listing.ogPrice) > 0 && (
+                          <span style={{ background: "#ef4444", color: "white", fontSize: "0.55rem", fontWeight: 700, padding: "0.1rem 0.35rem", borderRadius: "3px" }}>
+                            🔒DEAL
+                          </span>
+                        )}
                       </div>
                       {listing.locationArea && (
                         <div style={{ fontSize: "0.675rem", color: "#94a3b8", marginTop: "0.25rem" }}>

@@ -9,7 +9,7 @@ const PRIMARY = "#4EB1CB";
 
 const TYPE_LABELS: Record<string, string> = {
   sale: "For Sale", trade: "Trade", free: "Free",
-  service: "Service", borrow: "Borrow", official_store: "HGF Store",
+  service: "Service", rent: "Rent", official_store: "HGF Store",
 };
 const STATUS_COLORS: Record<string, string> = {
   active: "#10b981", sold: "#6366f1", expired: "#f59e0b", removed: "#94a3b8", reserved: "#f59e0b",

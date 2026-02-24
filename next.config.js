@@ -1,10 +1,8 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   // Profile pictures and uploads served from /public/uploads/
   // Access via /uploads/profile_pictures/{filename}
   images: {
-    // Allow unoptimized for local uploads served as static files
     unoptimized: false,
     remotePatterns: [
       {
@@ -19,4 +17,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+module.exports = nextConfig;

@@ -551,7 +551,7 @@ enum MarketplaceListingType {
   trade
   free
   service
-  borrow
+  rent
   official_store
 }
 

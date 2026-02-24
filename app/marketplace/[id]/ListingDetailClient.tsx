@@ -74,11 +74,11 @@ function PhotoCarousel({ photos, title }: { photos: { photoPath: string }[]; tit
 
 const TYPE_LABELS: Record<string, string> = {
   sale: "For Sale", trade: "Trade", free: "Free",
-  service: "Service", borrow: "Borrow", official_store: "Official Store",
+  service: "Service", rent: "Rent", official_store: "Official Store",
 };
 const TYPE_COLORS: Record<string, string> = {
   sale: "#10b981", trade: "#3b82f6", free: "#f59e0b",
-  service: "#8b5cf6", borrow: "#f97316", official_store: "#ec4899",
+  service: "#8b5cf6", rent: "#f97316", official_store: "#ec4899",
 };
 const CONDITION_LABELS: Record<string, string> = {
   new: "Brand New", like_new: "Like New", good: "Good", fair: "Fair", poor: "For Parts",

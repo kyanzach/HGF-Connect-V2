@@ -19,7 +19,7 @@ const LISTING_TYPES = [
   { value: "sale", label: "For Sale", emoji: "🏷️" },
   { value: "free", label: "Free / Donate", emoji: "🎁" },
   { value: "service", label: "Service", emoji: "🛠️" },
-  { value: "borrow", label: "Borrow / Lend", emoji: "🔄" },
+  { value: "rent", label: "Rent / Lend", emoji: "🔄" },
   { value: "trade", label: "Trade / Swap", emoji: "🔃" },
 ];
 

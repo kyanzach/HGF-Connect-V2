@@ -19,7 +19,7 @@ const LISTING_TYPES = [
   { value: "sale",    label: "For Sale",     emoji: "🏷️" },
   { value: "free",    label: "Free / Donate",emoji: "🎁" },
   { value: "service", label: "Service",      emoji: "🛠️" },
-  { value: "borrow",  label: "Borrow / Lend",emoji: "🔄" },
+  { value: "rent",   label: "Rent / Lend", emoji: "🔄" },
   { value: "trade",   label: "Trade / Swap", emoji: "🔃" },
 ];
 
@@ -89,7 +89,7 @@ export default function SellPage() {
   }
 
   const isFreeType = form.listingType === "free";
-  const isBorrowOrTrade = form.listingType === "borrow" || form.listingType === "trade";
+  const isRentOrTrade = form.listingType === "rent" || form.listingType === "trade";
   const showPrice = !isFreeType;
   const showDiscount = form.listingType === "sale";
 
@@ -270,11 +270,11 @@ export default function SellPage() {
         )}
 
         {/* Price Label (for non-cash listing types) */}
-        {(isBorrowOrTrade || isFreeType) && (
+        {(isRentOrTrade || isFreeType) && (
           <Field label="Price Label (optional)">
             <input
               value={form.priceLabel} onChange={(e) => set("priceLabel", e.target.value)}
-              placeholder={isFreeType ? "e.g. Free to pickup" : "e.g. For borrow, 1 week"}
+              placeholder={isFreeType ? "e.g. Free to pickup" : "e.g. For rent, 1 week"}
               style={INPUT_STYLE}
             />
           </Field>
