@@ -321,8 +321,8 @@ export default function CommentDrawer({ postId, postAuthorId, isOpen, onClose, o
 
   return (
     <>
-      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, backdropFilter: "blur(2px)" }} />
-      <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, height: "75vh", background: "white", borderRadius: "20px 20px 0 0", zIndex: 201, display: "flex", flexDirection: "column", boxShadow: "0 -4px 30px rgba(0,0,0,0.18)", animation: "slideUp 0.25s ease" }}>
+      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 300, backdropFilter: "blur(2px)" }} />
+      <div style={{ position: "fixed", bottom: "calc(64px + env(safe-area-inset-bottom))", left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, height: "72vh", background: "white", borderRadius: "20px 20px 0 0", zIndex: 301, display: "flex", flexDirection: "column", boxShadow: "0 -4px 30px rgba(0,0,0,0.18)", animation: "slideUp 0.25s ease" }}>
         <style>{`@keyframes slideUp { from { transform: translateX(-50%) translateY(100%); } to { transform: translateX(-50%) translateY(0); } }`}</style>
 
         {/* Header */}

@@ -119,7 +119,6 @@ export default async function EventDetailPage({ params }: Props) {
               {event.endTime && <DetailItem icon="🕕" label="End Time" value={formatTime(event.endTime)} />}
               {event.location && <DetailItem icon="📍" label="Location" value={event.location} />}
               <DetailItem icon="👤" label="Organized by" value={`${event.creator.firstName} ${event.creator.lastName}`} />
-              <DetailItem icon="👥" label="Attendance" value={`${event._count.attendance} recorded`} />
             </div>
 
             {event.description && (

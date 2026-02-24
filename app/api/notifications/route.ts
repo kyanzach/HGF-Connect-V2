@@ -13,7 +13,6 @@ export async function GET(_req: NextRequest) {
     const notifications = await db.notification.findMany({
       where: { memberId },
       orderBy: { createdAt: "desc" },
-      take: 50,
     });
     const unreadCount = notifications.filter((n) => !n.isRead).length;
     return NextResponse.json({ notifications, unreadCount });

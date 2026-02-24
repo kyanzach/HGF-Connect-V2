@@ -147,7 +147,7 @@ export default function NotificationBell() {
             top: "calc(100% + 8px)",
             right: 0,
             width: 320,
-            maxHeight: 420,
+            maxHeight: "70vh",
             background: "#fff",
             borderRadius: 16,
             boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
@@ -264,7 +264,7 @@ export default function NotificationBell() {
               style={{ display: "block", textAlign: "center", padding: "10px", fontSize: 13, color: "#3b82f6", fontWeight: 600, borderTop: "1px solid #f3f4f6", textDecoration: "none" }}
               onClick={() => setOpen(false)}
             >
-              View Community Feed →
+              View All Notifications →
             </Link>
           )}
         </div>
