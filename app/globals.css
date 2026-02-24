@@ -44,6 +44,9 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Prevent ANY page from scrolling sideways */
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 /* HGF utility classes */
@@ -139,4 +142,15 @@ body {
 }
 .hgf-success-pop {
   animation: hgf-success-pop 0.3s ease;
+}
+
+/* Comment pulse — used when deep-linking to a notification's comment */
+@keyframes hgf-pulse-highlight {
+  0%   { box-shadow: 0 0 0 0 rgba(78, 177, 203, 0.7); background: rgba(78,177,203,0.15); }
+  50%  { box-shadow: 0 0 0 8px rgba(78, 177, 203, 0); background: rgba(78,177,203,0.08); }
+  100% { box-shadow: 0 0 0 0 rgba(78, 177, 203, 0); background: transparent; }
+}
+.hgf-pulse-highlight {
+  animation: hgf-pulse-highlight 1.4s ease 3;
+  border-radius: 12px;
 }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import CommentDrawer from "./CommentDrawer";
 
@@ -58,8 +58,25 @@ export default function PostCard({ post }: PostCardProps) {
   const [loading, setLoading] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const searchParams = useSearchParams();
 
-  // Live count polling every 20s
+  // Deep-link: ?post=ID auto-opens this card's comment drawer
+  useEffect(() => {
+    const targetId = searchParams.get("post");
+    if (targetId && parseInt(targetId) === post.id && !commentsOpen) {
+      setCommentsOpen(true);
+      // Scroll card into view smoothly
+      setTimeout(() => {
+        cardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 100);
+      // Clean URL without reload
+      const url = new URL(window.location.href);
+      url.searchParams.delete("post");
+      window.history.replaceState({}, "", url.toString());
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
   useEffect(() => {
     const poll = async () => {
       try {
@@ -115,6 +132,7 @@ export default function PostCard({ post }: PostCardProps) {
   return (
     <>
       <div
+        ref={cardRef}
         style={{ background: "white", borderRadius: "16px", marginBottom: "0.75rem", overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}
       >
         {/* Header */}

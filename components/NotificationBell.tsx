@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface Notif {
   id: number;
@@ -14,6 +15,7 @@ interface Notif {
 }
 
 export default function NotificationBell() {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notif[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -211,8 +213,14 @@ export default function NotificationBell() {
                     transition: "background 0.15s",
                     textDecoration: "none",
                   }}
-                  onClick={() => {
-                    if (n.link) window.location.href = n.link;
+                  onClick={async () => {
+                    // Mark this notif read
+                    if (!n.isRead) {
+                      setNotifications((prev) => prev.map((x) => x.id === n.id ? { ...x, isRead: true } : x));
+                      setUnreadCount((c) => Math.max(0, c - 1));
+                    }
+                    setOpen(false);
+                    if (n.link) router.push(n.link);
                   }}
                 >
                   <span style={{ fontSize: 22, flexShrink: 0, lineHeight: 1.3 }}>{typeIcon(n.type)}</span>

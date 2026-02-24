@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { MarketplaceListingType as ListingType } from "@prisma/client";
+import { notifyAllMembers } from "@/lib/notify";
 
 // GET /api/marketplace/listings
 export async function GET(req: Request) {
@@ -98,6 +99,28 @@ export async function POST(req: Request) {
       })),
     });
   }
+
+  // ----- Notify all members (fire-and-forget) -----
+  const sellerName = `${session.user.name ?? session.user.email}`;
+  // Grab seller full name from DB for better notification text
+  const seller = await db.member.findUnique({
+    where: { id: parseInt(session.user.id) },
+    select: { firstName: true, lastName: true },
+  });
+  const sellerFullName = seller ? `${seller.firstName} ${seller.lastName}` : sellerName;
+  const typeLabels: Record<string, string> = {
+    sale: "is selling", free: "is giving away", trade: "wants to trade",
+    service: "is offering a service", rent: "has for rent", official_store: "posted",
+  };
+  const action = typeLabels[listing.listingType] ?? "listed";
+  void notifyAllMembers({
+    actorId: parseInt(session.user.id),
+    type: "new_marketplace",
+    title: `${sellerFullName} ${action}: ${listing.title}`,
+    body: locationArea ? `📍 ${locationArea}` : "Check it out in the Marketplace",
+    link: `/marketplace/${listing.id}`,
+  });
+  // -------------------------------------------------
 
   return NextResponse.json({ listing }, { status: 201 });
 }
