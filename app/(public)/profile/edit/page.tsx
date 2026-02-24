@@ -7,7 +7,7 @@ import Image from "next/image";
 
 const PRIMARY = "#4EB1CB";
 
-type TabKey = "personal" | "contact" | "bio" | "privacy" | "sms";
+type TabKey = "personal" | "contact" | "bio" | "privacy" | "sms" | "security";
 
 const TABS: { key: TabKey; icon: string; label: string }[] = [
   { key: "personal", icon: "👤", label: "Personal" },
@@ -15,12 +15,18 @@ const TABS: { key: TabKey; icon: string; label: string }[] = [
   { key: "bio", icon: "✝️", label: "Bio & Verse" },
   { key: "privacy", icon: "🔒", label: "Privacy" },
   { key: "sms", icon: "📲", label: "SMS Alerts" },
+  { key: "security", icon: "🔑", label: "Security" },
 ];
 
 export default function EditProfilePage() {
   const { data: session } = useSession();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabKey>("personal");
+  const [pwCurrent, setPwCurrent] = useState("");
+  const [pwNew, setPwNew]         = useState("");
+  const [pwConfirm, setPwConfirm] = useState("");
+  const [pwSaving, setPwSaving]   = useState(false);
+  const [pwMsg, setPwMsg]         = useState<{ ok: boolean; text: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -299,6 +305,63 @@ export default function EditProfilePage() {
                 {toggleRow("3-Day Reminder", "Receive an SMS 3 days before an event", "sms3dayReminder")}
                 {toggleRow("1-Day Reminder", "Receive an SMS 1 day before an event", "sms1dayReminder")}
                 {toggleRow("Same-Day Reminder", "Receive an SMS on the morning of an event", "smsSameDayReminder")}
+              </div>
+            )}
+
+            {activeTab === "security" && (
+              <div>
+                <p style={{ fontSize: "0.825rem", color: "#64748b", marginBottom: "1rem", lineHeight: 1.5 }}>
+                  Set or update your login password. If your account does not have a password yet, leave the current password field blank.
+                </p>
+                {([
+                  { label: "Current Password", val: pwCurrent, set: setPwCurrent, placeholder: "Leave blank if no password yet" },
+                  { label: "New Password", val: pwNew, set: setPwNew, placeholder: "Min. 8 characters" },
+                  { label: "Confirm New Password", val: pwConfirm, set: setPwConfirm, placeholder: "Repeat new password" },
+                ] as { label: string; val: string; set: (v: string) => void; placeholder: string }[]).map(({ label, val, set, placeholder }) => (
+                  <div key={label} style={{ marginBottom: "0.875rem" }}>
+                    <label style={{ fontSize: "0.7rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", display: "block", marginBottom: "0.3rem" }}>{label}</label>
+                    <input
+                      type="password"
+                      value={val}
+                      onChange={e => set(e.target.value)}
+                      placeholder={placeholder}
+                      style={{ width: "100%", padding: "0.75rem", borderRadius: "10px", border: "1.5px solid #e2e8f0", fontSize: "0.95rem", outline: "none", boxSizing: "border-box" }}
+                    />
+                  </div>
+                ))}
+                {pwMsg && (
+                  <p style={{ fontSize: "0.85rem", color: pwMsg.ok ? "#059669" : "#ef4444", marginBottom: "0.75rem", fontWeight: 600 }}>
+                    {pwMsg.ok ? "✅" : "⚠️"} {pwMsg.text}
+                  </p>
+                )}
+                <button
+                  disabled={pwSaving}
+                  onClick={async () => {
+                    setPwMsg(null);
+                    if (!pwNew) return setPwMsg({ ok: false, text: "Please enter a new password." });
+                    if (pwNew.length < 8) return setPwMsg({ ok: false, text: "Password must be at least 8 characters." });
+                    if (pwNew !== pwConfirm) return setPwMsg({ ok: false, text: "Passwords do not match." });
+                    setPwSaving(true);
+                    try {
+                      const r = await fetch("/api/profile/password", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ currentPassword: pwCurrent || undefined, newPassword: pwNew }),
+                      });
+                      const d = await r.json();
+                      if (d.ok) {
+                        setPwMsg({ ok: true, text: "Password updated successfully!" });
+                        setPwCurrent(""); setPwNew(""); setPwConfirm("");
+                      } else {
+                        setPwMsg({ ok: false, text: d.error ?? "Failed to update password." });
+                      }
+                    } catch { setPwMsg({ ok: false, text: "Network error. Please try again." }); }
+                    finally { setPwSaving(false); }
+                  }}
+                  style={{ width: "100%", padding: "0.875rem", background: pwSaving ? "#94a3b8" : PRIMARY, border: "none", borderRadius: "12px", color: "white", fontSize: "0.9rem", fontWeight: 800, cursor: pwSaving ? "not-allowed" : "pointer" }}
+                >
+                  {pwSaving ? "Updating…" : "🔑 Update Password"}
+                </button>
               </div>
             )}
           </div>
