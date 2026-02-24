@@ -31,7 +31,7 @@ export default function NotificationBell() {
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
-  // Poll unread count every 30s
+  // Poll unread count every 5s for near-instant notification delivery
   useEffect(() => {
     let cancelled = false;
     async function fetchCount() {
@@ -43,7 +43,7 @@ export default function NotificationBell() {
       } catch {}
     }
     fetchCount();
-    const interval = setInterval(fetchCount, 30000);
+    const interval = setInterval(fetchCount, 5000);
     return () => { cancelled = true; clearInterval(interval); };
   }, []);
 
