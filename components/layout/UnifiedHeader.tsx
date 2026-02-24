@@ -296,9 +296,11 @@ export default function UnifiedHeader() {
                     minWidth: 210, zIndex: 200,
                     overflow: "hidden", border: "1px solid #e2e8f0",
                   }}>
-                    {/* User header */}
+                    {/* User header — clickable → full profile */}
+                    <Link href="/me" onClick={() => setDropOpen(false)} style={{ textDecoration: "none" }}>
                     <div style={{ padding: "0.75rem 0.875rem 0.5rem", display: "flex",
-                      alignItems: "center", gap: "0.5rem", borderBottom: "1px solid #f1f5f9" }}>
+                      alignItems: "center", gap: "0.5rem", borderBottom: "1px solid #f1f5f9",
+                      background: "transparent" }}>
                       <div style={{ width: 36, height: 36, borderRadius: "50%", overflow: "hidden",
                         background: PRIMARY, display: "flex", alignItems: "center",
                         justifyContent: "center", flexShrink: 0 }}>
@@ -308,11 +310,12 @@ export default function UnifiedHeader() {
                           : <span style={{ fontSize: "0.9rem", fontWeight: 800, color: "white" }}>{initials}</span>
                         }
                       </div>
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: "0.875rem", color: "#111" }}>{fullName}</div>
-                        <div style={{ fontSize: "0.7rem", color: "#9ca3af" }}>HGF Member</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: "0.875rem", color: "#111", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{fullName}</div>
+                        <div style={{ fontSize: "0.7rem", color: PRIMARY, fontWeight: 600 }}>View Profile →</div>
                       </div>
                     </div>
+                    </Link>
 
                     <DropItem href="/feed"  label="🏠 Community Feed"  onClick={() => setDropOpen(false)} />
                     <DropItem href="/me"    label="👤 My Profile"       onClick={() => setDropOpen(false)} />
