@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
 const PRIMARY = "#4EB1CB";
@@ -23,12 +24,10 @@ interface PostCardProps {
       profilePicture?: string | null;
       username?: string | null;
     };
-    _count?: {
-      likes: number;
-      comments: number;
-    };
+    _count?: { likes: number; comments: number };
     isLiked?: boolean;
   };
+  onOpenComments?: (postId: number) => void;
 }
 
 function timeAgo(date: Date | string) {
@@ -42,19 +41,23 @@ function timeAgo(date: Date | string) {
 }
 
 const TYPE_LABELS: Record<string, { icon: string; label: string; color: string }> = {
-  TEXT: { icon: "✍️", label: "Reflection", color: "#6c757d" },
-  DEVO: { icon: "📖", label: "Devotional", color: PRIMARY },
-  VERSE_CARD: { icon: "📜", label: "Bible Verse", color: "#805AD5" },
-  PRAYER: { icon: "🙏", label: "Prayer", color: "#E67E22" },
-  PRAISE: { icon: "🙌", label: "Praise Report", color: "#27AE60" },
-  EVENT: { icon: "📅", label: "Event", color: "#E74C3C" },
+  TEXT:       { icon: "✍️",  label: "Reflection",    color: "#6c757d" },
+  DEVO:       { icon: "📖",  label: "Devotional",    color: PRIMARY },
+  VERSE_CARD: { icon: "📜",  label: "Bible Verse",   color: "#805AD5" },
+  PRAYER:     { icon: "🙏",  label: "Prayer",        color: "#E67E22" },
+  PRAISE:     { icon: "🙌",  label: "Praise Report", color: "#27AE60" },
+  EVENT:      { icon: "📅",  label: "Event",         color: "#E74C3C" },
 };
 
-export default function PostCard({ post }: PostCardProps) {
+export default function PostCard({ post, onOpenComments }: PostCardProps) {
   const { data: session } = useSession();
+  const router = useRouter();
   const [liked, setLiked] = useState(post.isLiked ?? false);
   const [likeCount, setLikeCount] = useState(post._count?.likes ?? 0);
+  const [commentCount, setCommentCount] = useState(post._count?.comments ?? 0);
   const [loading, setLoading] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const authorName = `${post.author.firstName} ${post.author.lastName}`;
   const initials = `${post.author.firstName[0]}${post.author.lastName[0]}`.toUpperCase();
@@ -62,21 +65,54 @@ export default function PostCard({ post }: PostCardProps) {
   const profilePic = post.author.profilePicture
     ? `/uploads/profile_pictures/${post.author.profilePicture}`
     : null;
+  const isOwnPost = session?.user?.id === String(post.author.id);
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handler(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [menuOpen]);
 
   async function toggleLike() {
     if (!session || loading) return;
     setLoading(true);
-    setLiked((p) => !p);
-    setLikeCount((p) => (liked ? p - 1 : p + 1));
+    const wasLiked = liked;
+    setLiked(!wasLiked);
+    setLikeCount((p) => (wasLiked ? p - 1 : p + 1));
     try {
       await fetch(`/api/posts/${post.id}/like`, { method: "POST" });
     } catch {
-      // revert on error
-      setLiked((p) => !p);
-      setLikeCount((p) => (liked ? p + 1 : p - 1));
+      setLiked(wasLiked);
+      setLikeCount((p) => (wasLiked ? p + 1 : p - 1));
     } finally {
       setLoading(false);
     }
+  }
+
+  function handleShare() {
+    const url = `${window.location.origin}/feed?post=${post.id}`;
+    if (navigator.share) {
+      navigator.share({ title: `${authorName} on HGF Connect`, text: post.content ?? "", url });
+    } else {
+      navigator.clipboard.writeText(url).then(() => alert("Link copied!"));
+    }
+  }
+
+  async function handleDelete() {
+    if (!confirm("Delete this post?")) return;
+    setMenuOpen(false);
+    await fetch(`/api/posts/${post.id}`, { method: "DELETE" });
+    window.location.reload();
+  }
+
+  function goToProfile() {
+    router.push(`/member/${post.author.id}`);
   }
 
   return (
@@ -91,54 +127,104 @@ export default function PostCard({ post }: PostCardProps) {
     >
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", padding: "0.875rem 1rem 0.5rem", gap: "0.625rem" }}>
-        {/* Avatar */}
-        {profilePic ? (
-          <Image
-            src={profilePic}
-            alt={authorName}
-            width={38}
-            height={38}
-            style={{ borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
-          />
-        ) : (
-          <div
-            style={{
-              width: 38,
-              height: 38,
-              borderRadius: "50%",
-              background: PRIMARY,
-              color: "white",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontWeight: 700,
-              fontSize: "0.875rem",
-              flexShrink: 0,
-            }}
-          >
-            {initials}
-          </div>
-        )}
+        {/* Avatar — clickable circle */}
+        <button
+          onClick={goToProfile}
+          aria-label={`View ${authorName}'s profile`}
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: "50%",
+            overflow: "hidden",
+            flexShrink: 0,
+            border: "none",
+            padding: 0,
+            cursor: "pointer",
+            background: PRIMARY,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {profilePic ? (
+            <Image
+              src={profilePic}
+              alt={authorName}
+              width={40}
+              height={40}
+              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+            />
+          ) : (
+            <span style={{ color: "white", fontWeight: 700, fontSize: "0.875rem" }}>{initials}</span>
+          )}
+        </button>
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "#1e293b" }}>
-            {authorName}
-          </div>
+          {/* Author name — also clickable */}
+          <button
+            onClick={goToProfile}
+            style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left" }}
+          >
+            <span style={{ fontWeight: 700, fontSize: "0.9rem", color: "#1e293b" }}>{authorName}</span>
+          </button>
           <div style={{ display: "flex", alignItems: "center", gap: "0.375rem" }}>
             <span style={{ fontSize: "0.7rem", color: "#94a3b8" }}>{timeAgo(post.createdAt)}</span>
             <span style={{ fontSize: "0.6rem", color: "#94a3b8" }}>·</span>
-            <span
-              style={{
-                fontSize: "0.6875rem",
-                color: typeInfo.color,
-                fontWeight: 600,
-              }}
-            >
+            <span style={{ fontSize: "0.6875rem", color: typeInfo.color, fontWeight: 600 }}>
               {typeInfo.icon} {typeInfo.label}
             </span>
           </div>
         </div>
-        <span style={{ fontSize: "1rem", color: "#94a3b8", cursor: "pointer" }}>•••</span>
+
+        {/* Three-dots menu */}
+        <div ref={menuRef} style={{ position: "relative" }}>
+          <button
+            onClick={() => setMenuOpen((o) => !o)}
+            aria-label="Post options"
+            style={{
+              background: "none",
+              border: "none",
+              fontSize: "1.1rem",
+              color: "#94a3b8",
+              cursor: "pointer",
+              padding: "4px 8px",
+              borderRadius: "8px",
+              lineHeight: 1,
+            }}
+          >
+            •••
+          </button>
+          {menuOpen && (
+            <div
+              style={{
+                position: "absolute",
+                right: 0,
+                top: "calc(100% + 4px)",
+                background: "white",
+                borderRadius: "12px",
+                boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+                minWidth: 160,
+                zIndex: 100,
+                overflow: "hidden",
+              }}
+            >
+              <button
+                onClick={() => { setMenuOpen(false); router.push(`/member/${post.author.id}`); }}
+                style={menuItemStyle}
+              >
+                👤 View Profile
+              </button>
+              {isOwnPost && (
+                <button onClick={handleDelete} style={{ ...menuItemStyle, color: "#ef4444" }}>
+                  🗑️ Delete Post
+                </button>
+              )}
+              <button onClick={() => { setMenuOpen(false); handleShare(); }} style={menuItemStyle}>
+                📤 Share Post
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Content */}
@@ -212,68 +298,48 @@ export default function PostCard({ post }: PostCardProps) {
       )}
 
       {/* Actions */}
-      <div
-        style={{
-          display: "flex",
-          borderTop: "1px solid #f1f5f9",
-          padding: "0.1rem 0",
-        }}
-      >
-        <button
-          onClick={toggleLike}
-          style={{
-            flex: 1,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "0.375rem",
-            padding: "0.625rem",
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            fontSize: "0.875rem",
-            color: liked ? "#ef4444" : "#64748b",
-            fontWeight: liked ? 700 : 400,
-            transition: "color 0.15s",
-          }}
-        >
+      <div style={{ display: "flex", borderTop: "1px solid #f1f5f9", padding: "0.1rem 0" }}>
+        <button onClick={toggleLike} style={{ ...actionBtnStyle, color: liked ? "#ef4444" : "#64748b", fontWeight: liked ? 700 : 400 }}>
           {liked ? "❤️" : "🤍"} {likeCount > 0 && likeCount}
         </button>
         <button
-          style={{
-            flex: 1,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "0.375rem",
-            padding: "0.625rem",
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            fontSize: "0.875rem",
-            color: "#64748b",
-          }}
+          onClick={() => onOpenComments ? onOpenComments(post.id) : router.push(`/feed?post=${post.id}&comments=1`)}
+          style={actionBtnStyle}
         >
-          💬 {post._count?.comments ?? 0}
+          💬 {commentCount > 0 && commentCount}
         </button>
-        <button
-          style={{
-            flex: 1,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "0.375rem",
-            padding: "0.625rem",
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            fontSize: "0.875rem",
-            color: "#64748b",
-          }}
-        >
+        <button onClick={handleShare} style={actionBtnStyle}>
           📤 Share
         </button>
       </div>
     </div>
   );
 }
+
+const actionBtnStyle: React.CSSProperties = {
+  flex: 1,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "0.375rem",
+  padding: "0.625rem",
+  background: "none",
+  border: "none",
+  cursor: "pointer",
+  fontSize: "0.875rem",
+  color: "#64748b",
+  transition: "color 0.15s",
+};
+
+const menuItemStyle: React.CSSProperties = {
+  display: "block",
+  width: "100%",
+  textAlign: "left",
+  padding: "0.75rem 1rem",
+  background: "none",
+  border: "none",
+  cursor: "pointer",
+  fontSize: "0.875rem",
+  color: "#334155",
+  transition: "background 0.1s",
+};
