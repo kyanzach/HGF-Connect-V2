@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import PublicNav from "@/components/layout/PublicNav";
 
 const PRIMARY = "#4EB1CB";
 
@@ -72,7 +71,6 @@ export default function EventsClient({ upcoming, allPast }: { upcoming: EventRow
 
   return (
     <>
-      <PublicNav />
       <div style={{ minHeight: "100vh", background: "#f8fafc" }}>
         {/* Hero */}
         <div style={{ background: "linear-gradient(135deg, #0f2d3d 0%, #1a4a5e 100%)", color: "white", padding: "3rem 1.5rem", textAlign: "center" }}>

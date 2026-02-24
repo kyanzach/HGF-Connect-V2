@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import AppHeader from "@/components/app/AppHeader";
+import UnifiedHeader from "@/components/layout/UnifiedHeader";
 import BottomDock from "@/components/app/BottomDock";
 import BiometricEnrollTrigger from "@/components/BiometricEnrollTrigger";
 
@@ -15,9 +15,6 @@ export default async function AppLayout({
     redirect("/login");
   }
 
-  // Pending users can only be here if directed explicitly
-  // (middleware handles most cases, this is a safety net)
-
   return (
     <div
       style={{
@@ -25,11 +22,10 @@ export default async function AppLayout({
         display: "flex",
         flexDirection: "column",
         background: "#f8fafc",
-        // NO maxWidth here — header and footer must be full width
       }}
     >
       {/* Sticky Top Header — full width */}
-      <AppHeader />
+      <UnifiedHeader />
 
       {/* Scrollable Page Content — constrained to 500px, centered */}
       <main

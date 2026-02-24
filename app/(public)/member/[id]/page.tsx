@@ -1,7 +1,6 @@
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { notFound } from "next/navigation";
-import PublicNav from "@/components/layout/PublicNav";
 import ProfileClient from "./ProfileClient";
 import type { Metadata } from "next";
 
@@ -71,7 +70,6 @@ export default async function MemberProfilePage({ params }: { params: Promise<{ 
 
   return (
     <>
-      <PublicNav />
       <ProfileClient member={safeData} />
     </>
   );

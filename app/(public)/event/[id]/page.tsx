@@ -1,7 +1,6 @@
 import { db } from "@/lib/db";
 import { formatDate, formatTime, EVENT_TYPE_LABELS } from "@/lib/utils";
 import { notFound } from "next/navigation";
-import PublicNav from "@/components/layout/PublicNav";
 import Link from "next/link";
 import type { Metadata } from "next";
 
@@ -44,7 +43,6 @@ export default async function EventDetailPage({ params }: Props) {
 
   return (
     <>
-      <PublicNav />
       <div style={{ minHeight: "100vh", background: "#f8fafc" }}>
         <div
           style={{

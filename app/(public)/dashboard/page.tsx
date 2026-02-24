@@ -2,7 +2,6 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import PublicNav from "@/components/layout/PublicNav";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "My Dashboard" };
@@ -27,7 +26,6 @@ export default async function UserDashboardPage() {
 
   return (
     <>
-      <PublicNav />
       <div style={{ minHeight: "100vh", background: "#f8fafc", padding: "2rem 1.5rem" }}>
         <div style={{ maxWidth: "700px", margin: "0 auto" }}>
           {/* Status Banner */}

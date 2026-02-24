@@ -2,7 +2,6 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import PublicNav from "@/components/layout/PublicNav";
 import ListingDetailClient from "./ListingDetailClient";
 import crypto from "crypto";
 
@@ -136,7 +135,6 @@ export default async function ListingDetailPage({ params, searchParams }: Props)
 
   return (
     <>
-      <PublicNav />
       <ListingDetailClient listing={safeListingData} />
     </>
   );

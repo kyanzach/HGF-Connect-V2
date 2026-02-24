@@ -3,7 +3,6 @@ import { auth } from "@/lib/auth";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import PublicNav from "@/components/layout/PublicNav";
 import MarketplaceFilters from "@/components/marketplace/MarketplaceFilters";
 
 export const metadata: Metadata = {
@@ -95,7 +94,6 @@ export default async function MarketplaceSSRPage({
 
   return (
     <>
-      <PublicNav />
 
       <div style={{ background: PRIMARY, padding: "2rem 1rem 1.5rem", textAlign: "center", color: "white" }}>
         <h1 style={{ fontSize: "1.75rem", fontWeight: 800, margin: "0 0 0.375rem" }}>🛍️ Marketplace</h1>

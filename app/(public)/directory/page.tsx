@@ -3,7 +3,6 @@
 import { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import PublicNav from "@/components/layout/PublicNav";
 
 const PRIMARY = "#4EB1CB";
 
@@ -157,7 +156,6 @@ export default function DirectoryPage() {
 
   return (
     <>
-      <PublicNav />
       <div style={{ minHeight: "100vh", background: "#f1f5f9" }}>
         {/* Hero */}
         <div style={{ background: `linear-gradient(160deg, #0f2d3d 0%, ${PRIMARY} 100%)`, padding: "2rem 1rem 2.5rem", textAlign: "center" }}>

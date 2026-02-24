@@ -3,7 +3,6 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import Link from "next/link";
 import Image from "next/image";
-import PublicNav from "@/components/layout/PublicNav";
 
 export const metadata: Metadata = {
   title: "HGF Connect — House of Grace Fellowship",
@@ -61,7 +60,6 @@ export default async function HomePage() {
 
   return (
     <>
-      <PublicNav />
 
       <div style={{ maxWidth: "500px", margin: "0 auto", background: "#f8fafc", minHeight: "100dvh" }}>
 
