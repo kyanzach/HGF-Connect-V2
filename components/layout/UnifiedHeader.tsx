@@ -170,20 +170,19 @@ export default function UnifiedHeader() {
   const [toast, setToast]       = useState<NotifToast | null>(null);
 
   const dropRef = useRef<HTMLDivElement>(null);
-  const navRef  = useRef<HTMLDivElement>(null);
+  // navRef not needed — nav links have onClick close + route-change closes it
 
   // Close menus on route change
   useEffect(() => { setDropOpen(false); setNavOpen(false); }, [pathname]);
 
-  // Close on outside click
+  // Close dropdown on outside click only (nav closes via onClick + route-change)
   useEffect(() => {
     const h = (e: MouseEvent) => {
       if (dropOpen && dropRef.current && !dropRef.current.contains(e.target as Node)) setDropOpen(false);
-      if (navOpen  && navRef.current  && !navRef.current.contains(e.target as Node))  setNavOpen(false);
     };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
-  }, [dropOpen, navOpen]);
+  }, [dropOpen]);
 
   const handleToast = useCallback((n: NotifToast) => setToast(n), []);
   useNewNotifToast(handleToast);
@@ -362,9 +361,8 @@ export default function UnifiedHeader() {
             )}
 
             {/* Hamburger */}
-            <div ref={navRef} style={{ position: "relative" }}>
-              <button
-                onClick={() => { setNavOpen((o) => !o); setDropOpen(false); }}
+            <button
+              onClick={() => { setNavOpen((o) => !o); setDropOpen(false); }}
                 style={{
                   background: "rgba(255,255,255,0.15)", border: "none", color: "white",
                   width: 36, height: 36, borderRadius: 8, cursor: "pointer",
@@ -372,10 +370,9 @@ export default function UnifiedHeader() {
                   justifyContent: "center", flexShrink: 0,
                 }}
                 aria-label="Navigation menu"
-              >
-                {navOpen ? "✕" : "☰"}
-              </button>
-            </div>
+            >
+              {navOpen ? "✕" : "☰"}
+            </button>
           </div>
         </div>
 
