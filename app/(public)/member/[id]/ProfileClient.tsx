@@ -307,8 +307,11 @@ export default function ProfileClient({ member }: { member: ProfileData }) {
       {/* ── Cover photo ──────────────────────────────────────────────────── */}
       <div style={{ position: "relative", height: 220, background: `linear-gradient(160deg, #0f2d3d 0%, ${PRIMARY} 100%)`, overflow: "hidden" }}>
         {coverSrc && (
-          <Image src={coverSrc} alt="Cover" fill sizes="480px"
-            style={{ objectFit: "cover", objectPosition: `${member.coverPhotoPositionX ?? 50}% ${member.coverPhotoPositionY ?? 50}%` }}
+          <img
+            src={coverSrc}
+            alt="Cover"
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover",
+              objectPosition: `${member.coverPhotoPositionX ?? 50}% ${member.coverPhotoPositionY ?? 50}%` }}
           />
         )}
         <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 80, background: "linear-gradient(to bottom, rgba(0,0,0,0.4), transparent)", pointerEvents: "none" }} />
@@ -336,7 +339,7 @@ export default function ProfileClient({ member }: { member: ProfileData }) {
             aria-label="View profile photo"
           >
             {avatarSrc ? (
-              <Image src={avatarSrc} alt={fullName} width={88} height={88} style={{ objectFit: "cover", width: "100%", height: "100%" }} />
+              <img src={avatarSrc} alt={fullName} style={{ objectFit: "cover", width: "100%", height: "100%" }} />
             ) : (
               <span style={{ fontSize: "2rem", fontWeight: 900, color: PRIMARY }}>{initials}</span>
             )}
