@@ -87,10 +87,35 @@ export async function POST(
 
   await db.member.update({ where: { id }, data: updateData });
 
+  // ── Create a Post linked to this new photo (for likes + comments) ─────────
+  const postType = purpose === "cover" ? "COVER_PHOTO" : "PROFILE_PHOTO";
+  const newPost = await (db as any).post.create({
+    data: {
+      authorId: id,
+      type: postType,
+      imageUrl: `/uploads/${subDir}/${fullName}`,
+      content: null,
+      visibility: "MEMBERS_ONLY",
+    },
+  });
+
+  // Also create a history row for the NEW photo so it shows up in the viewer
+  await (db as any).memberPhotoHistory.create({
+    data: {
+      memberId: id,
+      type: purpose,
+      fileName: fullName,
+      thumbName: thumbName ?? null,
+      postId: newPost.id,
+      caption: null,
+    },
+  });
+
   return NextResponse.json({
     success: true,
     path: `/uploads/${subDir}/${fullName}`,
     thumbPath: thumbName ? `/uploads/${subDir}/${thumbName}` : null,
     fileName: fullName,
+    postId: newPost.id,
   });
 }

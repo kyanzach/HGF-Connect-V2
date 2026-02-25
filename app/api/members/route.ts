@@ -45,17 +45,24 @@ export async function GET(request: NextRequest) {
         firstName: true,
         lastName: true,
         email: isAdmin ? true : undefined,
-        phone: isAdmin ? true : undefined,
+        phone: true,          // needed for completeness score (won't expose value to non-admin)
         profilePicture: true,
+        coverPhoto: true,     // needed for card background + completeness score
         ageGroup: true,
         type: true,
         status: true,
         role: isAdmin ? true : undefined,
         joinDate: true,
         createdAt: true,
-        invitedBy: isAdmin ? true : undefined,
-        showEmail: !isAdmin ? true : undefined,
-        showPhone: !isAdmin ? true : undefined,
+        birthdate: true,      // completeness
+        baptismDate: true,    // completeness
+        invitedBy: true,      // completeness (name only, non-sensitive)
+        address: true,        // completeness
+        favoriteVerse: true,  // completeness + shown on card
+        familyMembers: true,  // completeness
+        showEmail: true,
+        showPhone: true,
+        showAddress: true,
         ministries: {
           where: { status: "active" },
           include: { ministry: { select: { name: true } } },

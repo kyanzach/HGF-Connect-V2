@@ -1,123 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import PostCard from "@/components/feed/PostCard";
+import PhotoPostViewer, { PhotoEntry } from "@/components/PhotoPostViewer";
 
 const PRIMARY = "#4EB1CB";
-
-// ── Inline photo viewer (profile photos + history) ─────────────────────────
-interface HistoryEntry { id: number; fileName: string; thumbName: string | null; url: string; thumbUrl: string | null; createdAt: string; type: string }
-
-function ProfilePhotoViewer({
-  memberId, isOwn, currentUrl, onClose,
-}: { memberId: number; isOwn: boolean; currentUrl: string | null; onClose: () => void }) {
-  const [photos, setPhotos] = useState<HistoryEntry[]>([]);
-  const [idx, setIdx]       = useState(0);
-  const [loaded, setLoaded] = useState(false);
-  const [imgErr, setImgErr] = useState(false);
-  const touchX = useRef<number | null>(null);
-
-  useEffect(() => {
-    fetch(`/api/members/${memberId}/photo-history?type=profile`)
-      .then(r => r.json())
-      .then((data: HistoryEntry[]) => {
-        // Prepend current photo as index 0 if it exists
-        const history = Array.isArray(data) ? data : [];
-        if (currentUrl) {
-          const current: HistoryEntry = {
-            id: -1, fileName: "", thumbName: null,
-            url: currentUrl, thumbUrl: currentUrl,
-            createdAt: new Date().toISOString(), type: "profile",
-          };
-          setPhotos([current, ...history]);
-        } else {
-          setPhotos(history);
-        }
-        setLoaded(true);
-      })
-      .catch(() => {
-        if (currentUrl) setPhotos([{ id: -1, fileName: "", thumbName: null, url: currentUrl, thumbUrl: currentUrl, createdAt: new Date().toISOString(), type: "profile" }]);
-        setLoaded(true);
-      });
-  }, [memberId, currentUrl]);
-
-  useEffect(() => { setImgErr(false); }, [idx]);
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => {
-      if (e.key === "ArrowLeft")  setIdx(i => Math.max(0, i - 1));
-      if (e.key === "ArrowRight") setIdx(i => Math.min(photos.length - 1, i + 1));
-      if (e.key === "Escape")     onClose();
-    };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [photos.length, onClose]);
-
-  const photo = photos[idx];
-  const fmt = (d: string) => new Date(d).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-
-  return (
-    <div
-      style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.93)",
-        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}
-      onTouchStart={e => { touchX.current = e.touches[0].clientX; }}
-      onTouchEnd={e => {
-        if (!touchX.current) return;
-        const d = touchX.current - e.changedTouches[0].clientX;
-        if (d > 50) setIdx(i => Math.min(photos.length - 1, i + 1));
-        if (d < -50) setIdx(i => Math.max(0, i - 1));
-        touchX.current = null;
-      }}
-    >
-      {/* Close */}
-      <button onClick={onClose} style={{ position: "absolute", top: 16, right: 16, background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: "50%", width: 40, height: 40, fontSize: "1.2rem", cursor: "pointer", zIndex: 2 }}>✕</button>
-
-      {/* Counter */}
-      {photos.length > 1 && (
-        <div style={{ position: "absolute", top: 20, left: "50%", transform: "translateX(-50%)", color: "rgba(255,255,255,0.7)", fontSize: "0.8rem", zIndex: 2 }}>
-          {idx + 1} / {photos.length}
-        </div>
-      )}
-
-      {/* Arrows */}
-      {idx > 0 && <button onClick={() => setIdx(i => i - 1)} style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: "50%", width: 44, height: 44, fontSize: "1.4rem", cursor: "pointer", zIndex: 2 }}>‹</button>}
-      {photo && idx < photos.length - 1 && <button onClick={() => setIdx(i => i + 1)} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.15)", border: "none", color: "white", borderRadius: "50%", width: 44, height: 44, fontSize: "1.4rem", cursor: "pointer", zIndex: 2 }}>›</button>}
-
-      {/* Image */}
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", width: "100%", padding: "56px 56px 0", boxSizing: "border-box" }}>
-        {!loaded ? (
-          <div style={{ color: "rgba(255,255,255,0.5)" }}>Loading…</div>
-        ) : !photo ? (
-          <div style={{ color: "rgba(255,255,255,0.5)" }}>No photo</div>
-        ) : imgErr ? (
-          <div style={{ background: "#374151", borderRadius: 12, width: 220, height: 220, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#9ca3af", fontSize: "0.85rem", gap: 8 }}>
-            <span style={{ fontSize: "2rem" }}>🖼️</span>Photo unavailable
-          </div>
-        ) : (
-          <img src={photo.url} alt="Profile photo" onError={() => setImgErr(true)}
-            style={{ maxWidth: "min(380px, 90vw)", maxHeight: "calc(100vh - 180px)", objectFit: "contain", borderRadius: 8, boxShadow: "0 4px 24px rgba(0,0,0,0.5)" }} />
-        )}
-      </div>
-
-      {/* Bottom: date + own-profile actions */}
-      {photo && (
-        <div style={{ width: "100%", maxWidth: 480, padding: "12px 20px 24px", display: "flex", flexDirection: "column", gap: 8 }}>
-          <div style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.75rem" }}>
-            {idx === 0 ? "Current profile photo" : `Uploaded ${fmt(photo.createdAt)}`}
-          </div>
-          {isOwn && (
-            <Link href="/profile/edit"
-              onClick={onClose}
-              style={{ display: "flex", alignItems: "center", gap: "0.625rem", background: "rgba(255,255,255,0.12)", borderRadius: 10, padding: "0.625rem 1rem", textDecoration: "none", color: "white", fontSize: "0.875rem", fontWeight: 600 }}>
-              🖼️ Choose profile picture
-            </Link>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
 
 interface Post {
   id: number; type: string; content?: string | null; imageUrl?: string | null;
@@ -164,8 +53,7 @@ function duration(joinDate: string | null): string {
   const start = new Date(joinDate);
   const now = new Date();
   let m = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
-  if (m < 0) return "New member";
-  if (m === 0) return "New member";
+  if (m <= 0) return "New member";
   return `${m} month${m !== 1 ? "s" : ""}`;
 }
 
@@ -187,11 +75,7 @@ function WallTab({ memberId, isOwn }: { memberId: number; isOwn: boolean }) {
     setLoading(true);
     fetch(`/api/posts?member=${memberId}&page=1`)
       .then((r) => r.json())
-      .then((d) => {
-        setPosts(d.posts ?? []);
-        setHasMore(d.page < d.totalPages);
-        setPage(1);
-      })
+      .then((d) => { setPosts(d.posts ?? []); setHasMore(d.page < d.totalPages); setPage(1); })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [memberId]);
@@ -207,53 +91,39 @@ function WallTab({ memberId, isOwn }: { memberId: number; isOwn: boolean }) {
     } catch { /* silent */ } finally { setLoadingMore(false); }
   }
 
-  if (loading) {
-    return (
-      <div style={{ padding: "2.5rem 1rem", textAlign: "center" }}>
-        <div style={{ display: "inline-block", width: 32, height: 32, borderRadius: "50%", border: `3px solid ${PRIMARY}`, borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
-        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div style={{ padding: "2.5rem 1rem", textAlign: "center" }}>
+      <div style={{ display: "inline-block", width: 32, height: 32, borderRadius: "50%", border: `3px solid ${PRIMARY}`, borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
 
-  if (posts.length === 0) {
-    return (
-      <div style={{ padding: "3rem 1rem", textAlign: "center" }}>
-        <div style={{ fontSize: "3rem", marginBottom: "0.75rem" }}>📭</div>
-        <p style={{ color: "#94a3b8", fontSize: "0.9rem", margin: 0 }}>
-          {isOwn ? "You haven't posted anything yet." : "No posts yet."}
-        </p>
-        {isOwn && (
-          <Link
-            href="/feed/create"
-            style={{ display: "inline-block", marginTop: "1rem", background: PRIMARY, color: "white", padding: "0.625rem 1.5rem", borderRadius: "999px", textDecoration: "none", fontWeight: 700, fontSize: "0.875rem" }}
-          >
-            ✍️ Write Your First Post
-          </Link>
-        )}
-      </div>
-    );
-  }
+  if (posts.length === 0) return (
+    <div style={{ padding: "3rem 1rem", textAlign: "center" }}>
+      <div style={{ fontSize: "3rem", marginBottom: "0.75rem" }}>📭</div>
+      <p style={{ color: "#94a3b8", fontSize: "0.9rem", margin: 0 }}>
+        {isOwn ? "You haven't posted anything yet." : "No posts yet."}
+      </p>
+      {isOwn && (
+        <Link href="/feed/create" style={{ display: "inline-block", marginTop: "1rem", background: PRIMARY, color: "white", padding: "0.625rem 1.5rem", borderRadius: "999px", textDecoration: "none", fontWeight: 700, fontSize: "0.875rem" }}>
+          ✍️ Write Your First Post
+        </Link>
+      )}
+    </div>
+  );
 
   return (
     <div style={{ padding: "0.75rem" }}>
       {isOwn && (
-        <Link
-          href="/feed/create"
-          style={{ display: "flex", alignItems: "center", gap: "0.625rem", background: "white", borderRadius: "14px", padding: "0.75rem 1rem", marginBottom: "0.75rem", textDecoration: "none", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", border: "1.5px solid #e2e8f0" }}
-        >
+        <Link href="/feed/create" style={{ display: "flex", alignItems: "center", gap: "0.625rem", background: "white", borderRadius: "14px", padding: "0.75rem 1rem", marginBottom: "0.75rem", textDecoration: "none", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", border: "1.5px solid #e2e8f0" }}>
           <span style={{ fontSize: "1.25rem" }}>✍️</span>
           <span style={{ flex: 1, color: "#94a3b8", fontSize: "0.9rem" }}>Share something with the community…</span>
         </Link>
       )}
-      {posts.map((post) => (
-        <PostCard key={post.id} post={post} />
-      ))}
+      {posts.map((post) => <PostCard key={post.id} post={post} />)}
       {hasMore && (
-        <button
-          onClick={loadMore} disabled={loadingMore}
-          style={{ display: "block", width: "100%", margin: "0.75rem 0 0", padding: "0.75rem", background: "white", border: `1.5px solid ${PRIMARY}`, color: PRIMARY, borderRadius: "12px", fontWeight: 700, fontSize: "0.875rem", cursor: loadingMore ? "wait" : "pointer" }}
-        >
+        <button onClick={loadMore} disabled={loadingMore}
+          style={{ display: "block", width: "100%", margin: "0.75rem 0 0", padding: "0.75rem", background: "white", border: `1.5px solid ${PRIMARY}`, color: PRIMARY, borderRadius: "12px", fontWeight: 700, fontSize: "0.875rem", cursor: loadingMore ? "wait" : "pointer" }}>
           {loadingMore ? "Loading…" : "Load more posts"}
         </button>
       )}
@@ -279,7 +149,6 @@ function AboutTab({ m }: { m: ProfileData }) {
 
   return (
     <div style={{ padding: "0.75rem" }}>
-      {/* Favorite verse */}
       {m.favoriteVerse && (
         <div style={{ background: "white", borderRadius: "16px", padding: "1rem", marginBottom: "0.75rem", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
           <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.5rem" }}>📖 Favorite Verse</div>
@@ -288,8 +157,6 @@ function AboutTab({ m }: { m: ProfileData }) {
           </p>
         </div>
       )}
-
-      {/* Member Status */}
       {(dur || m.joinDate) && (
         <div style={{ background: "white", borderRadius: "16px", padding: "1rem", marginBottom: "0.75rem", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
           <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.75rem" }}>📅 Church Membership</div>
@@ -309,8 +176,6 @@ function AboutTab({ m }: { m: ProfileData }) {
           </div>
         </div>
       )}
-
-      {/* Personal Details */}
       {(m.birthdate || m.baptismDate || m.invitedBy) && (
         <div style={{ background: "white", borderRadius: "16px", padding: "1rem", marginBottom: "0.75rem", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
           <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.25rem" }}>ℹ️ Personal Details</div>
@@ -319,8 +184,6 @@ function AboutTab({ m }: { m: ProfileData }) {
           {m.invitedBy && <Row icon="👥" label="Invited By" value={m.invitedBy} />}
         </div>
       )}
-
-      {/* Contact Info */}
       {hasContactInfo && (
         <div style={{ background: "white", borderRadius: "16px", padding: "1rem", marginBottom: "0.75rem", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
           <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.25rem" }}>📋 Contact</div>
@@ -329,16 +192,12 @@ function AboutTab({ m }: { m: ProfileData }) {
           {(m.showAddress || m.isAdmin || m.isOwn) && m.address && <Row icon="📍" label="Address" value={m.address} />}
         </div>
       )}
-
-      {/* Family Members */}
       {familyArr.length > 0 && (
         <div style={{ background: "white", borderRadius: "16px", padding: "1rem", marginBottom: "0.75rem", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
           <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.625rem" }}>🏠 Family Members</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem" }}>
             {familyArr.map((name, i) => (
-              <span key={i} style={{ background: "#f1f5f9", color: "#475569", padding: "0.35rem 0.75rem", borderRadius: "999px", fontSize: "0.825rem", fontWeight: 600 }}>
-                {name}
-              </span>
+              <span key={i} style={{ background: "#f1f5f9", color: "#475569", padding: "0.35rem 0.75rem", borderRadius: "999px", fontSize: "0.825rem", fontWeight: 600 }}>{name}</span>
             ))}
           </div>
         </div>
@@ -349,32 +208,21 @@ function AboutTab({ m }: { m: ProfileData }) {
 
 // ── Ministries Tab ─────────────────────────────────────────────────────────────
 function MinistriesTab({ ministries }: { ministries: Ministry[] }) {
-  if (ministries.length === 0) {
-    return (
-      <div style={{ padding: "3rem 1rem", textAlign: "center" }}>
-        <div style={{ fontSize: "3rem", marginBottom: "0.75rem" }}>🤲</div>
-        <p style={{ color: "#94a3b8", fontSize: "0.9rem", margin: 0 }}>Not serving in any ministry yet.</p>
-      </div>
-    );
-  }
+  if (ministries.length === 0) return (
+    <div style={{ padding: "3rem 1rem", textAlign: "center" }}>
+      <div style={{ fontSize: "3rem", marginBottom: "0.75rem" }}>🤲</div>
+      <p style={{ color: "#94a3b8", fontSize: "0.9rem", margin: 0 }}>Not serving in any ministry yet.</p>
+    </div>
+  );
   return (
     <div style={{ padding: "0.75rem" }}>
       <div style={{ background: "white", borderRadius: "16px", overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
         {ministries.map((mm, i) => (
-          <div
-            key={mm.id}
-            style={{ display: "flex", alignItems: "center", gap: "0.875rem", padding: "0.875rem 1rem", borderBottom: i < ministries.length - 1 ? "1px solid #f8fafc" : "none" }}
-          >
-            <div style={{ width: 40, height: 40, borderRadius: "10px", background: `${PRIMARY}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.25rem", flexShrink: 0 }}>
-              🤲
-            </div>
+          <div key={mm.id} style={{ display: "flex", alignItems: "center", gap: "0.875rem", padding: "0.875rem 1rem", borderBottom: i < ministries.length - 1 ? "1px solid #f8fafc" : "none" }}>
+            <div style={{ width: 40, height: 40, borderRadius: "10px", background: `${PRIMARY}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.25rem", flexShrink: 0 }}>🤲</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "#1e293b" }}>{mm.ministry.name}</div>
-              {mm.joinedDate && (
-                <div style={{ fontSize: "0.72rem", color: "#94a3b8", marginTop: "0.125rem" }}>
-                  Since {fmt(mm.joinedDate)}
-                </div>
-              )}
+              {mm.joinedDate && <div style={{ fontSize: "0.72rem", color: "#94a3b8", marginTop: "0.125rem" }}>Since {fmt(mm.joinedDate)}</div>}
             </div>
             <span style={{ background: PRIMARY, color: "white", fontSize: "0.65rem", fontWeight: 700, padding: "0.2rem 0.6rem", borderRadius: "999px" }}>Active</span>
           </div>
@@ -387,55 +235,104 @@ function MinistriesTab({ ministries }: { ministries: Ministry[] }) {
 // ── Main ProfileClient ─────────────────────────────────────────────────────────
 export default function ProfileClient({ member }: { member: ProfileData }) {
   const [activeTab, setActiveTab] = useState<"wall" | "about" | "ministries">("wall");
-  const [photoViewerOpen, setPhotoViewerOpen] = useState(false);
+  // Photo viewer
+  const [viewerPhotos, setViewerPhotos] = useState<PhotoEntry[]>([]);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false); // own-profile bottom sheet
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const tabBarRef = useRef<HTMLDivElement>(null);
 
-  const coverSrc = member.coverPhoto ? `/uploads/cover_photos/${member.coverPhoto}` : null;
+  const coverSrc  = member.coverPhoto    ? `/uploads/cover_photos/${member.coverPhoto}`        : null;
   const avatarSrc = member.profilePicture ? `/uploads/profile_pictures/${member.profilePicture}` : null;
-  const fullName = `${member.firstName} ${member.lastName}`;
-  const initials = `${member.firstName?.[0] ?? ""}${member.lastName?.[0] ?? ""}`;
+  const fullName  = `${member.firstName} ${member.lastName}`;
+  const initials  = `${member.firstName?.[0] ?? ""}${member.lastName?.[0] ?? ""}`;
   const dur = duration(member.joinDate);
+
+  // Load profile history for viewer
+  function openViewer() {
+    fetch(`/api/members/${member.id}/photo-history?type=profile`)
+      .then(r => r.json())
+      .then((data: PhotoEntry[]) => {
+        const history = Array.isArray(data) ? data : [];
+        // Prepend current photo as index 0
+        if (avatarSrc) {
+          const current: PhotoEntry = {
+            id: -1, type: "profile", fileName: "", thumbName: null,
+            url: avatarSrc, thumbUrl: avatarSrc, postId: null, caption: null,
+            createdAt: new Date().toISOString(),
+          };
+          setViewerPhotos([current, ...history]);
+        } else {
+          setViewerPhotos(history);
+        }
+        setViewerOpen(true);
+      })
+      .catch(() => {
+        if (avatarSrc) {
+          setViewerPhotos([{ id: -1, type: "profile", fileName: "", thumbName: null, url: avatarSrc, thumbUrl: avatarSrc, postId: null, caption: null, createdAt: new Date().toISOString() }]);
+          setViewerOpen(true);
+        }
+      });
+  }
+
+  function handleAvatarTap() {
+    if (member.isOwn) {
+      setSheetOpen(true);
+    } else {
+      openViewer();
+    }
+  }
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSheetOpen(false);
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("type", "profile");
+    try {
+      const res = await fetch(`/api/members/${member.id}/photo`, { method: "POST", body: fd });
+      if (res.ok) {
+        // Refresh page to show new photo
+        window.location.reload();
+      }
+    } catch { /* silent */ }
+    e.target.value = "";
+  }
 
   return (
     <>
     <div style={{ minHeight: "100vh", background: "#f1f5f9", maxWidth: 480, margin: "0 auto", position: "relative" }}>
 
-      {/* ── Cover photo ───────────────────────────────────────────── */}
+      {/* ── Cover photo ──────────────────────────────────────────────────── */}
       <div style={{ position: "relative", height: 220, background: `linear-gradient(160deg, #0f2d3d 0%, ${PRIMARY} 100%)`, overflow: "hidden" }}>
         {coverSrc && (
-          <Image
-            src={coverSrc} alt="Cover" fill sizes="480px"
+          <Image src={coverSrc} alt="Cover" fill sizes="480px"
             style={{ objectFit: "cover", objectPosition: `${member.coverPhotoPositionX ?? 50}% ${member.coverPhotoPositionY ?? 50}%` }}
           />
         )}
-        {/* Vignette */}
         <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 80, background: "linear-gradient(to bottom, rgba(0,0,0,0.4), transparent)", pointerEvents: "none" }} />
 
-        {/* Back button */}
-        <Link
-          href="/directory"
-          style={{ position: "absolute", top: "0.875rem", left: "0.875rem", width: 36, height: 36, borderRadius: "50%", background: "rgba(0,0,0,0.38)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.25)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", textDecoration: "none", fontSize: "1rem", fontWeight: 700 }}
-        >←</Link>
+        <Link href="/directory"
+          style={{ position: "absolute", top: "0.875rem", left: "0.875rem", width: 36, height: 36, borderRadius: "50%", background: "rgba(0,0,0,0.38)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.25)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", textDecoration: "none", fontSize: "1rem", fontWeight: 700 }}>←</Link>
 
-        {/* Edit button (own profile) */}
         {member.isOwn && (
-          <Link
-            href="/profile/edit"
-            style={{ position: "absolute", top: "0.875rem", right: "0.875rem", width: 36, height: 36, borderRadius: "50%", background: PRIMARY, border: "1px solid rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", textDecoration: "none", fontSize: "1rem" }}
-          >✏️</Link>
+          <Link href="/profile/edit"
+            style={{ position: "absolute", top: "0.875rem", right: "0.875rem", width: 36, height: 36, borderRadius: "50%", background: PRIMARY, border: "1px solid rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", textDecoration: "none", fontSize: "1rem" }}>✏️</Link>
         )}
       </div>
 
-      {/* ── Hero card: Avatar + Name side-by-side ─────────────────── */}
+      {/* ── Hero card ────────────────────────────────────────────────────── */}
       <div style={{ background: "white", padding: "0 1rem 1rem", position: "relative" }}>
         <div style={{ display: "flex", alignItems: "flex-end", gap: "0.875rem", marginTop: -44 }}>
-          {/* Clickable Avatar */}
+
+          {/* Clickable avatar — NO "VIEW" text */}
           <button
-            onClick={() => setPhotoViewerOpen(true)}
+            onClick={handleAvatarTap}
             style={{ width: 88, height: 88, borderRadius: "50%", border: "4px solid white",
               boxShadow: "0 4px 20px rgba(0,0,0,0.18)", overflow: "hidden", background: `${PRIMARY}20`,
               display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-              padding: 0, cursor: "pointer", position: "relative" }}
+              padding: 0, cursor: "pointer" }}
             aria-label="View profile photo"
           >
             {avatarSrc ? (
@@ -443,14 +340,9 @@ export default function ProfileClient({ member }: { member: ProfileData }) {
             ) : (
               <span style={{ fontSize: "2rem", fontWeight: 900, color: PRIMARY }}>{initials}</span>
             )}
-            {/* Camera hint overlay */}
-            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "30%",
-              background: "rgba(0,0,0,0.35)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ color: "white", fontSize: "0.55rem", fontWeight: 700, letterSpacing: "0.03em" }}>VIEW</span>
-            </div>
           </button>
 
-          {/* Name + badges inline, post button far right */}
+          {/* Name + badges inline */}
           <div style={{ flex: 1, paddingBottom: "0.5rem", minWidth: 0 }}>
             <h1 style={{ fontSize: "1.125rem", fontWeight: 900, color: "#0f172a", margin: "0 0 0.25rem", letterSpacing: "-0.02em", lineHeight: 1.2 }}>
               {fullName}
@@ -471,10 +363,8 @@ export default function ProfileClient({ member }: { member: ProfileData }) {
 
           {/* Post / Member badge */}
           {member.isOwn ? (
-            <Link
-              href="/feed/create"
-              style={{ marginBottom: "0.5rem", background: PRIMARY, color: "white", textDecoration: "none", padding: "0.45rem 1rem", borderRadius: "999px", fontSize: "0.78rem", fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}
-            >✍️ Post</Link>
+            <Link href="/feed/create"
+              style={{ marginBottom: "0.5rem", background: PRIMARY, color: "white", textDecoration: "none", padding: "0.45rem 1rem", borderRadius: "999px", fontSize: "0.78rem", fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>✍️ Post</Link>
           ) : (
             <div style={{ marginBottom: "0.5rem", background: `${PRIMARY}15`, color: PRIMARY, padding: "0.45rem 1rem", borderRadius: "999px", fontSize: "0.78rem", fontWeight: 700, flexShrink: 0 }}>
               👤 Member
@@ -482,7 +372,6 @@ export default function ProfileClient({ member }: { member: ProfileData }) {
           )}
         </div>
 
-        {/* Favorite verse */}
         {member.favoriteVerse && (
           <p style={{ fontSize: "0.8rem", color: "#64748b", fontStyle: "italic", lineHeight: 1.55, margin: "0.5rem 0 0" }}>
             &ldquo;{member.favoriteVerse.slice(0, 100)}{member.favoriteVerse.length > 100 ? "…" : ""}&rdquo;
@@ -490,19 +379,13 @@ export default function ProfileClient({ member }: { member: ProfileData }) {
         )}
       </div>
 
-      {/* ── Sticky Tab Bar ────────────────────────────────────────── */}
-      <div
-        ref={tabBarRef}
-        style={{ position: "sticky", top: 0, zIndex: 50, background: "white", borderBottom: "1.5px solid #e2e8f0", display: "flex", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
-      >
+      {/* ── Sticky Tab Bar ───────────────────────────────────────────────── */}
+      <div ref={tabBarRef} style={{ position: "sticky", top: 0, zIndex: 50, background: "white", borderBottom: "1.5px solid #e2e8f0", display: "flex", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
         {TABS.map((tab) => {
           const isActive = activeTab === tab.key;
           return (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key as typeof activeTab)}
-              style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "0.125rem", padding: "0.625rem 0", background: "none", border: "none", cursor: "pointer", borderBottom: isActive ? `2.5px solid ${PRIMARY}` : "2.5px solid transparent", color: isActive ? PRIMARY : "#94a3b8", fontWeight: isActive ? 700 : 500, fontSize: "0.72rem", transition: "all 0.15s" }}
-            >
+            <button key={tab.key} onClick={() => setActiveTab(tab.key as typeof activeTab)}
+              style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "0.125rem", padding: "0.625rem 0", background: "none", border: "none", cursor: "pointer", borderBottom: isActive ? `2.5px solid ${PRIMARY}` : "2.5px solid transparent", color: isActive ? PRIMARY : "#94a3b8", fontWeight: isActive ? 700 : 500, fontSize: "0.72rem", transition: "all 0.15s" }}>
               <span style={{ fontSize: "1.05rem" }}>{tab.icon}</span>
               {tab.label}
             </button>
@@ -510,21 +393,57 @@ export default function ProfileClient({ member }: { member: ProfileData }) {
         })}
       </div>
 
-      {/* ── Tab Content ───────────────────────────────────────────── */}
-      {activeTab === "wall" && <WallTab memberId={member.id} isOwn={member.isOwn} />}
-      {activeTab === "about" && <AboutTab m={member} />}
-      {activeTab === "ministries" && <MinistriesTab ministries={member.ministries} />}
+      {/* Tab content */}
+      {activeTab === "wall"       && <WallTab       memberId={member.id} isOwn={member.isOwn} />}
+      {activeTab === "about"      && <AboutTab       m={member} />}
+      {activeTab === "ministries" && <MinistriesTab  ministries={member.ministries} />}
 
       <div style={{ height: "3rem" }} />
     </div>
 
-    {/* Profile photo viewer */}
-    {photoViewerOpen && (
-      <ProfilePhotoViewer
+    {/* ── Own-profile bottom sheet ─────────────────────────────────────── */}
+    {sheetOpen && (
+      <>
+        {/* Backdrop */}
+        <div onClick={() => setSheetOpen(false)}
+          style={{ position: "fixed", inset: 0, zIndex: 9998, background: "rgba(0,0,0,0.45)" }} />
+        {/* Sheet */}
+        <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, zIndex: 9999,
+          background: "white", borderRadius: "20px 20px 0 0", padding: "0.75rem 0 calc(1.5rem + env(safe-area-inset-bottom, 0px))", boxShadow: "0 -4px 32px rgba(0,0,0,0.18)" }}>
+          {/* Handle */}
+          <div style={{ width: 40, height: 4, background: "#e2e8f0", borderRadius: 999, margin: "0 auto 1rem" }} />
+          <button onClick={() => { setSheetOpen(false); openViewer(); }}
+            style={{ width: "100%", display: "flex", alignItems: "center", gap: "1rem", padding: "0.875rem 1.5rem", background: "none", border: "none", cursor: "pointer", fontSize: "0.95rem", fontWeight: 600, color: "#1e293b" }}>
+            <span style={{ fontSize: "1.3rem" }}>👁</span> See profile picture
+          </button>
+          <button onClick={() => { fileInputRef.current?.click(); }}
+            style={{ width: "100%", display: "flex", alignItems: "center", gap: "1rem", padding: "0.875rem 1.5rem", background: "none", border: "none", cursor: "pointer", fontSize: "0.95rem", fontWeight: 600, color: "#1e293b" }}>
+            <span style={{ fontSize: "1.3rem" }}>📷</span> Choose profile picture
+          </button>
+        </div>
+      </>
+    )}
+
+    {/* Hidden file input — triggers phone gallery */}
+    <input
+      ref={fileInputRef}
+      type="file"
+      accept="image/png,image/jpeg,image/webp,image/heic,image/heif"
+      style={{ display: "none" }}
+      onChange={handleFileChange}
+    />
+
+    {/* ── Photo post viewer ────────────────────────────────────────────── */}
+    {viewerOpen && viewerPhotos.length > 0 && (
+      <PhotoPostViewer
+        photos={viewerPhotos}
+        startIndex={0}
         memberId={member.id}
+        memberName={fullName}
+        memberAvatar={avatarSrc}
         isOwn={member.isOwn}
-        currentUrl={avatarSrc}
-        onClose={() => setPhotoViewerOpen(false)}
+        onClose={() => setViewerOpen(false)}
+        onChoosePhoto={member.isOwn ? () => { setViewerOpen(false); fileInputRef.current?.click(); } : undefined}
       />
     )}
     </>

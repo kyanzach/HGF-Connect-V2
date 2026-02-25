@@ -16,8 +16,11 @@ const AGE_ICONS: Record<string, string> = { Adult: "👤", Youth: "🌱", Kids: 
 interface MemberMinistry { id: number; ministry: { name: string } }
 interface Member {
   id: number; firstName: string; lastName: string;
-  profilePicture: string | null; type: string;
+  profilePicture: string | null; coverPhoto: string | null; type: string;
   ageGroup: string | null; joinDate: string | null;
+  birthdate: string | null; baptismDate: string | null;
+  invitedBy: string | null; familyMembers: string | null;
+  phone: string | null; address: string | null;
   favoriteVerse: string | null; ministries: MemberMinistry[];
 }
 
@@ -26,83 +29,111 @@ function since(d: string | null) {
   return new Date(d).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "Asia/Manila" });
 }
 
-// Both cover and profile photos are stored in the same profile_pictures folder
-const pic = (f: string | null) => f ? `/uploads/profile_pictures/${f}` : null;
+function completenessScore(m: Member): number {
+  let s = 0;
+  if (m.profilePicture) s += 2;
+  if (m.coverPhoto)     s += 2;
+  if (m.birthdate)      s += 1;
+  if (m.baptismDate)    s += 1;
+  if (m.invitedBy)      s += 1;
+  if (m.familyMembers)  s += 1;
+  if (m.phone)          s += 1;
+  if (m.address)        s += 1;
+  if (m.favoriteVerse)  s += 1;
+  return s;
+}
+
+const profilePic  = (f: string | null) => f ? `/uploads/profile_pictures/${f}` : null;
+const coverPicUrl = (f: string | null) => f ? `/uploads/cover_photos/${f}`     : null;
 
 function MemberCard({ m }: { m: Member }) {
   const color = TYPE_COLORS[m.type] ?? PRIMARY;
   const initials = `${m.firstName?.[0] ?? ""}${m.lastName?.[0] ?? ""}`;
-  const avatarSrc = pic(m.profilePicture);
+  const avatarSrc = profilePic(m.profilePicture);
+  const coverSrc  = coverPicUrl(m.coverPhoto);
   const sinceLabel = since(m.joinDate);
 
   return (
     <Link href={`/member/${m.id}`} style={{ textDecoration: "none", display: "block" }}>
       <div style={{
-        background: "white", borderRadius: "18px", overflow: "hidden",
-        boxShadow: "0 2px 12px rgba(0,0,0,0.06)", marginBottom: "0.75rem",
+        position: "relative", borderRadius: "18px", overflow: "hidden",
+        boxShadow: "0 2px 12px rgba(0,0,0,0.08)", marginBottom: "0.75rem",
         border: "1px solid #e8edf3", transition: "transform 0.15s, box-shadow 0.15s",
-        cursor: "pointer",
+        cursor: "pointer", minHeight: 88,
       }}
         onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"; (e.currentTarget as HTMLElement).style.boxShadow = "0 8px 24px rgba(0,0,0,0.1)"; }}
-        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = "none"; (e.currentTarget as HTMLElement).style.boxShadow = "0 2px 12px rgba(0,0,0,0.06)"; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = "none"; (e.currentTarget as HTMLElement).style.boxShadow = "0 2px 12px rgba(0,0,0,0.08)"; }}
       >
-        {/* Card header: avatar left, info right */}
-        <div style={{ padding: "1rem", display: "flex", alignItems: "center", gap: "0.875rem" }}>
-          {/* Avatar */}
-          <div style={{ width: 60, height: 60, borderRadius: "50%", flexShrink: 0, overflow: "hidden", background: `${color}18`, display: "flex", alignItems: "center", justifyContent: "center", border: `2.5px solid ${color}30` }}>
-            {avatarSrc ? (
-              <Image src={avatarSrc} alt={`${m.firstName} ${m.lastName}`} width={60} height={60} style={{ objectFit: "cover", width: 60, height: 60 }} />
-            ) : (
-              <span style={{ fontSize: "1.375rem", fontWeight: 900, color }}>{initials}</span>
-            )}
-          </div>
-          {/* Name + badges */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <h3 style={{ fontSize: "1rem", fontWeight: 800, color: "#0f172a", margin: "0 0 0.3rem", letterSpacing: "-0.01em" }}>
-              {m.firstName} {m.lastName}
-            </h3>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.3rem" }}>
-              {/* Age/type badge */}
-              <span style={{ fontSize: "0.68rem", fontWeight: 700, color, background: `${color}14`, padding: "0.15rem 0.55rem", borderRadius: "999px", border: `1px solid ${color}25` }}>
-                {m.ageGroup ? `${AGE_ICONS[m.ageGroup] ?? ""} ${m.ageGroup}` : m.type.replace(/([A-Z])/g, " $1").trim()}
-              </span>
-              {/* Member since */}
-              {sinceLabel && (
-                <span style={{ fontSize: "0.68rem", fontWeight: 600, color: "#64748b", background: "#f1f5f9", border: "1px solid #e2e8f0", padding: "0.15rem 0.55rem", borderRadius: "999px" }}>
-                  📅 {sinceLabel}
-                </span>
+        {/* Cover photo background */}
+        {coverSrc && (
+          <img src={coverSrc} alt="" aria-hidden
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", zIndex: 0 }} />
+        )}
+        {/* White gradient overlay: opaque left → transparent right */}
+        <div style={{ position: "absolute", inset: 0,
+          background: coverSrc
+            ? "linear-gradient(to right, rgba(255,255,255,0.97) 38%, rgba(255,255,255,0.6) 65%, rgba(255,255,255,0) 100%)"
+            : "white",
+          zIndex: 1 }} />
+
+        {/* Card content */}
+        <div style={{ position: "relative", zIndex: 2 }}>
+          {/* Header: avatar + info */}
+          <div style={{ padding: "1rem", display: "flex", alignItems: "center", gap: "0.875rem" }}>
+            {/* Avatar */}
+            <div style={{ width: 60, height: 60, borderRadius: "50%", flexShrink: 0, overflow: "hidden", background: `${color}18`, display: "flex", alignItems: "center", justifyContent: "center", border: `2.5px solid ${color}30`, boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }}>
+              {avatarSrc ? (
+                <Image src={avatarSrc} alt={`${m.firstName} ${m.lastName}`} width={60} height={60} style={{ objectFit: "cover", width: 60, height: 60 }} />
+              ) : (
+                <span style={{ fontSize: "1.375rem", fontWeight: 900, color }}>{initials}</span>
               )}
             </div>
+            {/* Name + badges */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <h3 style={{ fontSize: "1rem", fontWeight: 800, color: "#0f172a", margin: "0 0 0.3rem", letterSpacing: "-0.01em" }}>
+                {m.firstName} {m.lastName}
+              </h3>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.3rem" }}>
+                <span style={{ fontSize: "0.68rem", fontWeight: 700, color, background: `${color}14`, padding: "0.15rem 0.55rem", borderRadius: "999px", border: `1px solid ${color}25` }}>
+                  {m.ageGroup ? `${AGE_ICONS[m.ageGroup] ?? ""} ${m.ageGroup}` : m.type.replace(/([A-Z])/g, " $1").trim()}
+                </span>
+                {sinceLabel && (
+                  <span style={{ fontSize: "0.68rem", fontWeight: 600, color: "#64748b", background: "rgba(241,245,249,0.9)", border: "1px solid #e2e8f0", padding: "0.15rem 0.55rem", borderRadius: "999px" }}>
+                    📅 {sinceLabel}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
+
+          {/* Ministry strip */}
+          {m.ministries.length > 0 && (
+            <div style={{ padding: "0 1rem 0.875rem", borderTop: "1px solid rgba(248,250,252,0.8)", paddingTop: "0.75rem" }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.3rem" }}>
+                {m.ministries.slice(0, 4).map((mm) => (
+                  <span key={mm.id} style={{ fontSize: "0.7rem", fontWeight: 700, background: PRIMARY, color: "white", padding: "0.2rem 0.6rem", borderRadius: "6px" }}>
+                    {mm.ministry.name}
+                  </span>
+                ))}
+                {m.ministries.length > 4 && (
+                  <span style={{ fontSize: "0.7rem", fontWeight: 700, background: "rgba(241,245,249,0.9)", color: "#64748b", padding: "0.2rem 0.6rem", borderRadius: "6px" }}>
+                    +{m.ministries.length - 4} more
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Bible verse */}
+          {m.favoriteVerse && (
+            <div style={{ padding: "0.75rem 1rem", borderTop: "1px solid rgba(248,250,252,0.8)", display: "flex", alignItems: "flex-start", gap: "0.5rem" }}>
+              <span style={{ color: PRIMARY, fontSize: "1rem", flexShrink: 0, lineHeight: 1.4 }}>✝️</span>
+              <p style={{ fontSize: "0.8rem", fontStyle: "italic", color: "#64748b", lineHeight: 1.55, margin: 0 }}>
+                &ldquo;{m.favoriteVerse.length > 100 ? m.favoriteVerse.slice(0, 100) + "…" : m.favoriteVerse}&rdquo;
+              </p>
+            </div>
+          )}
         </div>
-
-        {/* Ministry strip */}
-        {m.ministries.length > 0 && (
-          <div style={{ padding: "0 1rem 0.875rem", borderTop: "1px solid #f8fafc", paddingTop: "0.75rem" }}>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.3rem" }}>
-              {m.ministries.slice(0, 4).map((mm) => (
-                <span key={mm.id} style={{ fontSize: "0.7rem", fontWeight: 700, background: PRIMARY, color: "white", padding: "0.2rem 0.6rem", borderRadius: "6px" }}>
-                  {mm.ministry.name}
-                </span>
-              ))}
-              {m.ministries.length > 4 && (
-                <span style={{ fontSize: "0.7rem", fontWeight: 700, background: "#f1f5f9", color: "#64748b", padding: "0.2rem 0.6rem", borderRadius: "6px" }}>
-                  +{m.ministries.length - 4} more
-                </span>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Bible verse */}
-        {m.favoriteVerse && (
-          <div style={{ padding: "0.75rem 1rem", borderTop: "1px solid #f8fafc", display: "flex", alignItems: "flex-start", gap: "0.5rem" }}>
-            <span style={{ color: PRIMARY, fontSize: "1rem", flexShrink: 0, lineHeight: 1.4 }}>✝️</span>
-            <p style={{ fontSize: "0.8rem", fontStyle: "italic", color: "#64748b", lineHeight: 1.55, margin: 0 }}>
-              &ldquo;{m.favoriteVerse.length > 100 ? m.favoriteVerse.slice(0, 100) + "…" : m.favoriteVerse}&rdquo;
-            </p>
-          </div>
-        )}
       </div>
     </Link>
   );
@@ -116,7 +147,7 @@ export default function DirectoryPage() {
   const [type, setType] = useState("all");
   const [age, setAge] = useState("all");
   const [ministry, setMinistry] = useState("all");
-  const [sort, setSort] = useState("name");
+  const [sort, setSort] = useState("complete");
 
   useEffect(() => {
     Promise.all([
@@ -140,7 +171,10 @@ export default function DirectoryPage() {
     if (ministry !== "all") list = list.filter((m) => m.ministries.some((mm) => mm.ministry.name === ministry));
     return [...list].sort((a, b) => {
       if (sort === "newest") return (b.joinDate ?? "").localeCompare(a.joinDate ?? "");
-      return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
+      if (sort === "name")   return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
+      // Default ("complete"): sort by completeness score descending, then name
+      const diff = completenessScore(b) - completenessScore(a);
+      return diff !== 0 ? diff : `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
     });
   }, [members, search, type, age, ministry, sort]);
 
@@ -192,6 +226,7 @@ export default function DirectoryPage() {
               { v: "Kids", l: "🧒 Kids" },
             ])}
             {sel(sort, setSort, [
+              { v: "complete", l: "⭐ Complete" },
               { v: "name", l: "A → Z" },
               { v: "newest", l: "Newest" },
             ])}

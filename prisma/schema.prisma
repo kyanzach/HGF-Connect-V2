@@ -201,6 +201,8 @@ model MemberPhotoHistory {
   type      String   @db.VarChar(10)    // "profile" | "cover"
   fileName  String   @db.VarChar(255)
   thumbName String?  @db.VarChar(255)   // null for cover (no thumb)
+  postId    Int?     @map("post_id")    // linked Post for likes/comments
+  caption   String?  @db.Text           // user-editable caption
   createdAt DateTime @default(now()) @map("created_at")
 
   member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
@@ -613,6 +615,8 @@ enum PostType {
   EVENT
   PRAYER
   PRAISE
+  PROFILE_PHOTO
+  COVER_PHOTO
 }
 
 enum PostVisibility {
