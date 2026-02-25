@@ -254,22 +254,27 @@ export default function ProfileClient({ member }: { member: ProfileData }) {
       .then(r => r.json())
       .then((data: PhotoEntry[]) => {
         const history = Array.isArray(data) ? data : [];
-        // Prepend current photo as index 0
-        if (avatarSrc) {
-          const current: PhotoEntry = {
-            id: -1, type: "profile", fileName: "", thumbName: null,
-            url: avatarSrc, thumbUrl: avatarSrc, postId: null, caption: null,
-            createdAt: new Date().toISOString(),
-          };
-          setViewerPhotos([current, ...history]);
-        } else {
+        // Use history directly — index 0 is the current photo (most recent upload)
+        // The DB bootstrap seeded history rows for all existing members, so this works.
+        if (history.length > 0) {
           setViewerPhotos(history);
+        } else if (avatarSrc) {
+          // Fallback for accounts with no history rows at all
+          setViewerPhotos([{
+            id: -1, type: "profile", fileName: member.profilePicture ?? "", thumbName: null,
+            url: avatarSrc, thumbUrl: avatarSrc, postId: null, caption: null,
+            createdAt: member.joinDate ?? new Date().toISOString(),
+          }]);
         }
         setViewerOpen(true);
       })
       .catch(() => {
         if (avatarSrc) {
-          setViewerPhotos([{ id: -1, type: "profile", fileName: "", thumbName: null, url: avatarSrc, thumbUrl: avatarSrc, postId: null, caption: null, createdAt: new Date().toISOString() }]);
+          setViewerPhotos([{
+            id: -1, type: "profile", fileName: member.profilePicture ?? "", thumbName: null,
+            url: avatarSrc, thumbUrl: avatarSrc, postId: null, caption: null,
+            createdAt: member.joinDate ?? new Date().toISOString(),
+          }]);
           setViewerOpen(true);
         }
       });

@@ -68,6 +68,7 @@ export default async function HomePage() {
           style={{
             background: `linear-gradient(145deg, #1a7a94 0%, ${PRIMARY} 100%)`,
             padding: "1.75rem 1.25rem 2rem",
+            paddingTop: "calc(1.75rem + env(safe-area-inset-top, 0px))",
             position: "relative",
             overflow: "hidden",
             textAlign: "center",

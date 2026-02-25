@@ -39,7 +39,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   );
 }
 
-// ── PATCH /api/members/[id]/photo-history { historyId, caption } ── edit caption
+// ── PATCH /api/members/[id]/photo-history { historyId, caption, type? } ── edit caption
 export async function PATCH(req: NextRequest, { params }: Params) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -49,17 +49,50 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (session.user.id !== String(id))
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const { historyId, caption } = await req.json();
-  if (!historyId) return NextResponse.json({ error: "historyId required" }, { status: 400 });
+  const { historyId, caption, type: photoType } = await req.json();
+  const ptype = photoType === "cover" ? "cover" : "profile";
 
-  const entry = await (db as any).memberPhotoHistory.findFirst({
-    where: { id: historyId, memberId: id },
-  });
-  if (!entry) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  let entry: any = null;
 
-  // Update caption on history row
+  // If historyId is valid (> 0), look it up directly
+  if (historyId && historyId > 0) {
+    entry = await (db as any).memberPhotoHistory.findFirst({
+      where: { id: historyId, memberId: id },
+    });
+  }
+
+  // If entry still not found (historyId=-1 or missing), find/create from current photo
+  if (!entry) {
+    const member = await (db as any).member.findUnique({
+      where: { id },
+      select: { profilePicture: true, profilePictureThumbnail: true, coverPhoto: true },
+    });
+    const currentFileName = ptype === "cover" ? member?.coverPhoto : member?.profilePicture;
+    if (!currentFileName) return NextResponse.json({ error: "No current photo" }, { status: 404 });
+
+    // Find existing history row for this file
+    entry = await (db as any).memberPhotoHistory.findFirst({
+      where: { memberId: id, type: ptype, fileName: currentFileName },
+      orderBy: { createdAt: "desc" },
+    });
+
+    // Create one if it doesn't exist yet
+    if (!entry) {
+      entry = await (db as any).memberPhotoHistory.create({
+        data: {
+          memberId: id,
+          type: ptype,
+          fileName: currentFileName,
+          thumbName: ptype === "profile" ? ((member as any)?.profilePictureThumbnail ?? null) : null,
+          caption: null,
+        },
+      });
+    }
+  }
+
+  // Save caption on history row
   await (db as any).memberPhotoHistory.update({
-    where: { id: historyId },
+    where: { id: entry.id },
     data: { caption: caption ?? null },
   });
 
@@ -71,7 +104,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     });
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, historyId: entry.id });
 }
 
 // ── POST /api/members/[id]/photo-history { historyId } ─── restore ───────────
