@@ -199,8 +199,8 @@ model MemberPhotoHistory {
   id        Int      @id @default(autoincrement())
   memberId  Int      @map("member_id")
   type      String   @db.VarChar(10)    // "profile" | "cover"
-  fileName  String   @db.VarChar(255)
-  thumbName String?  @db.VarChar(255)   // null for cover (no thumb)
+  fileName  String   @map("file_name") @db.VarChar(255)
+  thumbName String?  @map("thumb_name") @db.VarChar(255)   // null for cover (no thumb)
   postId    Int?     @map("post_id")    // linked Post for likes/comments
   caption   String?  @db.Text           // user-editable caption
   createdAt DateTime @default(now()) @map("created_at")
@@ -210,6 +210,7 @@ model MemberPhotoHistory {
   @@index([memberId, type])
   @@map("member_photo_history")
 }
+
 
 model MemberStatusHistory {
   id          Int           @id @default(autoincrement())
