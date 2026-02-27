@@ -40,7 +40,7 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
 
   // Load existing listing data
   useEffect(() => {
-    fetch(`/api/stewardshop/listings/${id}`)
+    fetch(`/api/marketplace/listings/${id}`)
       .then((r) => r.json())
       .then((d) => {
         if (!d.listing) return;
@@ -88,7 +88,7 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
       for (const file of files) {
         const fd = new FormData();
         fd.append("file", file);
-        const res = await fetch("/api/stewardshop/upload", { method: "POST", body: fd });
+        const res = await fetch("/api/marketplace/upload", { method: "POST", body: fd });
         if (!res.ok) throw new Error((await res.json()).error ?? "Upload failed");
         const data = await res.json();
         uploaded.push(data.photoPath);
@@ -107,7 +107,7 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
     if (!form.title.trim()) { setError("Title is required"); return; }
     setSubmitting(true); setError("");
     try {
-      const res = await fetch(`/api/stewardshop/listings/${id}`, {
+      const res = await fetch(`/api/marketplace/listings/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

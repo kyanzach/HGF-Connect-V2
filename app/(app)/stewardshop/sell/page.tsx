@@ -73,7 +73,7 @@ export default function SellPage() {
       for (const file of files) {
         const fd = new FormData();
         fd.append("file", file);
-        const res = await fetch("/api/stewardshop/upload", { method: "POST", body: fd });
+        const res = await fetch("/api/marketplace/upload", { method: "POST", body: fd });
         if (!res.ok) throw new Error((await res.json()).error ?? "Upload failed");
         const data = await res.json();
         uploaded.push(data.photoPath);
@@ -97,7 +97,7 @@ export default function SellPage() {
     if (!form.title.trim()) { setError("Title is required"); return; }
     setSubmitting(true); setError("");
     try {
-      const res = await fetch("/api/stewardshop/listings", {
+      const res = await fetch("/api/marketplace/listings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

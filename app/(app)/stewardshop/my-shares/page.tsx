@@ -21,7 +21,7 @@ export default function MySharesPage() {
   const [copied, setCopied] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/stewardshop/shares/mine")
+    fetch("/api/marketplace/shares/mine")
       .then((r) => r.json())
       .then((d) => setShares(d.shares ?? []))
       .catch(() => {})

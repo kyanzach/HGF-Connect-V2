@@ -233,7 +233,7 @@ function SharePanel({ listingId, loveGiftAmount, title }: { listingId: number; l
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/stewardshop/listings/${listingId}/share`)
+    fetch(`/api/marketplace/listings/${listingId}/share`)
       .then((r) => r.json())
       .then((d) => {
         if (d.shareLink) { setShareLink(d.shareLink); setShareCode(d.shareCode); }
@@ -244,7 +244,7 @@ function SharePanel({ listingId, loveGiftAmount, title }: { listingId: number; l
   async function generateLink() {
     setLoading(true);
     try {
-      const res = await fetch(`/api/stewardshop/listings/${listingId}/share`, { method: "POST" });
+      const res = await fetch(`/api/marketplace/listings/${listingId}/share`, { method: "POST" });
       const data = await res.json();
       if (data.shareLink) { setShareLink(data.shareLink); setShareCode(data.shareCode); }
     } catch { /* silent */ } finally { setLoading(false); }
@@ -317,7 +317,7 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
   const localKey = `hgf_reveal_${listing.id}`;
 
   const logEvent = useCallback((event: string) => {
-    fetch("/api/stewardshop/impressions", {
+    fetch("/api/marketplace/impressions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ listingId: listing.id, shareCode: shareToken ?? null, event }),
@@ -362,7 +362,7 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
 
     setSubmitting(true); setError("");
     try {
-      const res = await fetch("/api/stewardshop/prospects", {
+      const res = await fetch("/api/marketplace/prospects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

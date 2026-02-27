@@ -29,7 +29,7 @@ export default function MyListingsPage() {
   const [acting, setActing] = useState<number | null>(null);
 
   useEffect(() => {
-    fetch("/api/stewardshop/listings/mine")
+    fetch("/api/marketplace/listings/mine")
       .then((r) => r.json())
       .then((d) => setListings(d.listings ?? []))
       .catch(() => {})
@@ -40,7 +40,7 @@ export default function MyListingsPage() {
     if (!confirm(confirmMsg)) return;
     setActing(listingId);
     try {
-      const res = await fetch(`/api/stewardshop/listings/${listingId}`, {
+      const res = await fetch(`/api/marketplace/listings/${listingId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),
