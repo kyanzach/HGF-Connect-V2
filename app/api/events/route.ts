@@ -30,28 +30,63 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const body = await request.json();
-  const { title, description, eventDate, startTime, endTime, location, eventType } = body;
+  try {
+    const body = await request.json();
+    const { title, description, eventDate, startTime, endTime, location, eventType } = body;
 
-  if (!title || !eventDate || !startTime || !eventType) {
+    if (!title || !eventDate || !startTime || !eventType) {
+      return NextResponse.json(
+        { error: "title, eventDate, startTime, and eventType are required" },
+        { status: 400 }
+      );
+    }
+
+    const event = await db.event.create({
+      data: {
+        title,
+        description,
+        eventDate: new Date(eventDate),
+        startTime: new Date(`1970-01-01T${startTime}`),
+        endTime: endTime ? new Date(`1970-01-01T${endTime}`) : null,
+        location,
+        eventType: eventType as any,
+        createdBy: parseInt(session.user.id),
+      },
+    });
+
+    // ── Auto-post to Community Feed so members see the new event ──────────
+    try {
+      const eventDateFormatted = new Date(eventDate).toLocaleDateString("en-PH", {
+        weekday: "long", month: "long", day: "numeric", year: "numeric",
+      });
+
+      const feedContent = [
+        `📅 New Event: ${title}`,
+        `🗓️ ${eventDateFormatted}`,
+        `🕒 ${startTime}${endTime ? ` – ${endTime}` : ""}`,
+        location ? `📍 ${location}` : null,
+        description ? `\n${description}` : null,
+      ].filter(Boolean).join("\n");
+
+      await (db as any).post.create({
+        data: {
+          authorId: parseInt(session.user.id),
+          type: "EVENT",
+          content: feedContent,
+          visibility: "MEMBERS_ONLY",
+        },
+      });
+    } catch (postError) {
+      console.error("Auto-post creation failed:", postError);
+      // We don't fail the whole request if only the social post fails
+    }
+
+    return NextResponse.json({ success: true, event }, { status: 201 });
+  } catch (error: any) {
+    console.error("Error in POST /api/events:", error);
     return NextResponse.json(
-      { error: "title, eventDate, startTime, and eventType are required" },
-      { status: 400 }
+      { error: error.message || "Internal Server Error" },
+      { status: 500 }
     );
   }
-
-  const event = await db.event.create({
-    data: {
-      title,
-      description,
-      eventDate: new Date(eventDate),
-      startTime: new Date(`1970-01-01T${startTime}`),
-      endTime: endTime ? new Date(`1970-01-01T${endTime}`) : null,
-      location,
-      eventType: eventType as any,
-      createdBy: parseInt(session.user.id),
-    },
-  });
-
-  return NextResponse.json({ success: true, event }, { status: 201 });
 }
