@@ -128,7 +128,7 @@ export default async function UserDashboardPage() {
               { href: "/events", icon: "📅", label: "View Events" },
               { href: "/directory", icon: "👥", label: "Member Directory" },
               { href: "/resources", icon: "📖", label: "Resources" },
-              { href: "/marketplace", icon: "🏪", label: "Marketplace" },
+              { href: "/stewardshop", icon: "🏪", label: "Marketplace" },
             ].map((item) => (
               <Link
                 key={item.href}

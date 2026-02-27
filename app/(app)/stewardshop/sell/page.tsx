@@ -73,7 +73,7 @@ export default function SellPage() {
       for (const file of files) {
         const fd = new FormData();
         fd.append("file", file);
-        const res = await fetch("/api/marketplace/upload", { method: "POST", body: fd });
+        const res = await fetch("/api/stewardshop/upload", { method: "POST", body: fd });
         if (!res.ok) throw new Error((await res.json()).error ?? "Upload failed");
         const data = await res.json();
         uploaded.push(data.photoPath);
@@ -97,7 +97,7 @@ export default function SellPage() {
     if (!form.title.trim()) { setError("Title is required"); return; }
     setSubmitting(true); setError("");
     try {
-      const res = await fetch("/api/marketplace/listings", {
+      const res = await fetch("/api/stewardshop/listings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -116,7 +116,7 @@ export default function SellPage() {
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Failed");
       const { listing } = await res.json();
-      router.push(`/marketplace/${listing.id}`);
+      router.push(`/stewardshop/${listing.id}`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to create listing");
     } finally {
@@ -173,7 +173,7 @@ export default function SellPage() {
             <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "0.75rem" }}>
               {photoPaths.map((path) => (
                 <div key={path} style={{ position: "relative", width: 72, height: 72 }}>
-                  <img src={`/uploads/marketplace/${path}`} alt="photo" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", borderRadius: "8px" }} />
+                  <img src={`/uploads/stewardshop/${path}`} alt="photo" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", borderRadius: "8px" }} />
                   <button
                     type="button"
                     onClick={() => setPhotoPaths((prev) => prev.filter((p) => p !== path))}

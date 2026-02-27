@@ -34,7 +34,7 @@ function PhotoCarousel({ photos, title }: { photos: { photoPath: string }[]; tit
       }}
     >
       <img
-        src={`/uploads/marketplace/${photos[idx].photoPath}`}
+        src={`/uploads/stewardshop/${photos[idx].photoPath}`}
         alt={`${title} — photo ${idx + 1}`}
         style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", transition: "opacity 0.2s" }}
       />
@@ -233,7 +233,7 @@ function SharePanel({ listingId, loveGiftAmount, title }: { listingId: number; l
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/marketplace/listings/${listingId}/share`)
+    fetch(`/api/stewardshop/listings/${listingId}/share`)
       .then((r) => r.json())
       .then((d) => {
         if (d.shareLink) { setShareLink(d.shareLink); setShareCode(d.shareCode); }
@@ -244,7 +244,7 @@ function SharePanel({ listingId, loveGiftAmount, title }: { listingId: number; l
   async function generateLink() {
     setLoading(true);
     try {
-      const res = await fetch(`/api/marketplace/listings/${listingId}/share`, { method: "POST" });
+      const res = await fetch(`/api/stewardshop/listings/${listingId}/share`, { method: "POST" });
       const data = await res.json();
       if (data.shareLink) { setShareLink(data.shareLink); setShareCode(data.shareCode); }
     } catch { /* silent */ } finally { setLoading(false); }
@@ -317,7 +317,7 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
   const localKey = `hgf_reveal_${listing.id}`;
 
   const logEvent = useCallback((event: string) => {
-    fetch("/api/marketplace/impressions", {
+    fetch("/api/stewardshop/impressions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ listingId: listing.id, shareCode: shareToken ?? null, event }),
@@ -362,7 +362,7 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
 
     setSubmitting(true); setError("");
     try {
-      const res = await fetch("/api/marketplace/prospects", {
+      const res = await fetch("/api/stewardshop/prospects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -404,7 +404,7 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
 
       {/* Back nav */}
       <div style={{ padding: "0.75rem 1rem", background: "white", borderBottom: "1px solid #f1f5f9" }}>
-        <Link href="/marketplace" style={{ color: PRIMARY, textDecoration: "none", fontWeight: 600, fontSize: "0.875rem" }}>
+        <Link href="/stewardshop" style={{ color: PRIMARY, textDecoration: "none", fontWeight: 600, fontSize: "0.875rem" }}>
           ← Marketplace
         </Link>
       </div>
@@ -523,7 +523,7 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
             <div style={{ fontSize: "0.75rem", color: "#94a3b8" }}>HGF Member · {listing.viewCount} views</div>
           </div>
           {listing.isOwner && (
-            <Link href="/marketplace/my-listings" style={{ marginLeft: "auto", background: "#f1f5f9", color: "#64748b", borderRadius: "999px", padding: "0.35rem 0.875rem", fontSize: "0.75rem", fontWeight: 600, textDecoration: "none" }}>
+            <Link href="/stewardshop/my-listings" style={{ marginLeft: "auto", background: "#f1f5f9", color: "#64748b", borderRadius: "999px", padding: "0.35rem 0.875rem", fontSize: "0.75rem", fontWeight: 600, textDecoration: "none" }}>
               My Listings →
             </Link>
           )}

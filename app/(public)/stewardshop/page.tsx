@@ -101,13 +101,13 @@ export default async function MarketplaceSSRPage({
         </p>
         <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center", flexWrap: "wrap" }}>
           <Link
-            href={isLoggedIn ? "/marketplace/sell" : "/login"}
+            href={isLoggedIn ? "/stewardshop/sell" : "/login"}
             style={{ display: "inline-block", background: "white", color: PRIMARY, padding: "0.5rem 1.5rem", borderRadius: "999px", fontWeight: 700, textDecoration: "none", fontSize: "0.875rem" }}
           >
             + Post a Listing
           </Link>
           <Link
-            href="/marketplace/love-gifts"
+            href="/stewardshop/love-gifts"
             style={{ display: "inline-block", background: "rgba(255,255,255,0.2)", color: "white", padding: "0.5rem 1.25rem", borderRadius: "999px", fontWeight: 600, textDecoration: "none", fontSize: "0.875rem", border: "1px solid rgba(255,255,255,0.35)" }}
           >
             ❤️ Love Gifts
@@ -130,7 +130,7 @@ export default async function MarketplaceSSRPage({
               {total} {total === 1 ? "result" : "results"}
               {q && <> for &ldquo;<strong>{q}</strong>&rdquo;</>}
             </span>
-            <Link href="/marketplace" style={{ fontSize: "0.75rem", color: "#ef4444", textDecoration: "none", fontWeight: 600 }}>
+            <Link href="/stewardshop" style={{ fontSize: "0.75rem", color: "#ef4444", textDecoration: "none", fontWeight: 600 }}>
               ✕ Clear filters
             </Link>
           </div>
@@ -146,11 +146,11 @@ export default async function MarketplaceSSRPage({
               {hasFilters ? "Try adjusting your filters." : "Be the first to post something!"}
             </p>
             {hasFilters ? (
-              <Link href="/marketplace" style={{ display: "inline-block", marginTop: "1rem", background: PRIMARY, color: "white", padding: "0.75rem 2rem", borderRadius: "999px", textDecoration: "none", fontWeight: 700 }}>
+              <Link href="/stewardshop" style={{ display: "inline-block", marginTop: "1rem", background: PRIMARY, color: "white", padding: "0.75rem 2rem", borderRadius: "999px", textDecoration: "none", fontWeight: 700 }}>
                 Clear Filters
               </Link>
             ) : isLoggedIn ? (
-              <Link href="/marketplace/sell" style={{ display: "inline-block", marginTop: "1rem", background: PRIMARY, color: "white", padding: "0.75rem 2rem", borderRadius: "999px", textDecoration: "none", fontWeight: 700 }}>
+              <Link href="/stewardshop/sell" style={{ display: "inline-block", marginTop: "1rem", background: PRIMARY, color: "white", padding: "0.75rem 2rem", borderRadius: "999px", textDecoration: "none", fontWeight: 700 }}>
                 + Post a Listing
               </Link>
             ) : (
@@ -165,7 +165,7 @@ export default async function MarketplaceSSRPage({
               {listings.map((listing) => (
                 <Link
                   key={listing.id}
-                  href={`/marketplace/${listing.id}`}
+                  href={`/stewardshop/${listing.id}`}
                   style={{ textDecoration: "none" }}
                 >
                   <div style={{ background: "white", borderRadius: "14px", overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.09)", minWidth: 0, width: "100%" }}>
@@ -173,7 +173,7 @@ export default async function MarketplaceSSRPage({
                     <div style={{ width: "100%", height: 130, background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2.5rem", position: "relative" }}>
                       {listing.photos[0] ? (
                         <img
-                          src={`/uploads/marketplace/${listing.photos[0].photoPath}`}
+                          src={`/uploads/stewardshop/${listing.photos[0].photoPath}`}
                           alt={listing.title}
                           style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
                         />

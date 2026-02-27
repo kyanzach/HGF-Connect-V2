@@ -77,7 +77,7 @@ export default function LoveGiftsPage() {
 
         {/* CTA */}
         <div style={{ textAlign: "center" }}>
-          <Link href="/marketplace" style={{ display: "inline-block", background: "linear-gradient(135deg, #be123c, #ef4444)", color: "white", borderRadius: "999px", padding: "0.875rem 2rem", textDecoration: "none", fontSize: "1rem", fontWeight: 800, boxShadow: "0 4px 14px rgba(239,68,68,0.4)" }}>
+          <Link href="/stewardshop" style={{ display: "inline-block", background: "linear-gradient(135deg, #be123c, #ef4444)", color: "white", borderRadius: "999px", padding: "0.875rem 2rem", textDecoration: "none", fontSize: "1rem", fontWeight: 800, boxShadow: "0 4px 14px rgba(239,68,68,0.4)" }}>
             Browse Marketplace →
           </Link>
           <p style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: "0.75rem", lineHeight: 1.5 }}>

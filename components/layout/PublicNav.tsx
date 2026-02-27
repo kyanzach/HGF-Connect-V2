@@ -22,7 +22,7 @@ const navLinks = [
   { href: "/", label: "Home", Icon: IconHome },
   { href: "/directory", label: "Member Directory", Icon: IconPeople },
   { href: "/events", label: "Events", Icon: IconCalendar },
-  { href: "/marketplace", label: "Marketplace", Icon: IconShop },
+  { href: "/stewardshop", label: "Marketplace", Icon: IconShop },
   { href: "/resources", label: "Resources", Icon: IconBook },
 ];
 

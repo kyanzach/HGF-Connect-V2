@@ -29,7 +29,7 @@ export default function MyListingsPage() {
   const [acting, setActing] = useState<number | null>(null);
 
   useEffect(() => {
-    fetch("/api/marketplace/listings/mine")
+    fetch("/api/stewardshop/listings/mine")
       .then((r) => r.json())
       .then((d) => setListings(d.listings ?? []))
       .catch(() => {})
@@ -40,7 +40,7 @@ export default function MyListingsPage() {
     if (!confirm(confirmMsg)) return;
     setActing(listingId);
     try {
-      const res = await fetch(`/api/marketplace/listings/${listingId}`, {
+      const res = await fetch(`/api/stewardshop/listings/${listingId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),
@@ -63,7 +63,7 @@ export default function MyListingsPage() {
 
       <div style={{ padding: "1rem" }}>
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "1rem" }}>
-          <Link href="/marketplace/sell" style={{ background: PRIMARY, color: "white", borderRadius: "999px", padding: "0.5rem 1.25rem", textDecoration: "none", fontSize: "0.875rem", fontWeight: 700 }}>
+          <Link href="/stewardshop/sell" style={{ background: PRIMARY, color: "white", borderRadius: "999px", padding: "0.5rem 1.25rem", textDecoration: "none", fontSize: "0.875rem", fontWeight: 700 }}>
             + New Listing
           </Link>
         </div>
@@ -74,7 +74,7 @@ export default function MyListingsPage() {
           <div style={{ textAlign: "center", padding: "3rem 1rem", color: "#94a3b8" }}>
             <div style={{ fontSize: "3rem", marginBottom: "0.75rem" }}>📭</div>
             <p style={{ fontWeight: 600, color: "#64748b" }}>No listings yet</p>
-            <Link href="/marketplace/sell" style={{ display: "inline-block", marginTop: "0.75rem", background: PRIMARY, color: "white", borderRadius: "999px", padding: "0.625rem 1.5rem", textDecoration: "none", fontWeight: 700, fontSize: "0.875rem" }}>
+            <Link href="/stewardshop/sell" style={{ display: "inline-block", marginTop: "0.75rem", background: PRIMARY, color: "white", borderRadius: "999px", padding: "0.625rem 1.5rem", textDecoration: "none", fontWeight: 700, fontSize: "0.875rem" }}>
               Post Your First Listing
             </Link>
           </div>
@@ -89,7 +89,7 @@ export default function MyListingsPage() {
                   {/* Thumbnail */}
                   <div style={{ width: 64, height: 64, borderRadius: "10px", background: "#f1f5f9", flexShrink: 0, position: "relative", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.5rem" }}>
                     {listing.photo ? (
-                      <img src={`/uploads/marketplace/${listing.photo}`} alt={listing.title} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+                      <img src={`/uploads/stewardshop/${listing.photo}`} alt={listing.title} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
                     ) : "📦"}
                   </div>
 
@@ -116,13 +116,13 @@ export default function MyListingsPage() {
                 {/* Action row */}
                 <div style={{ borderTop: "1px solid #f1f5f9" }}>
                   <div style={{ display: "flex" }}>
-                    <Link href={`/marketplace/${listing.id}`} style={{ flex: 1, textAlign: "center", padding: "0.5rem", fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textDecoration: "none" }}>
+                    <Link href={`/stewardshop/${listing.id}`} style={{ flex: 1, textAlign: "center", padding: "0.5rem", fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textDecoration: "none" }}>
                       View
                     </Link>
-                    <Link href={`/marketplace/my-listings/${listing.id}/prospects`} style={{ flex: 1, textAlign: "center", padding: "0.5rem", fontSize: "0.75rem", fontWeight: 700, color: PRIMARY, textDecoration: "none", borderLeft: "1px solid #f1f5f9" }}>
+                    <Link href={`/stewardshop/my-listings/${listing.id}/prospects`} style={{ flex: 1, textAlign: "center", padding: "0.5rem", fontSize: "0.75rem", fontWeight: 700, color: PRIMARY, textDecoration: "none", borderLeft: "1px solid #f1f5f9" }}>
                       Prospects {listing.prospectCount > 0 && `(${listing.prospectCount})`}
                     </Link>
-                    <Link href={`/marketplace/my-listings/${listing.id}/edit`} style={{ flex: 1, textAlign: "center", padding: "0.5rem", fontSize: "0.75rem", fontWeight: 700, color: "#f59e0b", textDecoration: "none", borderLeft: "1px solid #f1f5f9" }}>
+                    <Link href={`/stewardshop/my-listings/${listing.id}/edit`} style={{ flex: 1, textAlign: "center", padding: "0.5rem", fontSize: "0.75rem", fontWeight: 700, color: "#f59e0b", textDecoration: "none", borderLeft: "1px solid #f1f5f9" }}>
                       ✏️ Edit
                     </Link>
                   </div>

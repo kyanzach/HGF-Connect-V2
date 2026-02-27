@@ -35,7 +35,7 @@ export async function GET(_req: NextRequest, { params }: Props) {
 
   const baseUrl = "https://connect.houseofgrace.ph";
   return NextResponse.json({
-    shareLink: `${baseUrl}/marketplace/${listingId}?ref=${share.shareCode}`,
+    shareLink: `${baseUrl}/stewardshop/${listingId}?ref=${share.shareCode}`,
     shareCode: share.shareCode,
     loveGiftEarned: Number(share.loveGiftEarned),
     status: share.status,
@@ -75,7 +75,7 @@ export async function POST(_req: NextRequest, { params }: Props) {
   if (existing) {
     const baseUrl = "https://connect.houseofgrace.ph";
     return NextResponse.json({
-      shareLink: `${baseUrl}/marketplace/${listingId}?ref=${existing.shareCode}`,
+      shareLink: `${baseUrl}/stewardshop/${listingId}?ref=${existing.shareCode}`,
       shareCode: existing.shareCode,
       loveGiftAmount: Number(listing.loveGiftAmount),
       isNew: false,
@@ -115,7 +115,7 @@ export async function POST(_req: NextRequest, { params }: Props) {
 
   const baseUrl = "https://connect.houseofgrace.ph";
   return NextResponse.json({
-    shareLink: `${baseUrl}/marketplace/${listingId}?ref=${shareCode}`,
+    shareLink: `${baseUrl}/stewardshop/${listingId}?ref=${shareCode}`,
     shareCode,
     loveGiftAmount: Number(listing.loveGiftAmount),
     isNew: true,

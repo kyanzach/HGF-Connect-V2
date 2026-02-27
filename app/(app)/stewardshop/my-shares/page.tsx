@@ -21,7 +21,7 @@ export default function MySharesPage() {
   const [copied, setCopied] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/marketplace/shares/mine")
+    fetch("/api/stewardshop/shares/mine")
       .then((r) => r.json())
       .then((d) => setShares(d.shares ?? []))
       .catch(() => {})
@@ -71,7 +71,7 @@ export default function MySharesPage() {
             <div style={{ fontSize: "3rem", marginBottom: "0.75rem" }}>🔗</div>
             <p style={{ fontWeight: 600, color: "#64748b" }}>No shares yet</p>
             <p style={{ fontSize: "0.85rem", marginBottom: "1rem" }}>Browse the marketplace and tap "Get My Share Link" on listings you&apos;d like to promote!</p>
-            <Link href="/marketplace" style={{ background: "#ef4444", color: "white", borderRadius: "999px", padding: "0.625rem 1.5rem", textDecoration: "none", fontWeight: 700, fontSize: "0.875rem" }}>
+            <Link href="/stewardshop" style={{ background: "#ef4444", color: "white", borderRadius: "999px", padding: "0.625rem 1.5rem", textDecoration: "none", fontWeight: 700, fontSize: "0.875rem" }}>
               Browse Marketplace
             </Link>
           </div>
@@ -83,7 +83,7 @@ export default function MySharesPage() {
               {/* Listing row */}
               <div style={{ display: "flex", gap: "0.875rem", padding: "0.875rem" }}>
                 <div style={{ width: 56, height: 56, borderRadius: "8px", background: "#f1f5f9", flexShrink: 0, position: "relative", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.25rem" }}>
-                  {share.listing.photo ? <img src={`/uploads/marketplace/${share.listing.photo}`} alt={share.listing.title} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} /> : "📦"}
+                  {share.listing.photo ? <img src={`/uploads/stewardshop/${share.listing.photo}`} alt={share.listing.title} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} /> : "📦"}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -123,7 +123,7 @@ export default function MySharesPage() {
                   >
                     {copied === share.shareCode ? "✅ Copied!" : "📋 Copy Link"}
                   </button>
-                  <Link href={`/marketplace/${share.listing.id}`} style={{ flex: 1, textAlign: "center", background: "white", color: PRIMARY, border: `1.5px solid ${PRIMARY}`, borderRadius: "999px", padding: "0.375rem", fontSize: "0.75rem", fontWeight: 700, textDecoration: "none" }}>
+                  <Link href={`/stewardshop/${share.listing.id}`} style={{ flex: 1, textAlign: "center", background: "white", color: PRIMARY, border: `1.5px solid ${PRIMARY}`, borderRadius: "999px", padding: "0.375rem", fontSize: "0.75rem", fontWeight: 700, textDecoration: "none" }}>
                     View Listing
                   </Link>
                 </div>

@@ -46,7 +46,7 @@ const NAV_LINKS = [
   { href: "/feed",        label: "Home",             icon: Ic.Home   },
   { href: "/directory",   label: "Member Directory", icon: Ic.People },
   { href: "/events",      label: "Events",           icon: Ic.Cal    },
-  { href: "/marketplace", label: "StewardShop",      icon: Ic.Handshake },
+  { href: "/stewardshop", label: "StewardShop",      icon: Ic.Handshake },
   { href: "/resources",   label: "Resources",        icon: Ic.Book   },
 ];
 
@@ -318,7 +318,7 @@ export default function UnifiedHeader() {
                     <HR />
                     <DropItem href="/journal"          label="📓 My Journal"          onClick={() => setDropOpen(false)} />
                     <DropItem href="/prayer"            label="🙏 My Prayer Request"   onClick={() => setDropOpen(false)} />
-                    <DropItem href="/marketplace/my-listings" label="🤝 My Listings"  onClick={() => setDropOpen(false)} />
+                    <DropItem href="/stewardshop/my-listings" label="🤝 My Listings"  onClick={() => setDropOpen(false)} />
                     <HR />
                     <DropItem href="/profile/edit"     label="⚙️ Settings"            onClick={() => setDropOpen(false)} />
 

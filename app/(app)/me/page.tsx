@@ -25,7 +25,7 @@ const MENU_ITEMS = [
   { icon: "🔔", label: "Notifications", href: "/notifications" },
   { icon: "📖", label: "My Journal", href: "/journal" },
   { icon: "🙏", label: "My Prayers", href: "/prayer" },
-  { icon: "🤝", label: "My Listings", href: "/marketplace/my-listings" },
+  { icon: "🤝", label: "My Listings", href: "/stewardshop/my-listings" },
   { icon: "⚙️", label: "Settings", href: "/profile/edit" },
 ];
 

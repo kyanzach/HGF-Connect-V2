@@ -26,7 +26,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://connect.houseofgrace.ph";
   const imageUrl = listing.photos[0]
-    ? `${baseUrl}/uploads/marketplace/${listing.photos[0].photoPath}`
+    ? `${baseUrl}/uploads/stewardshop/${listing.photos[0].photoPath}`
     : undefined;
 
   // ── Sharer-specific OG tags (v1.1 §26-31) ─────────────────────────────────

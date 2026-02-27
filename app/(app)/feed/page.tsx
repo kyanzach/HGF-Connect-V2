@@ -36,7 +36,7 @@ const SHORTCUTS = [
   { icon: "✝️", label: "AI Helper", href: "/ai", color: "#fff7ed", iconBg: "#f97316" },
   { icon: "📅", label: "Events", href: "/events", color: "#fef3c7", iconBg: "#f59e0b" },
   { icon: "👥", label: "Directory", href: "/directory", color: "#fce7f3", iconBg: "#ec4899" },
-  { icon: "🛍️", label: "Market", href: "/marketplace", color: "#f0f9ff", iconBg: PRIMARY },
+  { icon: "🛍️", label: "Market", href: "/stewardshop", color: "#f0f9ff", iconBg: PRIMARY },
   { icon: "📚", label: "Resources", href: "/resources", color: "#f0fdf4", iconBg: "#22c55e" },
 ];
 

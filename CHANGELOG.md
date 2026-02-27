@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.5.5] — 2026-02-27
+
+### Changed
+- **URL rename** — All `/marketplace` URL paths renamed to `/stewardshop`. Route directories, navigation links, share API links, and all internal references updated. API routes kept at `/api/marketplace/` (internal). Upload paths kept at `/uploads/marketplace/` (disk storage).
+
+---
+
 ## [v2.5.4] — 2026-02-27
 
 ### Fixed
