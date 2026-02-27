@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.3.6] — 2026-02-27
+
+### Fixed — Critical caption save and version badge bugs (OpenCode Opus review)
+- **Caption save appearing to fail silently** — 3 interrelated bugs found by Claude Opus 4.6:
+  1. `PhotoPostViewer.tsx`: Caption state stored as scalar (`localCaption`) was reset to null on every photo swipe. Replaced with index-keyed map (`savedCaptions`) so captions persist across navigation.
+  2. `photo/route.ts`: Upload handler created duplicate archive history rows (with `caption: null`) that shadowed existing captioned rows. Added `findFirst` guard.
+  3. `photo-history/route.ts`: Restore handler had same duplicate archive bug. Same fix applied.
+- **Version badge stuck at v2.3.0** — `service-worker.js` CACHE_NAME was hardcoded at `hgf-connect-v2.3.0`. Old SW cache served stale JS/HTML indefinitely. Bumped to v2.3.6 and added `prebuild` npm script to auto-sync SW version from `package.json` on every build.
+
+---
+
 ## [v2.3.5] — 2026-02-27
 
 ### Fixed

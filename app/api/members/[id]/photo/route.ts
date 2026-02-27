@@ -66,9 +66,15 @@ export async function POST(
   const prevName  = purpose === "cover" ? current?.coverPhoto       : current?.profilePicture;
   const prevThumb = purpose === "profile" ? current?.profilePictureThumbnail as string | null ?? null : null;
   if (prevName) {
-    await (db as any).memberPhotoHistory.create({
-      data: { memberId: id, type: purpose, fileName: prevName, thumbName: prevThumb ?? null },
+    // Only archive if no history row already exists for this file (avoid duplicates that hide captions)
+    const existing = await (db as any).memberPhotoHistory.findFirst({
+      where: { memberId: id, type: purpose, fileName: prevName },
     });
+    if (!existing) {
+      await (db as any).memberPhotoHistory.create({
+        data: { memberId: id, type: purpose, fileName: prevName, thumbName: prevThumb ?? null },
+      });
+    }
     // Prune: keep newest 30 per type
     const old = await (db as any).memberPhotoHistory.findMany({
       where: { memberId: id, type: purpose },

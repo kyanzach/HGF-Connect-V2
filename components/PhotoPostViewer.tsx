@@ -55,8 +55,8 @@ export default function PhotoPostViewer({
   const [editingCaption, setEditingCaption] = useState(false);
   const [captionDraft, setCaptionDraft]     = useState("");
   const [captionSaving, setCaptionSaving]   = useState(false);
-  const [localCaption, setLocalCaption]     = useState<string | null>(null);
-  const [localHistoryId, setLocalHistoryId] = useState<number | null>(null);
+  const [savedCaptions, setSavedCaptions]     = useState<Record<number, string | null>>({});
+  const [savedHistoryIds, setSavedHistoryIds] = useState<Record<number, number>>({});
 
   // Zoom state
   const [scale, setScale]             = useState(1);
@@ -73,8 +73,8 @@ export default function PhotoPostViewer({
 
   const photo    = photos[idx];
   const postId   = photo?.postId ?? null;
-  const caption  = localCaption !== null ? localCaption : photo?.caption ?? null;
-  const histId   = localHistoryId ?? (photo?.id && photo.id > 0 ? photo.id : null);
+  const caption  = idx in savedCaptions ? savedCaptions[idx] : photo?.caption ?? null;
+  const histId   = savedHistoryIds[idx] ?? (photo?.id && photo.id > 0 ? photo.id : null);
 
   const prev = useCallback(() => { setIdx(i => Math.max(0, i - 1)); }, []);
   const next = useCallback(() => { setIdx(i => Math.min(photos.length - 1, i + 1)); }, [photos.length]);
@@ -85,9 +85,7 @@ export default function PhotoPostViewer({
     setLikeCount(0);
     setLiked(false);
     setComments([]);
-    setLocalCaption(null);
-    setLocalHistoryId(null);
-    setCaptionDraft(photo?.caption ?? "");
+    setCaptionDraft(idx in savedCaptions ? (savedCaptions[idx] ?? "") : (photo?.caption ?? ""));
     setEditingCaption(false);
     setScale(1); setPanX(0); setPanY(0);
     currentScale.current = 1;
@@ -164,10 +162,10 @@ export default function PhotoPostViewer({
       });
       const d = await res.json();
       if (res.ok) {
-        setLocalCaption(captionDraft.trim() || null);
+        setSavedCaptions(prev => ({ ...prev, [idx]: captionDraft.trim() || null }));
         setEditingCaption(false);
         // Remember the new real historyId if server created one
-        if (d.historyId && d.historyId > 0) setLocalHistoryId(d.historyId);
+        if (d.historyId && d.historyId > 0) setSavedHistoryIds(prev => ({ ...prev, [idx]: d.historyId }));
       }
     } catch { /* silent */ } finally { setCaptionSaving(false); }
   }

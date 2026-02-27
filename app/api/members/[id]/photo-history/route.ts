@@ -133,9 +133,15 @@ export async function POST(req: NextRequest, { params }: Params) {
   const prevName  = entry.type === "cover" ? current?.coverPhoto : current?.profilePicture;
   const prevThumb = entry.type === "profile" ? current?.profilePictureThumbnail as string | null ?? null : null;
   if (prevName) {
-    await (db as any).memberPhotoHistory.create({
-      data: { memberId: id, type: entry.type, fileName: prevName, thumbName: prevThumb ?? null },
+    // Only archive if no history row already exists for this file (avoid duplicates that hide captions)
+    const existingArchive = await (db as any).memberPhotoHistory.findFirst({
+      where: { memberId: id, type: entry.type, fileName: prevName },
     });
+    if (!existingArchive) {
+      await (db as any).memberPhotoHistory.create({
+        data: { memberId: id, type: entry.type, fileName: prevName, thumbName: prevThumb ?? null },
+      });
+    }
     const old = await (db as any).memberPhotoHistory.findMany({
       where: { memberId: id, type: entry.type },
       orderBy: { createdAt: "desc" },
