@@ -90,7 +90,7 @@ interface ListingData {
   locationArea: string | null; loveGiftAmount: number;
   viewCount: number; createdAt: string;
   photos: { photoPath: string }[];
-  seller: { id: number; firstName: string; lastName: string; profilePicture: string | null; isVerified: boolean };
+  seller: { id: number; firstName: string; lastName: string; profilePicture: string | null; isVerified: boolean; mobileNumber: string | null };
   isOwner: boolean; isLoggedIn: boolean; shareToken: string | null;
 }
 
@@ -173,8 +173,8 @@ function Modal({ children, onClose }: { children: React.ReactNode; onClose: () =
 }
 
 // ── Coupon Code card — shows after reveal ──────────────────────────────────────
-function CouponRevealCard({ revealed, sellerName, loveGiftAmount }: {
-  revealed: RevealedState; sellerName: string; loveGiftAmount: number;
+function CouponRevealCard({ revealed, sellerName, sellerMobile, loveGiftAmount }: {
+  revealed: RevealedState; sellerName: string; sellerMobile: string | null; loveGiftAmount: number;
 }) {
   const { discountedPrice, ogPrice, couponCode, actionType } = revealed;
   const saving = ogPrice ? ogPrice - discountedPrice : 0;
@@ -214,7 +214,7 @@ function CouponRevealCard({ revealed, sellerName, loveGiftAmount }: {
       )}
 
       <p style={{ textAlign: "center", fontSize: "0.8rem", color: "#4b5563", margin: "0.5rem 0" }}>
-        Contact <strong>{sellerName}</strong> to complete your purchase.
+        Contact <strong>{sellerName}</strong>{sellerMobile ? ` — ${sellerMobile}` : ""} to complete your purchase.
       </p>
       {loveGiftAmount > 0 && (
         <p style={{ textAlign: "center", fontSize: "0.75rem", color: "#9f1239", margin: "0.375rem 0 0" }}>
@@ -448,6 +448,7 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
             <CouponRevealCard
               revealed={revealed}
               sellerName={revealed.sellerName}
+              sellerMobile={listing.seller.mobileNumber}
               loveGiftAmount={listing.loveGiftAmount}
             />
           )}

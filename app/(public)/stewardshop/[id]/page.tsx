@@ -75,7 +75,7 @@ export default async function ListingDetailPage({ params, searchParams }: Props)
   const listing = await db.marketplaceListing.findUnique({
     where: { id: parseInt(id) },
     include: {
-      seller: { select: { id: true, firstName: true, lastName: true, profilePicture: true, isVerified: true } },
+      seller: { select: { id: true, firstName: true, lastName: true, profilePicture: true, isVerified: true, phone: true } },
       photos: { orderBy: { sortOrder: "asc" } },
     },
   });
@@ -159,6 +159,7 @@ export default async function ListingDetailPage({ params, searchParams }: Props)
       lastName: listing.seller.lastName,
       profilePicture: listing.seller.profilePicture,
       isVerified: listing.seller.isVerified,
+      mobileNumber: listing.seller.phone,
     },
     isOwner,
     isLoggedIn,

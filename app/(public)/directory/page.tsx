@@ -110,7 +110,7 @@ function MemberCard({ m }: { m: Member }) {
 
           {/* Ministry strip */}
           {m.ministries.length > 0 && (
-            <div style={{ padding: "0 1rem 0.875rem", borderTop: "1px solid rgba(248,250,252,0.8)", paddingTop: "0.75rem" }}>
+            <div style={{ padding: "0 1rem 0.875rem", paddingTop: "0.75rem" }}>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "0.3rem" }}>
                 {m.ministries.slice(0, 4).map((mm) => (
                   <span key={mm.id} style={{ fontSize: "0.7rem", fontWeight: 700, background: PRIMARY, color: "white", padding: "0.2rem 0.6rem", borderRadius: "6px" }}>
@@ -128,7 +128,7 @@ function MemberCard({ m }: { m: Member }) {
 
           {/* Bible verse */}
           {m.favoriteVerse && (
-            <div style={{ padding: "0.75rem 1rem", borderTop: "1px solid rgba(248,250,252,0.8)", display: "flex", alignItems: "flex-start", gap: "0.5rem" }}>
+            <div style={{ padding: "0.75rem 1rem", display: "flex", alignItems: "flex-start", gap: "0.5rem" }}>
               <span style={{ color: PRIMARY, fontSize: "1rem", flexShrink: 0, lineHeight: 1.4 }}>✝️</span>
               <p style={{ fontSize: "0.8rem", fontStyle: "italic", color: "#64748b", lineHeight: 1.55, margin: 0 }}>
                 &ldquo;{m.favoriteVerse.length > 100 ? m.favoriteVerse.slice(0, 100) + "…" : m.favoriteVerse}&rdquo;
