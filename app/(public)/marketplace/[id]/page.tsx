@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import ListingDetailClient from "./ListingDetailClient";
 import crypto from "crypto";
 
@@ -81,20 +82,37 @@ export default async function ListingDetailPage({ params, searchParams }: Props)
 
   if (!listing || listing.status !== "active") notFound();
 
-  // Increment view count (fire and forget)
-  db.marketplaceListing.update({
-    where: { id: listing.id },
-    data: { viewCount: { increment: 1 } },
-  }).catch(() => {});
+  // ── Unique view count (IP-based, 24h window) ─────────────────────────────
+  const hdrs = await headers();
+  const clientIp = hdrs.get("x-forwarded-for")?.split(",")[0]?.trim()
+    || hdrs.get("x-real-ip")
+    || "unknown";
+  const ipHash = crypto.createHash("md5").update(clientIp).digest("hex").slice(0, 16);
 
-  // Log impression for this share code (fire and forget, v1.1 §77)
-  if (ref) {
+  // Check if this IP already viewed this listing in the last 24h
+  const existingView = await db.marketplaceImpression.findFirst({
+    where: {
+      listingId: listing.id,
+      event: "impression",
+      ipHash,
+      createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+    },
+    select: { id: true },
+  }).catch(() => null);
+
+  if (!existingView) {
+    // New unique view — increment count + log impression
+    db.marketplaceListing.update({
+      where: { id: listing.id },
+      data: { viewCount: { increment: 1 } },
+    }).catch(() => {});
+
     db.marketplaceImpression.create({
       data: {
         listingId: listing.id,
-        shareCode: ref,
+        shareCode: ref ?? null,
         event: "impression",
-        ipHash: null, // IP not available in RSC without headers(), impression still logged
+        ipHash,
       },
     }).catch(() => {});
   }

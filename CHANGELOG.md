@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.5.3] — 2026-02-27
+
+### Fixed
+- **Unique view counting** — View count now increments only once per unique IP per listing per 24 hours (MD5-hashed IP stored in MarketplaceImpression).
+- **Owner sees revealed discount** — CouponRevealCard was not gated by `!isOwner`. Stale localStorage entries from previous reveals are now auto-cleared when the owner views their own listing.
+
+---
+
 ## [v2.5.2] — 2026-02-27
 
 ### Fixed

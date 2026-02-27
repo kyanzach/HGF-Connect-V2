@@ -333,13 +333,18 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
   const [error, setError] = useState("");
   const [revealed, setRevealed] = useState<RevealedState | null>(null);
 
-  // Load persisted reveal from localStorage on mount
+  // Load persisted reveal from localStorage on mount (non-owners only)
   useEffect(() => {
+    if (listing.isOwner) {
+      // Owner should never see reveal data — clear any stale entries
+      try { localStorage.removeItem(localKey); } catch { /* ignore */ }
+      return;
+    }
     try {
       const stored = localStorage.getItem(localKey);
       if (stored) setRevealed(JSON.parse(stored) as RevealedState);
     } catch { /* ignore */ }
-  }, [localKey]);
+  }, [localKey, listing.isOwner]);
 
   const sellerName = `${listing.seller.firstName} ${listing.seller.lastName}`;
   const sellerInitials = `${listing.seller.firstName[0]}${listing.seller.lastName?.[0] ?? ""}`;
@@ -438,8 +443,8 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
             </div>
           )}
 
-          {/* ── Coupon Reveal Card (shown after submit OR restored from localStorage) */}
-          {revealed && (
+          {/* ── Coupon Reveal Card (shown after submit OR restored from localStorage — non-owners only) */}
+          {revealed && !listing.isOwner && (
             <CouponRevealCard
               revealed={revealed}
               sellerName={revealed.sellerName}
