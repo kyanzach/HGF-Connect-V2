@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.4.1] — 2026-02-27
+
+### Added
+- **Dashboard hero carousel** — Welcome section is now a swipeable carousel with 3 dynamic slides: Welcome/verse (always), Upcoming Event (if available), Prayer Spotlight (if active requests exist). Auto-advances every 6s, dot indicators hidden when only 1 slide.
+- **Schema: PrayerResponse.audioUrl** — New column for voice prayer messages.
+- **Schema: MemberBadge** — New table for Prayer Warrior badge system (and future badges).
+
+---
+
 ## [v2.4.0] — 2026-02-27
 
 ### Added

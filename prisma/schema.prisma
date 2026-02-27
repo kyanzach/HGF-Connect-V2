@@ -101,6 +101,9 @@ model Member {
   // Notifications
   notifications         Notification[]
 
+  // Badges
+  badges                MemberBadge[]
+
   @@index([invitedBy], name: "idx_referred_by")
   @@index([ageGroup], name: "idx_age_group")
   @@index([type], name: "idx_type")
@@ -732,12 +735,24 @@ model PrayerResponse {
   requestId Int                @map("request_id")
   authorId  Int                @map("author_id")
   message   String             @db.Text
+  audioUrl  String?            @map("audio_url") @db.VarChar(500)
   type      PrayerResponseType @default(PRAYER)
   request   PrayerRequest      @relation(fields: [requestId], references: [id], onDelete: Cascade)
   author    Member             @relation("PrayerResponder", fields: [authorId], references: [id], onDelete: Cascade)
   createdAt DateTime           @default(now()) @map("created_at")
 
   @@map("prayer_responses")
+}
+
+model MemberBadge {
+  id        Int      @id @default(autoincrement())
+  memberId  Int      @map("member_id")
+  badgeType String   @map("badge_type") @db.VarChar(50)
+  awardedAt DateTime @default(now()) @map("awarded_at")
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, badgeType])
+  @@map("member_badges")
 }
 
 // ─────────────────────────────────────────────────────────────────

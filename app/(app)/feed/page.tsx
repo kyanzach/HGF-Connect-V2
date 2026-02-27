@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import PostCard from "@/components/feed/PostCard";
+import HeroCarousel from "@/components/feed/HeroCarousel";
 
 const PRIMARY = "#4EB1CB";
 
@@ -68,64 +69,8 @@ export default function FeedPage() {
   return (
     <div style={{ paddingBottom: "0.5rem" }}>
 
-      {/* ── Hero Card ── */}
-      <div
-        style={{
-          background: `linear-gradient(135deg, #1a7a94 0%, ${PRIMARY} 100%)`,
-          padding: "1.125rem 1rem 1.375rem",
-          position: "relative",
-          overflow: "hidden",
-        }}
-      >
-        {/* Decorative circles */}
-        <div style={{ position: "absolute", top: -24, right: -24, width: 96, height: 96, background: "rgba(255,255,255,0.08)", borderRadius: "50%" }} />
-        <div style={{ position: "absolute", bottom: -16, right: 40, width: 60, height: 60, background: "rgba(255,255,255,0.06)", borderRadius: "50%" }} />
-
-        <p style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.8)", margin: 0 }}>
-          Welcome back,
-        </p>
-        <h2 style={{ fontSize: "1.375rem", fontWeight: 800, color: "white", margin: "0.125rem 0 0.625rem" }}>
-          {firstName} 🙌
-        </h2>
-        <p style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.85)", margin: "0 0 0.875rem", lineHeight: 1.5 }}>
-          &ldquo;Give thanks to the Lord, for he is good;&rdquo;
-          <br />
-          <span style={{ opacity: 0.7 }}>— Psalm 107:1</span>
-        </p>
-
-        {/* CTA pills */}
-        <div style={{ display: "flex", gap: "0.5rem" }}>
-          <Link
-            href="/devo/new"
-            style={{
-              background: "white",
-              color: PRIMARY,
-              padding: "0.45rem 1rem",
-              borderRadius: "999px",
-              fontSize: "0.8rem",
-              fontWeight: 700,
-              textDecoration: "none",
-            }}
-          >
-            📖 Share Devo
-          </Link>
-          <Link
-            href="/prayer/new"
-            style={{
-              background: "rgba(255,255,255,0.18)",
-              color: "white",
-              padding: "0.45rem 1rem",
-              borderRadius: "999px",
-              fontSize: "0.8rem",
-              fontWeight: 600,
-              textDecoration: "none",
-              border: "1px solid rgba(255,255,255,0.3)",
-            }}
-          >
-            🙏 Pray
-          </Link>
-        </div>
-      </div>
+      {/* ── Hero Carousel ── */}
+      <HeroCarousel firstName={firstName} />
 
       {/* ── GCash-style Horizontal Shortcut Scroll ── */}
       <div style={{ background: "white", paddingTop: "1rem", paddingBottom: "0.875rem", boxShadow: "0 1px 0 #f1f5f9" }}>
