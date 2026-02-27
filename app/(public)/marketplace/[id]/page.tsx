@@ -104,6 +104,20 @@ export default async function ListingDetailPage({ params, searchParams }: Props)
   const isOwner = session?.user?.id ? parseInt(session.user.id) === listing.seller.id : false;
   const isLoggedIn = !!session?.user;
 
+  // ── Self-referral guard: strip ref if sharer === current user ──────────────
+  let effectiveRef = ref ?? null;
+  if (effectiveRef && isLoggedIn && !isOwner) {
+    const share = await db.listingShare.findFirst({
+      where: { shareCode: effectiveRef, listingId: listing.id },
+      select: { sharerId: true },
+    }).catch(() => null);
+    if (share && session?.user?.id && share.sharerId === parseInt(session.user.id)) {
+      effectiveRef = null; // Self-referral — treat as direct browse
+    }
+  }
+  // Owner always has no ref
+  if (isOwner) effectiveRef = null;
+
   // Serialize — strip discountedPrice before sending to client (NEVER expose it here)
   const safeListingData = {
     id: listing.id,
@@ -130,7 +144,7 @@ export default async function ListingDetailPage({ params, searchParams }: Props)
     },
     isOwner,
     isLoggedIn,
-    shareToken: ref ?? null,
+    shareToken: effectiveRef,
   };
 
   return (

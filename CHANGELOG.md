@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.5.2] — 2026-02-27
+
+### Fixed
+- **Marketplace grid** — Always shows original price only (no strikethrough, no DEAL badge). Love Gift badge moved to bottom-right and only visible to logged-in members.
+- **Listing detail** — Love Gift badge, discount hint, reveal button, and share CTA all conditionally visible based on viewer type (owner/member/public) and referral state.
+- **Self-referral guard** — Members clicking their own share link are treated as direct browse (no discount, no self-Love-Gift). Owner ref is always stripped.
+
+---
+
 ## [v2.5.1] — 2026-02-27
 
 ### Fixed

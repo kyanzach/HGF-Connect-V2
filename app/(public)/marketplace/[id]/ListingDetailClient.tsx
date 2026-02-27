@@ -410,7 +410,8 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
         <span style={{ position: "absolute", top: "0.75rem", left: "0.75rem", background: TYPE_COLORS[listing.listingType] ?? PRIMARY, color: "white", fontSize: "0.7rem", fontWeight: 700, padding: "0.25rem 0.6rem", borderRadius: "6px", textTransform: "uppercase" }}>
           {TYPE_LABELS[listing.listingType] ?? listing.listingType}
         </span>
-        {listing.loveGiftAmount > 0 && (
+        {/* Love Gift badge — members only, not owner, not public */}
+        {listing.loveGiftAmount > 0 && listing.isLoggedIn && !listing.isOwner && (
           <span style={{ position: "absolute", top: "0.75rem", right: "0.75rem", background: "#ef4444", color: "white", fontSize: "0.7rem", fontWeight: 700, padding: "0.25rem 0.6rem", borderRadius: "6px" }}>
             ❤️ Love Gift ₱{listing.loveGiftAmount.toLocaleString()}
           </span>
@@ -425,7 +426,7 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
           {listing.ogPrice ? (
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem", flexWrap: "wrap" }}>
               <span style={{ fontSize: "1.625rem", fontWeight: 900, color: PRIMARY }}>₱{listing.ogPrice.toLocaleString()}</span>
-              {listing.hasDiscount && !revealed && (
+              {listing.hasDiscount && !revealed && listing.shareToken && (
                 <span style={{ background: "#f0f9ff", color: PRIMARY, fontSize: "0.75rem", fontWeight: 700, padding: "0.2rem 0.6rem", borderRadius: "999px", border: `1px solid ${PRIMARY}` }}>
                   🔒 Discount available
                 </span>
@@ -462,18 +463,18 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
           </div>
         )}
 
-        {/* ── GATED CTAs — hidden once revealed. hasDiscount=false: only show Contact */}
-        {!revealed && (
+        {/* ── GATED CTAs — hidden for owner, hidden once revealed */}
+        {!revealed && !listing.isOwner && (
           <div style={{ background: "white", borderRadius: "16px", padding: "1.25rem", marginBottom: "0.75rem", boxShadow: "0 2px 12px rgba(78,177,203,0.12)", border: "1.5px solid #bae6fd" }}>
             <p style={{ fontSize: "0.8rem", color: "#0369a1", textAlign: "center", margin: "0 0 1rem", lineHeight: 1.5 }}>
-              {listing.hasDiscount
+              {listing.hasDiscount && listing.shareToken
                 ? "🔒 A discounted price is available. Reveal it to see your discount code — show the code to the seller at purchase to claim your discount!"
                 : listing.ogPrice
                   ? "Interested? Contact the seller to discuss pricing or arrange a purchase."
                   : "Interested? Contact the seller to get more information about this listing."}
             </p>
-            {/* Only show Reveal button if hasDiscount is true */}
-            {listing.hasDiscount && (
+            {/* Only show Reveal button if hasDiscount AND arrived via referral */}
+            {listing.hasDiscount && listing.shareToken && (
               <button
                 onClick={() => openModal("reveal")}
                 style={{ display: "block", width: "100%", background: `linear-gradient(135deg, ${PRIMARY}, #2563eb)`, color: "white", border: "none", borderRadius: "999px", padding: "0.875rem", fontSize: "1rem", fontWeight: 700, cursor: "pointer", marginBottom: "0.625rem", fontFamily: "inherit", animation: "pulse-glow 2s infinite" }}
