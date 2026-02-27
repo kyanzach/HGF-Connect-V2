@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import CommentDrawer from "./CommentDrawer";
@@ -144,7 +143,7 @@ export default function PostCard({ post }: PostCardProps) {
             style={{ width: 40, height: 40, borderRadius: "50%", overflow: "hidden", flexShrink: 0, border: "none", padding: 0, cursor: "pointer", background: PRIMARY, display: "flex", alignItems: "center", justifyContent: "center" }}
           >
             {profilePic ? (
-              <Image src={profilePic} alt={authorName} width={40} height={40} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              <img src={profilePic} alt={authorName} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
             ) : (
               <span style={{ color: "white", fontWeight: 700, fontSize: "0.875rem" }}>{initials}</span>
             )}
@@ -196,9 +195,15 @@ export default function PostCard({ post }: PostCardProps) {
         {/* Image */}
         {post.imageUrl && (
           <div style={{ margin: "0.25rem 0" }}>
-            <Image
-              src={post.imageUrl.startsWith("http") ? post.imageUrl : `/uploads/${post.imageUrl}`}
-              alt="Post image" width={500} height={300}
+            <img
+              src={
+                post.imageUrl.startsWith("http") || post.imageUrl.startsWith("/")
+                  ? post.imageUrl
+                  : post.imageUrl.startsWith("uploads/")
+                  ? `/${post.imageUrl}`
+                  : `/uploads/${post.imageUrl}`
+              }
+              alt="Post image"
               style={{ width: "100%", height: "auto", maxHeight: "300px", objectFit: "cover" }}
             />
           </div>

@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import NotificationBell from "@/components/NotificationBell";
+import { APP_VERSION } from "@/lib/version";
 
 const PRIMARY = "#4EB1CB";
 
@@ -89,7 +90,7 @@ export default function AppHeader() {
             letterSpacing: "0.04em",
           }}
         >
-          v{process.env.NEXT_PUBLIC_APP_VERSION}
+          v{APP_VERSION}
         </span>
 
         {/* Live Notification Bell */}
