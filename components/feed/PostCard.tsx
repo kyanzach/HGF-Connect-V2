@@ -188,35 +188,46 @@ export default function PostCard({ post }: PostCardProps) {
         </div>
 
         {/* Content */}
-        {post.type === "EVENT" && post.content ? (
-          <div style={{ margin: "0 0.75rem 0.5rem", borderRadius: "14px", overflow: "hidden", position: "relative" }}>
-            {/* Background — cover photo or gradient */}
-            <div style={{
-              background: post.imageUrl
-                ? `url(${post.imageUrl.startsWith("/") ? post.imageUrl : `/${post.imageUrl}`})`
-                : "linear-gradient(135deg, #0f2d3d 0%, #1a5276 50%, #2980b9 100%)",
-              backgroundSize: "cover", backgroundPosition: "center",
-              padding: "1.5rem 1.125rem 1.25rem", position: "relative",
-            }}>
-              {/* Dark overlay for readability */}
-              <div style={{ position: "absolute", inset: 0, background: post.imageUrl ? "rgba(0,0,0,0.55)" : "rgba(0,0,0,0.15)", borderRadius: "14px" }} />
-              <div style={{ position: "relative", zIndex: 1, color: "white" }}>
-                {post.content.split("\n").filter(Boolean).map((line, i) => (
-                  <div key={i} style={{
-                    fontSize: i === 0 ? "1rem" : "0.82rem",
-                    fontWeight: i === 0 ? 800 : 500,
-                    marginBottom: i === 0 ? "0.625rem" : "0.25rem",
-                    opacity: i === 0 ? 1 : 0.92,
-                    lineHeight: 1.4,
-                    textShadow: "0 1px 4px rgba(0,0,0,0.3)",
-                  }}>
-                    {line}
+        {post.type === "EVENT" && post.content ? (() => {
+          // Extract event ID from [event:123] marker
+          const eventMatch = post.content.match(/\[event:(\d+)\]/);
+          const eventId = eventMatch ? eventMatch[1] : null;
+          const displayContent = post.content.replace(/\n?\[event:\d+\]/, "").trim();
+          const eventHref = eventId ? `/event/${eventId}` : "/events";
+
+          return (
+            <a href={eventHref} style={{ display: "block", margin: "0 0.75rem 0.5rem", borderRadius: "14px", overflow: "hidden", position: "relative", textDecoration: "none", cursor: "pointer" }}>
+              {/* Background — cover photo or gradient */}
+              <div style={{
+                background: post.imageUrl
+                  ? `url(${post.imageUrl.startsWith("/") ? post.imageUrl : `/${post.imageUrl}`})`
+                  : "linear-gradient(135deg, #0f2d3d 0%, #1a5276 50%, #2980b9 100%)",
+                backgroundSize: "cover", backgroundPosition: "center",
+                padding: "1.5rem 1.125rem 1.25rem", position: "relative",
+              }}>
+                {/* Dark overlay for readability */}
+                <div style={{ position: "absolute", inset: 0, background: post.imageUrl ? "rgba(0,0,0,0.55)" : "rgba(0,0,0,0.15)", borderRadius: "14px" }} />
+                <div style={{ position: "relative", zIndex: 1, color: "white" }}>
+                  {displayContent.split("\n").filter(Boolean).map((line, i) => (
+                    <div key={i} style={{
+                      fontSize: i === 0 ? "1rem" : "0.82rem",
+                      fontWeight: i === 0 ? 800 : 500,
+                      marginBottom: i === 0 ? "0.625rem" : "0.25rem",
+                      opacity: i === 0 ? 1 : 0.92,
+                      lineHeight: 1.4,
+                      textShadow: "0 1px 4px rgba(0,0,0,0.3)",
+                    }}>
+                      {line}
+                    </div>
+                  ))}
+                  <div style={{ marginTop: "0.75rem", fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", opacity: 0.8 }}>
+                    View Event →
                   </div>
-                ))}
+                </div>
               </div>
-            </div>
-          </div>
-        ) : (
+            </a>
+          );
+        })() : (
           <>
             {post.content && (
               <div style={{ padding: "0 1rem 0.5rem", fontSize: "0.9375rem", color: "#334155", lineHeight: 1.65, whiteSpace: "pre-line" }}>

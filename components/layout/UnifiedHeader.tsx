@@ -19,6 +19,8 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import dynamic from "next/dynamic";
+const AddEventModal = dynamic(() => import("@/components/AddEventModal"), { ssr: false });
 import Image from "next/image";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
@@ -164,6 +166,7 @@ export default function UnifiedHeader() {
   const [dropOpen, setDropOpen] = useState(false);
   const [navOpen, setNavOpen]   = useState(false);
   const [toast, setToast]       = useState<NotifToast | null>(null);
+  const [showAddEvent, setShowAddEvent] = useState(false);
 
   const dropRef = useRef<HTMLDivElement>(null);
   // navRef not needed — nav links have onClick close + route-change closes it
@@ -337,6 +340,7 @@ export default function UnifiedHeader() {
                           letterSpacing: "0.06em" }}>
                           Management
                         </div>
+                        <DropItem label="📅 Add Event" onClick={() => { setDropOpen(false); setShowAddEvent(true); }} />
                         <DropItem href="/admin" label="🎛️ Admin Dashboard" onClick={() => setDropOpen(false)} />
                       </>
                     )}
@@ -418,6 +422,7 @@ export default function UnifiedHeader() {
           </div>
         )}
       </nav>
+      {isAdmin && <AddEventModal open={showAddEvent} onClose={() => setShowAddEvent(false)} />}
     </>
   );
 }

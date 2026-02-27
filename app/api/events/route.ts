@@ -67,6 +67,7 @@ export async function POST(request: NextRequest) {
         `🕒 ${startTime}${endTime ? ` – ${endTime}` : ""}`,
         location ? `📍 ${location}` : null,
         description ? `\n${description}` : null,
+        `\n[event:${event.id}]`,
       ].filter(Boolean).join("\n");
 
       await (db as any).post.create({
