@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 
 const P = "#4EB1CB";
 
@@ -18,6 +18,7 @@ type EventRow = {
   id: number; title: string; description: string | null; eventDate: string;
   startTime: string; endTime: string | null; location: string | null;
   eventType: string; status: string; createdBy: number;
+  coverPhoto: string | null;
   creator: { firstName: string; lastName: string } | null;
 };
 
@@ -32,23 +33,36 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
   const [err, setErr] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [form, setForm] = useState({
-    title: "", description: "", eventDate: "", startTime: "", endTime: "", location: "", eventType: "sunday_service", status: "scheduled",
+    title: "", description: "", eventDate: "", startTime: "", endTime: "", location: "", eventType: "sunday_service", status: "scheduled", coverPhoto: "" as string,
   });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
 
   const filtered = useMemo(() => typeFilter === "all" ? events : events.filter(e => e.eventType === typeFilter), [events, typeFilter]);
 
-  function openAdd() { setEditing(null); setForm({ title: "", description: "", eventDate: "", startTime: "", endTime: "", location: "", eventType: "sunday_service", status: "scheduled" }); setShowModal(true); }
+  function openAdd() { setEditing(null); setForm({ title: "", description: "", eventDate: "", startTime: "", endTime: "", location: "", eventType: "sunday_service", status: "scheduled", coverPhoto: "" }); setShowModal(true); }
   function openEdit(ev: EventRow) {
     setEditing(ev);
-    setForm({ title: ev.title, description: ev.description ?? "", eventDate: ev.eventDate.slice(0, 10), startTime: ev.startTime.includes("T") ? ev.startTime.slice(11, 16) : ev.startTime.slice(0, 5), endTime: ev.endTime ? (ev.endTime.includes("T") ? ev.endTime.slice(11, 16) : ev.endTime.slice(0, 5)) : "", location: ev.location ?? "", eventType: ev.eventType, status: ev.status });
+    setForm({ title: ev.title, description: ev.description ?? "", eventDate: ev.eventDate.slice(0, 10), startTime: ev.startTime.includes("T") ? ev.startTime.slice(11, 16) : ev.startTime.slice(0, 5), endTime: ev.endTime ? (ev.endTime.includes("T") ? ev.endTime.slice(11, 16) : ev.endTime.slice(0, 5)) : "", location: ev.location ?? "", eventType: ev.eventType, status: ev.status, coverPhoto: ev.coverPhoto ?? "" });
     setShowModal(true);
+  }
+
+  async function handleCoverUpload(file: File) {
+    setUploading(true);
+    const fd = new FormData();
+    fd.append("file", file);
+    try {
+      const res = await fetch("/api/events/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (data.photoPath) setForm(f => ({ ...f, coverPhoto: data.photoPath }));
+    } catch { /* ignore */ } finally { setUploading(false); }
   }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setErr("");
     const url = editing ? `/api/events/${editing.id}` : "/api/events";
     const method = editing ? "PATCH" : "POST";
-    const body = { ...form, eventDate: form.eventDate, endTime: form.endTime || null };
+    const body = { ...form, eventDate: form.eventDate, endTime: form.endTime || null, coverPhoto: form.coverPhoto || null };
     const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const data = await res.json();
     if (!res.ok) { setErr(data.error ?? "Failed"); setSaving(false); return; }
@@ -118,6 +132,21 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
                   <select style={inp} value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
                     <option value="scheduled">Scheduled</option><option value="cancelled">Cancelled</option><option value="completed">Completed</option>
                   </select></div>
+              </div>
+              {/* Cover Photo */}
+              <div style={{ marginTop: "0.75rem" }}>
+                <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b" }}>Cover Photo</label>
+                {form.coverPhoto ? (
+                  <div style={{ marginTop: "0.375rem", position: "relative", borderRadius: "8px", overflow: "hidden", border: "1.5px solid #e2e8f0" }}>
+                    <img src={`/uploads/events/${form.coverPhoto}`} alt="Cover" style={{ width: "100%", height: 120, objectFit: "cover", display: "block" }} />
+                    <button type="button" onClick={() => setForm(f => ({ ...f, coverPhoto: "" }))} style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.6)", color: "white", border: "none", borderRadius: "50%", width: 24, height: 24, cursor: "pointer", fontSize: "0.75rem", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading} style={{ ...inp, marginTop: "0.375rem", cursor: "pointer", color: "#64748b", textAlign: "center" as const, background: "#f8fafc" }}>
+                    {uploading ? "Uploading…" : "📷 Click to upload cover photo"}
+                  </button>
+                )}
+                <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={e => { if (e.target.files?.[0]) handleCoverUpload(e.target.files[0]); e.target.value = ""; }} />
               </div>
               {err && <p style={{ color: "#ef4444", fontSize: "0.8rem", marginTop: "0.5rem" }}>{err}</p>}
               <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.25rem" }}>

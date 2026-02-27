@@ -119,6 +119,7 @@ model Event {
   startTime   DateTime   @map("start_time") @db.Time
   endTime     DateTime?  @map("end_time") @db.Time
   location    String?    @db.VarChar(255)
+  coverPhoto  String?    @map("cover_photo") @db.VarChar(255)
   eventType   EventType  @map("event_type")
   createdBy   Int        @map("created_by")
   createdAt   DateTime   @default(now()) @map("created_at")

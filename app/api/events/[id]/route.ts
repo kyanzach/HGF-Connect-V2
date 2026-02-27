@@ -30,7 +30,7 @@ export async function PATCH(
   const { id: idStr } = await params;
   const id = parseInt(idStr);
   const body = await request.json();
-  const { title, description, eventDate, startTime, endTime, location, eventType, status } = body;
+  const { title, description, eventDate, startTime, endTime, location, eventType, status, coverPhoto } = body;
 
   const updated = await db.event.update({
     where: { id },
@@ -43,6 +43,7 @@ export async function PATCH(
       ...(location !== undefined && { location }),
       ...(eventType && { eventType }),
       ...(status && { status }),
+      ...(coverPhoto !== undefined && { coverPhoto: coverPhoto || null }),
     },
   });
   return NextResponse.json({ success: true, event: updated });

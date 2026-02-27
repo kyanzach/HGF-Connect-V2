@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { title, description, eventDate, startTime, endTime, location, eventType } = body;
+    const { title, description, eventDate, startTime, endTime, location, eventType, coverPhoto } = body;
 
     if (!title || !eventDate || !startTime || !eventType) {
       return NextResponse.json(
@@ -49,6 +49,7 @@ export async function POST(request: NextRequest) {
         startTime: new Date(`1970-01-01T${startTime}`),
         endTime: endTime ? new Date(`1970-01-01T${endTime}`) : null,
         location,
+        coverPhoto: coverPhoto ?? null,
         eventType: eventType as any,
         createdBy: parseInt(session.user.id),
       },
@@ -73,6 +74,7 @@ export async function POST(request: NextRequest) {
           authorId: parseInt(session.user.id),
           type: "EVENT",
           content: feedContent,
+          imageUrl: coverPhoto ? `uploads/events/${coverPhoto}` : null,
           visibility: "MEMBERS_ONLY",
         },
       });
