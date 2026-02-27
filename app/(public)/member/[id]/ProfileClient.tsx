@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import PostCard from "@/components/feed/PostCard";
 import PhotoPostViewer, { PhotoEntry } from "@/components/PhotoPostViewer";
 
@@ -234,6 +235,7 @@ function MinistriesTab({ ministries }: { ministries: Ministry[] }) {
 
 // ── Main ProfileClient ─────────────────────────────────────────────────────────
 export default function ProfileClient({ member }: { member: ProfileData }) {
+  const { update } = useSession();
   const [activeTab, setActiveTab] = useState<"wall" | "about" | "ministries">("wall");
   // Photo viewer
   const [viewerPhotos, setViewerPhotos] = useState<PhotoEntry[]>([]);
@@ -298,7 +300,8 @@ export default function ProfileClient({ member }: { member: ProfileData }) {
     try {
       const res = await fetch(`/api/members/${member.id}/photo`, { method: "POST", body: fd });
       if (res.ok) {
-        // Refresh page to show new photo
+        // Refresh JWT session so header avatar updates immediately
+        await update();
         window.location.reload();
       }
     } catch { /* silent */ }

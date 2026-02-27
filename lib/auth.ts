@@ -90,7 +90,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id as string;
         token.role = (user as any).role;
@@ -99,6 +99,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.lastName = (user as any).lastName;
         token.username = (user as any).username;
         token.profilePicture = (user as any).profilePicture;
+      }
+      // Re-fetch profile picture from DB when session.update() is called
+      if (trigger === "update" && token.id) {
+        const numericId = parseInt(String(token.id), 10);
+        if (!Number.isNaN(numericId)) {
+          const fresh = await db.member.findUnique({
+            where: { id: numericId },
+            select: { profilePicture: true },
+          });
+          if (fresh) token.profilePicture = fresh.profilePicture;
+        }
       }
       return token;
     },

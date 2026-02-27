@@ -40,12 +40,14 @@ function timeAgo(date: Date | string) {
 }
 
 const TYPE_LABELS: Record<string, { icon: string; label: string; color: string }> = {
-  TEXT:       { icon: "✍️",  label: "Reflection",    color: "#6c757d" },
-  DEVO:       { icon: "📖",  label: "Devotional",    color: PRIMARY },
-  VERSE_CARD: { icon: "📜",  label: "Bible Verse",   color: "#805AD5" },
-  PRAYER:     { icon: "🙏",  label: "Prayer",        color: "#E67E22" },
-  PRAISE:     { icon: "🙌",  label: "Praise Report", color: "#27AE60" },
-  EVENT:      { icon: "📅",  label: "Event",         color: "#E74C3C" },
+  TEXT:          { icon: "✍️",  label: "Reflection",    color: "#6c757d" },
+  DEVO:          { icon: "📖",  label: "Devotional",    color: PRIMARY },
+  VERSE_CARD:    { icon: "📜",  label: "Bible Verse",   color: "#805AD5" },
+  PRAYER:        { icon: "🙏",  label: "Prayer",        color: "#E67E22" },
+  PRAISE:        { icon: "🙌",  label: "Praise Report", color: "#27AE60" },
+  EVENT:         { icon: "📅",  label: "Event",         color: "#E74C3C" },
+  PROFILE_PHOTO: { icon: "📷",  label: "Profile Photo", color: "#0ea5e9" },
+  COVER_PHOTO:   { icon: "🖼️", label: "Cover Photo",   color: "#8b5cf6" },
 };
 
 export default function PostCard({ post }: PostCardProps) {
