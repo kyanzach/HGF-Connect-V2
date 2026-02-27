@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import PrayCommitModal from "@/components/prayer/PrayCommitModal";
 
 const PRIMARY = "#4EB1CB";
 
@@ -26,7 +27,10 @@ export default function PrayerWallPage() {
   const [tab, setTab] = useState<"active" | "answered">("active");
   const [requests, setRequests] = useState<PrayerRequest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [praying, setPraying] = useState<Record<number, boolean>>({});
+
+  // Modal state
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<PrayerRequest | null>(null);
 
   const load = useCallback(async (t: "active" | "answered") => {
     setLoading(true);
@@ -41,16 +45,20 @@ export default function PrayerWallPage() {
 
   useEffect(() => { load(tab); }, [tab, load]);
 
-  async function handlePray(id: number) {
-    if (praying[id]) return;
-    setPraying((p) => ({ ...p, [id]: true }));
-    setRequests((prev) =>
-      prev.map((r) => r.id === id ? { ...r, prayerCount: r.prayerCount + 1 } : r)
-    );
-    try {
-      await fetch(`/api/prayer/${id}/pray`, { method: "POST" });
-    } catch {
-      // optimistic — no rollback needed for prayer count
+  function openPrayModal(req: PrayerRequest) {
+    setSelectedRequest(req);
+    setModalOpen(true);
+  }
+
+  function handlePrayed() {
+    if (selectedRequest) {
+      setRequests((prev) =>
+        prev.map((r) =>
+          r.id === selectedRequest.id
+            ? { ...r, prayerCount: r.prayerCount + 1, _count: { responses: r._count.responses + 1 } }
+            : r
+        )
+      );
     }
   }
 
@@ -158,23 +166,23 @@ export default function PrayerWallPage() {
             >
               {/* Author + time */}
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.625rem" }}>
-                <div
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: "50%",
-                    background: "#a855f7",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "white",
-                    fontSize: "0.8rem",
-                    fontWeight: 700,
-                    flexShrink: 0,
-                  }}
-                >
-                  {req.author.firstName[0]}{req.author.lastName[0]}
-                </div>
+                {req.author.profilePicture ? (
+                  <img
+                    src={`/uploads/profile_pictures/${req.author.profilePicture}`}
+                    alt=""
+                    style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: 32, height: 32, borderRadius: "50%", background: "#a855f7",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      color: "white", fontSize: "0.8rem", fontWeight: 700, flexShrink: 0,
+                    }}
+                  >
+                    {req.author.firstName[0]}{req.author.lastName[0]}
+                  </div>
+                )}
                 <div>
                   <span style={{ fontWeight: 700, fontSize: "0.875rem", color: "#1e293b" }}>
                     {req.author.firstName} {req.author.lastName}
@@ -193,31 +201,49 @@ export default function PrayerWallPage() {
               {/* Actions */}
               <div style={{ display: "flex", gap: "0.625rem", alignItems: "center" }}>
                 <button
-                  onClick={() => handlePray(req.id)}
+                  onClick={() => openPrayModal(req)}
                   style={{
                     display: "flex",
                     alignItems: "center",
                     gap: "0.375rem",
                     padding: "0.45rem 0.875rem",
-                    background: praying[req.id] ? "#faf5ff" : "#f5f3ff",
+                    background: "#f5f3ff",
                     border: "1px solid #e9d5ff",
                     borderRadius: "999px",
                     fontSize: "0.8125rem",
                     color: "#7c3aed",
                     fontWeight: 600,
-                    cursor: praying[req.id] ? "default" : "pointer",
+                    cursor: "pointer",
                   }}
                 >
-                  🙏 Praying {req.prayerCount > 0 && `· ${req.prayerCount}`}
+                  🙏 Pray {req.prayerCount > 0 && `· ${req.prayerCount}`}
                 </button>
-                <span style={{ fontSize: "0.75rem", color: "#94a3b8" }}>
-                  💬 {req._count.responses} responses
-                </span>
+                <Link
+                  href={`/prayer/${req.id}`}
+                  style={{
+                    fontSize: "0.75rem", color: "#7c3aed",
+                    textDecoration: "none", fontWeight: 500,
+                  }}
+                >
+                  💬 {req._count.responses} responses →
+                </Link>
               </div>
             </div>
           ))
         )}
       </div>
+
+      {/* Prayer commit modal */}
+      {selectedRequest && (
+        <PrayCommitModal
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+          onPrayed={handlePrayed}
+          requestId={selectedRequest.id}
+          authorName={`${selectedRequest.author.firstName} ${selectedRequest.author.lastName}`}
+          requestText={selectedRequest.request}
+        />
+      )}
 
       <style>{`
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
