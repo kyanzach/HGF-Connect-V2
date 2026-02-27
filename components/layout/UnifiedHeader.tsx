@@ -24,10 +24,10 @@ import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import NotificationBell from "@/components/NotificationBell";
+import { APP_VERSION } from "@/lib/version";
 
 const PRIMARY   = "#4EB1CB";
 const DARK_NAV  = "#3A95AD";
-const VERSION   = "2.3.0";
 
 // ── SVG icons ─────────────────────────────────────────────────────────────────
 const Ic = {
@@ -240,7 +240,7 @@ export default function UnifiedHeader() {
             <span style={{ fontSize: "0.58rem", background: "rgba(255,255,255,0.2)",
               padding: "0.1rem 0.35rem", borderRadius: 999, fontWeight: 600,
               letterSpacing: "0.04em", color: "rgba(255,255,255,0.85)", flexShrink: 0 }}>
-              v{VERSION}
+              v{APP_VERSION}
             </span>
           </Link>
 
