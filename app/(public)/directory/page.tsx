@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import Image from "next/image";
 import Link from "next/link";
 
 const PRIMARY = "#4EB1CB";
@@ -31,8 +30,8 @@ function since(d: string | null) {
 
 function completenessScore(m: Member): number {
   let s = 0;
-  if (m.profilePicture) s += 2;
-  if (m.coverPhoto)     s += 2;
+  if (m.profilePicture) s += 5;
+  if (m.coverPhoto)     s += 5;
   if (m.birthdate)      s += 1;
   if (m.baptismDate)    s += 1;
   if (m.invitedBy)      s += 1;
@@ -40,6 +39,9 @@ function completenessScore(m: Member): number {
   if (m.phone)          s += 1;
   if (m.address)        s += 1;
   if (m.favoriteVerse)  s += 1;
+  if (m.ageGroup)       s += 1;
+  if (m.joinDate)       s += 1;
+  if (m.ministries && m.ministries.length > 0) s += 1;
   return s;
 }
 
@@ -83,7 +85,7 @@ function MemberCard({ m }: { m: Member }) {
             {/* Avatar */}
             <div style={{ width: 60, height: 60, borderRadius: "50%", flexShrink: 0, overflow: "hidden", background: `${color}18`, display: "flex", alignItems: "center", justifyContent: "center", border: `2.5px solid ${color}30`, boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }}>
               {avatarSrc ? (
-                <Image src={avatarSrc} alt={`${m.firstName} ${m.lastName}`} width={60} height={60} style={{ objectFit: "cover", width: 60, height: 60 }} />
+                <img src={avatarSrc} alt={`${m.firstName} ${m.lastName}`} style={{ objectFit: "cover", width: 60, height: 60 }} />
               ) : (
                 <span style={{ fontSize: "1.375rem", fontWeight: 900, color }}>{initials}</span>
               )}
