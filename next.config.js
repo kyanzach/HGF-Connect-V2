@@ -21,6 +21,21 @@ const nextConfig = {
       },
     ],
   },
+  // Redirect old /marketplace URLs to /stewardshop
+  async redirects() {
+    return [
+      {
+        source: "/marketplace/:path*",
+        destination: "/stewardshop/:path*",
+        permanent: true,
+      },
+      {
+        source: "/marketplace",
+        destination: "/stewardshop",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

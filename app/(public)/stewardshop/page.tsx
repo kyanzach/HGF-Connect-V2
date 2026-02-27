@@ -173,7 +173,7 @@ export default async function MarketplaceSSRPage({
                     <div style={{ width: "100%", height: 130, background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2.5rem", position: "relative" }}>
                       {listing.photos[0] ? (
                         <img
-                          src={`/uploads/stewardshop/${listing.photos[0].photoPath}`}
+                          src={`/uploads/marketplace/${listing.photos[0].photoPath}`}
                           alt={listing.title}
                           style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
                         />

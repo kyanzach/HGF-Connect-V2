@@ -34,7 +34,7 @@ function PhotoCarousel({ photos, title }: { photos: { photoPath: string }[]; tit
       }}
     >
       <img
-        src={`/uploads/stewardshop/${photos[idx].photoPath}`}
+        src={`/uploads/marketplace/${photos[idx].photoPath}`}
         alt={`${title} — photo ${idx + 1}`}
         style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", transition: "opacity 0.2s" }}
       />

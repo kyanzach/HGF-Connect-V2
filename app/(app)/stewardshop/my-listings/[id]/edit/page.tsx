@@ -165,7 +165,7 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "0.5rem" }}>
             {photoPaths.map((path, idx) => (
               <div key={path} style={{ position: "relative", width: 72, height: 72 }}>
-                <img src={`/uploads/stewardshop/${path}`} alt="photo" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", borderRadius: "8px" }} />
+                <img src={`/uploads/marketplace/${path}`} alt="photo" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", borderRadius: "8px" }} />
                 <button
                   type="button"
                   onClick={() => removePhoto(idx)}

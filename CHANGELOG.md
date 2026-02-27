@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.5.6] — 2026-02-27
+
+### Fixed
+- **Broken listing photos** — The URL rename accidentally changed `/uploads/marketplace/` to `/uploads/stewardshop/` in 7 files. Reverted to `/uploads/marketplace/` (disk path unchanged).
+- **Old URL redirect** — Added permanent 308 redirect from `/marketplace/*` → `/stewardshop/*` in `next.config.js` so old shared links and bookmarks still work.
+
+---
+
 ## [v2.5.5] — 2026-02-27
 
 ### Changed

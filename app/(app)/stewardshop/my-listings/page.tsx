@@ -89,7 +89,7 @@ export default function MyListingsPage() {
                   {/* Thumbnail */}
                   <div style={{ width: 64, height: 64, borderRadius: "10px", background: "#f1f5f9", flexShrink: 0, position: "relative", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.5rem" }}>
                     {listing.photo ? (
-                      <img src={`/uploads/stewardshop/${listing.photo}`} alt={listing.title} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+                      <img src={`/uploads/marketplace/${listing.photo}`} alt={listing.title} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
                     ) : "📦"}
                   </div>
 
