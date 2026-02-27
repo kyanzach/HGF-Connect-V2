@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import PrayCommitModal from "@/components/prayer/PrayCommitModal";
 
@@ -12,7 +13,7 @@ interface PrayerRequest {
   isAnswered: boolean;
   prayerCount: number;
   createdAt: string;
-  author: { firstName: string; lastName: string; profilePicture?: string | null };
+  author: { id: number; firstName: string; lastName: string; profilePicture?: string | null };
   _count: { responses: number };
 }
 
@@ -24,6 +25,8 @@ function timeAgo(d: string) {
 }
 
 export default function PrayerWallPage() {
+  const { data: session } = useSession();
+  const currentUserId = session?.user?.id ? parseInt(session.user.id) : null;
   const [tab, setTab] = useState<"active" | "answered">("active");
   const [requests, setRequests] = useState<PrayerRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -200,24 +203,27 @@ export default function PrayerWallPage() {
 
               {/* Actions */}
               <div style={{ display: "flex", gap: "0.625rem", alignItems: "center" }}>
-                <button
-                  onClick={() => openPrayModal(req)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.375rem",
-                    padding: "0.45rem 0.875rem",
-                    background: "#f5f3ff",
-                    border: "1px solid #e9d5ff",
-                    borderRadius: "999px",
-                    fontSize: "0.8125rem",
-                    color: "#7c3aed",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                  }}
-                >
-                  🙏 Pray {req.prayerCount > 0 && `· ${req.prayerCount}`}
-                </button>
+                {currentUserId !== null && req.author.id === currentUserId ? (
+                  <span style={{
+                    display: "flex", alignItems: "center", gap: "0.375rem",
+                    padding: "0.45rem 0.875rem", background: "#f1f5f9",
+                    borderRadius: "999px", fontSize: "0.8125rem", color: "#94a3b8", fontWeight: 600,
+                  }}>
+                    ✏️ Your Request
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => openPrayModal(req)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: "0.375rem",
+                      padding: "0.45rem 0.875rem", background: "#f5f3ff",
+                      border: "1px solid #e9d5ff", borderRadius: "999px",
+                      fontSize: "0.8125rem", color: "#7c3aed", fontWeight: 600, cursor: "pointer",
+                    }}
+                  >
+                    🙏 Pray {req.prayerCount > 0 && `· ${req.prayerCount}`}
+                  </button>
+                )}
                 <Link
                   href={`/prayer/${req.id}`}
                   style={{

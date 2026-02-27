@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 
-/** Only accept URLs produced by our own upload endpoint. */
+/** Accept URLs produced by our upload endpoint: /uploads/prayer_audio/prayer_<anything>.ext */
 const AUDIO_URL_PATTERN =
-  /^\/uploads\/prayer_audio\/prayer_\d+_\d+\.\w{1,5}$/;
+  /^\/uploads\/prayer_audio\/prayer_[\w]+\.\w{1,5}$/;
 
 const MAX_MESSAGE_LENGTH = 500;
 
@@ -55,12 +55,20 @@ export async function POST(
     // ── Verify the prayer request exists ─────────────────────────────
     const prayerRequest = await db.prayerRequest.findUnique({
       where: { id: requestId },
-      select: { id: true },
+      select: { id: true, authorId: true },
     });
     if (!prayerRequest) {
       return NextResponse.json(
         { error: "Prayer request not found" },
         { status: 404 }
+      );
+    }
+
+    // ── Block self-praying ─────────────────────────────────────────────
+    if (prayerRequest.authorId === authorId) {
+      return NextResponse.json(
+        { error: "You cannot pray for your own request" },
+        { status: 403 }
       );
     }
 
