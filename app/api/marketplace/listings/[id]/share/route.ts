@@ -33,7 +33,7 @@ export async function GET(_req: NextRequest, { params }: Props) {
 
   if (!share) return NextResponse.json({ shareLink: null });
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://connect.houseofgrace.ph";
+  const baseUrl = "https://connect.houseofgrace.ph";
   return NextResponse.json({
     shareLink: `${baseUrl}/marketplace/${listingId}?ref=${share.shareCode}`,
     shareCode: share.shareCode,
@@ -73,7 +73,7 @@ export async function POST(_req: NextRequest, { params }: Props) {
   });
 
   if (existing) {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://connect.houseofgrace.ph";
+    const baseUrl = "https://connect.houseofgrace.ph";
     return NextResponse.json({
       shareLink: `${baseUrl}/marketplace/${listingId}?ref=${existing.shareCode}`,
       shareCode: existing.shareCode,
@@ -113,7 +113,7 @@ export async function POST(_req: NextRequest, { params }: Props) {
     },
   });
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://connect.houseofgrace.ph";
+  const baseUrl = "https://connect.houseofgrace.ph";
   return NextResponse.json({
     shareLink: `${baseUrl}/marketplace/${listingId}?ref=${shareCode}`,
     shareCode,

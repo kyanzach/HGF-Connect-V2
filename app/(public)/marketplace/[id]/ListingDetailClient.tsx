@@ -417,7 +417,7 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
         </span>
         {/* Love Gift badge — members only, not owner, not public */}
         {listing.loveGiftAmount > 0 && listing.isLoggedIn && !listing.isOwner && (
-          <span style={{ position: "absolute", top: "0.75rem", right: "0.75rem", background: "#ef4444", color: "white", fontSize: "0.7rem", fontWeight: 700, padding: "0.25rem 0.6rem", borderRadius: "6px" }}>
+          <span style={{ position: "absolute", bottom: "0.75rem", right: "0.75rem", background: "#ef4444", color: "white", fontSize: "0.7rem", fontWeight: 700, padding: "0.25rem 0.6rem", borderRadius: "6px" }}>
             ❤️ Love Gift ₱{listing.loveGiftAmount.toLocaleString()}
           </span>
         )}

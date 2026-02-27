@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useState, use, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -34,7 +34,9 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
   const [photoPaths, setPhotoPaths] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load existing listing data
   useEffect(() => {
@@ -70,6 +72,36 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
   const ogNum = parseFloat(form.ogPrice) || 0;
   const discNum = parseFloat(form.discountedPrice) || 0;
 
+  // Photo delete
+  function removePhoto(idx: number) {
+    setPhotoPaths((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  // Photo upload
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    if (photoPaths.length + files.length > 5) { setError("Max 5 photos"); return; }
+    setUploading(true); setError("");
+    try {
+      const uploaded: string[] = [];
+      for (const file of files) {
+        const fd = new FormData();
+        fd.append("file", file);
+        const res = await fetch("/api/marketplace/upload", { method: "POST", body: fd });
+        if (!res.ok) throw new Error((await res.json()).error ?? "Upload failed");
+        const data = await res.json();
+        uploaded.push(data.photoPath);
+      }
+      setPhotoPaths((prev) => [...prev, ...uploaded]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (!form.title.trim()) { setError("Title is required"); return; }
@@ -86,6 +118,7 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
           priceLabel: form.priceLabel || null,
           conditionType: form.conditionType, locationArea: form.locationArea,
           loveGiftAmount: loveGiftAmt,
+          photoPaths,
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Failed");
@@ -126,19 +159,37 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
 
-        {/* Existing Photos (read-only in edit) */}
-        {photoPaths.length > 0 && (
-          <div style={{ background: "white", borderRadius: "14px", padding: "1rem", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
-            <label style={{ fontSize: "0.8rem", fontWeight: 700, color: "#64748b", display: "block", marginBottom: "0.5rem" }}>Current Photos</label>
-            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-              {photoPaths.map((path) => (
-                <div key={path} style={{ position: "relative", width: 72, height: 72 }}>
-                  <img src={`/uploads/marketplace/${path}`} alt="photo" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", borderRadius: "8px" }} />
-                </div>
-              ))}
-            </div>
+        {/* Photos — delete + add */}
+        <div style={{ background: "white", borderRadius: "14px", padding: "1rem", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+          <label style={{ fontSize: "0.8rem", fontWeight: 700, color: "#64748b", display: "block", marginBottom: "0.5rem" }}>Photos (max 5)</label>
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "0.5rem" }}>
+            {photoPaths.map((path, idx) => (
+              <div key={path} style={{ position: "relative", width: 72, height: 72 }}>
+                <img src={`/uploads/marketplace/${path}`} alt="photo" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", borderRadius: "8px" }} />
+                <button
+                  type="button"
+                  onClick={() => removePhoto(idx)}
+                  style={{ position: "absolute", top: -6, right: -6, width: 20, height: 20, borderRadius: "50%", background: "#ef4444", color: "white", border: "none", fontSize: "0.65rem", fontWeight: 900, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
           </div>
-        )}
+          {photoPaths.length < 5 && (
+            <>
+              <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handlePhotoChange} style={{ display: "none" }} />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                style={{ background: "#f1f5f9", border: `1.5px dashed ${PRIMARY}`, borderRadius: "10px", padding: "0.5rem 1rem", fontSize: "0.8rem", fontWeight: 600, color: PRIMARY, cursor: uploading ? "wait" : "pointer", fontFamily: "inherit" }}
+              >
+                {uploading ? "Uploading…" : "+ Add Photos"}
+              </button>
+            </>
+          )}
+        </div>
 
         {/* Title */}
         <div style={{ background: "white", borderRadius: "14px", padding: "1rem", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>

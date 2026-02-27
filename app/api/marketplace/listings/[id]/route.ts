@@ -76,7 +76,7 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   }
 
   // General field update
-  const { title, description, listingType, category, ogPrice, discountedPrice, priceLabel, conditionType, locationArea, loveGiftAmount } = body;
+  const { title, description, listingType, category, ogPrice, discountedPrice, priceLabel, conditionType, locationArea, loveGiftAmount, photoPaths } = body;
   const validTypes = Object.values(MarketplaceListingType);
 
   const updated = await db.marketplaceListing.update({
@@ -94,6 +94,20 @@ export async function PATCH(req: NextRequest, { params }: Props) {
       ...(loveGiftAmount !== undefined && { loveGiftAmount: parseInt(loveGiftAmount) || 0 }),
     },
   });
+
+  // Sync photos if photoPaths provided
+  if (Array.isArray(photoPaths)) {
+    await db.marketplaceListingPhoto.deleteMany({ where: { listingId } });
+    if (photoPaths.length > 0) {
+      await db.marketplaceListingPhoto.createMany({
+        data: photoPaths.map((photoPath: string, idx: number) => ({
+          listingId,
+          photoPath,
+          sortOrder: idx,
+        })),
+      });
+    }
+  }
 
   return NextResponse.json({ listing: updated });
 }

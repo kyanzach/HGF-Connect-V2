@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.5.4] — 2026-02-27
+
+### Fixed
+- **Share link URL** — Was generating `http://localhost:3000` links because `NEXT_PUBLIC_APP_URL` env var was set to localhost. Now hardcoded to production URL.
+- **Love Gift badge position** — Moved from top-right to bottom-right on listing detail page (matching grid position).
+- **Edit listing photos** — Photos were read-only. Now supports deleting individual photos (✕ button) and adding new ones (+ Add Photos). PATCH API updated to sync `photoPaths` array.
+
+---
+
 ## [v2.5.3] — 2026-02-27
 
 ### Fixed
