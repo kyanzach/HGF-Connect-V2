@@ -5,11 +5,11 @@ import Link from "next/link";
 import MarketplaceFilters from "@/components/marketplace/MarketplaceFilters";
 
 export const metadata: Metadata = {
-  title: "Marketplace | HGF Connect",
-  description: "Buy, sell, and trade with fellow HGF church members in a safe, trusted community marketplace.",
+  title: "StewardShop | HGF Connect",
+  description: "Trade well. Give well. Serve well. — A trusted community shop for HGF members.",
   openGraph: {
-    title: "HGF Connect — Marketplace",
-    description: "Support your church family. Buy, sell, donate and share with HGF members.",
+    title: "HGF Connect — StewardShop",
+    description: "Trade well. Give well. Serve well.",
     type: "website",
   },
 };
@@ -95,9 +95,9 @@ export default async function MarketplaceSSRPage({
     <>
 
       <div style={{ background: PRIMARY, padding: "2rem 1rem 1.5rem", textAlign: "center", color: "white" }}>
-        <h1 style={{ fontSize: "1.75rem", fontWeight: 800, margin: "0 0 0.375rem" }}>🛍️ Marketplace</h1>
+        <h1 style={{ fontSize: "1.75rem", fontWeight: 800, margin: "0 0 0.375rem" }}>🤝 StewardShop</h1>
         <p style={{ fontSize: "0.875rem", opacity: 0.85, margin: "0 0 1rem" }}>
-          Buy, sell &amp; trade with your church family
+          Trade well. Give well. Serve well.
         </p>
         <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center", flexWrap: "wrap" }}>
           <Link
@@ -138,7 +138,7 @@ export default async function MarketplaceSSRPage({
 
         {listings.length === 0 ? (
           <div style={{ textAlign: "center", padding: "4rem 1rem", color: "#94a3b8" }}>
-            <div style={{ fontSize: "4rem", marginBottom: "0.75rem" }}>🛍️</div>
+            <div style={{ fontSize: "4rem", marginBottom: "0.75rem" }}>🤝</div>
             <h2 style={{ fontSize: "1.125rem", color: "#64748b", fontWeight: 700 }}>
               {hasFilters ? "No listings found" : "No listings yet"}
             </h2>
@@ -226,7 +226,7 @@ export default async function MarketplaceSSRPage({
               <div style={{ display: "flex", gap: "0.5rem", justifyContent: "center", marginTop: "1.5rem", flexWrap: "wrap" }}>
                 {page > 1 && (
                   <Link
-                    href={`/marketplace?page=${page - 1}${q ? `&q=${encodeURIComponent(q)}` : ""}${listingType ? `&type=${listingType}` : ""}`}
+                    href={`/stewardshop?page=${page - 1}${q ? `&q=${encodeURIComponent(q)}` : ""}${listingType ? `&type=${listingType}` : ""}`}
                     style={{ padding: "0.5rem 1rem", border: "1.5px solid #e2e8f0", borderRadius: "999px", textDecoration: "none", color: "#64748b", fontWeight: 600, fontSize: "0.875rem" }}
                   >
                     ← Prev
@@ -238,7 +238,7 @@ export default async function MarketplaceSSRPage({
                   return (
                     <Link
                       key={p}
-                      href={`/marketplace?page=${p}${q ? `&q=${encodeURIComponent(q)}` : ""}${listingType ? `&type=${listingType}` : ""}`}
+                      href={`/stewardshop?page=${p}${q ? `&q=${encodeURIComponent(q)}` : ""}${listingType ? `&type=${listingType}` : ""}`}
                       style={{ padding: "0.5rem 0.875rem", border: `1.5px solid ${p === page ? PRIMARY : "#e2e8f0"}`, borderRadius: "999px", textDecoration: "none", color: p === page ? "white" : "#64748b", background: p === page ? PRIMARY : "transparent", fontWeight: 600, fontSize: "0.875rem" }}
                     >
                       {p}
@@ -247,7 +247,7 @@ export default async function MarketplaceSSRPage({
                 })}
                 {page < totalPages && (
                   <Link
-                    href={`/marketplace?page=${page + 1}${q ? `&q=${encodeURIComponent(q)}` : ""}${listingType ? `&type=${listingType}` : ""}`}
+                    href={`/stewardshop?page=${page + 1}${q ? `&q=${encodeURIComponent(q)}` : ""}${listingType ? `&type=${listingType}` : ""}`}
                     style={{ padding: "0.5rem 1rem", border: "1.5px solid #e2e8f0", borderRadius: "999px", textDecoration: "none", color: "#64748b", fontWeight: 600, fontSize: "0.875rem" }}
                   >
                     Next →

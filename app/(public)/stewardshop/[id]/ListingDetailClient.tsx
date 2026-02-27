@@ -8,7 +8,9 @@ const PRIMARY = "#4EB1CB";
 // ── Photo Carousel ─────────────────────────────────────────────────────────────
 function PhotoCarousel({ photos, title }: { photos: { photoPath: string }[]; title: string }) {
   const [idx, setIdx] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const touchStartX = useRef<number | null>(null);
+  const lbTouchStartX = useRef<number | null>(null);
 
   if (photos.length === 0) {
     return (
@@ -22,51 +24,94 @@ function PhotoCarousel({ photos, title }: { photos: { photoPath: string }[]; tit
   function next() { setIdx((i) => (i + 1) % photos.length); }
 
   return (
-    <div
-      style={{ position: "relative", width: "100%", height: 260, background: "#f1f5f9", overflow: "hidden", userSelect: "none" }}
-      onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
-      onTouchEnd={(e) => {
-        if (touchStartX.current === null) return;
-        const dx = e.changedTouches[0].clientX - touchStartX.current;
-        if (dx > 40) prev();
-        else if (dx < -40) next();
-        touchStartX.current = null;
-      }}
-    >
-      <img
-        src={`/uploads/marketplace/${photos[idx].photoPath}`}
-        alt={`${title} — photo ${idx + 1}`}
-        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", transition: "opacity 0.2s" }}
-      />
-      {photos.length > 1 && (
-        <>
-          {/* Prev arrow */}
-          <button
-            onClick={prev}
-            style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.45)", color: "white", border: "none", borderRadius: "50%", width: 32, height: 32, fontSize: "1rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit", WebkitTapHighlightColor: "transparent" }}
-          >‹</button>
-          {/* Next arrow */}
-          <button
-            onClick={next}
-            style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.45)", color: "white", border: "none", borderRadius: "50%", width: 32, height: 32, fontSize: "1rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit", WebkitTapHighlightColor: "transparent" }}
-          >›</button>
-          {/* Dot indicators */}
-          <div style={{ position: "absolute", bottom: 8, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 5 }}>
-            {photos.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setIdx(i)}
-                style={{ width: i === idx ? 16 : 8, height: 8, borderRadius: 4, background: i === idx ? "white" : "rgba(255,255,255,0.55)", border: "none", cursor: "pointer", padding: 0, transition: "all 0.2s", WebkitTapHighlightColor: "transparent" }}
-              />
-            ))}
+    <>
+      <div
+        style={{ position: "relative", width: "100%", height: 260, background: "#f1f5f9", overflow: "hidden", userSelect: "none", cursor: "zoom-in" }}
+        onClick={() => setLightboxOpen(true)}
+        onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+        onTouchEnd={(e) => {
+          if (touchStartX.current === null) return;
+          const dx = e.changedTouches[0].clientX - touchStartX.current;
+          if (dx > 40) { prev(); touchStartX.current = null; return; }
+          if (dx < -40) { next(); touchStartX.current = null; return; }
+          touchStartX.current = null;
+        }}
+      >
+        <img
+          src={`/uploads/marketplace/${photos[idx].photoPath}`}
+          alt={`${title} — photo ${idx + 1}`}
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", transition: "opacity 0.2s" }}
+        />
+        {photos.length > 1 && (
+          <>
+            <button onClick={(e) => { e.stopPropagation(); prev(); }} style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.45)", color: "white", border: "none", borderRadius: "50%", width: 32, height: 32, fontSize: "1rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit", WebkitTapHighlightColor: "transparent" }}>‹</button>
+            <button onClick={(e) => { e.stopPropagation(); next(); }} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.45)", color: "white", border: "none", borderRadius: "50%", width: 32, height: 32, fontSize: "1rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit", WebkitTapHighlightColor: "transparent" }}>›</button>
+            <div style={{ position: "absolute", bottom: 8, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 5 }}>
+              {photos.map((_, i) => (
+                <button key={i} onClick={(e) => { e.stopPropagation(); setIdx(i); }} style={{ width: i === idx ? 16 : 8, height: 8, borderRadius: 4, background: i === idx ? "white" : "rgba(255,255,255,0.55)", border: "none", cursor: "pointer", padding: 0, transition: "all 0.2s", WebkitTapHighlightColor: "transparent" }} />
+              ))}
+            </div>
+            <span style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.5)", color: "white", fontSize: "0.68rem", fontWeight: 700, padding: "0.2rem 0.5rem", borderRadius: 999 }}>{idx + 1} / {photos.length}</span>
+          </>
+        )}
+      </div>
+
+      {/* ── Fullscreen Lightbox ─────────────────────────────────────────── */}
+      {lightboxOpen && (
+        <div
+          style={{ position: "fixed", inset: 0, zIndex: 99999, background: "rgba(0,0,0,0.95)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}
+          onClick={() => setLightboxOpen(false)}
+        >
+          {/* Close */}
+          <button onClick={() => setLightboxOpen(false)} style={{ position: "absolute", top: 16, right: 16, background: "rgba(255,255,255,0.15)", color: "white", border: "none", borderRadius: "50%", width: 40, height: 40, fontSize: "1.25rem", cursor: "pointer", zIndex: 10, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(8px)" }}>✕</button>
+
+          {/* Counter */}
+          {photos.length > 1 && (
+            <div style={{ position: "absolute", top: 20, left: "50%", transform: "translateX(-50%)", color: "rgba(255,255,255,0.7)", fontSize: "0.8rem", fontWeight: 600 }}>
+              {idx + 1} / {photos.length}
+            </div>
+          )}
+
+          {/* Main image */}
+          <div
+            style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", width: "100%", padding: "3.5rem 0.5rem 1rem" }}
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => { lbTouchStartX.current = e.touches[0].clientX; }}
+            onTouchEnd={(e) => {
+              if (lbTouchStartX.current === null) return;
+              const dx = e.changedTouches[0].clientX - lbTouchStartX.current;
+              if (dx > 50) prev(); else if (dx < -50) next();
+              lbTouchStartX.current = null;
+            }}
+          >
+            <img
+              src={`/uploads/marketplace/${photos[idx].photoPath}`}
+              alt={`${title} — photo ${idx + 1}`}
+              style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", borderRadius: "4px", transition: "opacity 0.2s" }}
+            />
           </div>
-          {/* Counter badge */}
-          <span style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.5)", color: "white", fontSize: "0.68rem", fontWeight: 700, padding: "0.2rem 0.5rem", borderRadius: 999 }}>
-            {idx + 1} / {photos.length}
-          </span>
-        </>
+
+          {/* Arrows */}
+          {photos.length > 1 && (
+            <>
+              <button onClick={(e) => { e.stopPropagation(); prev(); }} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.12)", backdropFilter: "blur(8px)", color: "white", border: "none", borderRadius: "50%", width: 44, height: 44, fontSize: "1.25rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>‹</button>
+              <button onClick={(e) => { e.stopPropagation(); next(); }} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.12)", backdropFilter: "blur(8px)", color: "white", border: "none", borderRadius: "50%", width: 44, height: 44, fontSize: "1.25rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>›</button>
+            </>
+          )}
+
+          {/* Thumbnail strip */}
+          {photos.length > 1 && (
+            <div style={{ display: "flex", gap: 6, padding: "0.75rem", overflowX: "auto", maxWidth: "100%" }} onClick={(e) => e.stopPropagation()}>
+              {photos.map((p, i) => (
+                <button key={i} onClick={() => setIdx(i)} style={{ width: 52, height: 52, borderRadius: 8, overflow: "hidden", flexShrink: 0, border: i === idx ? "2px solid white" : "2px solid transparent", opacity: i === idx ? 1 : 0.5, cursor: "pointer", padding: 0, background: "none", transition: "all 0.2s" }}>
+                  <img src={`/uploads/marketplace/${p.photoPath}`} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       )}
-    </div>
+    </>
   );
 }
 
@@ -405,7 +450,7 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
       {/* Back nav */}
       <div style={{ padding: "0.75rem 1rem", background: "white", borderBottom: "1px solid #f1f5f9" }}>
         <Link href="/stewardshop" style={{ color: PRIMARY, textDecoration: "none", fontWeight: 600, fontSize: "0.875rem" }}>
-          ← Marketplace
+          ← StewardShop
         </Link>
       </div>
 
