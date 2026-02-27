@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import PhotoViewerModal, { type HistoryPhoto } from "@/components/PhotoViewerModal";
 
 const PRIMARY = "#4EB1CB";
@@ -79,7 +78,7 @@ export default function EditProfilePage() {
           smsSameDayReminder: data.smsSameDayReminder ?? true,
         });
         if (data.profilePicture) setProfilePic(`/uploads/profile_pictures/${data.profilePicture}`);
-        if (data.coverPhoto) setCoverPic(`/uploads/profile_pictures/${data.coverPhoto}`);
+        if (data.coverPhoto) setCoverPic(`/uploads/cover_photos/${data.coverPhoto}`);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -197,7 +196,7 @@ export default function EditProfilePage() {
           >
             <div style={{ width: 56, height: 56, borderRadius: "50%", overflow: "hidden", background: `${PRIMARY}20`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, border: `2.5px solid ${PRIMARY}` }}>
               {profilePic ? (
-                <Image src={profilePic} alt="Profile" width={56} height={56} style={{ objectFit: "cover" }} />
+                <img src={profilePic} alt="Profile" style={{ width: 56, height: 56, objectFit: "cover" }} />
               ) : (
                 <span style={{ fontSize: "1.375rem", fontWeight: 800, color: PRIMARY }}>{form.firstName?.[0]?.toUpperCase() ?? "?"}</span>
               )}
@@ -249,7 +248,7 @@ export default function EditProfilePage() {
           >
             <div style={{ width: 80, height: 48, borderRadius: "8px", overflow: "hidden", flexShrink: 0, border: "2px solid #e2e8f0", background: coverPic ? "transparent" : `linear-gradient(135deg, #0f2d3d, ${PRIMARY})`, position: "relative" }}>
               {coverPic ? (
-                <Image src={coverPic} alt="Cover" fill style={{ objectFit: "cover" }} sizes="80px" />
+                <img src={coverPic} alt="Cover" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
               ) : (
                 <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <span style={{ fontSize: "1.25rem" }}>🌅</span>
