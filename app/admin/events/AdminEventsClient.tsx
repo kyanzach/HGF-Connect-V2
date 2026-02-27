@@ -164,9 +164,15 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
       <div style={{ display: "grid", gap: "1rem" }}>
         {filtered.map(ev => (
           <div key={ev.id} style={{ background: "white", borderRadius: "12px", border: "1px solid #e2e8f0", padding: "1.25rem", display: "flex", gap: "1rem", alignItems: "flex-start" }}>
-            <div style={{ width: 48, height: 48, borderRadius: "10px", background: `${TYPE_COLORS[ev.eventType] ?? "#94a3b8"}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.375rem", flexShrink: 0 }}>
-              {ev.eventType === "sunday_service" ? "⛪" : ev.eventType === "prayer_meeting" ? "🙏" : ev.eventType === "bible_study" ? "📖" : ev.eventType === "grace_night" ? "🌙" : "📅"}
-            </div>
+            {ev.coverPhoto ? (
+              <div style={{ width: 48, height: 48, borderRadius: "10px", overflow: "hidden", flexShrink: 0 }}>
+                <img src={`/uploads/events/${ev.coverPhoto}`} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              </div>
+            ) : (
+              <div style={{ width: 48, height: 48, borderRadius: "10px", background: `${TYPE_COLORS[ev.eventType] ?? "#94a3b8"}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.375rem", flexShrink: 0 }}>
+                {ev.eventType === "sunday_service" ? "⛪" : ev.eventType === "prayer_meeting" ? "🙏" : ev.eventType === "bible_study" ? "📖" : ev.eventType === "grace_night" ? "🌙" : "📅"}
+              </div>
+            )}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "0.5rem" }}>
                 <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "#0f172a", margin: 0 }}>{ev.title}</h3>
@@ -180,6 +186,7 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
               {ev.description && <p style={{ fontSize: "0.8rem", color: "#94a3b8", margin: "0.25rem 0 0" }}>{ev.description}</p>}
             </div>
             <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
+              <a href={`/event/${ev.id}`} target="_blank" rel="noopener noreferrer" style={{ padding: "0.375rem 0.75rem", border: "1.5px solid #10b98130", background: "#10b98110", color: "#10b981", borderRadius: "6px", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer", textDecoration: "none" }}>View</a>
               <button onClick={() => openEdit(ev)} style={{ padding: "0.375rem 0.75rem", border: `1.5px solid ${P}30`, background: `${P}10`, color: P, borderRadius: "6px", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer" }}>Edit</button>
               <button onClick={() => deleteEvent(ev.id)} style={{ padding: "0.375rem 0.75rem", border: "1.5px solid #fee2e2", background: "#fef2f2", color: "#ef4444", borderRadius: "6px", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer" }}>Delete</button>
             </div>
