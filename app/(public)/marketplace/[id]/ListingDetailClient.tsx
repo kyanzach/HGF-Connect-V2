@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import Image from "next/image";
 import Link from "next/link";
 
 const PRIMARY = "#4EB1CB";
@@ -34,11 +33,10 @@ function PhotoCarousel({ photos, title }: { photos: { photoPath: string }[]; tit
         touchStartX.current = null;
       }}
     >
-      <Image
+      <img
         src={`/uploads/marketplace/${photos[idx].photoPath}`}
         alt={`${title} — photo ${idx + 1}`}
-        fill
-        style={{ objectFit: "cover", transition: "opacity 0.2s" }}
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", transition: "opacity 0.2s" }}
       />
       {photos.length > 1 && (
         <>

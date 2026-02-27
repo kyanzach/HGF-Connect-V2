@@ -2,7 +2,6 @@
 
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import Link from "next/link";
 
 const PRIMARY = "#4EB1CB";
@@ -134,7 +133,7 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
             <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
               {photoPaths.map((path) => (
                 <div key={path} style={{ position: "relative", width: 72, height: 72 }}>
-                  <Image src={`/uploads/marketplace/${path}`} alt="photo" fill style={{ objectFit: "cover", borderRadius: "8px" }} />
+                  <img src={`/uploads/marketplace/${path}`} alt="photo" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", borderRadius: "8px" }} />
                 </div>
               ))}
             </div>

@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 
 const PRIMARY = "#4EB1CB";
 
@@ -90,7 +89,7 @@ export default function MyListingsPage() {
                   {/* Thumbnail */}
                   <div style={{ width: 64, height: 64, borderRadius: "10px", background: "#f1f5f9", flexShrink: 0, position: "relative", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.5rem" }}>
                     {listing.photo ? (
-                      <Image src={`/uploads/marketplace/${listing.photo}`} alt={listing.title} fill style={{ objectFit: "cover" }} />
+                      <img src={`/uploads/marketplace/${listing.photo}`} alt={listing.title} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
                     ) : "📦"}
                   </div>
 

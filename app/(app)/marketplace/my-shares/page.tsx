@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import Link from "next/link";
 
 const PRIMARY = "#4EB1CB";
@@ -84,7 +83,7 @@ export default function MySharesPage() {
               {/* Listing row */}
               <div style={{ display: "flex", gap: "0.875rem", padding: "0.875rem" }}>
                 <div style={{ width: 56, height: 56, borderRadius: "8px", background: "#f1f5f9", flexShrink: 0, position: "relative", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.25rem" }}>
-                  {share.listing.photo ? <Image src={`/uploads/marketplace/${share.listing.photo}`} alt={share.listing.title} fill style={{ objectFit: "cover" }} /> : "📦"}
+                  {share.listing.photo ? <img src={`/uploads/marketplace/${share.listing.photo}`} alt={share.listing.title} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} /> : "📦"}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>

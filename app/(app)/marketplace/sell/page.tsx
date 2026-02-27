@@ -3,7 +3,6 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import Image from "next/image";
 
 const PRIMARY = "#4EB1CB";
 
@@ -174,7 +173,7 @@ export default function SellPage() {
             <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "0.75rem" }}>
               {photoPaths.map((path) => (
                 <div key={path} style={{ position: "relative", width: 72, height: 72 }}>
-                  <Image src={`/uploads/marketplace/${path}`} alt="photo" fill style={{ objectFit: "cover", borderRadius: "8px" }} />
+                  <img src={`/uploads/marketplace/${path}`} alt="photo" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", borderRadius: "8px" }} />
                   <button
                     type="button"
                     onClick={() => setPhotoPaths((prev) => prev.filter((p) => p !== path))}

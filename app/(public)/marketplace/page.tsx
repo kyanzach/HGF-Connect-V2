@@ -1,7 +1,6 @@
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import MarketplaceFilters from "@/components/marketplace/MarketplaceFilters";
 
@@ -173,11 +172,10 @@ export default async function MarketplaceSSRPage({
                     {/* Photo or placeholder */}
                     <div style={{ width: "100%", height: 130, background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2.5rem", position: "relative" }}>
                       {listing.photos[0] ? (
-                        <Image
+                        <img
                           src={`/uploads/marketplace/${listing.photos[0].photoPath}`}
                           alt={listing.title}
-                          fill
-                          style={{ objectFit: "cover" }}
+                          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
                         />
                       ) : (
                         CATEGORY_ICONS[listing.category ?? ""] ?? "📦"
