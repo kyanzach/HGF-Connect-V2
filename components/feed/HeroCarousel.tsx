@@ -64,7 +64,7 @@ export default function HeroCarousel({ firstName }: HeroCarouselProps) {
     if (total <= 1) return;
     timerRef.current = setInterval(() => {
       setIdx((i) => (i + 1) % total);
-    }, 6000);
+    }, 3000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [total]);
 
@@ -76,7 +76,7 @@ export default function HeroCarousel({ firstName }: HeroCarouselProps) {
   const resetTimer = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     if (total > 1) {
-      timerRef.current = setInterval(() => setIdx((i) => (i + 1) % total), 6000);
+      timerRef.current = setInterval(() => setIdx((i) => (i + 1) % total), 3000);
     }
   }, [total]);
 
