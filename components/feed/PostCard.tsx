@@ -180,7 +180,7 @@ export default function PostCard({ post }: PostCardProps) {
               <div style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", background: "white", borderRadius: "12px", boxShadow: "0 4px 20px rgba(0,0,0,0.15)", minWidth: 160, zIndex: 11, overflow: "hidden" }}>
                 <button onClick={() => { setMenuOpen(false); router.push(`/member/${post.author.id}`); }} style={menuItemStyle}>👤 View Profile</button>
                 <button onClick={() => { setMenuOpen(false); setCommentsOpen(true); }} style={menuItemStyle}>💬 View Comments</button>
-                {isOwnPost && <button onClick={handleDelete} style={{ ...menuItemStyle, color: "#ef4444" }}>🗑️ Delete Post</button>}
+                {isOwnPost && post.type !== "EVENT" && <button onClick={handleDelete} style={{ ...menuItemStyle, color: "#ef4444" }}>🗑️ Delete Post</button>}
                 <button onClick={() => { setMenuOpen(false); handleShare(); }} style={menuItemStyle}>📤 Share Post</button>
               </div>
             )}

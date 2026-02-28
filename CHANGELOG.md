@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.6.0] — 2026-02-28
+
+### Fixed
+- **Admin events edit button broken** — Time fields from Prisma were parsed as UTC, causing wrong pre-fill values. Rewrote with robust `toHHMM()` helper using `Asia/Manila` timezone. Added try-catch error handling to save/delete operations.
+- **Event posts deletable from feed** — EVENT-type posts no longer show "Delete Post" in the three-dot menu. Events can only be deleted from admin Events Management.
+
+### Added
+- **HeroCarousel cover photo** — Upcoming event slide now shows the event's cover photo as background with dark gradient overlay (`rgba(15,45,61,0.85)` → `rgba(26,90,118,0.75)`). Falls back to teal gradient when no photo. Decorative circles hidden when cover photo is active.
+
+---
+
+## [v2.5.9] — 2026-02-28
+
+### Added
+- **Event cover photo system** — `coverPhoto` column on events table, upload API, admin form with photo upload/preview/remove, auto-post to feed includes cover photo.
+- **Enhanced event feed card** — EVENT posts render with styled card (gradient or cover photo bg), white text with shadow, "View Event →" CTA linking to event detail page.
+- **Slick event detail page** — Compact header, full-width cover photo below header, OG meta tags with cover image.
+
+### Fixed
+- **My-shares API URL** — Hardcoded production URL, changed `/marketplace/` to `/stewardshop/` in share links.
+
+---
+
+## [v2.5.8] — 2026-02-28
+
+### Fixed
+- **Admin event cards** — Show cover photo thumbnail and View button.
+- **Event menu shortcut** — Added clickable event feed cards linking to detail page.
+
+---
+
+## [v2.5.7] — 2026-02-28
+
+### Fixed
+- **Carousel auto-advance** — Reduced interval from 6s to 3s for snappier feel.
+
+---
+
 ## [v2.5.6] — 2026-02-27
 
 ### Fixed

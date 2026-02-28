@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo, useRef } from "react";
 
 const P = "#4EB1CB";
 
@@ -22,8 +22,33 @@ type EventRow = {
   creator: { firstName: string; lastName: string } | null;
 };
 
-const fmtDate = (d: string) => new Date(d).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric", timeZone: "Asia/Manila" });
-const fmtTime = (t: string) => new Date(`1970-01-01T${t}`).toLocaleTimeString("en-PH", { hour: "numeric", minute: "2-digit", hour12: true });
+const fmtDate = (d: string) => {
+  try {
+    const date = new Date(d);
+    if (isNaN(date.getTime())) return d;
+    return date.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric", timeZone: "Asia/Manila" });
+  } catch { return d; }
+};
+
+const fmtTime = (t: string | null) => {
+  if (!t) return "";
+  try {
+    const d = t.includes("T") ? new Date(t) : new Date(`1970-01-01T${t}`);
+    if (isNaN(d.getTime())) return t.slice(0, 5);
+    return d.toLocaleTimeString("en-PH", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Manila" });
+  } catch { return t.slice(0, 5); }
+};
+
+const toHHMM = (t: string | null) => {
+  if (!t) return "";
+  try {
+    const d = t.includes("T") ? new Date(t) : new Date(`1970-01-01T${t}`);
+    if (isNaN(d.getTime())) return t.slice(0, 5);
+    return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Manila" });
+  } catch {
+    return t.slice(0, 5);
+  }
+};
 
 export default function AdminEventsClient({ events: initial }: { events: EventRow[] }) {
   const [events, setEvents] = useState(initial);
@@ -33,51 +58,108 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
   const [err, setErr] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [form, setForm] = useState({
-    title: "", description: "", eventDate: "", startTime: "", endTime: "", location: "", eventType: "sunday_service", status: "scheduled", coverPhoto: "" as string,
+    title: "", description: "", eventDate: "", startTime: "", endTime: "", location: "", eventType: "sunday_service", status: "scheduled", coverPhoto: "",
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
 
   const filtered = useMemo(() => typeFilter === "all" ? events : events.filter(e => e.eventType === typeFilter), [events, typeFilter]);
 
-  function openAdd() { setEditing(null); setForm({ title: "", description: "", eventDate: "", startTime: "", endTime: "", location: "", eventType: "sunday_service", status: "scheduled", coverPhoto: "" }); setShowModal(true); }
+  function openAdd() { 
+    setEditing(null); 
+    setErr("");
+    setForm({ title: "", description: "", eventDate: "", startTime: "", endTime: "", location: "", eventType: "sunday_service", status: "scheduled", coverPhoto: "" }); 
+    setShowModal(true); 
+  }
+  
   function openEdit(ev: EventRow) {
     setEditing(ev);
-    setForm({ title: ev.title, description: ev.description ?? "", eventDate: ev.eventDate.slice(0, 10), startTime: ev.startTime.includes("T") ? ev.startTime.slice(11, 16) : ev.startTime.slice(0, 5), endTime: ev.endTime ? (ev.endTime.includes("T") ? ev.endTime.slice(11, 16) : ev.endTime.slice(0, 5)) : "", location: ev.location ?? "", eventType: ev.eventType, status: ev.status, coverPhoto: ev.coverPhoto ?? "" });
+    setErr("");
+    setForm({ 
+      title: ev.title, 
+      description: ev.description ?? "", 
+      eventDate: ev.eventDate.slice(0, 10), 
+      startTime: toHHMM(ev.startTime), 
+      endTime: toHHMM(ev.endTime), 
+      location: ev.location ?? "", 
+      eventType: ev.eventType, 
+      status: ev.status, 
+      coverPhoto: ev.coverPhoto ?? "" 
+    });
     setShowModal(true);
   }
 
   async function handleCoverUpload(file: File) {
     setUploading(true);
+    setErr("");
     const fd = new FormData();
     fd.append("file", file);
     try {
       const res = await fetch("/api/events/upload", { method: "POST", body: fd });
       const data = await res.json();
-      if (data.photoPath) setForm(f => ({ ...f, coverPhoto: data.photoPath }));
-    } catch { /* ignore */ } finally { setUploading(false); }
+      if (res.ok && data.photoPath) {
+        setForm(f => ({ ...f, coverPhoto: data.photoPath }));
+      } else {
+        setErr(data.error ?? "Upload failed");
+      }
+    } catch { 
+      setErr("Network error during upload");
+    } finally { 
+      setUploading(false); 
+    }
   }
 
   async function handleSave(e: React.FormEvent) {
-    e.preventDefault(); setSaving(true); setErr("");
-    const url = editing ? `/api/events/${editing.id}` : "/api/events";
-    const method = editing ? "PATCH" : "POST";
-    const body = { ...form, eventDate: form.eventDate, endTime: form.endTime || null, coverPhoto: form.coverPhoto || null };
-    const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    const data = await res.json();
-    if (!res.ok) { setErr(data.error ?? "Failed"); setSaving(false); return; }
-    if (editing) {
-      setEvents(prev => prev.map(e => e.id === editing.id ? { ...e, ...body } : e));
-    } else {
-      setEvents(prev => [data.event ?? data, ...prev]);
+    e.preventDefault(); 
+    setSaving(true); 
+    setErr("");
+    
+    try {
+      const url = editing ? `/api/events/${editing.id}` : "/api/events";
+      const method = editing ? "PATCH" : "POST";
+      const body = { ...form, endTime: form.endTime || null, coverPhoto: form.coverPhoto || null };
+      
+      const res = await fetch(url, { 
+        method, 
+        headers: { "Content-Type": "application/json" }, 
+        body: JSON.stringify(body) 
+      });
+      
+      const data = await res.json();
+      if (!res.ok) { 
+        setErr(data.error ?? "Failed to save event"); 
+        setSaving(false); 
+        return; 
+      }
+      
+      const savedEvent = data.event ?? data;
+      if (editing) {
+        setEvents(prev => prev.map(e => e.id === editing.id ? { ...e, ...savedEvent } : e));
+      } else {
+        setEvents(prev => [savedEvent, ...prev]);
+      }
+      
+      setShowModal(false);
+    } catch (err) {
+      setErr("An unexpected error occurred");
+    } finally {
+      setSaving(false);
     }
-    setShowModal(false); setSaving(false);
   }
 
   async function deleteEvent(id: number) {
     if (!confirm("Delete this event?")) return;
-    const res = await fetch(`/api/events/${id}`, { method: "DELETE" });
-    if (res.ok) setEvents(prev => prev.filter(e => e.id !== id));
+    try {
+      const res = await fetch(`/api/events/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setEvents(prev => prev.filter(e => e.id !== id));
+      } else {
+        const data = await res.json();
+        alert(data.error ?? "Failed to delete event");
+      }
+    } catch {
+      alert("Network error occurred while deleting");
+    }
   }
 
   const inp: React.CSSProperties = { width: "100%", border: "1.5px solid #e2e8f0", borderRadius: "8px", padding: "0.5rem 0.75rem", fontSize: "0.875rem", outline: "none", boxSizing: "border-box" };
