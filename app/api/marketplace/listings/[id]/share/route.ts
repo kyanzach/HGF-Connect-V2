@@ -12,10 +12,10 @@ interface Props { params: Promise<{ id: string }> }
  * All uppercase, max 12 chars.
  */
 function buildCouponCode(firstName: string, lastName: string, sequence: number): string {
-  const first = firstName.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 7);
-  const lastInitial = lastName.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 1);
+  const first = (firstName || "USER").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 7) || "USER";
+  const lastInitial = (lastName || "X").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 1) || "X";
   const seq = String(sequence).padStart(2, "0");
-  return `${first}${lastInitial}${seq}`;
+  return `${first}${lastInitial}${seq}`.slice(0, 12);
 }
 
 // GET — return the current user's share link & coupon code for this listing (or null)
@@ -33,9 +33,9 @@ export async function GET(_req: NextRequest, { params }: Props) {
 
   if (!share) return NextResponse.json({ shareLink: null });
 
-  const baseUrl = "https://connect.houseofgrace.ph";
+  const shortBase = "https://hgfapp.link";
   return NextResponse.json({
-    shareLink: `${baseUrl}/stewardshop/${listingId}?ref=${share.shareCode}`,
+    shareLink: `${shortBase}/s/${share.shareCode}`,
     shareCode: share.shareCode,
     loveGiftEarned: Number(share.loveGiftEarned),
     status: share.status,
@@ -73,9 +73,9 @@ export async function POST(_req: NextRequest, { params }: Props) {
   });
 
   if (existing) {
-    const baseUrl = "https://connect.houseofgrace.ph";
+    const shortBase = "https://hgfapp.link";
     return NextResponse.json({
-      shareLink: `${baseUrl}/stewardshop/${listingId}?ref=${existing.shareCode}`,
+      shareLink: `${shortBase}/s/${existing.shareCode}`,
       shareCode: existing.shareCode,
       loveGiftAmount: Number(listing.loveGiftAmount),
       isNew: false,
@@ -113,9 +113,9 @@ export async function POST(_req: NextRequest, { params }: Props) {
     },
   });
 
-  const baseUrl = "https://connect.houseofgrace.ph";
+  const shortBase = "https://hgfapp.link";
   return NextResponse.json({
-    shareLink: `${baseUrl}/stewardshop/${listingId}?ref=${shareCode}`,
+    shareLink: `${shortBase}/s/${shareCode}`,
     shareCode,
     loveGiftAmount: Number(listing.loveGiftAmount),
     isNew: true,

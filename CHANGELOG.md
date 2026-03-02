@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.7.0] — 2026-03-03
+
+### Added
+- **Short link domain `hgfapp.link`** — Share links now use `hgfapp.link/s/{code}` instead of the full connect.houseofgrace.ph URL. Coupon code is hidden from the shared link. Direct access to `hgfapp.link` redirects to `houseofgrace.ph`.
+- **`/s/[code]` redirect route** — Resolves share codes from `listing_shares`, records an impression, and 302 redirects to the listing page.
+- **🫰 My Share Links** — New menu item in the sidebar dropdown below "My Listings".
+
+### Changed
+- **Coupon card text** — Renamed to "YOUR DISCOUNT CARD", updated instructions to "SCREENSHOT this! Show this discount card to the seller at purchase time."
+- **Share CTA visibility** — "Share this listing" text now hidden for non-logged-in/public users.
+- **Native share message** — No longer exposes coupon code in the shared text.
+
+---
+
 ## [v2.6.0] — 2026-02-28
 
 ### Fixed

@@ -218,8 +218,8 @@ function Modal({ children, onClose }: { children: React.ReactNode; onClose: () =
 }
 
 // ── Coupon Code card — shows after reveal ──────────────────────────────────────
-function CouponRevealCard({ revealed, sellerName, sellerMobile, loveGiftAmount }: {
-  revealed: RevealedState; sellerName: string; sellerMobile: string | null; loveGiftAmount: number;
+function CouponRevealCard({ revealed, sellerName, sellerMobile, loveGiftAmount, isLoggedIn }: {
+  revealed: RevealedState; sellerName: string; sellerMobile: string | null; loveGiftAmount: number; isLoggedIn: boolean;
 }) {
   const { discountedPrice, ogPrice, couponCode, actionType } = revealed;
   const saving = ogPrice ? ogPrice - discountedPrice : 0;
@@ -242,7 +242,7 @@ function CouponRevealCard({ revealed, sellerName, sellerMobile, loveGiftAmount }
       {couponCode && (
         <div style={{ textAlign: "center", marginBottom: "1rem" }}>
           <p style={{ fontSize: "0.72rem", color: "#64748b", margin: "0 0 0.375rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-            Your Discount Code
+            YOUR DISCOUNT CARD
           </p>
           <div style={{ display: "inline-block", background: "white", border: "2px dashed #16a34a", borderRadius: "12px", padding: "0.625rem 1.5rem", animation: "coupon-pop 0.5s ease forwards" }}>
             <span style={{ fontSize: "1.75rem", fontWeight: 900, color: "#15803d", letterSpacing: "0.12em", fontFamily: "monospace" }}>
@@ -250,10 +250,10 @@ function CouponRevealCard({ revealed, sellerName, sellerMobile, loveGiftAmount }
             </span>
           </div>
           <p style={{ fontSize: "0.72rem", color: "#16a34a", margin: "0.5rem 0 0", fontWeight: 600 }}>
-            📸 Screenshot this! Show code <strong>{couponCode}</strong> to the seller at purchase time.
+            📸 SCREENSHOT this! Show this discount card to the seller at purchase time.
           </p>
           <p style={{ fontSize: "0.68rem", color: "#94a3b8", margin: "0.25rem 0 0", lineHeight: 1.5 }}>
-            This code stays saved here — come back anytime to view it.
+            This discount card stays saved here - come back anytime to view it.
           </p>
         </div>
       )}
@@ -261,7 +261,7 @@ function CouponRevealCard({ revealed, sellerName, sellerMobile, loveGiftAmount }
       <p style={{ textAlign: "center", fontSize: "0.8rem", color: "#4b5563", margin: "0.5rem 0" }}>
         Contact <strong>{sellerName}</strong>{sellerMobile ? ` — ${sellerMobile}` : ""} to complete your purchase.
       </p>
-      {loveGiftAmount > 0 && (
+      {loveGiftAmount > 0 && isLoggedIn && (
         <p style={{ textAlign: "center", fontSize: "0.75rem", color: "#9f1239", margin: "0.375rem 0 0" }}>
           ❤️ Share this listing — earn ₱{loveGiftAmount.toLocaleString()} Love Gift per confirmed sale!
         </p>
@@ -309,7 +309,7 @@ function SharePanel({ listingId, loveGiftAmount, title }: { listingId: number; l
   function shareNative() {
     if (!shareLink) return;
     if (navigator.share) {
-      navigator.share({ title, text: `Check this out on HGF Marketplace! Use code ${shareCode} for a discount 🎁`, url: shareLink }).catch(() => {});
+      navigator.share({ title, text: `Check this out on StewardShop! 🎁`, url: shareLink }).catch(() => {});
     } else { copyLink(); }
   }
 
@@ -495,6 +495,7 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
               sellerName={revealed.sellerName}
               sellerMobile={listing.seller.mobileNumber}
               loveGiftAmount={listing.loveGiftAmount}
+              isLoggedIn={listing.isLoggedIn}
             />
           )}
 

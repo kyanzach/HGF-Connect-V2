@@ -9,7 +9,7 @@ export async function GET(_req: NextRequest) {
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const sharerId = parseInt(session.user.id);
-  const baseUrl = "https://connect.houseofgrace.ph";
+  const shortBase = "https://hgfapp.link";
 
   const shares = await db.listingShare.findMany({
     where: { sharerId },
@@ -63,7 +63,7 @@ export async function GET(_req: NextRequest) {
     shares: shares.map((s) => ({
       id: s.id,
       shareCode: s.shareCode,
-      shareLink: `${baseUrl}/stewardshop/${s.listingId}?ref=${s.shareCode}`,
+      shareLink: `${shortBase}/s/${s.shareCode}`,
       loveGiftEarned: Number(s.loveGiftEarned ?? 0),
       status: s.status as string,
       createdAt: s.createdAt.toISOString(),
