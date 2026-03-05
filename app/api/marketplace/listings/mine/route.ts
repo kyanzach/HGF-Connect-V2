@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
 // GET /api/marketplace/listings/mine — return session user's listings
 export async function GET(_req: NextRequest) {
   const session = await auth();

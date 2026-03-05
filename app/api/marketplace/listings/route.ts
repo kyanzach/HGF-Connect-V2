@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { MarketplaceListingType as ListingType } from "@prisma/client";
 import { notifyAllMembers } from "@/lib/notify";
 
+export const dynamic = "force-dynamic";
 // GET /api/marketplace/listings
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);

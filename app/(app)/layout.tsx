@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import UnifiedHeader from "@/components/layout/UnifiedHeader";
 import BottomDock from "@/components/app/BottomDock";
 import BiometricEnrollTrigger from "@/components/BiometricEnrollTrigger";
+import PullToRefresh from "@/components/PullToRefresh";
 
 export default async function AppLayout({
   children,
@@ -40,7 +41,9 @@ export default async function AppLayout({
           margin: "0 auto",
         }}
       >
-        {children}
+        <PullToRefresh>
+          {children}
+        </PullToRefresh>
       </main>
 
       {/* Fixed Bottom Dock — full width via position:fixed left:0 right:0 */}

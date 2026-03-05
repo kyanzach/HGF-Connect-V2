@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
 interface Props { params: Promise<{ id: string }> }
 
 // GET /api/marketplace/listings/[id]/prospects — prospects for a listing (owner-scoped)

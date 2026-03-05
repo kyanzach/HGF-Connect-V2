@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { Prisma } from "@prisma/client";
 
+export const dynamic = "force-dynamic";
 // GET /api/marketplace/shares/mine — sharer's ListingShare records with stats + claim info + winner info
 export async function GET(_req: NextRequest) {
   const session = await auth();

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.10.3] — 2026-03-06
+### Fixed
+- Added `export const dynamic = "force-dynamic"` to all 6 StewardShop API routes
+  - Fixes stale/empty data on Prospects, My Listings, My Shares, Love Gifts pages
+  - Root cause: Next.js was aggressively caching GET responses
+### Added
+- Pull-to-Refresh gesture for the entire app
+  - Drag down from the top of any page to trigger a hard reload
+  - SVG refresh spinner with teal theme, resistance curve, and threshold-based activation
+  - Works with overflow scroll containers (not just window scroll)
+
 ## [v2.10.2] — 2026-03-06
 ### Changed
 - Rewrote `VersionGuard` from forced auto-reload to a polite update modal
