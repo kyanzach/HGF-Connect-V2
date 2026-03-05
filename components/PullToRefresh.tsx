@@ -3,21 +3,18 @@
 import { useRef, useState, useCallback, type ReactNode } from "react";
 
 /**
- * PullToRefresh — Native app-like pull-down gesture to reload the page.
+ * PullToRefresh — Premium pull-down gesture with glassmorphic centered indicator.
  *
- * How it works:
- * 1. User touches and drags down while at the top of the scroll container
- * 2. A spinner indicator peeks down from the top
- * 3. Once pulled past the threshold (80px), releasing triggers a hard reload
- * 4. If released before threshold, it snaps back (no action)
- *
- * Works with both window scroll AND overflow scroll containers.
- * Only activates on touch devices (ignored on desktop).
+ * Design:
+ * - Full-screen frosted overlay with centered glass circle
+ * - Gradient ring spinner that fills as you pull
+ * - Teal glow pulse when threshold is met
+ * - Smooth spring-like snap-back animation
+ * - "Refreshing…" text appears after release
  */
 
 const THRESHOLD = 80;
-const MAX_PULL = 120;
-const INDICATOR_SIZE = 36;
+const MAX_PULL = 140;
 
 export default function PullToRefresh({ children }: { children: ReactNode }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -26,12 +23,9 @@ export default function PullToRefresh({ children }: { children: ReactNode }) {
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Check if the scrollable container is at the top
   const isAtTop = useCallback(() => {
-    // Check the parent's scroll position (for overflow containers)
     const parent = containerRef.current?.parentElement;
     if (parent && parent.scrollTop > 5) return false;
-    // Also check window scroll
     if (window.scrollY > 5) return false;
     return true;
   }, []);
@@ -55,12 +49,7 @@ export default function PullToRefresh({ children }: { children: ReactNode }) {
         setPullDistance(0);
         return;
       }
-      // Apply resistance (diminishing returns)
-      const distance = Math.min(dy * 0.5, MAX_PULL);
-      if (distance > 10) {
-        // Prevent scroll while pulling down
-        e.preventDefault();
-      }
+      const distance = Math.min(dy * 0.45, MAX_PULL);
       setPullDistance(distance);
     },
     [refreshing]
@@ -72,16 +61,20 @@ export default function PullToRefresh({ children }: { children: ReactNode }) {
 
     if (pullDistance >= THRESHOLD) {
       setRefreshing(true);
-      setTimeout(() => {
-        window.location.reload();
-      }, 400);
+      setTimeout(() => window.location.reload(), 600);
     } else {
       setPullDistance(0);
     }
   }, [pullDistance, refreshing]);
 
   const progress = Math.min(pullDistance / THRESHOLD, 1);
-  const isPastThreshold = pullDistance >= THRESHOLD;
+  const isActive = pullDistance > 8 || refreshing;
+  const isPast = pullDistance >= THRESHOLD;
+
+  // SVG arc for progress ring
+  const radius = 22;
+  const circumference = 2 * Math.PI * radius;
+  const strokeOffset = circumference - progress * circumference;
 
   return (
     <div
@@ -91,65 +84,150 @@ export default function PullToRefresh({ children }: { children: ReactNode }) {
       onTouchEnd={handleTouchEnd}
       style={{ position: "relative" }}
     >
-      {/* Pull indicator */}
-      {(pullDistance > 0 || refreshing) && (
+      {/* ── Overlay + Centered Indicator ── */}
+      {isActive && (
         <div
           style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
+            position: "fixed",
+            inset: 0,
+            zIndex: 99990,
             display: "flex",
+            alignItems: "center",
             justifyContent: "center",
-            paddingTop: `${Math.max(pullDistance - INDICATOR_SIZE, 0)}px`,
-            zIndex: 9998,
-            pointerEvents: "none",
-            transition: pullDistance === 0 && !refreshing ? "padding-top 0.25s ease" : "none",
+            pointerEvents: refreshing ? "auto" : "none",
+            background: refreshing
+              ? "rgba(0,0,0,0.15)"
+              : `rgba(0,0,0,${Math.min(progress * 0.12, 0.12)})`,
+            backdropFilter: refreshing ? "blur(4px)" : `blur(${progress * 3}px)`,
+            WebkitBackdropFilter: refreshing ? "blur(4px)" : `blur(${progress * 3}px)`,
+            transition: refreshing ? "all 0.3s ease" : "none",
           }}
         >
           <div
             style={{
-              width: INDICATOR_SIZE,
-              height: INDICATOR_SIZE,
+              width: 72,
+              height: 72,
               borderRadius: "50%",
-              background: isPastThreshold || refreshing ? "#4EB1CB" : "white",
-              boxShadow: "0 2px 12px rgba(0,0,0,0.15)",
+              background: "rgba(255,255,255,0.85)",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
+              boxShadow: isPast || refreshing
+                ? "0 0 30px rgba(78,177,203,0.4), 0 8px 32px rgba(0,0,0,0.12)"
+                : "0 4px 20px rgba(0,0,0,0.1)",
               display: "flex",
+              flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              transform: `rotate(${progress * 360}deg)`,
-              transition: refreshing ? "none" : "background 0.2s",
-              animation: refreshing ? "ptrSpin 0.8s linear infinite" : "none",
+              gap: 2,
+              transform: refreshing
+                ? "scale(1)"
+                : `scale(${0.6 + progress * 0.4})`,
+              opacity: refreshing ? 1 : Math.min(progress * 1.5, 1),
+              transition: pulling.current
+                ? "box-shadow 0.2s"
+                : "all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)",
+              animation: refreshing ? "ptrPulse 1.5s ease-in-out infinite" : "none",
             }}
           >
+            {/* Progress Ring */}
             <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke={isPastThreshold || refreshing ? "white" : "#4EB1CB"}
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+              width="52"
+              height="52"
+              viewBox="0 0 52 52"
+              style={{
+                transform: refreshing ? "none" : `rotate(${-90 + progress * 270}deg)`,
+                transition: pulling.current ? "none" : "transform 0.3s ease",
+                animation: refreshing ? "ptrSpin 1s linear infinite" : "none",
+              }}
             >
-              <polyline points="1 4 1 10 7 10" />
-              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+              {/* Background track */}
+              <circle
+                cx="26"
+                cy="26"
+                r={radius}
+                fill="none"
+                stroke="#e2e8f0"
+                strokeWidth="3"
+              />
+              {/* Progress arc — gradient via stroke color */}
+              <circle
+                cx="26"
+                cy="26"
+                r={radius}
+                fill="none"
+                stroke={isPast || refreshing ? "#4EB1CB" : "#94a3b8"}
+                strokeWidth="3.5"
+                strokeLinecap="round"
+                strokeDasharray={circumference}
+                strokeDashoffset={refreshing ? 0 : strokeOffset}
+                style={{
+                  transition: refreshing
+                    ? "stroke-dashoffset 0.4s ease"
+                    : pulling.current
+                    ? "none"
+                    : "all 0.3s ease",
+                }}
+              />
+              {/* Center icon */}
+              <g
+                transform="translate(17, 17)"
+                opacity={refreshing ? 1 : Math.max(progress, 0.3)}
+              >
+                <polyline
+                  points="1 3 1 8 6 8"
+                  fill="none"
+                  stroke={isPast || refreshing ? "#4EB1CB" : "#94a3b8"}
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M2.5 12a7 7 0 1 0 1.66-7.28L1 8"
+                  fill="none"
+                  stroke={isPast || refreshing ? "#4EB1CB" : "#94a3b8"}
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </g>
             </svg>
+
+            {/* Status text */}
+            {refreshing && (
+              <span
+                style={{
+                  fontSize: "0.6rem",
+                  fontWeight: 700,
+                  color: "#4EB1CB",
+                  letterSpacing: "0.03em",
+                  marginTop: -4,
+                  animation: "ptrFadeIn 0.3s ease",
+                }}
+              >
+                Refreshing…
+              </span>
+            )}
           </div>
         </div>
       )}
 
-      {/* Page content — shifts down with pull */}
-      <div
-        style={{
-          transform: pullDistance > 0 ? `translateY(${pullDistance}px)` : "none",
-          transition: pulling.current ? "none" : "transform 0.25s ease",
-        }}
-      >
-        {children}
-      </div>
+      {/* ── Page content ── */}
+      {children}
 
-      <style>{`@keyframes ptrSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+      <style>{`
+        @keyframes ptrSpin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @keyframes ptrPulse {
+          0%, 100% { box-shadow: 0 0 20px rgba(78,177,203,0.3), 0 8px 32px rgba(0,0,0,0.1); }
+          50% { box-shadow: 0 0 40px rgba(78,177,203,0.5), 0 8px 32px rgba(0,0,0,0.15); }
+        }
+        @keyframes ptrFadeIn {
+          from { opacity: 0; transform: translateY(4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   );
 }
