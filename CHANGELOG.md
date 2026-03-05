@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.10.1] — 2026-03-06
+### Added
+- `GET /api/version` — returns current deployed version (force-dynamic, no-cache)
+- `VersionGuard` component — proactive auto-refresh for PWA/webapp clients
+  - Polls `/api/version` every 60s (pauses when tab not visible)
+  - On mismatch: forces SW update → clears all caches → hard reload
+  - `sessionStorage` loop protection (only reloads once per version)
+  - Offline-safe (skips check when `navigator.onLine` is false)
+  - Race condition guard (`isChecking` ref)
+
+### Changed
+- Root layout: added `suppressHydrationWarning`, `antialiased`, auth fault tolerance
+
 ## [v2.10.0] — 2026-03-05
 ### Added
 - `PATCH /api/marketplace/love-gifts/{claimId}/received` — sharer confirms receipt

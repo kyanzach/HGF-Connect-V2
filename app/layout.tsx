@@ -5,6 +5,7 @@ import { SessionProvider } from "next-auth/react";
 import { auth } from "@/lib/auth";
 import UpdateToast from "@/components/UpdateToast";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
+import VersionGuard from "@/components/VersionGuard";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -59,15 +60,16 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
+  const session = await auth().catch(() => null);
 
   return (
-    <html lang="en" className={inter.variable}>
-      <body>
+    <html lang="en" className={inter.variable} suppressHydrationWarning>
+      <body className="antialiased">
         <SessionProvider session={session}>
           {children}
           <UpdateToast />
           <ServiceWorkerRegistration />
+          <VersionGuard />
         </SessionProvider>
       </body>
     </html>
