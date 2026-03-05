@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.10.0] — 2026-03-05
+### Added
+- `PATCH /api/marketplace/love-gifts/{claimId}/received` — sharer confirms receipt
+- Auto-feed celebration post on Love Gift received (MEMBERS_ONLY, linked to StewardShop)
+- Thank You note prompt (optional textarea) → included in seller notification
+- ReceiptModal with "Confirm Receipt" button on My Share Links
+- Milestone badges (7 badges: First Share, First Prospect, First Love Gift, First Receipt, 5 Shares, 10 Prospects, 3 Love Gifts)
+- Admin Love Gifts page (`/admin/stewardshop/love-gifts`) with summary stats grid + filter tabs + claims table
+- `GET /api/admin/love-gifts` — admin-only endpoint with claim summaries
+- Added "❤️ Love Gifts" Quick Action link on Admin Dashboard
+- Notification #7: Receipt confirmed → seller (includes thank-you note if provided)
+
+### Changed
+- Replaced "Please confirm receipt (Session 3)" placeholder with real Confirm Receipt button
+- Idempotency guard added to `/received` endpoint (already-received returns success instead of error)
+
 ## [v2.9.0] — 2026-03-05
 ### Added
 - `POST /api/marketplace/love-gifts/claim` — sharer submits GCash or contact request

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -18,27 +18,47 @@ const SHARER_QUOTES = [
 ];
 
 interface Claim {
-  id: number; amount: number; method: string; status: string;
-  gcashName: string | null; gcashMobile: string | null;
-  paidAt: string | null; receivedAt: string | null;
+  id: number;
+  amount: number;
+  method: string | null;
+  status: string;
+  gcashName: string | null;
+  gcashMobile: string | null;
+  paidAt: string | null;
+  receivedAt: string | null;
 }
 
 interface Share {
-  id: number; shareCode: string; shareLink: string;
-  loveGiftEarned: number; status: string; createdAt: string;
+  id: number;
+  shareCode: string;
+  shareLink: string;
+  loveGiftEarned: number;
+  status: string;
+  createdAt: string;
   listing: {
-    id: number; title: string; listingType: string; ogPrice: number | null;
-    loveGiftAmount: number; status: string; photo: string | null;
-    sellerName: string; sellerPhone: string | null;
+    id: number;
+    title: string;
+    listingType: string;
+    ogPrice: number | null;
+    loveGiftAmount: number;
+    status: string;
+    photo: string | null;
+    sellerName: string;
+    sellerPhone: string | null;
   };
-  impressions: number; ctaClicks: number; prospectCount: number;
+  impressions: number;
+  ctaClicks: number;
+  prospectCount: number;
   claim: Claim | null;
   winner: { name: string; amount: number; status: string } | null;
   isWinner: boolean;
 }
 
 interface Wallet {
-  totalEarned: number; pending: number; paid: number; confirmedSales: number;
+  totalEarned: number;
+  pending: number;
+  paid: number;
+  confirmedSales: number;
 }
 
 // ── Quote Banner (diligence) ─────────────────────────────────────────────────
@@ -55,6 +75,98 @@ function QuoteBanner() {
         ✝️ &ldquo;{q.text}&rdquo;
       </p>
       <p style={{ fontSize: "0.65rem", color: "#a16207", margin: "0.25rem 0 0", fontWeight: 600 }}>— {q.ref}</p>
+    </div>
+  );
+}
+
+// ── Receipt Confirmation Modal ──────────────────────────────────────────────
+function ReceiptModal({ claim, onClose, onDone }: {
+  claim: Claim;
+  onClose: () => void;
+  onDone: (msg: string) => void;
+}) {
+  const [thankYou, setThankYou] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleConfirm() {
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/marketplace/love-gifts/${claim.id}/received`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ thankYou: thankYou.trim() || null }),
+      });
+      const data = await res.json();
+      if (data.ok) onDone(data.message);
+      else alert(data.error ?? "Something went wrong");
+    } catch { alert("Network error"); } finally { setSubmitting(false); }
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(2px)" }} />
+      <div style={{ position: "relative", background: "white", borderTopLeftRadius: "20px", borderTopRightRadius: "20px", width: "100%", maxWidth: "500px", padding: "1.25rem", animation: "slideUp 0.25s ease" }}>
+        <h2 style={{ margin: "0 0 0.25rem", fontSize: "1rem", fontWeight: 800 }}>✅ Confirm Receipt</h2>
+        <p style={{ margin: "0 0 1rem", fontSize: "0.8rem", color: "#64748b" }}>
+          Confirming you received ₱{claim.amount.toLocaleString()}
+        </p>
+
+        <div style={{ marginBottom: "1rem" }}>
+          <label style={{ fontSize: "0.8rem", fontWeight: 700, color: "#374151", display: "block", marginBottom: "0.375rem" }}>Send a thank-you note to the seller (optional)</label>
+          <textarea
+            value={thankYou}
+            onChange={(e) => setThankYou(e.target.value)}
+            placeholder="e.g. Thank you so much for the blessing! God bless you! 🙏"
+            rows={3}
+            style={{ width: "100%", border: "1.5px solid #e2e8f0", borderRadius: "10px", padding: "0.625rem 0.875rem", fontSize: "0.9rem", fontFamily: "inherit", outline: "none", boxSizing: "border-box", resize: "vertical" }}
+          />
+        </div>
+
+        <button onClick={handleConfirm} disabled={submitting} style={{ width: "100%", padding: "0.75rem", background: submitting ? "#94a3b8" : "#10b981", color: "white", border: "none", borderRadius: "999px", fontSize: "0.875rem", fontWeight: 800, cursor: submitting ? "wait" : "pointer", fontFamily: "inherit" }}>
+          {submitting ? "Confirming…" : "✅ Yes, I Received It!"}
+        </button>
+        <p style={{ fontSize: "0.68rem", color: "#94a3b8", textAlign: "center", margin: "0.5rem 0 0" }}>
+          A celebration post will be shared with the community 🎉
+        </p>
+
+        <button onClick={onClose} style={{ display: "block", width: "100%", marginTop: "0.5rem", padding: "0.5rem", background: "none", border: "none", color: "#94a3b8", fontSize: "0.8rem", cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+      </div>
+      <style>{`@keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }`}</style>
+    </div>
+  );
+}
+
+// ── Milestone Badges ─────────────────────────────────────────────────────────
+function MilestoneBadges({ shares }: { shares: Share[] }) {
+  const totalShares = shares.length;
+  const totalProspects = shares.reduce((s, sh) => s + sh.prospectCount, 0);
+  const totalEarned = shares.reduce((s, sh) => s + sh.loveGiftEarned, 0);
+  const received = shares.filter((s) => s.claim?.status === "received").length;
+
+  const badges = [
+    { emoji: "🔗", label: "First Share", earned: totalShares >= 1 },
+    { emoji: "👤", label: "First Prospect", earned: totalProspects >= 1 },
+    { emoji: "❤️", label: "First Love Gift", earned: totalEarned > 0 },
+    { emoji: "✅", label: "First Receipt", earned: received >= 1 },
+    { emoji: "🔥", label: "5 Shares", earned: totalShares >= 5 },
+    { emoji: "🌟", label: "10 Prospects", earned: totalProspects >= 10 },
+    { emoji: "💎", label: "3 Love Gifts", earned: shares.filter((s) => s.loveGiftEarned > 0).length >= 3 },
+  ];
+
+  const earnedCount = badges.filter((b) => b.earned).length;
+  if (earnedCount === 0) return null;
+
+  return (
+    <div style={{ background: "white", borderRadius: "14px", padding: "0.875rem", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", marginBottom: "1rem" }}>
+      <p style={{ margin: "0 0 0.5rem", fontWeight: 800, fontSize: "0.85rem", color: "#1e293b" }}>🏅 Your Badges ({earnedCount}/{badges.length})</p>
+      <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+        {badges.map((b) => (
+          <div key={b.label} style={{ display: "flex", alignItems: "center", gap: "0.25rem", padding: "0.2rem 0.5rem", borderRadius: "999px", background: b.earned ? "#fef3c7" : "#f1f5f9", border: b.earned ? "1px solid #fbbf24" : "1px solid #e2e8f0", opacity: b.earned ? 1 : 0.5 }}>
+            <span style={{ fontSize: "0.85rem" }}>{b.emoji}</span>
+            <span style={{ fontSize: "0.65rem", fontWeight: 700, color: b.earned ? "#92400e" : "#94a3b8" }}>{b.label}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -174,6 +286,7 @@ export default function MySharesPage() {
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState<string | null>(null);
   const [claimTarget, setClaimTarget] = useState<Share | null>(null);
+  const [receiptTarget, setReceiptTarget] = useState<Share | null>(null);
   const [flashMsg, setFlashMsg] = useState("");
 
   useEffect(() => {
@@ -242,6 +355,7 @@ export default function MySharesPage() {
 
       <div style={{ padding: "1rem" }}>
         <QuoteBanner />
+        <MilestoneBadges shares={shares} />
 
         {flashMsg && (
           <div style={{ background: "#f0fdf4", border: "1px solid #86efac", borderRadius: "10px", padding: "0.75rem 1rem", marginBottom: "1rem", fontSize: "0.85rem", color: "#166534", fontWeight: 600 }}>
@@ -328,16 +442,18 @@ export default function MySharesPage() {
                             </div>
                           </div>
                         ) : share.claim.status === "paid" ? (
-                          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                            <span style={{ fontSize: "1.25rem" }}>💸</span>
-                            <div>
-                              <p style={{ margin: 0, fontWeight: 700, fontSize: "0.8rem", color: "#166534" }}>
-                                Seller marked as paid! ₱{share.claim.amount.toLocaleString()}
-                              </p>
-                              <p style={{ margin: "0.15rem 0 0", fontSize: "0.7rem", color: "#15803d" }}>
-                                Please confirm receipt (Session 3)
-                              </p>
+                          <div>
+                            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                              <span style={{ fontSize: "1.25rem" }}>💸</span>
+                              <div>
+                                <p style={{ margin: 0, fontWeight: 700, fontSize: "0.8rem", color: "#166534" }}>
+                                  Seller marked as paid! ₱{share.claim.amount.toLocaleString()}
+                                </p>
+                              </div>
                             </div>
+                            <button onClick={() => setReceiptTarget(share)} style={{ width: "100%", padding: "0.5rem", background: "#10b981", color: "white", border: "none", borderRadius: "999px", fontSize: "0.8rem", fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
+                              ✅ Confirm Receipt
+                            </button>
                           </div>
                         ) : share.claim.status === "received" ? (
                           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -407,6 +523,15 @@ export default function MySharesPage() {
           sellerPhone={claimTarget.listing.sellerPhone}
           savedGCash={savedGCash}
           onClose={() => setClaimTarget(null)}
+          onDone={handleClaimDone}
+        />
+      )}
+
+      {/* Receipt Modal */}
+      {receiptTarget && receiptTarget.claim && (
+        <ReceiptModal
+          claim={receiptTarget.claim}
+          onClose={() => setReceiptTarget(null)}
           onDone={handleClaimDone}
         />
       )}
