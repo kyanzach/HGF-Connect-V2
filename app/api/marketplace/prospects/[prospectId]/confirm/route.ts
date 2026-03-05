@@ -57,6 +57,20 @@ export async function POST(_req: NextRequest, { params }: Props) {
           status: "credited",
         },
       });
+
+      // Create Love Gift claim so sharer can request payment
+      await db.loveGiftClaim.create({
+        data: {
+          listingShareId: share.id,
+          listingId: prospect.listingId,
+          sharerId: share.sharerId,
+          sellerId: memberId,
+          amount: loveGiftAmount,
+          method: "contact", // default — sharer can change later
+          status: "pending",
+        },
+      });
+
       sharerCredited = true;
 
       // Phase 7: notify sharer of confirmed sale (fire-and-forget)

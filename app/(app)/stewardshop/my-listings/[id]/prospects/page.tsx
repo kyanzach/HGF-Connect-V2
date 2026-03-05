@@ -86,6 +86,17 @@ export default function ProspectsPage({ params }: { params: Promise<{ id: string
       if (!res.ok) throw new Error(data.error ?? "Failed to confirm sale");
       setMessage(data.message ?? "Sale confirmed!");
       setProspects((prev) => prev.map((p) => p.id === prospectId ? { ...p, status: "converted" } : p));
+      // Update listing status locally so UI disables all buttons
+      setListing((prev) => prev ? { ...prev, status: "sold" } : prev);
+      // Refresh data to get updated claims
+      fetch(`/api/marketplace/listings/${id}/prospects`)
+        .then((r) => r.json())
+        .then((d) => {
+          setClaims(d.claims ?? []);
+          setProspects(d.prospects ?? []);
+          setListing(d.listing ?? listing);
+        })
+        .catch(() => {});
     } catch (err: any) {
       console.error(err);
       setMessage(err.message ?? "Failed to confirm sale. Try again.");
@@ -248,8 +259,8 @@ export default function ProspectsPage({ params }: { params: Promise<{ id: string
                 </div>
               )}
 
-              {/* Actions — only show for active listings */}
-              {!isSold ? (
+              {/* Actions — hide all buttons if listing is sold */}
+              {!isSold && p.status !== "converted" ? (
                 <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                   {STATUS_OPTIONS.filter((s) => s !== p.status).map((s) => (
                     <button
@@ -260,18 +271,13 @@ export default function ProspectsPage({ params }: { params: Promise<{ id: string
                       → {s}
                     </button>
                   ))}
-                  {p.status !== "converted" && (
-                    <button
-                      onClick={() => confirmSale(p.id)}
-                      disabled={confirming === p.id}
-                      style={{ background: confirming === p.id ? "#94a3b8" : "#10b981", color: "white", border: "none", borderRadius: "999px", padding: "0.25rem 0.875rem", fontSize: "0.72rem", fontWeight: 700, cursor: confirming === p.id ? "wait" : "pointer", fontFamily: "inherit", marginLeft: "auto" }}
-                    >
-                      {confirming === p.id ? "Confirming…" : "✅ Confirm Sale & Credit Love Gift"}
-                    </button>
-                  )}
-                  {p.status === "converted" && (
-                    <span style={{ fontSize: "0.72rem", color: "#10b981", fontWeight: 700, marginLeft: "auto" }}>✅ Sale confirmed</span>
-                  )}
+                  <button
+                    onClick={() => confirmSale(p.id)}
+                    disabled={confirming === p.id}
+                    style={{ background: confirming === p.id ? "#94a3b8" : "#10b981", color: "white", border: "none", borderRadius: "999px", padding: "0.25rem 0.875rem", fontSize: "0.72rem", fontWeight: 700, cursor: confirming === p.id ? "wait" : "pointer", fontFamily: "inherit", marginLeft: "auto" }}
+                  >
+                    {confirming === p.id ? "Confirming…" : "✅ Confirm Sale & Credit Love Gift"}
+                  </button>
                 </div>
               ) : (
                 <div>

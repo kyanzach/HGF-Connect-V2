@@ -315,7 +315,17 @@ export default function MySharesPage() {
     setClaimTarget(null);
     setFlashMsg(msg);
     setTimeout(() => setFlashMsg(""), 5000);
-    // Refresh data
+    refreshData();
+  }
+
+  function handleReceiptDone(msg: string) {
+    setReceiptTarget(null);
+    setFlashMsg(msg);
+    setTimeout(() => setFlashMsg(""), 5000);
+    refreshData();
+  }
+
+  function refreshData() {
     fetch("/api/marketplace/shares/mine")
       .then((r) => r.json())
       .then((d) => {
@@ -323,7 +333,7 @@ export default function MySharesPage() {
         setWallet(d.wallet ?? wallet);
         setSavedGCash(d.savedGCash ?? savedGCash);
       })
-      .catch((err) => console.error("Failed to refresh shares after claim:", err));
+      .catch((err) => console.error("Failed to refresh shares:", err));
   }
 
   return (
@@ -421,11 +431,16 @@ export default function MySharesPage() {
                 {/* ── Winner banner / Claim button / Other-sharer info ──────────── */}
                 {isSold && (
                   <div style={{ borderTop: "1px solid #f1f5f9" }}>
-                    {share.isWinner && share.claim ? (
-                      // Winner: show claim status
-                      <div style={{ padding: "0.625rem 0.875rem", background: share.claim.status === "pending" ? "#fff7ed" : share.claim.status === "paid" ? "#f0fdf4" : "#f8fafc" }}>
-                        {share.claim.status === "pending" && !share.claim.method ? (
-                          // Not yet claimed — show claim button
+                    {share.isWinner ? (
+                      // Winner: show claim status or request button
+                      <div style={{ padding: "0.625rem 0.875rem", background: share.claim?.status === "pending" ? "#fff7ed" : share.claim?.status === "paid" ? "#f0fdf4" : share.claim?.status === "received" ? "#f8fafc" : "#fffbeb" }}>
+                        {!share.claim ? (
+                          // Winner but no claim created yet — show request button
+                          <button onClick={() => setClaimTarget(share)} style={{ width: "100%", padding: "0.625rem", background: "linear-gradient(135deg, #ef4444, #dc2626)", color: "white", border: "none", borderRadius: "10px", fontSize: "0.85rem", fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
+                            🎁 Request Love Gift — ₱{share.listing.loveGiftAmount.toLocaleString()}
+                          </button>
+                        ) : share.claim.status === "pending" && !share.claim.method ? (
+                          // Claim exists but method not set — show request button
                           <button onClick={() => setClaimTarget(share)} style={{ width: "100%", padding: "0.625rem", background: "linear-gradient(135deg, #ef4444, #dc2626)", color: "white", border: "none", borderRadius: "10px", fontSize: "0.85rem", fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
                             🎁 Request Love Gift — ₱{share.claim.amount.toLocaleString()}
                           </button>
@@ -515,10 +530,10 @@ export default function MySharesPage() {
         </div>
       </div>
 
-      {/* Claim Modal */}
-      {claimTarget && claimTarget.claim && (
+      {/* Claim Modal — works for both existing claim and creating new one */}
+      {claimTarget && (
         <ClaimModal
-          claim={claimTarget.claim}
+          claim={claimTarget.claim ?? { id: 0, amount: claimTarget.listing.loveGiftAmount, method: null, status: "pending", gcashName: null, gcashMobile: null, paidAt: null, receivedAt: null }}
           sellerName={claimTarget.listing.sellerName}
           sellerPhone={claimTarget.listing.sellerPhone}
           savedGCash={savedGCash}
@@ -532,7 +547,7 @@ export default function MySharesPage() {
         <ReceiptModal
           claim={receiptTarget.claim}
           onClose={() => setReceiptTarget(null)}
-          onDone={handleClaimDone}
+          onDone={handleReceiptDone}
         />
       )}
     </div>
