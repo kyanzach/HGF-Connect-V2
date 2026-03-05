@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.8.0] — 2026-03-05
+### Added
+- Unified `POST /api/marketplace/listings/{id}/mark-sold` endpoint with `$transaction` safety
+- Mark Sold modal with prospect radio selector and "Sold outside" option
+- Love Gift auto-crediting to sharer when sale confirmed via prospect
+- Notifications to winning sharer and other sharers on sale
+- Sold state visuals: greyed-out cards, SOLD overlay, CTA hiding on public listing
+- Rotating Bible verse quotes for honesty on My Listings page
+- `love_gift_claims` table for tracking Love Gift claim lifecycle
+- `gcash_name` and `gcash_mobile` fields on `members` table
+- `sold_prospect_id` field on `marketplace_listings` for buyer tracking
+- 5 new `NotificationType` enum values for Love Gift lifecycle
+- Reactivation guard: blocks reactivating listings with credited Love Gifts
+- Self-referral prevention: sellers can't credit themselves
+
+### Changed
+- Removed old `mark_sold` action from PATCH listings route (now unified endpoint)
+- Sold listings now viewable (not 404) with sold overlay and "Browse StewardShop" CTA
+- Reactivation now clears `soldProspectId` on success
+
 ## [v2.7.0] — 2026-03-03
 
 ### Added

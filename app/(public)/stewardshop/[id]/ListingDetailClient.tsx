@@ -136,7 +136,7 @@ interface ListingData {
   viewCount: number; createdAt: string;
   photos: { photoPath: string }[];
   seller: { id: number; firstName: string; lastName: string; profilePicture: string | null; isVerified: boolean; mobileNumber: string | null };
-  isOwner: boolean; isLoggedIn: boolean; shareToken: string | null;
+  isOwner: boolean; isLoggedIn: boolean; isSold?: boolean; shareToken: string | null;
 }
 
 interface RevealedState {
@@ -456,12 +456,19 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
 
       {/* Photo Carousel — swipeable on mobile, arrows + dot indicators */}
       <div style={{ position: "relative" }}>
-        <PhotoCarousel photos={listing.photos} title={listing.title} />
-        <span style={{ position: "absolute", top: "0.75rem", left: "0.75rem", background: TYPE_COLORS[listing.listingType] ?? PRIMARY, color: "white", fontSize: "0.7rem", fontWeight: 700, padding: "0.25rem 0.6rem", borderRadius: "6px", textTransform: "uppercase" }}>
-          {TYPE_LABELS[listing.listingType] ?? listing.listingType}
-        </span>
-        {/* Love Gift badge — members only, not owner, not public */}
-        {listing.loveGiftAmount > 0 && listing.isLoggedIn && !listing.isOwner && (
+        <div style={{ filter: listing.isSold ? "grayscale(100%) brightness(0.7)" : "none", transition: "filter 0.3s" }}>
+          <PhotoCarousel photos={listing.photos} title={listing.title} />
+        </div>
+        {listing.isSold && (
+          <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", background: "rgba(99,102,241,0.9)", color: "white", fontSize: "1.2rem", fontWeight: 900, padding: "0.5rem 1.5rem", borderRadius: "10px", letterSpacing: "0.15em" }}>SOLD</div>
+        )}
+        {!listing.isSold && (
+          <span style={{ position: "absolute", top: "0.75rem", left: "0.75rem", background: TYPE_COLORS[listing.listingType] ?? PRIMARY, color: "white", fontSize: "0.7rem", fontWeight: 700, padding: "0.25rem 0.6rem", borderRadius: "6px", textTransform: "uppercase" }}>
+            {TYPE_LABELS[listing.listingType] ?? listing.listingType}
+          </span>
+        )}
+        {/* Love Gift badge — members only, not owner, not public, not sold */}
+        {!listing.isSold && listing.loveGiftAmount > 0 && listing.isLoggedIn && !listing.isOwner && (
           <span style={{ position: "absolute", bottom: "0.75rem", right: "0.75rem", background: "#ef4444", color: "white", fontSize: "0.7rem", fontWeight: 700, padding: "0.25rem 0.6rem", borderRadius: "6px" }}>
             ❤️ Love Gift ₱{listing.loveGiftAmount.toLocaleString()}
           </span>
@@ -515,40 +522,53 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
           </div>
         )}
 
-        {/* ── GATED CTAs — hidden for owner, hidden once revealed */}
-        {!revealed && !listing.isOwner && (
-          <div style={{ background: "white", borderRadius: "16px", padding: "1.25rem", marginBottom: "0.75rem", boxShadow: "0 2px 12px rgba(78,177,203,0.12)", border: "1.5px solid #bae6fd" }}>
-            <p style={{ fontSize: "0.8rem", color: "#0369a1", textAlign: "center", margin: "0 0 1rem", lineHeight: 1.5 }}>
-              {listing.hasDiscount && listing.shareToken
-                ? "🔒 A discounted price is available. Reveal it to see your discount code — show the code to the seller at purchase to claim your discount!"
-                : listing.ogPrice
-                  ? "Interested? Contact the seller to discuss pricing or arrange a purchase."
-                  : "Interested? Contact the seller to get more information about this listing."}
-            </p>
-            {/* Only show Reveal button if hasDiscount AND arrived via referral */}
-            {listing.hasDiscount && listing.shareToken && (
-              <button
-                onClick={() => openModal("reveal")}
-                style={{ display: "block", width: "100%", background: `linear-gradient(135deg, ${PRIMARY}, #2563eb)`, color: "white", border: "none", borderRadius: "999px", padding: "0.875rem", fontSize: "1rem", fontWeight: 700, cursor: "pointer", marginBottom: "0.625rem", fontFamily: "inherit", animation: "pulse-glow 2s infinite" }}
-              >
-                🎟️ Reveal Discount &amp; Get Code
-              </button>
-            )}
-            <button
-              onClick={() => openModal("contact")}
-              style={{ display: "block", width: "100%", background: "white", color: PRIMARY, border: `2px solid ${PRIMARY}`, borderRadius: "999px", padding: "0.75rem", fontSize: "0.95rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
-            >
-              💬 Contact the Seller
-            </button>
-            <p style={{ fontSize: "0.7rem", color: "#94a3b8", textAlign: "center", margin: "0.75rem 0 0", lineHeight: 1.5 }}>
-              We&apos;ll share your contact only with the seller to help complete this purchase.
-            </p>
+        {/* ── GATED CTAs — hidden for owner, hidden once revealed, hidden when sold */}
+        {listing.isSold ? (
+          <div style={{ background: "white", borderRadius: "16px", padding: "1.25rem", marginBottom: "0.75rem", boxShadow: "0 2px 12px rgba(99,102,241,0.12)", border: "1.5px solid #c7d2fe", textAlign: "center" }}>
+            <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>🏷️</div>
+            <p style={{ fontSize: "0.95rem", fontWeight: 700, color: "#4338ca", margin: 0 }}>This item has been sold</p>
+            <p style={{ fontSize: "0.78rem", color: "#6366f1", margin: "0.375rem 0 0.875rem" }}>Browse more items in StewardShop</p>
+            <Link href="/stewardshop" style={{ display: "inline-block", background: PRIMARY, color: "white", borderRadius: "999px", padding: "0.625rem 1.5rem", textDecoration: "none", fontWeight: 700, fontSize: "0.875rem" }}>
+              Browse StewardShop →
+            </Link>
           </div>
-        )}
+        ) : (
+          <>
+            {!revealed && !listing.isOwner && (
+              <div style={{ background: "white", borderRadius: "16px", padding: "1.25rem", marginBottom: "0.75rem", boxShadow: "0 2px 12px rgba(78,177,203,0.12)", border: "1.5px solid #bae6fd" }}>
+                <p style={{ fontSize: "0.8rem", color: "#0369a1", textAlign: "center", margin: "0 0 1rem", lineHeight: 1.5 }}>
+                  {listing.hasDiscount && listing.shareToken
+                    ? "🔒 A discounted price is available. Reveal it to see your discount code — show the code to the seller at purchase to claim your discount!"
+                    : listing.ogPrice
+                      ? "Interested? Contact the seller to discuss pricing or arrange a purchase."
+                      : "Interested? Contact the seller to get more information about this listing."}
+                </p>
+                {/* Only show Reveal button if hasDiscount AND arrived via referral */}
+                {listing.hasDiscount && listing.shareToken && (
+                  <button
+                    onClick={() => openModal("reveal")}
+                    style={{ display: "block", width: "100%", background: `linear-gradient(135deg, ${PRIMARY}, #2563eb)`, color: "white", border: "none", borderRadius: "999px", padding: "0.875rem", fontSize: "1rem", fontWeight: 700, cursor: "pointer", marginBottom: "0.625rem", fontFamily: "inherit", animation: "pulse-glow 2s infinite" }}
+                  >
+                    🎟️ Reveal Discount &amp; Get Code
+                  </button>
+                )}
+                <button
+                  onClick={() => openModal("contact")}
+                  style={{ display: "block", width: "100%", background: "white", color: PRIMARY, border: `2px solid ${PRIMARY}`, borderRadius: "999px", padding: "0.75rem", fontSize: "0.95rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+                >
+                  💬 Contact the Seller
+                </button>
+                <p style={{ fontSize: "0.7rem", color: "#94a3b8", textAlign: "center", margin: "0.75rem 0 0", lineHeight: 1.5 }}>
+                  We&apos;ll share your contact only with the seller to help complete this purchase.
+                </p>
+              </div>
+            )}
 
-        {/* ── Share & Bless Panel */}
-        {listing.loveGiftAmount > 0 && listing.isLoggedIn && !listing.isOwner && (
-          <SharePanel listingId={listing.id} loveGiftAmount={listing.loveGiftAmount} title={listing.title} />
+            {/* ── Share & Bless Panel */}
+            {listing.loveGiftAmount > 0 && listing.isLoggedIn && !listing.isOwner && (
+              <SharePanel listingId={listing.id} loveGiftAmount={listing.loveGiftAmount} title={listing.title} />
+            )}
+          </>
         )}
 
 

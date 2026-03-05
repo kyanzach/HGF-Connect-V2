@@ -51,13 +51,8 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   const body = await req.json();
 
   // Handle special status actions
-  if (body.action === "mark_sold") {
-    await db.marketplaceListing.update({
-      where: { id: listingId },
-      data: { status: "sold", soldAt: new Date() },
-    });
-    return NextResponse.json({ ok: true, status: "sold" });
-  }
+  // NOTE: mark_sold is now handled by POST /api/marketplace/listings/{id}/mark-sold
+  // with full $transaction support, prospect selection, and Love Gift crediting.
 
   if (body.action === "delete") {
     await db.marketplaceListing.update({
@@ -68,9 +63,20 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   }
 
   if (body.action === "reactivate") {
+    // P1: Block reactivation if Love Gift was already credited
+    const creditedClaim = await db.loveGiftClaim.findFirst({
+      where: { listingId, status: { not: "disputed" } },
+      select: { id: true },
+    });
+    if (creditedClaim) {
+      return NextResponse.json({
+        error: "Cannot reactivate — a Love Gift was already credited for this listing.",
+      }, { status: 400 });
+    }
+
     await db.marketplaceListing.update({
       where: { id: listingId },
-      data: { status: "active" },
+      data: { status: "active", soldProspectId: null },
     });
     return NextResponse.json({ ok: true, status: "active" });
   }
@@ -82,16 +88,16 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   const updated = await db.marketplaceListing.update({
     where: { id: listingId },
     data: {
-      ...(title && { title: title.trim() }),
+      ...(title !== undefined && { title: title.trim() }),
       ...(description !== undefined && { description: description?.trim() || null }),
       ...(listingType && validTypes.includes(listingType) && { listingType }),
-      ...(category && { category }),
-      ...(ogPrice !== undefined && { ogPrice: ogPrice ?? null }),
-      ...(discountedPrice !== undefined && { discountedPrice: discountedPrice ?? null }),
+      ...(category !== undefined && { category }),
+      ...(ogPrice !== undefined && { ogPrice: ogPrice === "" ? null : Number(ogPrice) }),
+      ...(discountedPrice !== undefined && { discountedPrice: discountedPrice === "" ? null : Number(discountedPrice) }),
       ...(priceLabel !== undefined && { priceLabel: priceLabel?.trim() || null }),
-      ...(conditionType && { conditionType }),
+      ...(conditionType !== undefined && { conditionType }),
       ...(locationArea !== undefined && { locationArea: locationArea?.trim() || null }),
-      ...(loveGiftAmount !== undefined && { loveGiftAmount: parseInt(loveGiftAmount) || 0 }),
+      ...(loveGiftAmount !== undefined && { loveGiftAmount: Number(loveGiftAmount) || 0 }),
     },
   });
 

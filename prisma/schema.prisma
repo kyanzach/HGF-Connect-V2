@@ -92,6 +92,10 @@ model Member {
   // Seller verification badge (Phase 9)
   isVerified            Boolean              @default(false) @map("is_verified")
 
+  // GCash details (auto-fills on Love Gift claims)
+  gcashName             String?              @map("gcash_name") @db.VarChar(100)
+  gcashMobile           String?              @map("gcash_mobile") @db.VarChar(20)
+
   // Photo history
   photoHistory          MemberPhotoHistory[]
 
@@ -103,6 +107,10 @@ model Member {
 
   // Badges
   badges                MemberBadge[]
+
+  // Love Gift claims
+  loveGiftClaimsAsSharer LoveGiftClaim[]     @relation("ClaimSharer")
+  loveGiftClaimsAsSeller LoveGiftClaim[]     @relation("ClaimSeller")
 
   @@index([invitedBy], name: "idx_referred_by")
   @@index([ageGroup], name: "idx_age_group")
@@ -386,16 +394,19 @@ model MarketplaceListing {
   loveGiftAmount  Int?                   @default(0) @map("love_gift_amount")
   expiresAt       DateTime?              @map("expires_at") @db.Date
   soldAt          DateTime?              @map("sold_at")
+  soldProspectId  Int?                   @unique @map("sold_prospect_id")
   createdAt       DateTime               @default(now()) @map("created_at")
   updatedAt       DateTime               @updatedAt @map("updated_at")
 
   seller      Member                   @relation("ListingSeller", fields: [memberId], references: [id], onDelete: Cascade)
+  buyer       MarketplaceProspect?     @relation("ListingBuyer", fields: [soldProspectId], references: [id], onDelete: SetNull)
   photos      MarketplaceListingPhoto[]
   messages    MarketplaceMessage[]
   reports     MarketplaceReport[]
   shares      ListingShare[]
-  prospects   MarketplaceProspect[]
+  prospects   MarketplaceProspect[]    @relation("ListingProspects")
   impressions MarketplaceImpression[]
+  loveGiftClaims LoveGiftClaim[]
 
   @@index([memberId], name: "idx_member_id")
   @@index([status], name: "idx_status")
@@ -465,6 +476,7 @@ model ListingShare {
 
   listing MarketplaceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
   sharer  Member             @relation("ListingSharer", fields: [sharerId], references: [id], onDelete: Cascade)
+  claims  LoveGiftClaim[]
 
   @@index([sharerId])
   @@index([listingId])
@@ -879,7 +891,8 @@ model MarketplaceProspect {
   consented      Boolean  @default(false)
   createdAt      DateTime @default(now()) @map("created_at")
 
-  listing MarketplaceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listing     MarketplaceListing @relation("ListingProspects", fields: [listingId], references: [id], onDelete: Cascade)
+  boughtListing MarketplaceListing? @relation("ListingBuyer")
 
   @@index([listingId], name: "idx_mp_listing")
   @@index([sharerUserId], name: "idx_mp_sharer")
@@ -942,10 +955,54 @@ model Notification {
 enum NotificationType {
   marketplace_prospect  // Someone revealed/contacted via sharer's link
   marketplace_sale      // Sale confirmed — love gift credited
+  love_gift_earned      // Sharer: you won a Love Gift
+  love_gift_sold        // Other sharers: listing sold, someone won
+  love_gift_claim       // Seller: sharer submitted GCash claim
+  love_gift_paid        // Sharer: seller sent your Love Gift
+  love_gift_received    // Seller: sharer confirmed receipt
   general
   new_post              // New community post — broadcast to all
   new_comment           // Someone commented on your post
   comment_reply         // Someone replied to your comment
   mention               // Someone @-mentioned you in a comment
   new_marketplace       // New marketplace listing — broadcast to all
+}
+
+// ── Love Gift Claims ────────────────────────────────────────────────────────
+model LoveGiftClaim {
+  id              Int      @id @default(autoincrement())
+  listingShareId  Int      @map("listing_share_id")
+  listingId       Int      @map("listing_id")
+  sharerId        Int      @map("sharer_id")
+  sellerId        Int      @map("seller_id")
+  amount          Decimal  @db.Decimal(10, 2)
+  method          LoveGiftClaimMethod
+  gcashName       String?  @map("gcash_name") @db.VarChar(100)
+  gcashMobile     String?  @map("gcash_mobile") @db.VarChar(20)
+  status          LoveGiftClaimStatus @default(pending)
+  createdAt       DateTime @default(now()) @map("created_at")
+  paidAt          DateTime? @map("paid_at")
+  receivedAt      DateTime? @map("received_at")
+
+  share   ListingShare       @relation(fields: [listingShareId], references: [id], onDelete: Cascade)
+  listing MarketplaceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  sharer  Member             @relation("ClaimSharer", fields: [sharerId], references: [id], onDelete: Cascade)
+  seller  Member             @relation("ClaimSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@unique([listingId, listingShareId], name: "uq_claim_listing_share")
+  @@index([sharerId, status], name: "idx_claim_sharer_status")
+  @@index([sellerId, status], name: "idx_claim_seller_status")
+  @@map("love_gift_claims")
+}
+
+enum LoveGiftClaimMethod {
+  contact
+  gcash
+}
+
+enum LoveGiftClaimStatus {
+  pending
+  paid
+  received
+  disputed
 }

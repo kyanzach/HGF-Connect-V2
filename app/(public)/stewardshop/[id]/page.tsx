@@ -80,7 +80,8 @@ export default async function ListingDetailPage({ params, searchParams }: Props)
     },
   });
 
-  if (!listing || listing.status !== "active") notFound();
+  if (!listing || (listing.status !== "active" && listing.status !== "sold")) notFound();
+  const isSold = listing.status === "sold";
 
   // ── Unique view count (IP-based, 24h window) ─────────────────────────────
   const hdrs = await headers();
@@ -100,7 +101,8 @@ export default async function ListingDetailPage({ params, searchParams }: Props)
     select: { id: true },
   }).catch(() => null);
 
-  if (!existingView) {
+  // Only count views for active listings
+  if (!isSold && !existingView) {
     // New unique view — increment count + log impression
     db.marketplaceListing.update({
       where: { id: listing.id },
@@ -163,6 +165,7 @@ export default async function ListingDetailPage({ params, searchParams }: Props)
     },
     isOwner,
     isLoggedIn,
+    isSold,
     shareToken: effectiveRef,
   };
 
