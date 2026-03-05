@@ -13,10 +13,17 @@ const STATUS_COLORS: Record<string, string> = {
 interface Prospect {
   id: number; prospectName: string; prospectMobile: string | null; prospectEmail: string | null;
   actionType: string; status: string; consented: boolean;
-  shareToken: string | null; sharerName: string | null; createdAt: string;
+  shareToken: string | null; sharerName: string | null; sharerUserId: number | null; createdAt: string;
 }
 
-interface ListingInfo { title: string; loveGiftAmount: number; }
+interface ListingInfo { title: string; loveGiftAmount: number; status: string; }
+
+interface Claim {
+  id: number; sharerId: number; sharerName: string;
+  amount: number; method: string; status: string;
+  gcashName: string | null; gcashMobile: string | null;
+  createdAt: string; paidAt: string | null;
+}
 
 export default function ProspectsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
@@ -24,8 +31,10 @@ export default function ProspectsPage({ params }: { params: Promise<{ id: string
 
   const [listing, setListing] = useState<ListingInfo | null>(null);
   const [prospects, setProspects] = useState<Prospect[]>([]);
+  const [claims, setClaims] = useState<Claim[]>([]);
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState<number | null>(null);
+  const [paying, setPaying] = useState<number | null>(null);
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
 
@@ -43,18 +52,25 @@ export default function ProspectsPage({ params }: { params: Promise<{ id: string
       .then((d) => {
         setListing(d.listing ?? null);
         setProspects(d.prospects ?? []);
+        setClaims(d.claims ?? []);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [id]);
 
   async function updateStatus(prospectId: number, status: string) {
-    await fetch(`/api/marketplace/listings/${id}/prospects`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prospectId, status }),
-    });
-    setProspects((prev) => prev.map((p) => p.id === prospectId ? { ...p, status } : p));
+    try {
+      const res = await fetch(`/api/marketplace/listings/${id}/prospects`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prospectId, status }),
+      });
+      if (!res.ok) throw new Error("Failed to update status");
+      setProspects((prev) => prev.map((p) => p.id === prospectId ? { ...p, status } : p));
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update status");
+    }
   }
 
   async function confirmSale(prospectId: number) {
@@ -64,14 +80,33 @@ export default function ProspectsPage({ params }: { params: Promise<{ id: string
     try {
       const res = await fetch(`/api/marketplace/prospects/${prospectId}/confirm`, { method: "POST" });
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to confirm sale");
       setMessage(data.message ?? "Sale confirmed!");
       setProspects((prev) => prev.map((p) => p.id === prospectId ? { ...p, status: "converted" } : p));
-    } catch {
-      setMessage("Failed to confirm sale. Try again.");
+    } catch (err: any) {
+      console.error(err);
+      setMessage(err.message ?? "Failed to confirm sale. Try again.");
     } finally {
       setConfirming(null);
     }
   }
+
+  async function markPaid(claimId: number) {
+    if (!confirm("Mark this Love Gift as paid? The sharer will be notified.")) return;
+    setPaying(claimId);
+    try {
+      const res = await fetch(`/api/marketplace/love-gifts/${claimId}/pay`, { method: "PATCH" });
+      const data = await res.json();
+      if (data.ok) {
+        setClaims((prev) => prev.map((c) => c.id === claimId ? { ...c, status: "paid", paidAt: new Date().toISOString() } : c));
+        setMessage(data.message ?? "Marked as paid!");
+      } else {
+        alert(data.error ?? "Failed");
+      }
+    } catch { alert("Network error"); } finally { setPaying(null); }
+  }
+
+  const isSold = listing?.status === "sold";
 
   return (
     <div style={{ paddingBottom: "2rem" }}>
@@ -89,7 +124,57 @@ export default function ProspectsPage({ params }: { params: Promise<{ id: string
           </div>
         )}
 
-        {/* Search by name or coupon code */}
+        {/* Love Gift Claims Section (seller side) */}
+        {claims.length > 0 && (
+          <div style={{ background: "white", borderRadius: "14px", padding: "1rem", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", marginBottom: "1rem", border: "1.5px solid #fecdd3" }}>
+            <h3 style={{ margin: "0 0 0.75rem", fontSize: "0.85rem", fontWeight: 800, color: "#9f1239" }}>❤️ Love Gift Claims</h3>
+            {claims.map((claim) => (
+              <div key={claim.id} style={{ padding: "0.75rem", borderRadius: "10px", background: claim.status === "pending" ? "#fff7ed" : claim.status === "paid" ? "#f0fdf4" : "#f8fafc", marginBottom: "0.5rem", border: "1px solid #f1f5f9" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.375rem" }}>
+                  <div>
+                    <p style={{ margin: 0, fontWeight: 700, fontSize: "0.85rem", color: "#1e293b" }}>{claim.sharerName}</p>
+                    <p style={{ margin: "0.1rem 0 0", fontSize: "0.72rem", color: "#64748b" }}>
+                      {claim.method === "gcash" ? "💳 GCash Request" : "📞 Contact Request"} · ₱{claim.amount.toLocaleString()}
+                    </p>
+                  </div>
+                  <span style={{ background: claim.status === "pending" ? "#fef3c7" : claim.status === "paid" ? "#d1fae5" : "#f1f5f9", color: claim.status === "pending" ? "#92400e" : claim.status === "paid" ? "#166534" : "#64748b", fontSize: "0.65rem", fontWeight: 700, padding: "0.15rem 0.5rem", borderRadius: "4px" }}>
+                    {claim.status === "pending" ? "⏳ PENDING" : claim.status === "paid" ? "✅ PAID" : claim.status.toUpperCase()}
+                  </span>
+                </div>
+
+                {/* GCash details (seller can see) */}
+                {claim.method === "gcash" && claim.gcashName && (
+                  <div style={{ background: "white", borderRadius: "8px", padding: "0.5rem 0.75rem", marginTop: "0.375rem", border: "1px solid #e2e8f0" }}>
+                    <p style={{ margin: 0, fontSize: "0.75rem", color: "#1e293b" }}>
+                      <strong>GCash:</strong> {claim.gcashName}
+                    </p>
+                    <p style={{ margin: "0.15rem 0 0", fontSize: "0.85rem", fontWeight: 800, color: "#0070e0", letterSpacing: "0.05em" }}>
+                      📱 {claim.gcashMobile}
+                    </p>
+                  </div>
+                )}
+
+                {/* Mark as Paid button */}
+                {claim.status === "pending" && (
+                  <button
+                    onClick={() => markPaid(claim.id)}
+                    disabled={paying === claim.id}
+                    style={{ marginTop: "0.5rem", width: "100%", padding: "0.5rem", background: paying === claim.id ? "#94a3b8" : "#10b981", color: "white", border: "none", borderRadius: "999px", fontSize: "0.8rem", fontWeight: 700, cursor: paying === claim.id ? "wait" : "pointer", fontFamily: "inherit" }}
+                  >
+                    {paying === claim.id ? "Processing…" : "💸 Mark as Paid"}
+                  </button>
+                )}
+                {claim.paidAt && (
+                  <p style={{ margin: "0.375rem 0 0", fontSize: "0.68rem", color: "#15803d" }}>
+                    Paid on {new Date(claim.paidAt).toLocaleDateString("en-PH", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Search */}
         <div style={{ marginBottom: "1rem" }}>
           <input
             value={search}
@@ -146,7 +231,7 @@ export default function ProspectsPage({ params }: { params: Promise<{ id: string
                 )}
               </div>
 
-              {/* Sharer attribution + coupon code */}
+              {/* Sharer attribution */}
               {(p.sharerName || p.shareToken) && (
                 <div style={{ background: "#fff1f2", border: "1px solid #fecdd3", borderRadius: "8px", padding: "0.375rem 0.625rem", marginBottom: "0.625rem", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.375rem" }}>
                   <span style={{ fontSize: "0.72rem", color: "#9f1239" }}>
@@ -160,33 +245,38 @@ export default function ProspectsPage({ params }: { params: Promise<{ id: string
                 </div>
               )}
 
-              {/* Actions */}
-              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                {/* Status updater */}
-                {STATUS_OPTIONS.filter((s) => s !== p.status).map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => updateStatus(p.id, s)}
-                    style={{ background: "#f8fafc", color: "#64748b", border: "1px solid #e2e8f0", borderRadius: "999px", padding: "0.25rem 0.75rem", fontSize: "0.72rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
-                  >
-                    → {s}
-                  </button>
-                ))}
-
-                {/* Confirm sale button */}
-                {p.status !== "converted" && (
-                  <button
-                    onClick={() => confirmSale(p.id)}
-                    disabled={confirming === p.id}
-                    style={{ background: confirming === p.id ? "#94a3b8" : "#10b981", color: "white", border: "none", borderRadius: "999px", padding: "0.25rem 0.875rem", fontSize: "0.72rem", fontWeight: 700, cursor: confirming === p.id ? "wait" : "pointer", fontFamily: "inherit", marginLeft: "auto" }}
-                  >
-                    {confirming === p.id ? "Confirming…" : "✅ Confirm Sale & Credit Love Gift"}
-                  </button>
-                )}
-                {p.status === "converted" && (
-                  <span style={{ fontSize: "0.72rem", color: "#10b981", fontWeight: 700, marginLeft: "auto" }}>✅ Sale confirmed</span>
-                )}
-              </div>
+              {/* Actions — only show for active listings */}
+              {!isSold ? (
+                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                  {STATUS_OPTIONS.filter((s) => s !== p.status).map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => updateStatus(p.id, s)}
+                      style={{ background: "#f8fafc", color: "#64748b", border: "1px solid #e2e8f0", borderRadius: "999px", padding: "0.25rem 0.75rem", fontSize: "0.72rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
+                    >
+                      → {s}
+                    </button>
+                  ))}
+                  {p.status !== "converted" && (
+                    <button
+                      onClick={() => confirmSale(p.id)}
+                      disabled={confirming === p.id}
+                      style={{ background: confirming === p.id ? "#94a3b8" : "#10b981", color: "white", border: "none", borderRadius: "999px", padding: "0.25rem 0.875rem", fontSize: "0.72rem", fontWeight: 700, cursor: confirming === p.id ? "wait" : "pointer", fontFamily: "inherit", marginLeft: "auto" }}
+                    >
+                      {confirming === p.id ? "Confirming…" : "✅ Confirm Sale & Credit Love Gift"}
+                    </button>
+                  )}
+                  {p.status === "converted" && (
+                    <span style={{ fontSize: "0.72rem", color: "#10b981", fontWeight: 700, marginLeft: "auto" }}>✅ Sale confirmed</span>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  {p.status === "converted" && (
+                    <span style={{ fontSize: "0.72rem", color: "#10b981", fontWeight: 700 }}>✅ Buyer — Sale confirmed</span>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>

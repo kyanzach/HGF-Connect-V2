@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.9.0] — 2026-03-05
+### Added
+- `POST /api/marketplace/love-gifts/claim` — sharer submits GCash or contact request
+- `PATCH /api/marketplace/love-gifts/{claimId}/pay` — seller marks claim paid
+- Request Love Gift modal with GCash + Contact Seller tabs
+- Smart GCash auto-fill from member profile, auto-save on submit
+- GCash validation (11 digits, starts with 09)
+- Love Gift Wallet Summary on My Share Links (earned/pending/paid/sales)
+- Winner banners for other sharers ("Karen won ₱X!")
+- Sold state visuals on My Share Links (greyed photos, SOLD badge)
+- Love Gift Claims section on Prospects page (GCash details + Mark as Paid)
+- Rotating Bible verse quotes (diligence) on My Share Links
+- Notification #4: GCash claim → seller ("Karen requests ₱X via GCash")
+- Notification #5: Contact claim → seller ("Karen wants to discuss Love Gift")
+- Notification #6: Mark as paid → sharer ("Seller sent ₱X! Confirm receipt")
+
+### Changed
+- Enhanced `GET /api/marketplace/shares/mine` with claim data, winner info, seller contact, wallet totals
+- Enhanced `GET /api/marketplace/listings/{id}/prospects` with Love Gift claims for seller view
+
 ## [v2.8.0] — 2026-03-05
 ### Added
 - Unified `POST /api/marketplace/listings/{id}/mark-sold` endpoint with `$transaction` safety

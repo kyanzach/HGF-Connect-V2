@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 interface Props { params: Promise<{ id: string }> }
 
 // GET /api/marketplace/listings/[id]/prospects — prospects for a listing (owner-scoped)
+// Enhanced: includes Love Gift claim data for each prospect
 export async function GET(_req: NextRequest, { params }: Props) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -16,7 +17,7 @@ export async function GET(_req: NextRequest, { params }: Props) {
   // Verify ownership
   const listing = await db.marketplaceListing.findUnique({
     where: { id: listingId },
-    select: { memberId: true, title: true, loveGiftAmount: true },
+    select: { memberId: true, title: true, loveGiftAmount: true, status: true },
   });
   if (!listing || listing.memberId !== memberId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -38,8 +39,27 @@ export async function GET(_req: NextRequest, { params }: Props) {
     : [];
   const sharerMap: Record<number, string> = Object.fromEntries(sharers.map((s) => [s.id, `${s.firstName} ${s.lastName}`]));
 
+  // Load Love Gift claims for this listing (seller-side view)
+  const claims = await db.loveGiftClaim.findMany({
+    where: { listingId },
+    select: {
+      id: true, listingShareId: true, sharerId: true,
+      amount: true, method: true, status: true,
+      gcashName: true, gcashMobile: true,
+      createdAt: true, paidAt: true, receivedAt: true,
+      sharer: { select: { firstName: true, lastName: true } },
+    },
+  });
+
+  // Map claims by sharerId for easy lookup
+  const claimBySharerId = new Map(claims.map((c) => [c.sharerId, c]));
+
   return NextResponse.json({
-    listing: { title: listing.title, loveGiftAmount: Number(listing.loveGiftAmount ?? 0) },
+    listing: {
+      title: listing.title,
+      loveGiftAmount: Number(listing.loveGiftAmount ?? 0),
+      status: listing.status as string,
+    },
     prospects: prospects.map((p) => ({
       id: p.id,
       prospectName: p.prospectName,
@@ -50,7 +70,21 @@ export async function GET(_req: NextRequest, { params }: Props) {
       consented: p.consented,
       shareToken: p.shareToken,
       sharerName: p.sharerUserId ? (sharerMap[p.sharerUserId] ?? "Unknown") : null,
+      sharerUserId: p.sharerUserId,
       createdAt: p.createdAt.toISOString(),
+    })),
+    // Session 2: Love Gift claims for this listing
+    claims: claims.map((c) => ({
+      id: c.id,
+      sharerId: c.sharerId,
+      sharerName: `${c.sharer.firstName} ${c.sharer.lastName}`,
+      amount: Number(c.amount),
+      method: c.method as string,
+      status: c.status as string,
+      gcashName: c.gcashName,
+      gcashMobile: c.gcashMobile,
+      createdAt: c.createdAt.toISOString(),
+      paidAt: c.paidAt?.toISOString() ?? null,
     })),
   });
 }
