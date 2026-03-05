@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.10.2] — 2026-03-06
+### Changed
+- Rewrote `VersionGuard` from forced auto-reload to a polite update modal
+  - Shows centered modal: "Application Update v2.10.1 → v2.10.2"
+  - User can click "Update Now" (clears caches + reloads) or "Later" (dismisses for session)
+  - Prevents interrupting users who are mid-typing or filling forms
+- Improved Service Worker update lifecycle
+  - Added visibility and `online` event listeners to pause/resume polling
+  - Ensure reload happens only after new SW controls the page
+
 ## [v2.10.1] — 2026-03-06
 ### Added
 - `GET /api/version` — returns current deployed version (force-dynamic, no-cache)
