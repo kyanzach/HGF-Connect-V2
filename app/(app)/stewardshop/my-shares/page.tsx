@@ -103,9 +103,9 @@ function ReceiptModal({ claim, onClose, onDone }: {
   }
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(2px)" }} />
-      <div style={{ position: "relative", background: "white", borderTopLeftRadius: "20px", borderTopRightRadius: "20px", width: "100%", maxWidth: "500px", padding: "1.25rem", animation: "slideUp 0.25s ease" }}>
+      <div style={{ position: "relative", background: "white", borderRadius: "20px", width: "100%", maxWidth: "500px", padding: "1.25rem", animation: "fadeIn 0.2s ease" }}>
         <h2 style={{ margin: "0 0 0.25rem", fontSize: "1rem", fontWeight: 800 }}>✅ Confirm Receipt</h2>
         <p style={{ margin: "0 0 1rem", fontSize: "0.8rem", color: "#64748b" }}>
           Confirming you received ₱{claim.amount.toLocaleString()}
@@ -131,7 +131,7 @@ function ReceiptModal({ claim, onClose, onDone }: {
 
         <button onClick={onClose} style={{ display: "block", width: "100%", marginTop: "0.5rem", padding: "0.5rem", background: "none", border: "none", color: "#94a3b8", fontSize: "0.8rem", cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
       </div>
-      <style>{`@keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }`}</style>
+      <style>{`@keyframes fadeIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }`}</style>
     </div>
   );
 }
@@ -207,9 +207,9 @@ function ClaimModal({ claim, sellerName, sellerPhone, savedGCash, onClose, onDon
   const validGCash = gcashName.trim() && /^09\d{9}$/.test(gcashMobile.trim());
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(2px)" }} />
-      <div style={{ position: "relative", background: "white", borderTopLeftRadius: "20px", borderTopRightRadius: "20px", width: "100%", maxWidth: "500px", maxHeight: "80vh", overflow: "auto", padding: "1.25rem", animation: "slideUp 0.25s ease" }}>
+      <div style={{ position: "relative", background: "white", borderRadius: "20px", width: "100%", maxWidth: "500px", maxHeight: "80vh", overflow: "auto", padding: "1.25rem", animation: "fadeIn 0.2s ease" }}>
         <h2 style={{ margin: "0 0 0.25rem", fontSize: "1rem", fontWeight: 800 }}>🎁 Request Love Gift</h2>
         <p style={{ margin: 0, fontSize: "0.8rem", color: "#64748b" }}>
           ₱{claim.amount.toLocaleString()} — choose how to collect
@@ -272,7 +272,7 @@ function ClaimModal({ claim, sellerName, sellerPhone, savedGCash, onClose, onDon
 
         <button onClick={onClose} style={{ display: "block", width: "100%", marginTop: "0.75rem", padding: "0.5rem", background: "none", border: "none", color: "#94a3b8", fontSize: "0.8rem", cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
       </div>
-      <style>{`@keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }`}</style>
+      <style>{`@keyframes fadeIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }`}</style>
     </div>
   );
 }

@@ -48,13 +48,16 @@ export default function ProspectsPage({ params }: { params: Promise<{ id: string
 
   useEffect(() => {
     fetch(`/api/marketplace/listings/${id}/prospects`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`API returned ${r.status}`);
+        return r.json();
+      })
       .then((d) => {
         setListing(d.listing ?? null);
         setProspects(d.prospects ?? []);
         setClaims(d.claims ?? []);
       })
-      .catch(() => {})
+      .catch((err) => console.error("[ProspectsPage] Failed to load:", err))
       .finally(() => setLoading(false));
   }, [id]);
 

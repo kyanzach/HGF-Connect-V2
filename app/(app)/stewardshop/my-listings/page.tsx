@@ -71,14 +71,17 @@ function MarkSoldModal({ listingId, listingTitle, onClose, onDone }: {
 
   useEffect(() => {
     fetch(`/api/marketplace/listings/${listingId}/prospects`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`API returned ${r.status}`);
+        return r.json();
+      })
       .then((d) => {
         const p = (d.prospects ?? []) as Prospect[];
         setProspects(p);
         if (p.length > 0) setSelected(p[0].id);
         else setSelected("outside");
       })
-      .catch(() => {})
+      .catch((err) => console.error("[MarkSoldModal] Failed to load prospects:", err))
       .finally(() => setLoading(false));
   }, [listingId]);
 
@@ -107,9 +110,9 @@ function MarkSoldModal({ listingId, listingTitle, onClose, onDone }: {
   }
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(2px)" }} />
-      <div style={{ position: "relative", background: "white", borderTopLeftRadius: "20px", borderTopRightRadius: "20px", width: "100%", maxWidth: "500px", maxHeight: "80vh", overflow: "auto", padding: "1.25rem", animation: "slideUp 0.25s ease" }}>
+      <div style={{ position: "relative", background: "white", borderRadius: "20px", width: "100%", maxWidth: "500px", maxHeight: "80vh", overflow: "auto", padding: "1.25rem", animation: "fadeIn 0.2s ease" }}>
         <h2 style={{ margin: "0 0 0.25rem", fontSize: "1rem", fontWeight: 800 }}>🎉 Congratulations!</h2>
         <p style={{ margin: 0, fontSize: "0.78rem", color: "#64748b" }}>Mark &ldquo;{listingTitle}&rdquo; as sold</p>
 
@@ -161,9 +164,9 @@ function MarkSoldModal({ listingId, listingTitle, onClose, onDone }: {
       </div>
 
       <style>{`
-        @keyframes slideUp {
-          from { transform: translateY(100%); opacity: 0; }
-          to { transform: translateY(0); opacity: 1; }
+        @keyframes fadeIn {
+          from { transform: scale(0.95); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
         }
       `}</style>
     </div>
