@@ -36,6 +36,7 @@ export default function ProspectsPage({ params }: { params: Promise<{ id: string
   const [confirming, setConfirming] = useState<number | null>(null);
   const [paying, setPaying] = useState<number | null>(null);
   const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
   const [search, setSearch] = useState("");
 
   const filtered = search.trim()
@@ -80,6 +81,7 @@ export default function ProspectsPage({ params }: { params: Promise<{ id: string
     if (!confirm("Confirm this sale and credit the sharer's Love Gift? This action cannot be undone.")) return;
     setConfirming(prospectId);
     setMessage("");
+    setError("");
     try {
       const res = await fetch(`/api/marketplace/prospects/${prospectId}/confirm`, { method: "POST" });
       const data = await res.json();
@@ -99,7 +101,7 @@ export default function ProspectsPage({ params }: { params: Promise<{ id: string
         .catch(() => {});
     } catch (err: any) {
       console.error(err);
-      setMessage(err.message ?? "Failed to confirm sale. Try again.");
+      setError(err.message ?? "Failed to confirm sale. Try again.");
     } finally {
       setConfirming(null);
     }
@@ -135,6 +137,11 @@ export default function ProspectsPage({ params }: { params: Promise<{ id: string
         {message && (
           <div style={{ background: "#f0fdf4", border: "1px solid #86efac", borderRadius: "10px", padding: "0.75rem 1rem", marginBottom: "1rem", fontSize: "0.85rem", color: "#166534", fontWeight: 600 }}>
             ✅ {message}
+          </div>
+        )}
+        {error && (
+          <div style={{ background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: "10px", padding: "0.75rem 1rem", marginBottom: "1rem", fontSize: "0.85rem", color: "#991b1b", fontWeight: 600 }}>
+            ❌ {error}
           </div>
         )}
 
