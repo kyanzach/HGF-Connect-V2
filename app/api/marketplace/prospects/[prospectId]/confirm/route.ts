@@ -59,17 +59,12 @@ export async function POST(_req: NextRequest, { params }: Props) {
       });
 
       // Create Love Gift claim so sharer can request payment
-      // method intentionally omitted — sharer will choose (GCash or Contact) from My Share Links
-      await db.loveGiftClaim.create({
-        data: {
-          listingShareId: share.id,
-          listingId: prospect.listingId,
-          sharerId: share.sharerId,
-          sellerId: memberId,
-          amount: loveGiftAmount,
-          status: "pending",
-        },
-      });
+      // Using raw SQL because the bundled Prisma engine caches 'method' as required
+      // even though schema.prisma has it as optional. DB column is already NULL-able.
+      await db.$executeRaw`
+        INSERT INTO love_gift_claims (listing_share_id, listing_id, sharer_id, seller_id, amount, status, created_at)
+        VALUES (${share.id}, ${prospect.listingId}, ${share.sharerId}, ${memberId}, ${loveGiftAmount}, 'pending', NOW())
+      `;
 
       sharerCredited = true;
 

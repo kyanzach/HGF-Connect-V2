@@ -137,17 +137,11 @@ export async function POST(req: NextRequest, { params }: Props) {
         },
       });
 
-      await tx.loveGiftClaim.create({
-        data: {
-          listingShareId: share.id,
-          listingId,
-          sharerId: share.sharerId,
-          sellerId: memberId,
-          amount: loveGiftAmount,
-          // method intentionally omitted — sharer will choose (GCash or Contact) from My Share Links
-          status: "pending",
-        },
-      });
+      // Using raw SQL because the bundled Prisma engine caches 'method' as required
+      await tx.$executeRaw`
+        INSERT INTO love_gift_claims (listing_share_id, listing_id, sharer_id, seller_id, amount, status, created_at)
+        VALUES (${share.id}, ${listingId}, ${share.sharerId}, ${memberId}, ${loveGiftAmount}, 'pending', NOW())
+      `;
 
       sharerCredited = true;
       claimCreated = true;
