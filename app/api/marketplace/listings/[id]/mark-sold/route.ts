@@ -66,7 +66,7 @@ export async function POST(req: NextRequest, { params }: Props) {
             type: "love_gift_sold" as any,
             title: "🏷️ Listing Sold",
             body: `"${listing.title}" was sold without a referral.`,
-            link: `/stewardshop/my-shares`,
+            link: `/stewardshop/my-shares?tab=sold&listing=${listingId}`,
           })),
         });
       }
@@ -166,7 +166,7 @@ export async function POST(req: NextRequest, { params }: Props) {
         type: "love_gift_earned",
         title: "🎁 You earned a Love Gift!",
         body: `You earned ₱${loveGiftAmount.toLocaleString()} for sharing "${listing.title}". Tap to claim!`,
-        link: "/stewardshop/my-shares",
+        link: `/stewardshop/my-shares?tab=won&listing=${listingId}`,
       });
 
       // Notify other sharers (not the winner)
@@ -182,7 +182,7 @@ export async function POST(req: NextRequest, { params }: Props) {
             type: "love_gift_sold",
             title: "🏷️ Listing Sold!",
             body: `"${listing.title}" was sold! ${winnerName?.firstName ?? "A sharer"} won the ₱${loveGiftAmount.toLocaleString()} Love Gift.`,
-            link: "/stewardshop/my-shares",
+            link: `/stewardshop/my-shares?tab=sold&listing=${listingId}`,
           });
         }
       }
@@ -194,7 +194,7 @@ export async function POST(req: NextRequest, { params }: Props) {
           type: "love_gift_sold",
           title: "🏷️ Listing Sold",
           body: `"${listing.title}" was sold without a referral.`,
-          link: "/stewardshop/my-shares",
+          link: `/stewardshop/my-shares?tab=sold&listing=${listingId}`,
         });
       }
     }

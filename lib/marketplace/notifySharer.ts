@@ -19,7 +19,7 @@ export async function notifySharerProspect(
         type: "marketplace_prospect",
         title: "🎉 Someone responded to your share!",
         body: `${prospectName} ${action} via your shared link for "${listingTitle}".`,
-        link: `/stewardshop/my-shares`,
+        link: `/stewardshop/my-shares?tab=pending&listing=${listingId}`,
       },
     });
   } catch (err) {
@@ -40,7 +40,7 @@ export async function notifySharerSaleConfirmed(
         type: "marketplace_sale",
         title: "💰 Your share led to a sale!",
         body: `The seller confirmed a sale for "${listingTitle}". You've been credited ₱${loveGiftAmount.toLocaleString()} Love Gift!`,
-        link: `/stewardshop/my-shares`,
+        link: `/stewardshop/my-shares?tab=won&listing=${listingId}`,
       },
     });
   } catch (err) {

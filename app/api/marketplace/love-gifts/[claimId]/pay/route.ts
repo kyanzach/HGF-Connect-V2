@@ -19,7 +19,7 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   const claim = await db.loveGiftClaim.findUnique({
     where: { id: Number(claimId) },
     select: {
-      id: true, sellerId: true, sharerId: true, status: true, amount: true,
+      id: true, sellerId: true, sharerId: true, status: true, amount: true, listingId: true,
       listing: { select: { title: true } },
     },
   });
@@ -49,7 +49,7 @@ export async function PATCH(req: NextRequest, { params }: Props) {
         type: "love_gift_paid",
         title: "💸 Love Gift Payment Sent!",
         body: `${seller?.firstName ?? "Seller"} marked your ₱${Number(claim.amount).toLocaleString()} Love Gift for "${claim.listing.title}" as paid. Please confirm receipt!`,
-        link: "/stewardshop/my-shares",
+        link: `/stewardshop/my-shares?tab=won&listing=${claim.listingId}`,
       },
     });
   } catch (err) {

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 const PRIMARY = "#4EB1CB";
@@ -272,7 +272,8 @@ function ClaimModal({ claim, sellerName, sellerPhone, savedGCash, onClose, onDon
 
         <button onClick={onClose} style={{ display: "block", width: "100%", marginTop: "0.75rem", padding: "0.5rem", background: "none", border: "none", color: "#94a3b8", fontSize: "0.8rem", cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
       </div>
-      <style>{`@keyframes fadeIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }`}</style>
+      <style>{`@keyframes fadeIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes pulseHighlight { 0% { transform: scale(1); box-shadow: 0 0 0 3px #ef4444, 0 4px 20px rgba(239,68,68,0.3); } 50% { transform: scale(1.02); box-shadow: 0 0 0 5px #ef4444, 0 6px 30px rgba(239,68,68,0.4); } 100% { transform: scale(1); box-shadow: 0 0 0 3px #ef4444, 0 4px 20px rgba(239,68,68,0.3); } }`}</style>
     </div>
   );
 }
@@ -280,6 +281,7 @@ function ClaimModal({ claim, sellerName, sellerPhone, savedGCash, onClose, onDon
 // ── Main Page ────────────────────────────────────────────────────────────────
 export default function MySharesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [shares, setShares] = useState<Share[]>([]);
   const [wallet, setWallet] = useState<Wallet>({ totalEarned: 0, pending: 0, paid: 0, confirmedSales: 0 });
   const [savedGCash, setSavedGCash] = useState<{ name: string | null; mobile: string | null }>({ name: null, mobile: null });
@@ -288,13 +290,32 @@ export default function MySharesPage() {
   const [claimTarget, setClaimTarget] = useState<Share | null>(null);
   const [receiptTarget, setReceiptTarget] = useState<Share | null>(null);
   const [flashMsg, setFlashMsg] = useState("");
-  const [activeTab, setActiveTab] = useState<"pending" | "won" | "sold">("pending");
+  const [activeTab, setActiveTab] = useState<"pending" | "won" | "sold">(
+    (searchParams.get("tab") as "pending" | "won" | "sold") || "pending"
+  );
+  const [highlightListing, setHighlightListing] = useState<number | null>(
+    searchParams.get("listing") ? parseInt(searchParams.get("listing")!) : null
+  );
 
   // Filter shares by tab
   const pendingShares = shares.filter((s) => s.listing.status !== "sold");
   const wonShares = shares.filter((s) => s.listing.status === "sold" && s.isWinner);
   const soldShares = shares.filter((s) => s.listing.status === "sold" && !s.isWinner);
   const filteredShares = activeTab === "pending" ? pendingShares : activeTab === "won" ? wonShares : soldShares;
+
+  // Scroll to highlighted listing after data loads
+  useEffect(() => {
+    if (!loading && highlightListing && filteredShares.length > 0) {
+      const el = document.getElementById(`share-listing-${highlightListing}`);
+      if (el) {
+        setTimeout(() => {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          // Clear highlight after animation completes
+          setTimeout(() => setHighlightListing(null), 2500);
+        }, 300);
+      }
+    }
+  }, [loading, highlightListing, filteredShares.length]);
 
   useEffect(() => {
     fetch("/api/marketplace/shares/mine")
@@ -441,7 +462,15 @@ export default function MySharesPage() {
           {filteredShares.map((share) => {
             const isSold = share.listing.status === "sold";
             return (
-              <div key={share.id} style={{ background: "white", borderRadius: "14px", overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", opacity: isSold ? 0.85 : 1 }}>
+              <div key={share.id} id={`share-listing-${share.listing.id}`} style={{
+                background: "white", borderRadius: "14px", overflow: "hidden",
+                boxShadow: highlightListing === share.listing.id
+                  ? "0 0 0 3px #ef4444, 0 4px 20px rgba(239,68,68,0.3)"
+                  : "0 1px 4px rgba(0,0,0,0.07)",
+                opacity: isSold ? 0.85 : 1,
+                animation: highlightListing === share.listing.id ? "pulseHighlight 0.6s ease-out 2" : "none",
+                transition: "box-shadow 0.3s ease",
+              }}>
                 {/* Listing row */}
                 <div style={{ display: "flex", gap: "0.875rem", padding: "0.875rem" }}>
                   <div style={{ width: 56, height: 56, borderRadius: "8px", background: "#f1f5f9", flexShrink: 0, position: "relative", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.25rem" }}>
