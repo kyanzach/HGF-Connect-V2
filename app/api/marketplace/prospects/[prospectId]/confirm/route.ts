@@ -59,7 +59,7 @@ export async function POST(_req: NextRequest, { params }: Props) {
       });
 
       // Create Love Gift claim so sharer can request payment
-      // method defaults to 'contact' — sharer can choose GCash from My Share Links
+      // method intentionally omitted — sharer will choose (GCash or Contact) from My Share Links
       await db.loveGiftClaim.create({
         data: {
           listingShareId: share.id,
@@ -67,7 +67,6 @@ export async function POST(_req: NextRequest, { params }: Props) {
           sharerId: share.sharerId,
           sellerId: memberId,
           amount: loveGiftAmount,
-          method: "contact",
           status: "pending",
         },
       });

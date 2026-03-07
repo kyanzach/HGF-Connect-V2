@@ -976,7 +976,7 @@ model LoveGiftClaim {
   sharerId        Int      @map("sharer_id")
   sellerId        Int      @map("seller_id")
   amount          Decimal  @db.Decimal(10, 2)
-  method          LoveGiftClaimMethod
+  method          LoveGiftClaimMethod?
   gcashName       String?  @map("gcash_name") @db.VarChar(100)
   gcashMobile     String?  @map("gcash_mobile") @db.VarChar(20)
   status          LoveGiftClaimStatus @default(pending)

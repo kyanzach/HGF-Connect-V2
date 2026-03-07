@@ -144,7 +144,7 @@ export async function POST(req: NextRequest, { params }: Props) {
           sharerId: share.sharerId,
           sellerId: memberId,
           amount: loveGiftAmount,
-          method: "contact", // default — sharer will update when claiming
+          // method intentionally omitted — sharer will choose (GCash or Contact) from My Share Links
           status: "pending",
         },
       });
