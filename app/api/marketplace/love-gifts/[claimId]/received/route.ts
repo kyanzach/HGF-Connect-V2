@@ -75,7 +75,7 @@ export async function PATCH(req: NextRequest, { params }: Props) {
         body: thankYouNote
           ? `${sharerName} confirmed receipt of ₱${Number(claim.amount).toLocaleString()} and says: "${thankYouNote}"`
           : `${sharerName} confirmed receipt of ₱${Number(claim.amount).toLocaleString()} Love Gift. Thank you for your generosity!`,
-        link: "/stewardshop/my-listings",
+        link: `/stewardshop/my-listings/${claim.listing.id}/prospects`,
       },
     });
   } catch (err) {

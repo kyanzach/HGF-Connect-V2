@@ -303,19 +303,33 @@ export default function MySharesPage() {
   const soldShares = shares.filter((s) => s.listing.status === "sold" && !s.isWinner);
   const filteredShares = activeTab === "pending" ? pendingShares : activeTab === "won" ? wonShares : soldShares;
 
-  // Scroll to highlighted listing after data loads
+  // Scroll to highlighted listing after data loads — with smart tab fallback
   useEffect(() => {
-    if (!loading && highlightListing && filteredShares.length > 0) {
+    if (!loading && highlightListing && shares.length > 0) {
+      // Check if the listing is in the current tab
+      let found = filteredShares.some((s) => s.listing.id === highlightListing);
+
+      // If not found, auto-switch to the correct tab
+      if (!found) {
+        if (wonShares.some((s) => s.listing.id === highlightListing)) {
+          setActiveTab("won"); return;
+        } else if (pendingShares.some((s) => s.listing.id === highlightListing)) {
+          setActiveTab("pending"); return;
+        } else if (soldShares.some((s) => s.listing.id === highlightListing)) {
+          setActiveTab("sold"); return;
+        }
+      }
+
+      // Scroll + highlight
       const el = document.getElementById(`share-listing-${highlightListing}`);
       if (el) {
         setTimeout(() => {
           el.scrollIntoView({ behavior: "smooth", block: "center" });
-          // Clear highlight after animation completes
           setTimeout(() => setHighlightListing(null), 2500);
         }, 300);
       }
     }
-  }, [loading, highlightListing, filteredShares.length]);
+  }, [loading, highlightListing, filteredShares.length, activeTab]);
 
   useEffect(() => {
     fetch("/api/marketplace/shares/mine")
