@@ -322,7 +322,7 @@ export default function UnifiedHeader() {
                     <DropItem href="/journal"          label="📓 My Journal"          onClick={() => setDropOpen(false)} />
                     <DropItem href="/prayer"            label="🙏 My Prayer Request"   onClick={() => setDropOpen(false)} />
                     <DropItem href="/stewardshop/my-listings" label="🤝 My Listings"  onClick={() => setDropOpen(false)} />
-                    <DropItem href="/stewardshop/my-shares" label="🫰 My Share Links"  onClick={() => setDropOpen(false)} />
+                    <DropItem href="/stewardshop/my-shares" label="🫰 My Shared Links"  onClick={() => setDropOpen(false)} />
                     <HR />
                     <DropItem href="/profile/edit"     label="⚙️ Settings"            onClick={() => setDropOpen(false)} />
 

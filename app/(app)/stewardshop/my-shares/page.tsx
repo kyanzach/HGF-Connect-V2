@@ -288,6 +288,13 @@ export default function MySharesPage() {
   const [claimTarget, setClaimTarget] = useState<Share | null>(null);
   const [receiptTarget, setReceiptTarget] = useState<Share | null>(null);
   const [flashMsg, setFlashMsg] = useState("");
+  const [activeTab, setActiveTab] = useState<"pending" | "won" | "sold">("pending");
+
+  // Filter shares by tab
+  const pendingShares = shares.filter((s) => s.listing.status !== "sold");
+  const wonShares = shares.filter((s) => s.listing.status === "sold" && s.isWinner);
+  const soldShares = shares.filter((s) => s.listing.status === "sold" && !s.isWinner);
+  const filteredShares = activeTab === "pending" ? pendingShares : activeTab === "won" ? wonShares : soldShares;
 
   useEffect(() => {
     fetch("/api/marketplace/shares/mine")
@@ -341,7 +348,7 @@ export default function MySharesPage() {
       {/* Header + Wallet */}
       <div style={{ background: "linear-gradient(135deg, #be123c 0%, #ef4444 100%)", padding: "1rem", color: "white" }}>
         <button onClick={() => router.back()} style={{ background: "none", border: "none", color: "white", fontSize: "1rem", cursor: "pointer", marginBottom: "0.375rem" }}>← Back</button>
-        <h1 style={{ margin: 0, fontSize: "1.125rem", fontWeight: 800 }}>❤️ My Share Links</h1>
+        <h1 style={{ margin: 0, fontSize: "1.125rem", fontWeight: 800 }}>❤️ My Shared Links</h1>
         <p style={{ margin: "0.25rem 0 0.75rem", fontSize: "0.75rem", opacity: 0.85 }}>Track your shared listings and Love Gift earnings</p>
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
           <div style={{ background: "rgba(255,255,255,0.2)", borderRadius: "10px", padding: "0.5rem 0.75rem", flex: 1, minWidth: "80px" }}>
@@ -386,8 +393,52 @@ export default function MySharesPage() {
           </div>
         )}
 
+        {/* ── Tabs: Pending / Won / Sold ─────────────────────────────── */}
+        {!loading && shares.length > 0 && (
+          <div style={{ display: "flex", gap: "0.25rem", background: "#f1f5f9", borderRadius: "12px", padding: "0.25rem", marginBottom: "0.75rem" }}>
+            {([
+              { key: "pending" as const, label: "Pending", count: pendingShares.length, icon: "⏳" },
+              { key: "won" as const, label: "Won", count: wonShares.length, icon: "🏆" },
+              { key: "sold" as const, label: "Sold", count: soldShares.length, icon: "🏷️" },
+            ]).map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                style={{
+                  flex: 1,
+                  padding: "0.5rem 0.25rem",
+                  border: "none",
+                  borderRadius: "10px",
+                  fontSize: "0.75rem",
+                  fontWeight: activeTab === tab.key ? 800 : 600,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  transition: "all 0.2s ease",
+                  background: activeTab === tab.key ? "white" : "transparent",
+                  color: activeTab === tab.key ? "#1e293b" : "#94a3b8",
+                  boxShadow: activeTab === tab.key ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                }}
+              >
+                {tab.icon} {tab.label} ({tab.count})
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Empty state for active tab */}
+        {!loading && shares.length > 0 && filteredShares.length === 0 && (
+          <div style={{ textAlign: "center", padding: "2rem 1rem", color: "#94a3b8" }}>
+            <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>
+              {activeTab === "pending" ? "🔗" : activeTab === "won" ? "🏆" : "🏷️"}
+            </div>
+            <p style={{ fontWeight: 600, color: "#64748b", fontSize: "0.85rem" }}>
+              {activeTab === "pending" ? "No pending shares" : activeTab === "won" ? "No wins yet — keep sharing!" : "No sold listings"}
+            </p>
+          </div>
+        )}
+
         <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-          {shares.map((share) => {
+          {filteredShares.map((share) => {
             const isSold = share.listing.status === "sold";
             return (
               <div key={share.id} style={{ background: "white", borderRadius: "14px", overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", opacity: isSold ? 0.85 : 1 }}>

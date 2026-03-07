@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
           type: "love_gift_claim",
           title: "📩 GCash Payment Request",
           body: `${sharerName} requests ₱${Number(claim.amount).toLocaleString()} via GCash for Love Gift. Tap to view details.`,
-          link: `/stewardshop/my-listings`,
+          link: `/stewardshop/my-listings/${claim.listingId}/prospects`,
         },
       });
     } else {
@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
           type: "love_gift_claim",
           title: "📞 Love Gift Contact Request",
           body: `${sharerName} wants to discuss their ₱${Number(claim.amount).toLocaleString()} Love Gift. They'll reach out to you.`,
-          link: `/stewardshop/my-listings`,
+          link: `/stewardshop/my-listings/${claim.listingId}/prospects`,
         },
       });
     }
