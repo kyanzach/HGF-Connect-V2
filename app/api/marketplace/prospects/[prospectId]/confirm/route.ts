@@ -59,6 +59,7 @@ export async function POST(_req: NextRequest, { params }: Props) {
       });
 
       // Create Love Gift claim so sharer can request payment
+      // method defaults to 'contact' — sharer can choose GCash from My Share Links
       await db.loveGiftClaim.create({
         data: {
           listingShareId: share.id,
@@ -66,20 +67,44 @@ export async function POST(_req: NextRequest, { params }: Props) {
           sharerId: share.sharerId,
           sellerId: memberId,
           amount: loveGiftAmount,
-          method: "contact", // default — sharer can change later
+          method: "contact",
           status: "pending",
         },
       });
 
       sharerCredited = true;
 
-      // Phase 7: notify sharer of confirmed sale (fire-and-forget)
-      void notifySharerSaleConfirmed(
-        share.sharerId,
-        prospect.listing.title,
-        prospect.listingId,
-        loveGiftAmount
-      );
+      // Notify sharer of confirmed sale (MUST await — void was dropping the promise)
+      try {
+        await notifySharerSaleConfirmed(
+          share.sharerId,
+          prospect.listing.title,
+          prospect.listingId,
+          loveGiftAmount
+        );
+      } catch (notifErr) {
+        console.error("[confirm] Failed to notify sharer:", notifErr);
+      }
+
+      // Also notify seller (Ryan) that Love Gift was credited
+      try {
+        const sharerMember = await db.member.findUnique({
+          where: { id: share.sharerId },
+          select: { firstName: true, lastName: true },
+        });
+        const sharerName = `${sharerMember?.firstName ?? ""} ${sharerMember?.lastName ?? ""}`.trim();
+        await db.notification.create({
+          data: {
+            memberId: memberId,
+            type: "love_gift_claim",
+            title: "❤️ Love Gift credited",
+            body: `₱${loveGiftAmount.toLocaleString()} Love Gift credited to ${sharerName} for "${prospect.listing.title}". They can now request payment.`,
+            link: `/stewardshop/my-listings/${prospect.listingId}/prospects`,
+          },
+        });
+      } catch (notifErr) {
+        console.error("[confirm] Failed to notify seller:", notifErr);
+      }
     }
   }
 
