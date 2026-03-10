@@ -34,5 +34,8 @@ export default async function EventsPage() {
     }),
   ]);
 
-  return <EventsClient upcoming={upcoming as any} allPast={allPast as any} />;
+  // Serialize Date objects to ISO strings — Next.js cannot pass Date across server→client boundary
+  const serializeEvents = (arr: typeof upcoming) => JSON.parse(JSON.stringify(arr));
+
+  return <EventsClient upcoming={serializeEvents(upcoming)} allPast={serializeEvents(allPast)} />;
 }

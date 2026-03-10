@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.10.4] — 2026-03-10
+### Fixed
+- **Admin events page crash** — `Application error: a client-side exception has occurred` on `/admin/events`. Root cause: Prisma returns `Date` objects for `eventDate`, `startTime`, `endTime`, etc., but Next.js App Router cannot serialize `Date` across the server→client boundary. Added `JSON.parse(JSON.stringify(...))` serialization before passing props to client components.
+- Same fix applied to public `/events` page to prevent identical crash.
+
 ## [v2.10.3] — 2026-03-06
 ### Fixed
 - Added `export const dynamic = "force-dynamic"` to all 6 StewardShop API routes
