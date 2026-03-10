@@ -1,6 +1,7 @@
 "use client";
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import ConfirmModal from "@/components/ConfirmModal";
 
 const P = "#4EB1CB";
 
@@ -27,6 +28,10 @@ export default function AdminMembersClient({
   const [form, setForm] = useState({
     firstName: "", lastName: "", email: "", phone: "", joinDate: "", ageGroup: "Adult", type: "Growing Friend", role: "member",
   });
+  const [confirmModal, setConfirmModal] = useState<{
+    open: boolean; title: string; message: string; confirmLabel: string;
+    confirmColor: string; loading: boolean; onConfirm: () => void;
+  }>({ open: false, title: "", message: "", confirmLabel: "Confirm", confirmColor: "#ef4444", loading: false, onConfirm: () => {} });
 
   const filtered = useMemo(() => {
     let list = members;
@@ -52,10 +57,19 @@ export default function AdminMembersClient({
     if (res.ok) setMembers(prev => prev.map(m => m.id === id ? { ...m, status: newStatus } : m));
   }
 
-  async function deleteMember(id: number) {
-    if (!confirm("Delete this member? This cannot be undone.")) return;
+  function promptDeleteMember(id: number, name: string) {
+    setConfirmModal({
+      open: true, title: "Delete Member",
+      message: `Delete "${name}"? This cannot be undone.`,
+      confirmLabel: "Delete", confirmColor: "#ef4444", loading: false,
+      onConfirm: () => executeDeleteMember(id),
+    });
+  }
+  async function executeDeleteMember(id: number) {
+    setConfirmModal(prev => ({ ...prev, loading: true }));
     const res = await fetch(`/api/members/${id}`, { method: "DELETE" });
     if (res.ok) setMembers(prev => prev.filter(m => m.id !== id));
+    setConfirmModal(prev => ({ ...prev, open: false, loading: false }));
   }
 
   const inp: React.CSSProperties = { width: "100%", border: "1.5px solid #e2e8f0", borderRadius: "8px", padding: "0.5rem 0.75rem", fontSize: "0.875rem", outline: "none", boxSizing: "border-box" };
@@ -174,7 +188,7 @@ export default function AdminMembersClient({
                         {m.status === "active" ? "Deactivate" : "Activate"}
                       </button>
                       {isAdmin && <><span style={{ color: "#e2e8f0" }}>|</span>
-                        <button onClick={() => deleteMember(m.id)} style={{ fontSize: "0.75rem", color: "#ef4444", background: "none", border: "none", cursor: "pointer", fontWeight: 700, padding: 0 }}>Delete</button></>}
+                        <button onClick={() => promptDeleteMember(m.id, `${m.firstName} ${m.lastName}`)} style={{ fontSize: "0.75rem", color: "#ef4444", background: "none", border: "none", cursor: "pointer", fontWeight: 700, padding: 0 }}>Delete</button></>}
                     </div>
                   </td>
                 </tr>
@@ -186,6 +200,7 @@ export default function AdminMembersClient({
           </table>
         </div>
       </div>
+      <ConfirmModal open={confirmModal.open} title={confirmModal.title} message={confirmModal.message} confirmLabel={confirmModal.confirmLabel} confirmColor={confirmModal.confirmColor} loading={confirmModal.loading} onConfirm={confirmModal.onConfirm} onCancel={() => setConfirmModal(prev => ({ ...prev, open: false }))} />
     </div>
   );
 }

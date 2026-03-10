@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import ConfirmModal from "@/components/ConfirmModal";
 
 const P = "#4EB1CB";
 
@@ -10,6 +11,10 @@ export default function AdminSendSmsPage() {
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
   const [filter, setFilter] = useState("all");
+  const [confirmModal, setConfirmModal] = useState<{
+    open: boolean; title: string; message: string; confirmLabel: string;
+    confirmColor: string; loading: boolean; onConfirm: () => void;
+  }>({ open: false, title: "", message: "", confirmLabel: "Confirm", confirmColor: "#4EB1CB", loading: false, onConfirm: () => {} });
 
   useEffect(() => {
     fetch("/api/members?status=active&limit=500")
@@ -31,10 +36,19 @@ export default function AdminSendSmsPage() {
     setSelected(s);
   }
 
-  async function handleSend() {
-    if (selected.size === 0) { alert("Select at least one recipient."); return; }
-    if (!message.trim()) { alert("Enter a message."); return; }
-    if (!confirm(`Send SMS to ${selected.size} recipient${selected.size !== 1 ? "s" : ""}?`)) return;
+  function promptSend() {
+    if (selected.size === 0) { setResult({ success: false, message: "Select at least one recipient." }); return; }
+    if (!message.trim()) { setResult({ success: false, message: "Enter a message." }); return; }
+    setConfirmModal({
+      open: true, title: "Send SMS",
+      message: `Send SMS to ${selected.size} recipient${selected.size !== 1 ? "s" : ""}?`,
+      confirmLabel: "Send", confirmColor: "#4EB1CB", loading: false,
+      onConfirm: () => executeSend(),
+    });
+  }
+
+  async function executeSend() {
+    setConfirmModal(prev => ({ ...prev, loading: true }));
     setSending(true); setResult(null);
     const res = await fetch("/api/sms/send", {
       method: "POST",
@@ -45,6 +59,7 @@ export default function AdminSendSmsPage() {
     setResult({ success: res.ok, message: data.message ?? (res.ok ? "Queued successfully" : "Failed to send") });
     if (res.ok) { setSelected(new Set()); setMessage(""); }
     setSending(false);
+    setConfirmModal(prev => ({ ...prev, open: false, loading: false }));
   }
 
   return (
@@ -104,7 +119,7 @@ export default function AdminSendSmsPage() {
           )}
 
           <button
-            onClick={handleSend}
+            onClick={promptSend}
             disabled={sending || selected.size === 0 || !message.trim()}
             style={{ width: "100%", marginTop: "1rem", padding: "0.75rem", background: sending || selected.size === 0 || !message.trim() ? "#94a3b8" : P, color: "white", border: "none", borderRadius: "8px", fontWeight: 800, fontSize: "0.9rem", cursor: "pointer" }}
           >
@@ -115,6 +130,7 @@ export default function AdminSendSmsPage() {
           </p>
         </div>
       </div>
+      <ConfirmModal open={confirmModal.open} title={confirmModal.title} message={confirmModal.message} confirmLabel={confirmModal.confirmLabel} confirmColor={confirmModal.confirmColor} loading={confirmModal.loading} onConfirm={confirmModal.onConfirm} onCancel={() => setConfirmModal(prev => ({ ...prev, open: false }))} />
     </div>
   );
 }

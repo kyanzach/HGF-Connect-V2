@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import ConfirmModal from "@/components/ConfirmModal";
 import Link from "next/link";
 
 const P = "#4EB1CB";
@@ -14,6 +15,10 @@ type PendingMember = {
 export default function AdminReviewClient({ pending: init }: { pending: PendingMember[] }) {
   const [pending, setPending] = useState(init);
   const [processing, setProcessing] = useState<number | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{
+    open: boolean; title: string; message: string; confirmLabel: string;
+    confirmColor: string; loading: boolean; onConfirm: () => void;
+  }>({ open: false, title: "", message: "", confirmLabel: "Confirm", confirmColor: "#ef4444", loading: false, onConfirm: () => {} });
 
   async function approve(id: number) {
     setProcessing(id);
@@ -22,12 +27,21 @@ export default function AdminReviewClient({ pending: init }: { pending: PendingM
     setProcessing(null);
   }
 
-  async function reject(id: number) {
-    if (!confirm("Reject and delete this registration?")) return;
+  function promptReject(id: number, name: string) {
+    setConfirmModal({
+      open: true, title: "Reject Registration",
+      message: `Reject and delete the registration for "${name}"?`,
+      confirmLabel: "Reject", confirmColor: "#ef4444", loading: false,
+      onConfirm: () => executeReject(id),
+    });
+  }
+  async function executeReject(id: number) {
+    setConfirmModal(prev => ({ ...prev, loading: true }));
     setProcessing(id);
     const res = await fetch(`/api/members/${id}`, { method: "DELETE" });
     if (res.ok) setPending(prev => prev.filter(m => m.id !== id));
     setProcessing(null);
+    setConfirmModal(prev => ({ ...prev, open: false, loading: false }));
   }
 
   if (pending.length === 0) {
@@ -78,7 +92,7 @@ export default function AdminReviewClient({ pending: init }: { pending: PendingM
                   ✅ Approve
                 </button>
                 <button
-                  onClick={() => reject(m.id)} disabled={processing === m.id}
+                  onClick={() => promptReject(m.id, `${m.firstName} ${m.lastName}`)} disabled={processing === m.id}
                   style={{ padding: "0.5rem 0.875rem", border: "1.5px solid #fee2e2", borderRadius: "8px", background: "#fef2f2", color: "#ef4444", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer", opacity: processing === m.id ? 0.6 : 1 }}>
                   ✗ Reject
                 </button>
@@ -87,6 +101,7 @@ export default function AdminReviewClient({ pending: init }: { pending: PendingM
           </div>
         ))}
       </div>
+      <ConfirmModal open={confirmModal.open} title={confirmModal.title} message={confirmModal.message} confirmLabel={confirmModal.confirmLabel} confirmColor={confirmModal.confirmColor} loading={confirmModal.loading} onConfirm={confirmModal.onConfirm} onCancel={() => setConfirmModal(prev => ({ ...prev, open: false }))} />
     </div>
   );
 }

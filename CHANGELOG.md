@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.10.5] — 2026-03-10
+### Changed
+- **Replaced all native `confirm()` dialogs with custom `ConfirmModal`** — native browser dialogs disappear instantly on PWA/mobile; new styled modal stays visible until user explicitly responds
+  - Admin Events delete, Admin Members delete, Admin Review reject, Send SMS, StewardShop my-listings (remove/reactivate), StewardShop prospects (confirm sale, mark paid)
+- Replaced `alert()` error feedback with inline error banners where applicable
+### Added
+- **`ConfirmModal` shared component** (`components/ConfirmModal.tsx`) — reusable confirmation modal with title, message, loading state, custom colors (red for destructive, teal for safe)
+- **`.agents/rules/connect-hgf.md`** — comprehensive project-specific rules covering deployment, avoid patterns, Prisma gotchas, UI standards, troubleshooting flow
+
 ## [v2.10.4] — 2026-03-10
 ### Fixed
 - **Admin events page crash** — `Application error: a client-side exception has occurred` on `/admin/events`. Root cause: Prisma returns `Date` objects for `eventDate`, `startTime`, `endTime`, etc., but Next.js App Router cannot serialize `Date` across the server→client boundary. Added `JSON.parse(JSON.stringify(...))` serialization before passing props to client components.

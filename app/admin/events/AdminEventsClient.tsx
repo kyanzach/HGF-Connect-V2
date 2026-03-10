@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useMemo, useRef } from "react";
+import ConfirmModal from "@/components/ConfirmModal";
 
 const P = "#4EB1CB";
 
@@ -62,6 +63,12 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+
+  // ── Confirm modal state ──
+  const [confirmModal, setConfirmModal] = useState<{
+    open: boolean; title: string; message: string; confirmLabel: string;
+    confirmColor: string; loading: boolean; onConfirm: () => void;
+  }>({ open: false, title: "", message: "", confirmLabel: "Confirm", confirmColor: "#ef4444", loading: false, onConfirm: () => {} });
 
   const filtered = useMemo(() => typeFilter === "all" ? events : events.filter(e => e.eventType === typeFilter), [events, typeFilter]);
 
@@ -147,18 +154,33 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
     }
   }
 
-  async function deleteEvent(id: number) {
-    if (!confirm("Delete this event?")) return;
+  function promptDelete(id: number, title: string) {
+    setConfirmModal({
+      open: true,
+      title: "Delete Event",
+      message: `Are you sure you want to delete "${title}"? This action cannot be undone.`,
+      confirmLabel: "Delete",
+      confirmColor: "#ef4444",
+      loading: false,
+      onConfirm: () => executeDelete(id),
+    });
+  }
+
+  async function executeDelete(id: number) {
+    setConfirmModal(prev => ({ ...prev, loading: true }));
     try {
       const res = await fetch(`/api/events/${id}`, { method: "DELETE" });
       if (res.ok) {
         setEvents(prev => prev.filter(e => e.id !== id));
+        setConfirmModal(prev => ({ ...prev, open: false, loading: false }));
       } else {
         const data = await res.json();
-        alert(data.error ?? "Failed to delete event");
+        setConfirmModal(prev => ({ ...prev, open: false, loading: false }));
+        setErr(data.error ?? "Failed to delete event");
       }
     } catch {
-      alert("Network error occurred while deleting");
+      setConfirmModal(prev => ({ ...prev, open: false, loading: false }));
+      setErr("Network error occurred while deleting");
     }
   }
 
@@ -175,6 +197,8 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
         <button onClick={openAdd} style={{ background: P, color: "white", border: "none", borderRadius: "8px", padding: "0.625rem 1.25rem", fontWeight: 700, cursor: "pointer", fontSize: "0.875rem" }}>➕ Add Event</button>
       </div>
 
+      {err && <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "8px", padding: "0.75rem 1rem", marginBottom: "1rem", color: "#ef4444", fontSize: "0.85rem", fontWeight: 600 }}>{err} <button onClick={() => setErr("")} style={{ float: "right", background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontWeight: 700 }}>✕</button></div>}
+
       <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.25rem", flexWrap: "wrap" }}>
         {["all", ...EVENT_TYPES].map(t => (
           <button key={t} onClick={() => setTypeFilter(t)} style={{ padding: "0.375rem 0.875rem", borderRadius: "999px", border: "1.5px solid", borderColor: typeFilter === t ? P : "#e2e8f0", background: typeFilter === t ? P : "white", color: typeFilter === t ? "white" : "#64748b", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer" }}>
@@ -183,7 +207,7 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
         ))}
       </div>
 
-      {/* Modal */}
+      {/* Edit/Add Modal */}
       {showModal && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 999, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}>
           <div style={{ background: "white", borderRadius: "16px", padding: "1.5rem", width: "100%", maxWidth: 520, boxShadow: "0 20px 60px rgba(0,0,0,0.2)", maxHeight: "90vh", overflowY: "auto" }}>
@@ -242,6 +266,18 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
         </div>
       )}
 
+      {/* Confirm Modal */}
+      <ConfirmModal
+        open={confirmModal.open}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmLabel={confirmModal.confirmLabel}
+        confirmColor={confirmModal.confirmColor}
+        loading={confirmModal.loading}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, open: false }))}
+      />
+
       {/* Cards */}
       <div style={{ display: "grid", gap: "1rem" }}>
         {filtered.map(ev => (
@@ -270,7 +306,7 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
             <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
               <a href={`/event/${ev.id}`} target="_blank" rel="noopener noreferrer" style={{ padding: "0.375rem 0.75rem", border: "1.5px solid #10b98130", background: "#10b98110", color: "#10b981", borderRadius: "6px", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer", textDecoration: "none" }}>View</a>
               <button onClick={() => openEdit(ev)} style={{ padding: "0.375rem 0.75rem", border: `1.5px solid ${P}30`, background: `${P}10`, color: P, borderRadius: "6px", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer" }}>Edit</button>
-              <button onClick={() => deleteEvent(ev.id)} style={{ padding: "0.375rem 0.75rem", border: "1.5px solid #fee2e2", background: "#fef2f2", color: "#ef4444", borderRadius: "6px", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer" }}>Delete</button>
+              <button onClick={() => promptDelete(ev.id, ev.title)} style={{ padding: "0.375rem 0.75rem", border: "1.5px solid #fee2e2", background: "#fef2f2", color: "#ef4444", borderRadius: "6px", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer" }}>Delete</button>
             </div>
           </div>
         ))}

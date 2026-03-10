@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import ConfirmModal from "@/components/ConfirmModal";
 
 const PRIMARY = "#4EB1CB";
 
@@ -181,6 +182,10 @@ export default function MyListingsPage() {
   const [acting, setActing] = useState<number | null>(null);
   const [markSoldId, setMarkSoldId] = useState<number | null>(null);
   const [flashMsg, setFlashMsg] = useState("");
+  const [confirmModal, setConfirmModal] = useState<{
+    open: boolean; title: string; message: string; confirmLabel: string;
+    confirmColor: string; loading: boolean; onConfirm: () => void;
+  }>({ open: false, title: "", message: "", confirmLabel: "Confirm", confirmColor: "#ef4444", loading: false, onConfirm: () => {} });
 
   useEffect(() => {
     fetch("/api/marketplace/listings/mine")
@@ -190,8 +195,18 @@ export default function MyListingsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  async function handleAction(listingId: number, action: string, confirmMsg: string) {
-    if (!confirm(confirmMsg)) return;
+  function promptAction(listingId: number, action: string, confirmTitle: string, confirmMsg: string) {
+    setConfirmModal({
+      open: true, title: confirmTitle, message: confirmMsg,
+      confirmLabel: action === "delete" ? "Remove" : "Confirm",
+      confirmColor: action === "delete" ? "#ef4444" : "#4EB1CB",
+      loading: false,
+      onConfirm: () => executeAction(listingId, action),
+    });
+  }
+
+  async function executeAction(listingId: number, action: string) {
+    setConfirmModal(prev => ({ ...prev, loading: true }));
     setActing(listingId);
     try {
       const res = await fetch(`/api/marketplace/listings/${listingId}`, {
@@ -203,12 +218,17 @@ export default function MyListingsPage() {
       if (data.ok || data.status) {
         setListings((prev) => prev.map((l) => l.id === listingId ? { ...l, status: data.status || l.status } : l));
       } else if (data.error) {
-        alert(data.error);
+        setFlashMsg(`❌ ${data.error}`);
+        setTimeout(() => setFlashMsg(""), 5000);
       }
     } catch (err) { 
       console.error(err);
-      alert("Network error — please try again");
-    } finally { setActing(null); }
+      setFlashMsg("❌ Network error — please try again");
+      setTimeout(() => setFlashMsg(""), 5000);
+    } finally {
+      setActing(null);
+      setConfirmModal(prev => ({ ...prev, open: false, loading: false }));
+    }
   }
 
   function handleMarkSoldDone(status: string, msg: string) {
@@ -326,7 +346,7 @@ export default function MyListingsPage() {
                     )}
                     {(listing.status === "sold" || listing.status === "removed" || listing.status === "expired") && (
                       <button
-                        onClick={() => handleAction(listing.id, "reactivate", "Reactivate this listing?")}
+                        onClick={() => promptAction(listing.id, "reactivate", "Reactivate Listing", `Reactivate "${listing.title}"?`)}
                         disabled={acting === listing.id}
                         style={{ fontSize: "0.7rem", fontWeight: 700, color: "#10b981", background: "#d1fae5", border: "none", borderRadius: "6px", padding: "0.25rem 0.625rem", cursor: "pointer", fontFamily: "inherit" }}
                       >
@@ -335,7 +355,7 @@ export default function MyListingsPage() {
                     )}
                     {listing.status !== "removed" && (
                       <button
-                        onClick={() => handleAction(listing.id, "delete", "Remove this listing? It won't be visible to buyers.")}
+                        onClick={() => promptAction(listing.id, "delete", "Remove Listing", `Remove "${listing.title}"? It won't be visible to buyers.`)}
                         disabled={acting === listing.id}
                         style={{ fontSize: "0.7rem", fontWeight: 700, color: "#ef4444", background: "#fee2e2", border: "none", borderRadius: "6px", padding: "0.25rem 0.625rem", cursor: "pointer", fontFamily: "inherit" }}
                       >
@@ -359,6 +379,8 @@ export default function MyListingsPage() {
           onDone={handleMarkSoldDone}
         />
       )}
+
+      <ConfirmModal open={confirmModal.open} title={confirmModal.title} message={confirmModal.message} confirmLabel={confirmModal.confirmLabel} confirmColor={confirmModal.confirmColor} loading={confirmModal.loading} onConfirm={confirmModal.onConfirm} onCancel={() => setConfirmModal(prev => ({ ...prev, open: false }))} />
     </div>
   );
 }

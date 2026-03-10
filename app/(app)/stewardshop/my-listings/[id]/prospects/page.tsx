@@ -2,6 +2,7 @@
 
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
+import ConfirmModal from "@/components/ConfirmModal";
 
 const PRIMARY = "#4EB1CB";
 
@@ -38,6 +39,10 @@ export default function ProspectsPage({ params }: { params: Promise<{ id: string
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [confirmModal, setConfirmModal] = useState<{
+    open: boolean; title: string; message: string; confirmLabel: string;
+    confirmColor: string; loading: boolean; onConfirm: () => void;
+  }>({ open: false, title: "", message: "", confirmLabel: "Confirm", confirmColor: "#ef4444", loading: false, onConfirm: () => {} });
 
   const filtered = search.trim()
     ? prospects.filter((p) =>
@@ -77,8 +82,17 @@ export default function ProspectsPage({ params }: { params: Promise<{ id: string
     }
   }
 
-  async function confirmSale(prospectId: number) {
-    if (!confirm("Confirm this sale and credit the sharer's Love Gift? This action cannot be undone.")) return;
+  function promptConfirmSale(prospectId: number) {
+    setConfirmModal({
+      open: true, title: "Confirm Sale",
+      message: "Confirm this sale and credit the sharer's Love Gift? This action cannot be undone.",
+      confirmLabel: "Confirm Sale", confirmColor: "#10b981", loading: false,
+      onConfirm: () => executeConfirmSale(prospectId),
+    });
+  }
+
+  async function executeConfirmSale(prospectId: number) {
+    setConfirmModal(prev => ({ ...prev, loading: true }));
     setConfirming(prospectId);
     setMessage("");
     setError("");
@@ -88,9 +102,7 @@ export default function ProspectsPage({ params }: { params: Promise<{ id: string
       if (!res.ok) throw new Error(data.error ?? "Failed to confirm sale");
       setMessage(data.message ?? "Sale confirmed!");
       setProspects((prev) => prev.map((p) => p.id === prospectId ? { ...p, status: "converted" } : p));
-      // Update listing status locally so UI disables all buttons
       setListing((prev) => prev ? { ...prev, status: "sold" } : prev);
-      // Refresh data to get updated claims
       fetch(`/api/marketplace/listings/${id}/prospects`)
         .then((r) => r.json())
         .then((d) => {
@@ -104,11 +116,21 @@ export default function ProspectsPage({ params }: { params: Promise<{ id: string
       setError(err.message ?? "Failed to confirm sale. Try again.");
     } finally {
       setConfirming(null);
+      setConfirmModal(prev => ({ ...prev, open: false, loading: false }));
     }
   }
 
-  async function markPaid(claimId: number) {
-    if (!confirm("Mark this Love Gift as paid? The sharer will be notified.")) return;
+  function promptMarkPaid(claimId: number) {
+    setConfirmModal({
+      open: true, title: "Mark as Paid",
+      message: "Mark this Love Gift as paid? The sharer will be notified.",
+      confirmLabel: "Mark Paid", confirmColor: "#10b981", loading: false,
+      onConfirm: () => executeMarkPaid(claimId),
+    });
+  }
+
+  async function executeMarkPaid(claimId: number) {
+    setConfirmModal(prev => ({ ...prev, loading: true }));
     setPaying(claimId);
     try {
       const res = await fetch(`/api/marketplace/love-gifts/${claimId}/pay`, { method: "PATCH" });
@@ -117,9 +139,12 @@ export default function ProspectsPage({ params }: { params: Promise<{ id: string
         setClaims((prev) => prev.map((c) => c.id === claimId ? { ...c, status: "paid", paidAt: new Date().toISOString() } : c));
         setMessage(data.message ?? "Marked as paid!");
       } else {
-        alert(data.error ?? "Failed");
+        setError(data.error ?? "Failed");
       }
-    } catch { alert("Network error"); } finally { setPaying(null); }
+    } catch { setError("Network error"); } finally {
+      setPaying(null);
+      setConfirmModal(prev => ({ ...prev, open: false, loading: false }));
+    }
   }
 
   const isSold = listing?.status === "sold";
@@ -178,7 +203,7 @@ export default function ProspectsPage({ params }: { params: Promise<{ id: string
                 {/* Mark as Paid button */}
                 {claim.status === "pending" && (
                   <button
-                    onClick={() => markPaid(claim.id)}
+                    onClick={() => promptMarkPaid(claim.id)}
                     disabled={paying === claim.id}
                     style={{ marginTop: "0.5rem", width: "100%", padding: "0.5rem", background: paying === claim.id ? "#94a3b8" : "#10b981", color: "white", border: "none", borderRadius: "999px", fontSize: "0.8rem", fontWeight: 700, cursor: paying === claim.id ? "wait" : "pointer", fontFamily: "inherit" }}
                   >
@@ -279,7 +304,7 @@ export default function ProspectsPage({ params }: { params: Promise<{ id: string
                     </button>
                   ))}
                   <button
-                    onClick={() => confirmSale(p.id)}
+                    onClick={() => promptConfirmSale(p.id)}
                     disabled={confirming === p.id}
                     style={{ background: confirming === p.id ? "#94a3b8" : "#10b981", color: "white", border: "none", borderRadius: "999px", padding: "0.25rem 0.875rem", fontSize: "0.72rem", fontWeight: 700, cursor: confirming === p.id ? "wait" : "pointer", fontFamily: "inherit", marginLeft: "auto" }}
                   >
@@ -297,6 +322,7 @@ export default function ProspectsPage({ params }: { params: Promise<{ id: string
           ))}
         </div>
       </div>
+      <ConfirmModal open={confirmModal.open} title={confirmModal.title} message={confirmModal.message} confirmLabel={confirmModal.confirmLabel} confirmColor={confirmModal.confirmColor} loading={confirmModal.loading} onConfirm={confirmModal.onConfirm} onCancel={() => setConfirmModal(prev => ({ ...prev, open: false }))} />
     </div>
   );
 }
