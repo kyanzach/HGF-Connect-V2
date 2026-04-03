@@ -45,3 +45,6 @@ backup upload files and sql/
 # Deployment — never commit
 deploy.sh
 CREDENTIALS_REFERENCE.md
+
+# Server-side data (TheWordTool scripts, etc.)
+/data/

@@ -82,6 +82,33 @@
   }
 
   #file-name .unsaved { color: #f59e0b; }
+  #file-name .cloud { color: #22c55e; font-size: 12px; }
+
+  /* ── Save toast ── */
+  #save-toast {
+    position: fixed;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-60px);
+    background: #22c55e;
+    color: #000;
+    padding: 8px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    z-index: 200;
+    opacity: 0;
+    transition: transform 0.3s, opacity 0.3s;
+    pointer-events: none;
+  }
+  #save-toast.visible {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+  #save-toast.error {
+    background: #ef4444;
+    color: #fff;
+  }
 
   /* ── File menu bar ── */
   #file-bar {
@@ -817,9 +844,219 @@
     transition: background 0.15s;
   }
   #completion-btn:hover { background: #1d4ed8; }
+  /* ── File Manager Modal ── */
+  #fm-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    background: rgba(0,0,0,0.7);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  #fm-overlay.visible { display: flex; }
+
+  #fm-modal {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 12px;
+    width: 520px;
+    max-width: 94vw;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    overflow: hidden;
+  }
+
+  #fm-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid #333;
+  }
+
+  #fm-header h2 { font-size: 16px; color: #eee; font-weight: 600; }
+  #fm-header .fm-close { background: none; border: none; color: #888; cursor: pointer; font-size: 20px; }
+  #fm-header .fm-close:hover { color: #fff; }
+
+  #fm-breadcrumb {
+    padding: 8px 18px;
+    border-bottom: 1px solid #2a2a2a;
+    font-size: 13px;
+    color: #888;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  #fm-breadcrumb .fm-bc-link {
+    color: #4EB1CB;
+    cursor: pointer;
+    background: none;
+    border: none;
+    font-size: 13px;
+    font-family: inherit;
+  }
+  #fm-breadcrumb .fm-bc-link:hover { text-decoration: underline; }
+
+  #fm-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px 0;
+    min-height: 200px;
+  }
+
+  .fm-empty {
+    padding: 40px 20px;
+    text-align: center;
+    color: #555;
+    font-size: 14px;
+  }
+
+  .fm-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 18px;
+    cursor: pointer;
+    transition: background 0.1s;
+    gap: 10px;
+  }
+  .fm-item:hover { background: #252525; }
+
+  .fm-item .fm-icon {
+    font-size: 22px;
+    width: 30px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .fm-item .fm-info { flex: 1; min-width: 0; }
+  .fm-item .fm-name {
+    font-size: 14px;
+    color: #ddd;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .fm-item .fm-meta {
+    font-size: 11px;
+    color: #666;
+    margin-top: 1px;
+  }
+  .fm-item .fm-actions {
+    display: flex;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+  .fm-item .fm-act {
+    background: none;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 4px 6px;
+    border-radius: 4px;
+  }
+  .fm-item .fm-act:hover { color: #eee; background: #333; }
+  .fm-item .fm-act.danger:hover { color: #f87171; background: #2a2020; }
+
+  #fm-footer {
+    padding: 10px 18px;
+    border-top: 1px solid #333;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .fm-btn {
+    padding: 8px 14px;
+    border-radius: 6px;
+    border: 1px solid #444;
+    background: #2a2a2a;
+    color: #ccc;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.12s;
+  }
+  .fm-btn:hover { background: #3a3a3a; color: #fff; }
+  .fm-btn.primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+  .fm-btn.primary:hover { background: #1d4ed8; }
+  .fm-btn.danger { color: #f87171; }
+  .fm-btn.danger:hover { background: #3a2020; }
+
+  /* ── Password prompt inline ── */
+  .fm-pw-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 18px;
+    background: #1e1e1e;
+    border-bottom: 1px solid #2a2a2a;
+  }
+  .fm-pw-row input {
+    flex: 1;
+    padding: 8px 10px;
+    background: #111;
+    border: 1px solid #444;
+    border-radius: 6px;
+    color: #eee;
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+  }
+  .fm-pw-row input:focus { border-color: #2563eb; }
+  .fm-pw-row .fm-pw-error {
+    color: #f87171;
+    font-size: 12px;
+    min-width: 0;
+  }
+
+  /* ── Open/Save choice popup ── */
+  .choice-popup {
+    position: absolute;
+    top: 32px;
+    left: 0;
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    z-index: 50;
+    padding: 8px;
+    display: none;
+  }
+  .choice-popup.visible { display: flex; gap: 4px; }
+  .choice-popup .file-btn { white-space: nowrap; }
+
+  /* ── Loading spinner ── */
+  .fm-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    color: #666;
+    font-size: 14px;
+  }
+
 </style>
 </head>
 <body>
+<div id="save-toast"></div>
+
+<!-- ── FILE MANAGER MODAL ── -->
+<div id="fm-overlay">
+  <div id="fm-modal">
+    <div id="fm-header">
+      <h2 id="fm-title">☁ Server Scripts</h2>
+      <button class="fm-close" id="fm-close">✕</button>
+    </div>
+    <div id="fm-breadcrumb" style="display:none"></div>
+    <div id="fm-pw-area"></div>
+    <div id="fm-body"></div>
+    <div id="fm-footer"></div>
+  </div>
+</div>
 
 <!-- ── EDITOR VIEW ── -->
 <div id="editor-view">
@@ -831,10 +1068,10 @@
 
   <div id="file-bar">
     <button class="file-btn" id="btn-new">New</button>
-    <button class="file-btn" id="btn-open">Open <kbd>⌘O</kbd></button>
-    <button class="file-btn" id="btn-recent">Recent</button>
+    <button class="file-btn" id="btn-open">Open</button>
     <button class="file-btn" id="btn-save">Save <kbd>⌘S</kbd></button>
-    <button class="file-btn" id="btn-saveas">Save As <kbd>⇧⌘S</kbd></button>
+    <button class="file-btn" id="btn-save-server">☁ Server</button>
+    <button class="file-btn" id="btn-save-local">💾 Local <kbd>⇧⌘S</kbd></button>
     <button class="file-btn" id="btn-history">📊 History</button>
 
     <div id="open-panel">
@@ -997,9 +1234,10 @@
 
   // ══════════════════════════════════════
   //  FILE MANAGEMENT
-  //  • Save/Save As → real files on disk
-  //  • Open → file picker from disk
-  //  • Open Recent → cached in browser
+  //  • Save → smart (remembers destination per title)
+  //  • Save To Server → always server (file manager)
+  //  • Save To Local → always local file
+  //  • Open → Local or Server choice
   // ══════════════════════════════════════
   const RECENTS_KEY = 'teleprompter_recents';
   const DRAFT_KEY = 'teleprompter_draft';
@@ -1009,85 +1247,72 @@
   const SESSIONS_KEY = 'teleprompter_sessions';
   const SESSIONS_API = 'sessions.php';
   const SERVICE_TYPE_KEY = 'teleprompter_service_type';
+  const SAVE_PREFS_KEY = 'teleprompter_save_prefs';
+  const SCRIPTS_API = '/api/thewordtool';
+  const FOLDERS_API = '/api/thewordtool/folders';
+  const saveToast = document.getElementById('save-toast');
+
   let serverAvailable = null;
   let currentFileName = null;
-  let fileHandle = null; // File System Access API (Chrome)
+  let currentFolder = null;
+  let savedToServer = false;
+  let fileHandle = null;
   let isDirty = false;
+  const folderPasswords = {};
 
   // Restore service type preference
   const savedServiceType = localStorage.getItem(SERVICE_TYPE_KEY);
   if (savedServiceType) serviceTypeEl.value = savedServiceType;
   serviceTypeEl.addEventListener('change', () => localStorage.setItem(SERVICE_TYPE_KEY, serviceTypeEl.value));
 
-  // ── IndexedDB helpers to persist file handle across sessions ──
+  // ── IndexedDB helpers ──
   function openHandleDB() {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const req = indexedDB.open('hgf_teleprompter', 1);
       req.onupgradeneeded = (e) => e.target.result.createObjectStore('handles');
       req.onsuccess = (e) => resolve(e.target.result);
       req.onerror = () => resolve(null);
     });
   }
-
   async function storeFileHandle(handle) {
-    try {
-      const db = await openHandleDB();
-      if (!db) return;
-      const tx = db.transaction('handles', 'readwrite');
-      tx.objectStore('handles').put(handle, 'current');
-    } catch {}
+    try { const db = await openHandleDB(); if (!db) return; db.transaction('handles','readwrite').objectStore('handles').put(handle,'current'); } catch {}
   }
-
   async function loadFileHandle() {
-    try {
-      const db = await openHandleDB();
-      if (!db) return null;
-      return new Promise((resolve) => {
-        const tx = db.transaction('handles', 'readonly');
-        const req = tx.objectStore('handles').get('current');
-        req.onsuccess = () => resolve(req.result || null);
-        req.onerror = () => resolve(null);
-      });
-    } catch { return null; }
+    try { const db = await openHandleDB(); if (!db) return null; return new Promise(r => { const req = db.transaction('handles','readonly').objectStore('handles').get('current'); req.onsuccess = () => r(req.result||null); req.onerror = () => r(null); }); } catch { return null; }
   }
-
   async function clearStoredHandle() {
-    try {
-      const db = await openHandleDB();
-      if (!db) return;
-      const tx = db.transaction('handles', 'readwrite');
-      tx.objectStore('handles').delete('current');
-    } catch {}
+    try { const db = await openHandleDB(); if (!db) return; db.transaction('handles','readwrite').objectStore('handles').delete('current'); } catch {}
   }
-
-  // ── Verify/request write permission on a handle ──
   async function verifyPermission(handle) {
     if (!handle) return false;
-    try {
-      if ((await handle.queryPermission({ mode: 'readwrite' })) === 'granted') return true;
-      if ((await handle.requestPermission({ mode: 'readwrite' })) === 'granted') return true;
-    } catch {}
+    try { if ((await handle.queryPermission({mode:'readwrite'})) === 'granted') return true; if ((await handle.requestPermission({mode:'readwrite'})) === 'granted') return true; } catch {}
     return false;
   }
 
-  function getRecents() {
-    try { return JSON.parse(localStorage.getItem(RECENTS_KEY)) || []; }
-    catch { return []; }
-  }
-
+  function getRecents() { try { return JSON.parse(localStorage.getItem(RECENTS_KEY)) || []; } catch { return []; } }
   function addToRecents(name, content) {
-    let recents = getRecents();
-    // Remove duplicate by name
-    recents = recents.filter(r => r.name !== name);
+    let recents = getRecents().filter(r => r.name !== name);
     recents.unshift({ name, content, date: Date.now() });
-    // Keep last 20
     if (recents.length > 20) recents.length = 20;
     localStorage.setItem(RECENTS_KEY, JSON.stringify(recents));
   }
 
+  // ── Save preferences (per title) ──
+  function getSavePrefs() { try { return JSON.parse(localStorage.getItem(SAVE_PREFS_KEY)) || {}; } catch { return {}; } }
+  function setSavePref(title, dest, folder) { const p = getSavePrefs(); p[title] = { dest, folder: folder||null }; localStorage.setItem(SAVE_PREFS_KEY, JSON.stringify(p)); }
+
+  // ── Toast ──
+  function showToast(msg, isError) {
+    saveToast.textContent = msg;
+    saveToast.className = isError ? 'visible error' : 'visible';
+    clearTimeout(saveToast._t);
+    saveToast._t = setTimeout(() => { saveToast.className = ''; }, 2200);
+  }
+
   function updateTitle() {
     const name = currentFileName || 'Untitled';
-    fileNameEl.innerHTML = isDirty ? `${name} <span class="unsaved">●</span>` : name;
+    const badge = savedToServer ? ' <span class="cloud">☁</span>' : '';
+    fileNameEl.innerHTML = isDirty ? `${name}${badge} <span class="unsaved">●</span>` : `${name}${badge}`;
     document.title = `${name} — THE WORD`;
   }
 
@@ -1096,254 +1321,370 @@
     localStorage.setItem(DRAFT_NAME_KEY, currentFileName || '');
   }
 
-  // Mark dirty on edits + auto-save draft
-  editor.addEventListener('input', () => {
-    isDirty = true;
-    updateTitle();
-    syncDraft();
-  });
+  editor.addEventListener('input', () => { isDirty = true; updateTitle(); syncDraft(); });
+
+  // ══════════════════════════════════════
+  //  FILE MANAGER (server folders + scripts)
+  // ══════════════════════════════════════
+  const fmOverlay = document.getElementById('fm-overlay');
+  const fmTitle = document.getElementById('fm-title');
+  const fmBreadcrumb = document.getElementById('fm-breadcrumb');
+  const fmPwArea = document.getElementById('fm-pw-area');
+  const fmBody = document.getElementById('fm-body');
+  const fmFooter = document.getElementById('fm-footer');
+  let fmMode = 'open';
+  let fmCurrentFolder = null;
+
+  document.getElementById('fm-close').addEventListener('click', closeFM);
+  fmOverlay.addEventListener('click', (e) => { if (e.target === fmOverlay) closeFM(); });
+
+  function closeFM() { fmOverlay.classList.remove('visible'); fmCurrentFolder = null; fmPwArea.innerHTML = ''; }
+
+  function openFM(mode) {
+    fmMode = mode;
+    fmCurrentFolder = null;
+    fmTitle.textContent = mode === 'save' ? '☁ Save to Server' : '☁ Open from Server';
+    fmBreadcrumb.style.display = 'none';
+    fmPwArea.innerHTML = '';
+    fmOverlay.classList.add('visible');
+    renderFMFolders();
+  }
+
+  async function renderFMFolders() {
+    fmBody.innerHTML = '<div class="fm-loading">Loading…</div>';
+    fmFooter.innerHTML = '';
+    fmBreadcrumb.style.display = 'none';
+    fmPwArea.innerHTML = '';
+
+    let folders = [];
+    try { const res = await fetch(FOLDERS_API); if (res.ok) folders = await res.json(); } catch {}
+
+    if (folders.length === 0) {
+      fmBody.innerHTML = '<div class="fm-empty">No folders yet.</div>';
+    } else {
+      fmBody.innerHTML = folders.map(f => `
+        <div class="fm-item" data-folder="${f.name}" data-locked="${f.locked}">
+          <span class="fm-icon">${f.locked ? '🔒' : '📁'}</span>
+          <div class="fm-info">
+            <div class="fm-name">${f.name}</div>
+            <div class="fm-meta">${f.scriptCount} script${f.scriptCount !== 1 ? 's' : ''}</div>
+          </div>
+          <div class="fm-actions">
+            <button class="fm-act" data-action="rename" data-folder="${f.name}" title="Rename">✏</button>
+            <button class="fm-act" data-action="${f.locked ? 'unlock' : 'lock'}" data-folder="${f.name}" title="${f.locked ? 'Unlock' : 'Lock'}">${f.locked ? '🔓' : '🔒'}</button>
+            <button class="fm-act danger" data-action="delete" data-folder="${f.name}" title="Delete">🗑</button>
+          </div>
+        </div>`).join('');
+    }
+
+    fmFooter.innerHTML = '<button class="fm-btn primary" id="fm-new-folder">➕ New Folder</button>';
+
+    // Click folder
+    fmBody.querySelectorAll('.fm-item[data-folder]').forEach(el => {
+      el.addEventListener('click', (e) => {
+        if (e.target.closest('.fm-act')) return;
+        const name = el.dataset.folder;
+        const locked = el.dataset.locked === 'true';
+        if (locked && !folderPasswords[name]) {
+          showPasswordPrompt(name, () => renderFMScripts(name));
+        } else {
+          renderFMScripts(name);
+        }
+      });
+    });
+
+    // Folder actions
+    fmBody.querySelectorAll('.fm-act').forEach(btn => {
+      btn.addEventListener('click', (e) => { e.stopPropagation(); handleFolderAction(btn.dataset.action, btn.dataset.folder); });
+    });
+
+    // New folder
+    document.getElementById('fm-new-folder').addEventListener('click', async () => {
+      const name = prompt('New folder name:');
+      if (!name || !name.trim()) return;
+      try {
+        const res = await fetch(FOLDERS_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name.trim() }) });
+        const data = await res.json();
+        if (!res.ok) { showToast(data.error || 'Failed', true); return; }
+        renderFMFolders();
+      } catch { showToast('❌ Server error', true); }
+    });
+  }
+
+  function showPasswordPrompt(folderName, onSuccess) {
+    fmPwArea.innerHTML = `<div class="fm-pw-row"><span>🔒 ${folderName}:</span><input type="password" id="fm-pw-input" placeholder="Enter password" autocomplete="off"><button class="fm-btn primary" id="fm-pw-submit">Open</button><span class="fm-pw-error" id="fm-pw-error"></span></div>`;
+    const input = document.getElementById('fm-pw-input');
+    input.focus();
+    const doSubmit = () => { const pw = input.value; if (!pw) { document.getElementById('fm-pw-error').textContent = 'Required'; return; } folderPasswords[folderName] = pw; fmPwArea.innerHTML = ''; onSuccess(); };
+    document.getElementById('fm-pw-submit').addEventListener('click', doSubmit);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') doSubmit(); });
+  }
+
+  async function handleFolderAction(action, folder) {
+    if (action === 'rename') {
+      const newName = prompt('Rename folder to:', folder);
+      if (!newName || !newName.trim() || newName.trim() === folder) return;
+      const body = { name: folder, action: 'rename', newName: newName.trim() };
+      if (folderPasswords[folder]) body.currentPassword = folderPasswords[folder];
+      try {
+        const res = await fetch(FOLDERS_API, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const data = await res.json();
+        if (res.status === 403) { showPasswordPrompt(folder, () => handleFolderAction(action, folder)); return; }
+        if (!res.ok) { showToast(data.error || 'Failed', true); return; }
+        if (folderPasswords[folder]) { folderPasswords[data.name] = folderPasswords[folder]; delete folderPasswords[folder]; }
+        renderFMFolders();
+      } catch { showToast('❌ Error', true); }
+    } else if (action === 'lock') {
+      const pw = prompt('Set password for "' + folder + '":');
+      if (!pw) return;
+      try {
+        const res = await fetch(FOLDERS_API, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: folder, action: 'lock', password: pw }) });
+        if (!res.ok) { showToast('Lock failed', true); return; }
+        folderPasswords[folder] = pw;
+        showToast('🔒 Folder locked');
+        renderFMFolders();
+      } catch { showToast('❌ Error', true); }
+    } else if (action === 'unlock') {
+      if (!folderPasswords[folder]) { showPasswordPrompt(folder, () => handleFolderAction('unlock', folder)); return; }
+      try {
+        const res = await fetch(FOLDERS_API, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: folder, action: 'unlock', currentPassword: folderPasswords[folder] }) });
+        const data = await res.json();
+        if (!res.ok) { delete folderPasswords[folder]; showToast(data.error || 'Failed', true); return; }
+        delete folderPasswords[folder];
+        showToast('🔓 Folder unlocked');
+        renderFMFolders();
+      } catch { showToast('❌ Error', true); }
+    } else if (action === 'delete') {
+      if (!confirm('Delete folder "' + folder + '" and all its scripts?')) return;
+      const body = { name: folder };
+      if (folderPasswords[folder]) body.password = folderPasswords[folder];
+      try {
+        const res = await fetch(FOLDERS_API, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const data = await res.json();
+        if (res.status === 403) { showPasswordPrompt(folder, () => handleFolderAction('delete', folder)); return; }
+        if (!res.ok) { showToast(data.error || 'Failed', true); return; }
+        delete folderPasswords[folder];
+        renderFMFolders();
+      } catch { showToast('❌ Error', true); }
+    }
+  }
+
+  async function renderFMScripts(folderName) {
+    fmCurrentFolder = folderName;
+    fmBreadcrumb.style.display = 'flex';
+    fmBreadcrumb.innerHTML = `<button class="fm-bc-link" id="fm-back-root">☁ Server</button><span>›</span><span>📁 ${folderName}</span>`;
+    document.getElementById('fm-back-root').addEventListener('click', () => { fmCurrentFolder = null; fmBreadcrumb.style.display = 'none'; renderFMFolders(); });
+
+    fmBody.innerHTML = '<div class="fm-loading">Loading…</div>';
+
+    let scripts = [];
+    try {
+      const headers = {};
+      if (folderPasswords[folderName]) headers['x-folder-password'] = folderPasswords[folderName];
+      const res = await fetch(SCRIPTS_API + '?folder=' + encodeURIComponent(folderName), { headers });
+      if (res.status === 403) { delete folderPasswords[folderName]; showPasswordPrompt(folderName, () => renderFMScripts(folderName)); fmBody.innerHTML = '<div class="fm-empty">🔒 Password required</div>'; return; }
+      if (res.ok) scripts = await res.json();
+    } catch {}
+
+    if (scripts.length === 0) {
+      fmBody.innerHTML = '<div class="fm-empty">No scripts in this folder.</div>';
+    } else {
+      fmBody.innerHTML = scripts.map(s => {
+        const d = new Date(s.updatedAt);
+        const dateStr = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+        return `<div class="fm-item" data-script="${s.name}"><span class="fm-icon">📄</span><div class="fm-info"><div class="fm-name">${s.name}</div><div class="fm-meta">${dateStr}</div></div><div class="fm-actions"><button class="fm-act danger" data-del-script="${s.name}" title="Delete">🗑</button></div></div>`;
+      }).join('');
+    }
+
+    if (fmMode === 'save') {
+      fmFooter.innerHTML = `<input type="text" id="fm-save-name" value="${currentFileName || ''}" placeholder="Script name…" style="flex:1;padding:8px 10px;background:#111;border:1px solid #444;border-radius:6px;color:#eee;font-size:14px;font-family:inherit;outline:none"><button class="fm-btn primary" id="fm-save-btn">Save Here</button>`;
+      document.getElementById('fm-save-name').focus();
+      document.getElementById('fm-save-btn').addEventListener('click', async () => { const name = document.getElementById('fm-save-name').value.trim(); if (!name) { showToast('Enter a name', true); return; } await saveToServerFolder(folderName, name); });
+      document.getElementById('fm-save-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') document.getElementById('fm-save-btn').click(); });
+    } else {
+      fmFooter.innerHTML = '';
+    }
+
+    // Click script
+    fmBody.querySelectorAll('.fm-item[data-script]').forEach(el => {
+      el.addEventListener('click', async (e) => {
+        if (e.target.closest('.fm-act')) return;
+        if (fmMode === 'save') { const inp = document.getElementById('fm-save-name'); if (inp) inp.value = el.dataset.script; return; }
+        const name = el.dataset.script;
+        try {
+          const headers = {};
+          if (folderPasswords[folderName]) headers['x-folder-password'] = folderPasswords[folderName];
+          const res = await fetch(SCRIPTS_API + '?folder=' + encodeURIComponent(folderName) + '&name=' + encodeURIComponent(name), { headers });
+          if (!res.ok) throw new Error();
+          const data = await res.json();
+          currentFileName = data.name; currentFolder = folderName; savedToServer = true; fileHandle = null;
+          editor.innerHTML = data.content;
+          isDirty = false;
+          setSavePref(data.name, 'server', folderName);
+          updateTitle(); addToRecents(data.name, data.content); syncDraft();
+          closeFM(); editor.focus();
+          showToast('☁ Loaded from server');
+        } catch { showToast('❌ Failed to load', true); }
+      });
+    });
+
+    // Delete script
+    fmBody.querySelectorAll('[data-del-script]').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const name = btn.dataset.delScript;
+        if (!confirm('Delete "' + name + '"?')) return;
+        const body = { folder: folderName, name };
+        if (folderPasswords[folderName]) body.password = folderPasswords[folderName];
+        try { await fetch(SCRIPTS_API, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); renderFMScripts(folderName); } catch { showToast('❌ Error', true); }
+      });
+    });
+  }
+
+  async function saveToServerFolder(folder, name) {
+    const content = editor.innerHTML;
+    const body = { folder, name, content };
+    if (folderPasswords[folder]) body.password = folderPasswords[folder];
+    try {
+      const res = await fetch(SCRIPTS_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (res.status === 403) { delete folderPasswords[folder]; showToast('❌ Wrong password', true); return; }
+      if (!res.ok) throw new Error();
+      currentFileName = name; currentFolder = folder; savedToServer = true; isDirty = false;
+      setSavePref(name, 'server', folder);
+      updateTitle(); addToRecents(name, content); syncDraft();
+      closeFM();
+      showToast('☁ Saved to server');
+    } catch { showToast('❌ Save failed', true); }
+  }
+
+  // ══════════════════════════════════════
+  //  BUTTON HANDLERS
+  // ══════════════════════════════════════
 
   // ── New ──
   document.getElementById('btn-new').addEventListener('click', () => {
     if (isDirty && !confirm('You have unsaved changes. Create new anyway?')) return;
-    currentFileName = null;
-    fileHandle = null;
-    clearStoredHandle();
-    isDirty = false;
+    currentFileName = null; currentFolder = null; savedToServer = false; fileHandle = null;
+    clearStoredHandle(); isDirty = false;
     editor.innerHTML = '<p><br></p>';
-    resetTimer();
-    clearBookmark();
-    editor.focus();
-    updateTitle();
-    syncDraft();
+    resetTimer(); clearBookmark(); editor.focus(); updateTitle(); syncDraft();
   });
 
-  // ── Save ──
-  async function doSave() {
-    // If we have a file handle (Chrome), verify permission and write directly
-    if (fileHandle && await verifyPermission(fileHandle)) {
-      try {
-        const writable = await fileHandle.createWritable();
-        await writable.write(editor.innerHTML);
-        await writable.close();
-        isDirty = false;
-        updateTitle();
-        addToRecents(currentFileName, editor.innerHTML);
-        syncDraft();
-        return;
-      } catch (e) { /* fall through to Save As */ }
-    }
-    // No handle or permission denied — do Save As
-    await doSaveAs();
+  // ── Open: Local / Server choice popup ──
+  document.getElementById('btn-open').addEventListener('click', () => {
+    const old = document.getElementById('open-choice-popup');
+    if (old) { old.remove(); return; }
+    const popup = document.createElement('div');
+    popup.id = 'open-choice-popup';
+    popup.className = 'choice-popup visible';
+    popup.innerHTML = '<button class="file-btn" id="open-local-btn">📱 Local File</button><button class="file-btn" id="open-server-btn">☁ Server</button>';
+    document.getElementById('file-bar').appendChild(popup);
+    document.getElementById('open-local-btn').addEventListener('click', () => { popup.remove(); doOpenFile(); });
+    document.getElementById('open-server-btn').addEventListener('click', () => { popup.remove(); openFM('open'); });
+    setTimeout(() => { const h = (e) => { if (!popup.contains(e.target) && e.target.id !== 'btn-open') { popup.remove(); document.removeEventListener('mousedown', h); } }; document.addEventListener('mousedown', h); }, 10);
+  });
+
+  // ── Save: smart save ──
+  document.getElementById('btn-save').addEventListener('click', () => doSmartSave());
+
+  async function doSmartSave() {
+    if (!currentFileName) { showSaveChoice(); return; }
+    const pref = getSavePrefs()[currentFileName];
+    if (pref) {
+      if (pref.dest === 'server' && pref.folder) { await saveToServerFolder(pref.folder, currentFileName); }
+      else { await doSaveLocal(); }
+    } else { showSaveChoice(); }
   }
 
-  document.getElementById('btn-save').addEventListener('click', () => doSave());
+  function showSaveChoice() {
+    const old = document.getElementById('save-choice-popup');
+    if (old) { old.remove(); return; }
+    const popup = document.createElement('div');
+    popup.id = 'save-choice-popup';
+    popup.className = 'choice-popup visible';
+    popup.innerHTML = '<button class="file-btn" id="save-choice-local">💾 Save Local</button><button class="file-btn" id="save-choice-server">☁ Save to Server</button>';
+    document.getElementById('file-bar').appendChild(popup);
+    document.getElementById('save-choice-local').addEventListener('click', () => { popup.remove(); doSaveLocal(); });
+    document.getElementById('save-choice-server').addEventListener('click', () => { popup.remove(); openFM('save'); });
+    setTimeout(() => { const h = (e) => { if (!popup.contains(e.target) && e.target.id !== 'btn-save') { popup.remove(); document.removeEventListener('mousedown', h); } }; document.addEventListener('mousedown', h); }, 10);
+  }
 
-  // ── Save As ──
-  async function doSaveAs() {
+  // ── Save To Server (direct) ──
+  document.getElementById('btn-save-server').addEventListener('click', () => {
+    if (savedToServer && currentFileName && currentFolder) { saveToServerFolder(currentFolder, currentFileName); }
+    else { openFM('save'); }
+  });
+
+  // ── Save To Local (direct) ──
+  document.getElementById('btn-save-local').addEventListener('click', () => doSaveLocal());
+
+  async function doSaveLocal() {
     const content = editor.innerHTML;
-
     if (window.showSaveFilePicker) {
-      // Chrome / Edge — real "Save As" dialog
       try {
-        const opts = {
-          suggestedName: (currentFileName || 'script') + '.html',
-          types: [{ description: 'HTML file', accept: { 'text/html': ['.html'] } }]
-        };
-        // Start in the same directory as the current file
+        const opts = { suggestedName: (currentFileName || 'script') + '.html', types: [{ description: 'HTML file', accept: { 'text/html': ['.html'] } }] };
         if (fileHandle) opts.startIn = fileHandle;
         fileHandle = await window.showSaveFilePicker(opts);
         const writable = await fileHandle.createWritable();
-        await writable.write(content);
-        await writable.close();
+        await writable.write(content); await writable.close();
         currentFileName = fileHandle.name.replace(/\.html?$/i, '');
         storeFileHandle(fileHandle);
-      } catch (e) {
-        if (e.name === 'AbortError') return; // user cancelled
-        throw e;
-      }
+      } catch (e) { if (e.name === 'AbortError') return; throw e; }
     } else {
-      // Safari fallback — download
       const name = prompt('File name:', currentFileName || 'script');
       if (!name || !name.trim()) return;
       currentFileName = name.trim();
       const blob = new Blob([content], { type: 'text/html' });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = currentFileName + '.html';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      const a = document.createElement('a'); a.href = url; a.download = currentFileName + '.html';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
       URL.revokeObjectURL(url);
     }
-
-    isDirty = false;
-    updateTitle();
-    addToRecents(currentFileName, content);
-    syncDraft();
+    savedToServer = false; currentFolder = null; isDirty = false;
+    setSavePref(currentFileName, 'local');
+    updateTitle(); addToRecents(currentFileName, content); syncDraft();
+    showToast('💾 Saved locally');
   }
-
-  document.getElementById('btn-saveas').addEventListener('click', () => doSaveAs());
 
   // ── Open from disk ──
   async function doOpenFile() {
     if (isDirty && !confirm('You have unsaved changes. Open anyway?')) return;
-
     if (window.showOpenFilePicker) {
-      // Chrome / Edge
       try {
-        const opts = {
-          types: [{ description: 'HTML files', accept: { 'text/html': ['.html', '.htm'] } }],
-          multiple: false
-        };
-        // Start in the same directory as the current file
+        const opts = { types: [{ description: 'HTML files', accept: { 'text/html': ['.html', '.htm'] } }], multiple: false };
         if (fileHandle) opts.startIn = fileHandle;
         const [handle] = await window.showOpenFilePicker(opts);
-        fileHandle = handle;
-        storeFileHandle(fileHandle);
-        const file = await handle.getFile();
-        const text = await file.text();
+        fileHandle = handle; storeFileHandle(fileHandle);
+        const file = await handle.getFile(); const text = await file.text();
         currentFileName = file.name.replace(/\.html?$/i, '');
         editor.innerHTML = text;
-      } catch (e) {
-        if (e.name === 'AbortError') return;
-        throw e;
-      }
-    } else {
-      // Safari fallback — file input
-      fileInput.click();
-      return; // rest handled by change event
-    }
-
-    isDirty = false;
-    updateTitle();
-    addToRecents(currentFileName, editor.innerHTML);
-    syncDraft();
-    editor.focus();
+      } catch (e) { if (e.name === 'AbortError') return; throw e; }
+    } else { fileInput.click(); return; }
+    savedToServer = false; currentFolder = null; isDirty = false;
+    updateTitle(); addToRecents(currentFileName, editor.innerHTML); syncDraft(); editor.focus();
   }
 
-  // Hidden file input for Safari fallback
   const fileInput = document.createElement('input');
-  fileInput.type = 'file';
-  fileInput.accept = '.html,.htm,.txt';
-  fileInput.style.display = 'none';
+  fileInput.type = 'file'; fileInput.accept = '.html,.htm,.txt'; fileInput.style.display = 'none';
   document.body.appendChild(fileInput);
-
   fileInput.addEventListener('change', () => {
-    const file = fileInput.files[0];
-    if (!file) return;
+    const file = fileInput.files[0]; if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
       currentFileName = file.name.replace(/\.(html?|txt)$/i, '');
-      fileHandle = null;
-      editor.innerHTML = reader.result;
-      isDirty = false;
-      updateTitle();
-      addToRecents(currentFileName, editor.innerHTML);
-      syncDraft();
-      editor.focus();
+      fileHandle = null; savedToServer = false; currentFolder = null;
+      editor.innerHTML = reader.result; isDirty = false;
+      updateTitle(); addToRecents(currentFileName, reader.result); syncDraft(); editor.focus();
     };
-    reader.readAsText(file);
-    fileInput.value = ''; // reset so same file can be reopened
+    reader.readAsText(file); fileInput.value = '';
   });
 
-  document.getElementById('btn-open').addEventListener('click', () => {
-    openPanel.classList.remove('visible');
-    doOpenFile();
-  });
-
-  // ── Open Recent ──
-  function toggleOpenPanel() {
-    const isVisible = openPanel.classList.contains('visible');
-    if (isVisible) {
-      openPanel.classList.remove('visible');
-      return;
-    }
-    renderFileList();
-    openPanel.classList.add('visible');
-  }
-
-  document.getElementById('btn-recent').addEventListener('click', toggleOpenPanel);
-  document.getElementById('panel-close').addEventListener('click', () => openPanel.classList.remove('visible'));
-
-  document.addEventListener('mousedown', (e) => {
-    if (openPanel.classList.contains('visible') &&
-        !openPanel.contains(e.target) &&
-        e.target.id !== 'btn-recent') {
-      openPanel.classList.remove('visible');
-    }
-  });
-
-  function renderFileList() {
-    const recents = getRecents();
-    if (recents.length === 0) {
-      fileList.innerHTML = '<div class="empty">No recent scripts.</div>';
-      return;
-    }
-
-    fileList.innerHTML = recents.map((r, i) => {
-      const date = new Date(r.date);
-      const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
-                    + ' ' + date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-      return `<div class="file-item" data-idx="${i}">
-        <div class="fi-info">
-          <div class="fi-name">${r.name}</div>
-          <div class="fi-date">${dateStr}</div>
-        </div>
-        <button class="fi-delete" data-idx="${i}" title="Remove">🗑</button>
-      </div>`;
-    }).join('');
-
-    fileList.querySelectorAll('.file-item').forEach(el => {
-      el.addEventListener('click', (e) => {
-        if (e.target.classList.contains('fi-delete')) return;
-        if (isDirty && !confirm('You have unsaved changes. Open anyway?')) return;
-        const idx = parseInt(el.dataset.idx);
-        const r = getRecents()[idx];
-        if (!r) return;
-        currentFileName = r.name;
-        fileHandle = null; // can't reuse handle from recents
-        editor.innerHTML = r.content;
-        isDirty = false;
-        updateTitle();
-        syncDraft();
-        openPanel.classList.remove('visible');
-        editor.focus();
-      });
-    });
-
-    fileList.querySelectorAll('.fi-delete').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const idx = parseInt(btn.dataset.idx);
-        const recents = getRecents();
-        recents.splice(idx, 1);
-        localStorage.setItem(RECENTS_KEY, JSON.stringify(recents));
-        renderFileList();
-      });
-    });
-  }
-
-  // ── Keyboard shortcuts for file ops ──
+  // ── Keyboard shortcuts ──
   document.addEventListener('keydown', (e) => {
-    if (inPrompter) return; // only in editor view
-
-    // ⌘S = Save
-    if (e.metaKey && !e.shiftKey && e.code === 'KeyS') {
-      e.preventDefault();
-      doSave();
-    }
-    // ⇧⌘S = Save As
-    if (e.metaKey && e.shiftKey && e.code === 'KeyS') {
-      e.preventDefault();
-      doSaveAs();
-    }
-    // ⌘O = Open file
-    if (e.metaKey && e.code === 'KeyO') {
-      e.preventDefault();
-      doOpenFile();
-    }
+    if (inPrompter) return;
+    if (e.metaKey && !e.shiftKey && e.code === 'KeyS') { e.preventDefault(); doSmartSave(); }
+    if (e.metaKey && e.shiftKey && e.code === 'KeyS') { e.preventDefault(); doSaveLocal(); }
+    if (e.metaKey && e.code === 'KeyO') { e.preventDefault(); doOpenFile(); }
   });
 
   // ══════════════════════════════════════

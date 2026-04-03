@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.10.7] — 2026-04-03
+### Added
+- **TheWordTool: Server File Manager** — Full-featured file manager modal with folder-based server storage for cross-device script sync (laptop → tablet). Features:
+  - **Smart Save** (`⌘S`) — remembers save destination (local/server) per script title; first save prompts for choice, subsequent saves auto-route
+  - **Save To Server** / **Save To Local** — explicit save buttons for manual override
+  - **Open** — choice popup: open from local disk or browse server scripts
+  - **Folder system** — create, rename, and delete folders on the server
+  - **Password-locked folders** — set a password on any folder; only the person with the password can access scripts inside
+  - **Server file browser** — dark-themed modal UI with breadcrumb nav, password prompt, and script management
+- API routes: `app/api/thewordtool/route.ts` (script CRUD) and `app/api/thewordtool/folders/route.ts` (folder CRUD)
+- `data/` directory excluded from deploy rsync (persists across deploys like `public/uploads/`)
+
 ## [v2.10.6] — 2026-04-03
 ### Added
 - **Sister app documentation** — Added `§1b. Sister App` section to `.agents/docs/connect-hgf-reference.md` documenting that `app.houseofgrace.ph` (legacy PHP v1) lives on the same DigitalOcean droplet at `/var/www/hgf-legacy`. Also added sister app section to slim rules.
