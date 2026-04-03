@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.10.8] — 2026-04-03
+### Added
+- **TheWordTool: PWA support** — THE WORD can now be installed as a standalone app on tablets and phones via "Add to Home Screen". Includes:
+  - PWA manifest (`thewordtool-manifest.json`) with dark theme, HGF icons, standalone display
+  - Service worker (`thewordtool-sw.js`) with network-first caching for offline shell access
+  - HGF favicon and apple-touch-icon for proper branding in browser tabs and home screen
+  - Full Apple iOS PWA support meta tags (status bar, title, web-app-capable)
+
 ## [v2.10.7] — 2026-04-03
 ### Added
 - **TheWordTool: Server File Manager** — Full-featured file manager modal with folder-based server storage for cross-device script sync (laptop → tablet). Features:

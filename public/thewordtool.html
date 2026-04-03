@@ -39,7 +39,20 @@
 <meta name="author" content="Ryan Nantes Paco">
 <meta name="copyright" content="Copyright (c) 2026 Ryan Nantes Paco / House of Grace Fellowship, Davao City">
 <meta name="description" content="THE WORD — Scripture delivery and timing tool for pastors of House of Grace Fellowship, Davao City.">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+<!-- PWA -->
+<link rel="manifest" href="/thewordtool-manifest.json">
+<meta name="theme-color" content="#111111">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="THE WORD">
+<meta name="mobile-web-app-capable" content="yes">
+
+<!-- Icons -->
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png">
+
 <title>THE WORD</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -2450,6 +2463,12 @@
 
   updateTitle();
   editor.focus();
+
+  // ── PWA: Register service worker ──
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/thewordtool-sw.js')
+      .catch(() => {});
+  }
 
 })();
 </script>
