@@ -84,6 +84,6 @@ export default auth((request) => {
 
 export const config = {
   matcher: [
-    "/((?!api/auth|_next/static|_next/image|favicon.ico|uploads|public).*)",
+    "/((?!api/auth|_next/static|_next/image|favicon.ico|uploads|public|icons|og-|thewordtool|service-worker\\.js).*)",
   ],
 };
