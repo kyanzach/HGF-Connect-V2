@@ -1359,7 +1359,10 @@
 
   <div id="header">
     <h1>THE WORD</h1>
-    <span id="file-name">Untitled</span>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button id="pwa-install-btn" style="display:none;background:#2563eb;color:#fff;border:none;border-radius:6px;padding:8px 14px;font-size:13px;cursor:pointer;font-family:inherit;white-space:nowrap;">📲 Install App</button>
+      <span id="file-name">Untitled</span>
+    </div>
   </div>
 
   <div id="file-bar">
@@ -1443,6 +1446,7 @@
     </div>
     <div class="divider"></div>
     <button class="ctrl-btn play-btn" id="play-btn">▶</button>
+    <button class="ctrl-btn" id="advance-btn" style="background:#059669;color:#fff;font-weight:600;">▶▶ Next</button>
     <div class="divider"></div>
     <div class="ctrl-group">
       <button class="ctrl-btn" id="up-btn">▲</button>
@@ -2752,6 +2756,46 @@
     navigator.serviceWorker.register('/thewordtool-sw.js')
       .catch(() => {});
   }
+
+  // ── PWA: Install prompt ──
+  let deferredPrompt = null;
+  const installBtn = document.getElementById('pwa-install-btn');
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    installBtn.style.display = 'inline-block';
+  });
+
+  installBtn.addEventListener('click', async () => {
+    if (!deferredPrompt) {
+      // Fallback: show manual instructions
+      alert('To install: tap the browser menu (⋮) → "Add to Home screen"');
+      return;
+    }
+    deferredPrompt.prompt();
+    const result = await deferredPrompt.userChoice;
+    if (result.outcome === 'accepted') installBtn.style.display = 'none';
+    deferredPrompt = null;
+  });
+
+  window.addEventListener('appinstalled', () => {
+    installBtn.style.display = 'none';
+    deferredPrompt = null;
+  });
+
+  // Show install button on Android Chrome if not already installed
+  if (window.matchMedia('(display-mode: standalone)').matches ||
+      window.navigator.standalone === true) {
+    installBtn.style.display = 'none';
+  } else if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
+    // Show it anyway as fallback — beforeinstallprompt will override
+    installBtn.style.display = 'inline-block';
+  }
+
+  // ── Advance button (spacebar equivalent for touch) ──
+  const advanceBtn = document.getElementById('advance-btn');
+  advanceBtn.addEventListener('click', () => advanceAndMark());
 
 })();
 </script>
