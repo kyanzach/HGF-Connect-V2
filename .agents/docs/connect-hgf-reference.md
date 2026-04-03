@@ -16,6 +16,29 @@
 
 ---
 
+## 1b. Sister App — `app.houseofgrace.ph`
+
+> ⚠️ Both apps live on the **same DigitalOcean droplet** (`159.65.15.225`).
+
+| | `connect.houseofgrace.ph` | `app.houseofgrace.ph` |
+|---|---|---|
+| **Version** | v2.x (this project) | v1.x (legacy) |
+| **Stack** | Next.js 16 + Prisma + PM2 | PHP 8.1 + MySQL (no framework) |
+| **Server path** | `/var/www/hgf-connect` | `/var/www/hgf-legacy` |
+| **Nginx** | Reverse proxy → `localhost:3000` | PHP-FPM (`fastcgi`) |
+| **Process** | PM2 `hgf-connect` | PHP-FPM (system service) |
+| **Database** | `hgf_connect` (Prisma) | Same MySQL server, shared member data |
+| **SSL** | Let's Encrypt (Certbot) | HTTP only (port 80) |
+
+### Key relationships:
+- The legacy app (`v1.x`) is the **original PHP codebase** that `connect.houseofgrace.ph` (`v2.x`) was rewritten from.
+- Both share the same MySQL server on the droplet.
+- Member profile photos and uploads exist independently on each app's `/uploads/` directory.
+- The legacy app has its own `deploy.sh` and `CHANGELOG.md` at `/var/www/hgf-legacy`.
+- **Do NOT modify** the legacy app's files from this project — it has its own IDE workspace and agent rules.
+
+---
+
 ## 2. Deployment (`deploy.sh`)
 
 > ⚠️ Always use `./deploy.sh` from the project root. Never deploy manually.

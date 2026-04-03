@@ -1,0 +1,2116 @@
+<!--
+  ╔══════════════════════════════════════════════════════════════════╗
+  ║  THE WORD — Scripture Delivery & Timing Tool                    ║
+  ║  Version 1.0                                                    ║
+  ╠══════════════════════════════════════════════════════════════════╣
+  ║                                                                 ║
+  ║  Author:    Ryan Nantes Paco                                    ║
+  ║  Role:      Worship Pastor                                     ║
+  ║  Church:    House of Grace Fellowship (HGF)                     ║
+  ║  Address:   11-A Inigo St., Obrero, Davao City, Philippines     ║
+  ║                                                                 ║
+  ╠══════════════════════════════════════════════════════════════════╣
+  ║                                                                 ║
+  ║  Copyright (c) 2026 Ryan Nantes Paco. All rights reserved.      ║
+  ║                                                                 ║
+  ║  This software is the proprietary and confidential property     ║
+  ║  of the author and House of Grace Fellowship, Davao City.       ║
+  ║  It is specially made for internal use only by the pastors      ║
+  ║  and ministry staff of HGF Davao.                               ║
+  ║                                                                 ║
+  ║  NOTICE:                                                        ║
+  ║  Unauthorized copying, modification, distribution, or use       ║
+  ║  of this software, in whole or in part, via any medium, is      ║
+  ║  strictly prohibited without the prior written consent of       ║
+  ║  the author.                                                    ║
+  ║                                                                 ║
+  ║  This tool is provided "as is" without warranty of any kind,    ║
+  ║  express or implied. The author shall not be liable for any     ║
+  ║  damages arising from the use of this software.                 ║
+  ║                                                                 ║
+  ║  Built with purpose. Built for THE WORD.                        ║
+  ║                                                                 ║
+  ╚══════════════════════════════════════════════════════════════════╝
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="author" content="Ryan Nantes Paco">
+<meta name="copyright" content="Copyright (c) 2026 Ryan Nantes Paco / House of Grace Fellowship, Davao City">
+<meta name="description" content="THE WORD — Scripture delivery and timing tool for pastors of House of Grace Fellowship, Davao City.">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>THE WORD</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: #111;
+    color: #eee;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ── Editor View ── */
+  #editor-view {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    padding: 20px 32px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  /* ── Header row ── */
+  #header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  #header h1 { font-size: 24px; color: #fff; }
+
+  #file-name {
+    font-size: 14px;
+    color: #888;
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #file-name .unsaved { color: #f59e0b; }
+
+  /* ── File menu bar ── */
+  #file-bar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 8px;
+    position: relative;
+  }
+
+  .file-btn {
+    background: transparent;
+    color: #999;
+    border: none;
+    padding: 5px 12px;
+    font-size: 13px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-family: inherit;
+    transition: all 0.12s;
+  }
+
+  .file-btn:hover { background: #222; color: #fff; }
+  .file-btn kbd { font-size: 11px; color: #666; margin-left: 6px; }
+
+  /* ── Open panel ── */
+  #open-panel {
+    display: none;
+    position: absolute;
+    top: 32px;
+    left: 0;
+    width: 420px;
+    max-height: 380px;
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    z-index: 50;
+    overflow: hidden;
+    flex-direction: column;
+  }
+
+  #open-panel.visible { display: flex; }
+
+  #open-panel .panel-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid #333;
+    font-size: 14px;
+    font-weight: 600;
+    color: #ccc;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  #open-panel .panel-close {
+    background: none; border: none; color: #888; cursor: pointer; font-size: 18px;
+  }
+
+  #file-list {
+    overflow-y: auto;
+    flex: 1;
+    padding: 4px 0;
+  }
+
+  #file-list .empty {
+    padding: 24px 16px;
+    text-align: center;
+    color: #666;
+    font-size: 13px;
+  }
+
+  .file-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+
+  .file-item:hover { background: #2a2a2a; }
+
+  .file-item .fi-info { flex: 1; min-width: 0; }
+
+  .file-item .fi-name {
+    font-size: 14px;
+    color: #ddd;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .file-item .fi-date {
+    font-size: 11px;
+    color: #666;
+    margin-top: 2px;
+  }
+
+  .file-item .fi-delete {
+    background: none;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    margin-left: 8px;
+  }
+
+  .file-item .fi-delete:hover { color: #f87171; background: #2a2020; }
+
+  /* ── Toolbar ── */
+  #toolbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 10px;
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    flex-wrap: wrap;
+  }
+
+  .tb-btn {
+    background: #2a2a2a;
+    color: #ccc;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    padding: 6px 12px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.12s;
+    font-family: inherit;
+    line-height: 1;
+  }
+
+  .tb-btn:hover { background: #3a3a3a; color: #fff; }
+  .tb-btn:active, .tb-btn.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+  .tb-btn .lbl-b { font-weight: 700; }
+  .tb-btn .lbl-i { font-style: italic; }
+  .tb-btn .lbl-u { text-decoration: underline; }
+
+  .tb-sep {
+    width: 1px;
+    height: 22px;
+    background: #333;
+    margin: 0 6px;
+  }
+
+  /* ── Rich editor ── */
+  #script-editor {
+    flex: 1;
+    width: 100%;
+    background: #1a1a1a;
+    color: #ddd;
+    border: 1px solid #333;
+    border-radius: 0 0 8px 8px;
+    padding: 20px;
+    font-size: 16px;
+    line-height: 1.8;
+    overflow-y: auto;
+    outline: none;
+    min-height: 200px;
+  }
+
+  #script-editor:focus { border-color: #555; }
+
+  #script-editor h1 { font-size: 26px; font-weight: 700; color: #fff; margin: 8px 0; }
+  #script-editor h2 { font-size: 20px; font-weight: 600; color: #bbb; margin: 6px 0; }
+  #script-editor hr { border: none; border-top: 2px solid #444; margin: 16px 0; }
+
+  #script-editor ol, #script-editor ul {
+    margin: 8px 0;
+    padding-left: 28px;
+    color: #ddd;
+  }
+
+  #script-editor li { margin-bottom: 4px; }
+
+  #script-editor blockquote {
+    border-left: 4px solid #555;
+    padding: 8px 16px;
+    margin: 12px 0;
+    color: #bbb;
+    font-style: italic;
+    background: rgba(255,255,255,0.03);
+  }
+
+  #script-editor .cue {
+    background: #1a1a2e;
+    border: 1px solid #3b3b7a;
+    border-left: 4px solid #6366f1;
+    border-radius: 6px;
+    padding: 10px 16px;
+    margin: 12px 0;
+    color: #a5b4fc;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  #script-editor .next-slide {
+    background: #1a2e1a;
+    border: 1px solid #3b7a3b;
+    border-left: 4px solid #22c55e;
+    border-radius: 6px;
+    padding: 10px 16px;
+    margin: 12px 0;
+    color: #86efac;
+    font-size: 14px;
+    font-weight: 700;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+  }
+
+  #start-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 12px;
+  }
+
+  #service-type {
+    padding: 10px 14px;
+    font-size: 14px;
+    background: #1a1a1a;
+    color: #ccc;
+    border: 1px solid #333;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  #service-type:focus { border-color: #555; outline: none; }
+
+  #start-btn {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 18px;
+    font-weight: 600;
+    background: #2563eb;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  #start-btn:hover { background: #1d4ed8; }
+
+  /* ── Prompter View ── */
+  #prompter-view {
+    display: none;
+    flex-direction: column;
+    height: 100vh;
+    position: relative;
+  }
+
+  #prompter-container {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+
+  #prompter-container::before,
+  #prompter-container::after {
+    content: '';
+    position: absolute;
+    left: 0; right: 0;
+    height: 80px;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  #prompter-container::before {
+    top: 0;
+    background: linear-gradient(to bottom, #111, transparent);
+  }
+
+  #prompter-container::after {
+    bottom: 0;
+    background: linear-gradient(to top, #111, transparent);
+  }
+
+  #prompter-scroll {
+    height: 100%;
+    overflow-y: auto;
+    scroll-behavior: auto;
+    padding: 40vh 10vw;
+    scrollbar-width: none;
+    font-size: clamp(28px, 4vw, 48px);
+    line-height: 1.6;
+    color: #eee;
+    font-weight: 400;
+  }
+
+  #prompter-scroll::-webkit-scrollbar { display: none; }
+  #prompter-scroll:focus { outline: none; }
+
+  #prompter-scroll p,
+  #prompter-scroll div:not(#prompter-scroll) {
+    margin-bottom: 24px;
+  }
+
+  #prompter-scroll strong, #prompter-scroll b { color: #fff; font-weight: 700; }
+  #prompter-scroll em, #prompter-scroll i { font-style: italic; }
+  #prompter-scroll u { text-decoration: underline; text-underline-offset: 4px; }
+
+  #prompter-scroll h1 {
+    font-size: clamp(40px, 6vw, 72px);
+    font-weight: 700;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 12px;
+  }
+
+  #prompter-scroll h2 {
+    font-size: clamp(24px, 3.5vw, 40px);
+    font-weight: 500;
+    color: #aaa;
+    margin-bottom: 28px;
+  }
+
+  #prompter-scroll hr { border: none; border-top: 2px solid #444; margin: 28px 0; }
+
+  #prompter-scroll ol, #prompter-scroll ul {
+    margin: 16px 0;
+    padding-left: 40px;
+  }
+
+  #prompter-scroll li {
+    margin-bottom: 12px;
+  }
+  #prompter-scroll.mirrored { transform: scaleX(-1); }
+
+  #prompter-scroll blockquote {
+    border-left: 4px solid #555;
+    padding: 12px 24px;
+    margin: 20px 0;
+    color: #ccc;
+    font-style: italic;
+    font-size: clamp(22px, 3vw, 38px);
+  }
+
+  #prompter-scroll .cue {
+    background: rgba(99, 102, 241, 0.1);
+    border: 2px solid #6366f1;
+    border-radius: 10px;
+    padding: 16px 24px;
+    margin: 24px 0;
+    color: #a5b4fc;
+    font-size: clamp(20px, 2.8vw, 34px);
+    font-weight: 500;
+    text-align: center;
+  }
+
+  #prompter-scroll .next-slide {
+    background: rgba(34, 197, 94, 0.1);
+    border: 2px solid #22c55e;
+    border-radius: 10px;
+    padding: 16px 24px;
+    margin: 24px 0;
+    color: #86efac;
+    font-size: clamp(20px, 2.8vw, 34px);
+    font-weight: 700;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+  }
+
+  /* ── Controls Bar ── */
+  #controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 14px 24px;
+    background: #1a1a1a;
+    border-top: 1px solid #333;
+    flex-wrap: wrap;
+  }
+
+  .ctrl-btn {
+    background: #333;
+    color: #eee;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 18px;
+    font-size: 15px;
+    cursor: pointer;
+    transition: background 0.15s;
+    font-weight: 500;
+    min-width: 44px;
+    text-align: center;
+  }
+
+  .ctrl-btn:hover { background: #444; }
+  .ctrl-btn.active { background: #2563eb; color: #fff; }
+
+  .ctrl-btn.play-btn { width: 56px; height: 44px; font-size: 20px; }
+
+  #speed-display { color: #aaa; font-size: 14px; min-width: 80px; text-align: center; }
+
+  .ctrl-group { display: flex; align-items: center; gap: 8px; }
+  .divider { width: 1px; height: 28px; background: #333; margin: 0 4px; }
+  #mode-label { font-size: 13px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+
+  #back-btn {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    z-index: 10;
+    background: rgba(40,40,40,0.8);
+    color: #aaa;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  #back-btn:hover { color: #fff; background: rgba(60,60,60,0.9); }
+
+  /* ── Progress Bar ── */
+  #progress-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 10px;
+    width: 0%;
+    background: #ef4444;
+    z-index: 20;
+    transition: width 0.1s linear;
+    border-radius: 0 0 4px 0;
+  }
+
+  /* ── Timer ── */
+  #timer-display {
+    font-size: 16px;
+    font-weight: 600;
+    color: #eee;
+    font-variant-numeric: tabular-nums;
+    min-width: 70px;
+    text-align: center;
+  }
+
+  #timer-display.paused { color: #f59e0b; }
+
+  .ctrl-btn.timer-btn { font-size: 13px; padding: 8px 12px; }
+
+  /* ── Timer Overlay (big visible timer in prompter) ── */
+  #timer-overlay {
+    position: absolute;
+    top: 16px;
+    right: 20px;
+    z-index: 10;
+    text-align: right;
+    pointer-events: none;
+  }
+
+  #overlay-total {
+    display: block;
+    font-size: clamp(36px, 5vw, 56px);
+    font-weight: 800;
+    color: rgba(239, 68, 68, 0.45);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+
+  #overlay-section {
+    display: block;
+    text-align: center;
+    padding: 10px 0;
+    font-size: clamp(20px, 3vw, 28px);
+    color: rgba(255,255,255,0.45);
+    font-variant-numeric: tabular-nums;
+    background: #111;
+    white-space: nowrap;
+  }
+
+  /* ── Bookmark ── */
+  #prompter-scroll .tp-marked {
+    position: relative;
+    background: rgba(239, 68, 68, 0.08);
+    border-left: 4px solid #ef4444;
+    padding-left: 20px;
+    margin-left: -24px;
+    border-radius: 0 4px 4px 0;
+  }
+
+  .ctrl-btn.mark-btn { font-size: 13px; }
+  .ctrl-btn.mark-btn.has-mark { background: #ef4444; color: #fff; }
+
+  /* ── History Panel ── */
+  #history-panel {
+    display: none;
+    position: absolute;
+    top: 32px;
+    right: 0;
+    width: 480px;
+    max-height: 460px;
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    z-index: 50;
+    overflow: hidden;
+    flex-direction: column;
+  }
+
+  #history-panel.visible { display: flex; }
+
+  #history-panel .panel-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid #333;
+    font-size: 14px;
+    font-weight: 600;
+    color: #ccc;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  #history-panel .panel-close {
+    background: none; border: none; color: #888; cursor: pointer; font-size: 18px;
+  }
+
+  #history-stats {
+    display: flex;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid #2a2a2a;
+    flex-wrap: wrap;
+  }
+
+  .kpi-card {
+    flex: 1;
+    min-width: 90px;
+    background: #252525;
+    border-radius: 6px;
+    padding: 10px 12px;
+    text-align: center;
+  }
+
+  .kpi-card .kpi-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .kpi-card .kpi-label {
+    font-size: 11px;
+    color: #888;
+    margin-top: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  #history-list {
+    overflow-y: auto;
+    flex: 1;
+    padding: 4px 0;
+  }
+
+  #history-list .empty {
+    padding: 24px 16px;
+    text-align: center;
+    color: #666;
+    font-size: 13px;
+  }
+
+  .session-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    transition: background 0.1s;
+  }
+
+  .session-item:hover { background: #2a2a2a; }
+
+  .session-item .si-info { flex: 1; min-width: 0; }
+
+  .session-item .si-title {
+    font-size: 14px;
+    color: #ddd;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .session-item .si-meta {
+    font-size: 11px;
+    color: #666;
+    margin-top: 2px;
+  }
+
+  .session-item .si-duration {
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+    margin-left: 12px;
+    white-space: nowrap;
+  }
+
+  .session-item .si-delete {
+    background: none;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    margin-left: 8px;
+  }
+
+  .session-item .si-delete:hover { color: #f87171; background: #2a2020; }
+
+  #history-clear {
+    background: none;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    font-size: 12px;
+    padding: 4px 8px;
+  }
+
+  #history-clear:hover { color: #f87171; }
+
+  /* ── Section Breakdown in History ── */
+  .section-breakdown {
+    display: none;
+    padding: 4px 16px 10px;
+    background: #191919;
+    border-top: 1px solid #2a2a2a;
+  }
+
+  .session-item.expanded + .section-breakdown { display: block; }
+
+  .section-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    font-size: 12px;
+  }
+
+  .section-row .sr-text {
+    flex: 1;
+    color: #999;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+
+  .section-row .sr-time {
+    color: #eee;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    min-width: 45px;
+    text-align: right;
+  }
+
+  .section-row .sr-bar-wrap {
+    width: 60px;
+    height: 5px;
+    background: #333;
+    border-radius: 3px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .section-row .sr-bar {
+    height: 100%;
+    background: #ef4444;
+    border-radius: 3px;
+  }
+
+  .session-item .si-expand {
+    color: #555;
+    font-size: 12px;
+    margin-left: 4px;
+    transition: transform 0.15s;
+  }
+
+  .session-item.expanded .si-expand { transform: rotate(90deg); }
+
+  /* ── Completion Screen ── */
+  #completion-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 100;
+    background: rgba(0, 0, 0, 0.96);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+    padding: 40px;
+    gap: 20px;
+  }
+  #completion-overlay.visible { display: flex; }
+  #completion-time {
+    font-size: clamp(56px, 10vw, 96px);
+    font-weight: 900;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+  #completion-msg {
+    font-size: clamp(16px, 2.5vw, 24px);
+    color: #ccc;
+    max-width: 560px;
+    line-height: 1.6;
+    white-space: pre-line;
+  }
+  #completion-btn {
+    margin-top: 20px;
+    background: #2563eb;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 14px 32px;
+    font-size: 16px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background 0.15s;
+  }
+  #completion-btn:hover { background: #1d4ed8; }
+</style>
+</head>
+<body>
+
+<!-- ── EDITOR VIEW ── -->
+<div id="editor-view">
+
+  <div id="header">
+    <h1>THE WORD</h1>
+    <span id="file-name">Untitled</span>
+  </div>
+
+  <div id="file-bar">
+    <button class="file-btn" id="btn-new">New</button>
+    <button class="file-btn" id="btn-open">Open <kbd>⌘O</kbd></button>
+    <button class="file-btn" id="btn-recent">Recent</button>
+    <button class="file-btn" id="btn-save">Save <kbd>⌘S</kbd></button>
+    <button class="file-btn" id="btn-saveas">Save As <kbd>⇧⌘S</kbd></button>
+    <button class="file-btn" id="btn-history">📊 History</button>
+
+    <div id="open-panel">
+      <div class="panel-header">
+        <span>Saved Scripts</span>
+        <button class="panel-close" id="panel-close">✕</button>
+      </div>
+      <div id="file-list"></div>
+    </div>
+
+    <div id="history-panel">
+      <div class="panel-header">
+        <span>📊 Session History</span>
+        <div>
+          <button id="history-clear">Clear All</button>
+          <button class="panel-close" id="history-close">✕</button>
+        </div>
+      </div>
+      <div id="history-stats"></div>
+      <div id="history-list"></div>
+    </div>
+  </div>
+
+  <div id="toolbar">
+    <button class="tb-btn" data-cmd="bold" title="Bold (⌘B)"><span class="lbl-b">B</span></button>
+    <button class="tb-btn" data-cmd="italic" title="Italic (⌘I)"><span class="lbl-i">I</span></button>
+    <button class="tb-btn" data-cmd="underline" title="Underline (⌘U)"><span class="lbl-u">U</span></button>
+    <div class="tb-sep"></div>
+    <button class="tb-btn" data-cmd="h1" title="Title">H1</button>
+    <button class="tb-btn" data-cmd="h2" title="Subtitle">H2</button>
+    <button class="tb-btn" data-cmd="p" title="Normal text">¶</button>
+    <div class="tb-sep"></div>
+    <button class="tb-btn" data-cmd="quote" title="Quote">❭ Quote</button>
+    <button class="tb-btn" data-cmd="cue" title="Cue / Stage direction">🎬 Cue</button>
+    <button class="tb-btn" data-cmd="nextslide" title="Next Slide marker">📺 Slide</button>
+    <div class="tb-sep"></div>
+    <button class="tb-btn" data-cmd="ol" title="Numbered list">1.</button>
+    <button class="tb-btn" data-cmd="ul" title="Bullet list">•</button>
+    <div class="tb-sep"></div>
+    <button class="tb-btn" data-cmd="hr" title="Horizontal line">― HR</button>
+    <button class="tb-btn" data-cmd="removeFormat" title="Clear formatting">✕</button>
+  </div>
+
+  <div id="script-editor" contenteditable="true" spellcheck="false"></div>
+  <div id="start-bar">
+    <select id="service-type">
+      <option value="sunday">⛪ Sunday Service (40 min)</option>
+      <option value="grace">🌙 Grace Night (30 min)</option>
+      <option value="special">⭐ Special Event</option>
+    </select>
+    <button id="start-btn">▶ Start The Word</button>
+  </div>
+</div>
+
+<!-- ── PROMPTER VIEW ── -->
+<div id="prompter-view">
+  <div id="progress-bar"></div>
+  <button id="back-btn">← Edit Script</button>
+  <div id="timer-overlay">
+    <span id="overlay-total">00:00</span>
+  </div>
+  <div id="prompter-container">
+    <div id="prompter-scroll" tabindex="0"></div>
+  </div>
+  <span id="overlay-section"></span>
+  <div id="controls">
+    <span id="mode-label">auto</span>
+    <div class="divider"></div>
+    <div class="ctrl-group">
+      <button class="ctrl-btn" id="slower-btn">−</button>
+      <span id="speed-display">Speed: 3</span>
+      <button class="ctrl-btn" id="faster-btn">+</button>
+    </div>
+    <div class="divider"></div>
+    <button class="ctrl-btn play-btn" id="play-btn">▶</button>
+    <div class="divider"></div>
+    <div class="ctrl-group">
+      <button class="ctrl-btn" id="up-btn">▲</button>
+      <button class="ctrl-btn" id="down-btn">▼</button>
+    </div>
+    <div class="divider"></div>
+    <button class="ctrl-btn" id="mode-btn">Manual</button>
+    <div class="divider"></div>
+    <span id="timer-display">00:00</span>
+    <button class="ctrl-btn timer-btn" id="timer-btn">⏱ Pause</button>
+    <button class="ctrl-btn timer-btn" id="timer-reset-btn">↺ Reset</button>
+    <div class="divider"></div>
+    <button class="ctrl-btn mark-btn" id="mark-btn">📌 Mark</button>
+    <button class="ctrl-btn mark-btn" id="return-btn">↩ Return</button>
+    <div class="divider"></div>
+    <button class="ctrl-btn" id="mirror-btn">Mirror</button>
+    <button class="ctrl-btn" id="top-btn">⤤ Top</button>
+    <div class="divider"></div>
+    <button class="ctrl-btn" id="fs-btn">⛶ Fullscreen</button>
+  </div>
+  <div id="completion-overlay">
+    <div id="completion-time"></div>
+    <div id="completion-msg"></div>
+    <button id="completion-btn">← Back to Editor</button>
+  </div>
+</div>
+
+<script>
+(async function () {
+  // ── DOM refs ──
+  const editor       = document.getElementById('script-editor');
+  const startBtn     = document.getElementById('start-btn');
+  const editorView   = document.getElementById('editor-view');
+  const prompterView = document.getElementById('prompter-view');
+  const scrollEl     = document.getElementById('prompter-scroll');
+  const progressBar  = document.getElementById('progress-bar');
+  const timerDisplay = document.getElementById('timer-display');
+  const timerBtn     = document.getElementById('timer-btn');
+  const markBtn      = document.getElementById('mark-btn');
+  const returnBtn    = document.getElementById('return-btn');
+  const playBtn      = document.getElementById('play-btn');
+  const slowerBtn    = document.getElementById('slower-btn');
+  const fasterBtn    = document.getElementById('faster-btn');
+  const upBtn        = document.getElementById('up-btn');
+  const downBtn      = document.getElementById('down-btn');
+  const modeBtn      = document.getElementById('mode-btn');
+  const mirrorBtn    = document.getElementById('mirror-btn');
+  const topBtn       = document.getElementById('top-btn');
+  const backBtn      = document.getElementById('back-btn');
+  const speedDisplay = document.getElementById('speed-display');
+  const modeLabel    = document.getElementById('mode-label');
+  const fileNameEl   = document.getElementById('file-name');
+  const openPanel    = document.getElementById('open-panel');
+  const fileList     = document.getElementById('file-list');
+  const fsBtn        = document.getElementById('fs-btn');
+  const timerResetBtn = document.getElementById('timer-reset-btn');
+  const overlayTotal  = document.getElementById('overlay-total');
+  const overlaySection = document.getElementById('overlay-section');
+  const completionOverlay = document.getElementById('completion-overlay');
+  const completionTime = document.getElementById('completion-time');
+  const completionMsg  = document.getElementById('completion-msg');
+  const completionBtn  = document.getElementById('completion-btn');
+  const serviceTypeEl  = document.getElementById('service-type');
+
+  let speed = 3;
+  let isPlaying = false;
+  let isManual = false;
+  let animFrame = null;
+  let inPrompter = false;
+
+  // Timer state
+  let timerSeconds = 0;
+  let timerInterval = null;
+  let timerRunning = false;
+
+  // Bookmark state
+  let bookmarkScrollTop = null;
+  let bookmarkEl = null;
+
+  // Section timing state
+  let sectionTimings = [];
+  let currentSectionEl = null;
+  let currentSectionStartTime = 0;
+  let sectionScrollDebounce = null;
+
+  // ══════════════════════════════════════
+  //  FILE MANAGEMENT
+  //  • Save/Save As → real files on disk
+  //  • Open → file picker from disk
+  //  • Open Recent → cached in browser
+  // ══════════════════════════════════════
+  const RECENTS_KEY = 'teleprompter_recents';
+  const DRAFT_KEY = 'teleprompter_draft';
+  const DRAFT_NAME_KEY = 'teleprompter_draft_name';
+  const TIMER_KEY = 'teleprompter_timer';
+  const BOOKMARK_KEY = 'teleprompter_bookmark';
+  const SESSIONS_KEY = 'teleprompter_sessions';
+  const SESSIONS_API = 'sessions.php';
+  const SERVICE_TYPE_KEY = 'teleprompter_service_type';
+  let serverAvailable = null;
+  let currentFileName = null;
+  let fileHandle = null; // File System Access API (Chrome)
+  let isDirty = false;
+
+  // Restore service type preference
+  const savedServiceType = localStorage.getItem(SERVICE_TYPE_KEY);
+  if (savedServiceType) serviceTypeEl.value = savedServiceType;
+  serviceTypeEl.addEventListener('change', () => localStorage.setItem(SERVICE_TYPE_KEY, serviceTypeEl.value));
+
+  // ── IndexedDB helpers to persist file handle across sessions ──
+  function openHandleDB() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open('hgf_teleprompter', 1);
+      req.onupgradeneeded = (e) => e.target.result.createObjectStore('handles');
+      req.onsuccess = (e) => resolve(e.target.result);
+      req.onerror = () => resolve(null);
+    });
+  }
+
+  async function storeFileHandle(handle) {
+    try {
+      const db = await openHandleDB();
+      if (!db) return;
+      const tx = db.transaction('handles', 'readwrite');
+      tx.objectStore('handles').put(handle, 'current');
+    } catch {}
+  }
+
+  async function loadFileHandle() {
+    try {
+      const db = await openHandleDB();
+      if (!db) return null;
+      return new Promise((resolve) => {
+        const tx = db.transaction('handles', 'readonly');
+        const req = tx.objectStore('handles').get('current');
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => resolve(null);
+      });
+    } catch { return null; }
+  }
+
+  async function clearStoredHandle() {
+    try {
+      const db = await openHandleDB();
+      if (!db) return;
+      const tx = db.transaction('handles', 'readwrite');
+      tx.objectStore('handles').delete('current');
+    } catch {}
+  }
+
+  // ── Verify/request write permission on a handle ──
+  async function verifyPermission(handle) {
+    if (!handle) return false;
+    try {
+      if ((await handle.queryPermission({ mode: 'readwrite' })) === 'granted') return true;
+      if ((await handle.requestPermission({ mode: 'readwrite' })) === 'granted') return true;
+    } catch {}
+    return false;
+  }
+
+  function getRecents() {
+    try { return JSON.parse(localStorage.getItem(RECENTS_KEY)) || []; }
+    catch { return []; }
+  }
+
+  function addToRecents(name, content) {
+    let recents = getRecents();
+    // Remove duplicate by name
+    recents = recents.filter(r => r.name !== name);
+    recents.unshift({ name, content, date: Date.now() });
+    // Keep last 20
+    if (recents.length > 20) recents.length = 20;
+    localStorage.setItem(RECENTS_KEY, JSON.stringify(recents));
+  }
+
+  function updateTitle() {
+    const name = currentFileName || 'Untitled';
+    fileNameEl.innerHTML = isDirty ? `${name} <span class="unsaved">●</span>` : name;
+    document.title = `${name} — THE WORD`;
+  }
+
+  function syncDraft() {
+    localStorage.setItem(DRAFT_KEY, editor.innerHTML);
+    localStorage.setItem(DRAFT_NAME_KEY, currentFileName || '');
+  }
+
+  // Mark dirty on edits + auto-save draft
+  editor.addEventListener('input', () => {
+    isDirty = true;
+    updateTitle();
+    syncDraft();
+  });
+
+  // ── New ──
+  document.getElementById('btn-new').addEventListener('click', () => {
+    if (isDirty && !confirm('You have unsaved changes. Create new anyway?')) return;
+    currentFileName = null;
+    fileHandle = null;
+    clearStoredHandle();
+    isDirty = false;
+    editor.innerHTML = '<p><br></p>';
+    resetTimer();
+    clearBookmark();
+    editor.focus();
+    updateTitle();
+    syncDraft();
+  });
+
+  // ── Save ──
+  async function doSave() {
+    // If we have a file handle (Chrome), verify permission and write directly
+    if (fileHandle && await verifyPermission(fileHandle)) {
+      try {
+        const writable = await fileHandle.createWritable();
+        await writable.write(editor.innerHTML);
+        await writable.close();
+        isDirty = false;
+        updateTitle();
+        addToRecents(currentFileName, editor.innerHTML);
+        syncDraft();
+        return;
+      } catch (e) { /* fall through to Save As */ }
+    }
+    // No handle or permission denied — do Save As
+    await doSaveAs();
+  }
+
+  document.getElementById('btn-save').addEventListener('click', () => doSave());
+
+  // ── Save As ──
+  async function doSaveAs() {
+    const content = editor.innerHTML;
+
+    if (window.showSaveFilePicker) {
+      // Chrome / Edge — real "Save As" dialog
+      try {
+        const opts = {
+          suggestedName: (currentFileName || 'script') + '.html',
+          types: [{ description: 'HTML file', accept: { 'text/html': ['.html'] } }]
+        };
+        // Start in the same directory as the current file
+        if (fileHandle) opts.startIn = fileHandle;
+        fileHandle = await window.showSaveFilePicker(opts);
+        const writable = await fileHandle.createWritable();
+        await writable.write(content);
+        await writable.close();
+        currentFileName = fileHandle.name.replace(/\.html?$/i, '');
+        storeFileHandle(fileHandle);
+      } catch (e) {
+        if (e.name === 'AbortError') return; // user cancelled
+        throw e;
+      }
+    } else {
+      // Safari fallback — download
+      const name = prompt('File name:', currentFileName || 'script');
+      if (!name || !name.trim()) return;
+      currentFileName = name.trim();
+      const blob = new Blob([content], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = currentFileName + '.html';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    isDirty = false;
+    updateTitle();
+    addToRecents(currentFileName, content);
+    syncDraft();
+  }
+
+  document.getElementById('btn-saveas').addEventListener('click', () => doSaveAs());
+
+  // ── Open from disk ──
+  async function doOpenFile() {
+    if (isDirty && !confirm('You have unsaved changes. Open anyway?')) return;
+
+    if (window.showOpenFilePicker) {
+      // Chrome / Edge
+      try {
+        const opts = {
+          types: [{ description: 'HTML files', accept: { 'text/html': ['.html', '.htm'] } }],
+          multiple: false
+        };
+        // Start in the same directory as the current file
+        if (fileHandle) opts.startIn = fileHandle;
+        const [handle] = await window.showOpenFilePicker(opts);
+        fileHandle = handle;
+        storeFileHandle(fileHandle);
+        const file = await handle.getFile();
+        const text = await file.text();
+        currentFileName = file.name.replace(/\.html?$/i, '');
+        editor.innerHTML = text;
+      } catch (e) {
+        if (e.name === 'AbortError') return;
+        throw e;
+      }
+    } else {
+      // Safari fallback — file input
+      fileInput.click();
+      return; // rest handled by change event
+    }
+
+    isDirty = false;
+    updateTitle();
+    addToRecents(currentFileName, editor.innerHTML);
+    syncDraft();
+    editor.focus();
+  }
+
+  // Hidden file input for Safari fallback
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = '.html,.htm,.txt';
+  fileInput.style.display = 'none';
+  document.body.appendChild(fileInput);
+
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      currentFileName = file.name.replace(/\.(html?|txt)$/i, '');
+      fileHandle = null;
+      editor.innerHTML = reader.result;
+      isDirty = false;
+      updateTitle();
+      addToRecents(currentFileName, editor.innerHTML);
+      syncDraft();
+      editor.focus();
+    };
+    reader.readAsText(file);
+    fileInput.value = ''; // reset so same file can be reopened
+  });
+
+  document.getElementById('btn-open').addEventListener('click', () => {
+    openPanel.classList.remove('visible');
+    doOpenFile();
+  });
+
+  // ── Open Recent ──
+  function toggleOpenPanel() {
+    const isVisible = openPanel.classList.contains('visible');
+    if (isVisible) {
+      openPanel.classList.remove('visible');
+      return;
+    }
+    renderFileList();
+    openPanel.classList.add('visible');
+  }
+
+  document.getElementById('btn-recent').addEventListener('click', toggleOpenPanel);
+  document.getElementById('panel-close').addEventListener('click', () => openPanel.classList.remove('visible'));
+
+  document.addEventListener('mousedown', (e) => {
+    if (openPanel.classList.contains('visible') &&
+        !openPanel.contains(e.target) &&
+        e.target.id !== 'btn-recent') {
+      openPanel.classList.remove('visible');
+    }
+  });
+
+  function renderFileList() {
+    const recents = getRecents();
+    if (recents.length === 0) {
+      fileList.innerHTML = '<div class="empty">No recent scripts.</div>';
+      return;
+    }
+
+    fileList.innerHTML = recents.map((r, i) => {
+      const date = new Date(r.date);
+      const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+                    + ' ' + date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+      return `<div class="file-item" data-idx="${i}">
+        <div class="fi-info">
+          <div class="fi-name">${r.name}</div>
+          <div class="fi-date">${dateStr}</div>
+        </div>
+        <button class="fi-delete" data-idx="${i}" title="Remove">🗑</button>
+      </div>`;
+    }).join('');
+
+    fileList.querySelectorAll('.file-item').forEach(el => {
+      el.addEventListener('click', (e) => {
+        if (e.target.classList.contains('fi-delete')) return;
+        if (isDirty && !confirm('You have unsaved changes. Open anyway?')) return;
+        const idx = parseInt(el.dataset.idx);
+        const r = getRecents()[idx];
+        if (!r) return;
+        currentFileName = r.name;
+        fileHandle = null; // can't reuse handle from recents
+        editor.innerHTML = r.content;
+        isDirty = false;
+        updateTitle();
+        syncDraft();
+        openPanel.classList.remove('visible');
+        editor.focus();
+      });
+    });
+
+    fileList.querySelectorAll('.fi-delete').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.dataset.idx);
+        const recents = getRecents();
+        recents.splice(idx, 1);
+        localStorage.setItem(RECENTS_KEY, JSON.stringify(recents));
+        renderFileList();
+      });
+    });
+  }
+
+  // ── Keyboard shortcuts for file ops ──
+  document.addEventListener('keydown', (e) => {
+    if (inPrompter) return; // only in editor view
+
+    // ⌘S = Save
+    if (e.metaKey && !e.shiftKey && e.code === 'KeyS') {
+      e.preventDefault();
+      doSave();
+    }
+    // ⇧⌘S = Save As
+    if (e.metaKey && e.shiftKey && e.code === 'KeyS') {
+      e.preventDefault();
+      doSaveAs();
+    }
+    // ⌘O = Open file
+    if (e.metaKey && e.code === 'KeyO') {
+      e.preventDefault();
+      doOpenFile();
+    }
+  });
+
+  // ══════════════════════════════════════
+  //  TOOLBAR
+  // ══════════════════════════════════════
+  document.getElementById('toolbar').addEventListener('click', (e) => {
+    const btn = e.target.closest('.tb-btn');
+    if (!btn) return;
+    e.preventDefault();
+    const cmd = btn.dataset.cmd;
+
+    editor.focus();
+
+    switch (cmd) {
+      case 'bold':
+        document.execCommand('bold');
+        break;
+      case 'italic':
+        document.execCommand('italic');
+        break;
+      case 'underline':
+        document.execCommand('underline');
+        break;
+      case 'h1':
+        document.execCommand('formatBlock', false, 'H1');
+        break;
+      case 'h2':
+        document.execCommand('formatBlock', false, 'H2');
+        break;
+      case 'p':
+        document.execCommand('formatBlock', false, 'P');
+        break;
+      case 'quote':
+        document.execCommand('formatBlock', false, 'BLOCKQUOTE');
+        break;
+      case 'ol':
+        document.execCommand('insertOrderedList');
+        break;
+      case 'ul':
+        document.execCommand('insertUnorderedList');
+        break;
+      case 'cue': {
+        const sel = window.getSelection();
+        let cueText = 'Cue: Enter stage direction here';
+        if (sel && !sel.isCollapsed) {
+          const frag = sel.getRangeAt(0).cloneContents();
+          const tmp = document.createElement('div');
+          tmp.appendChild(frag);
+          cueText = tmp.innerHTML;
+        }
+        document.execCommand('insertHTML', false,
+          '<div class="cue" contenteditable="true">' + cueText + '</div><p><br></p>');
+        break;
+      }
+      case 'nextslide':
+        document.execCommand('insertHTML', false,
+          '<div class="next-slide" contenteditable="false">NEXT SLIDE</div><p><br></p>');
+        break;
+      case 'hr':
+        document.execCommand('insertHTML', false, '<hr><p><br></p>');
+        break;
+      case 'removeFormat':
+        document.execCommand('removeFormat');
+        document.execCommand('formatBlock', false, 'P');
+        break;
+    }
+  });
+
+  // ══════════════════════════════════════
+  //  PROMPTER
+  // ══════════════════════════════════════
+
+  // ── Switch views ──
+  function updateStartBtn() {
+    if (timerSeconds > 0) {
+      startBtn.textContent = '▶ Resume The Word (' + fmtTime(timerSeconds) + ')';
+    } else {
+      startBtn.textContent = '▶ Start The Word';
+    }
+  }
+
+  startBtn.addEventListener('click', () => {
+    const content = editor.innerHTML.trim();
+    if (!content || content === '<br>') return;
+    scrollEl.innerHTML = content;
+    editorView.style.display = 'none';
+    prompterView.style.display = 'flex';
+    inPrompter = true;
+    scrollEl.scrollTop = 0;
+    isPlaying = false;
+    updatePlayBtn();
+    updateProgress();
+    if (timerSeconds > 0) {
+      resumeTimer();
+    } else {
+      startTimer();
+    }
+    startSectionTracking();
+    restoreBookmark();
+    scrollEl.focus();
+  });
+
+  backBtn.addEventListener('click', () => {
+    stop();
+    pauseTimer();
+    stopTimerInterval();
+    stopSectionTracking();
+    completionOverlay.classList.remove('visible');
+    // Log session if they spent meaningful time (>= 5s)
+    if (timerSeconds >= 5) {
+      addSession(currentFileName || 'Untitled', timerSeconds, sectionTimings);
+    }
+    prompterView.style.display = 'none';
+    editorView.style.display = 'flex';
+    inPrompter = false;
+    updateStartBtn();
+    editor.focus();
+  });
+
+  // ── Progress bar ──
+  function updateProgress() {
+    const max = scrollEl.scrollHeight - scrollEl.clientHeight;
+    const pct = max > 0 ? (scrollEl.scrollTop / max) * 100 : 0;
+    progressBar.style.width = pct + '%';
+  }
+
+  scrollEl.addEventListener('scroll', () => {
+    updateProgress();
+    // Debounced section check
+    if (sectionScrollDebounce) clearTimeout(sectionScrollDebounce);
+    sectionScrollDebounce = setTimeout(checkCurrentSection, 300);
+  });
+
+  // ── Auto-scroll ──
+  function scrollLoop() {
+    if (!isPlaying) return;
+    scrollEl.scrollTop += 0.4 * speed;
+    animFrame = requestAnimationFrame(scrollLoop);
+  }
+
+  function play() { isPlaying = true; updatePlayBtn(); animFrame = requestAnimationFrame(scrollLoop); }
+  function stop() { isPlaying = false; updatePlayBtn(); if (animFrame) cancelAnimationFrame(animFrame); }
+  function togglePlay() { if (isManual) return; isPlaying ? stop() : play(); }
+  function updatePlayBtn() {
+    playBtn.textContent = isPlaying ? '⏸' : '▶';
+    playBtn.classList.toggle('active', isPlaying);
+  }
+
+  // ── Speed ──
+  function setSpeed(s) {
+    speed = Math.max(1, Math.min(10, s));
+    speedDisplay.textContent = `Speed: ${speed}`;
+  }
+
+  slowerBtn.addEventListener('click', () => setSpeed(speed - 1));
+  fasterBtn.addEventListener('click', () => setSpeed(speed + 1));
+  playBtn.addEventListener('click', togglePlay);
+
+  // ── Manual scroll ──
+  const NUDGE = 120;
+  upBtn.addEventListener('click', () => { scrollEl.scrollTop -= NUDGE; });
+  downBtn.addEventListener('click', () => { scrollEl.scrollTop += NUDGE; });
+
+  // ── Mode toggle ──
+  modeBtn.addEventListener('click', () => {
+    isManual = !isManual;
+    if (isManual) {
+      stop();
+      modeBtn.textContent = 'Auto';
+      modeLabel.textContent = 'manual';
+      playBtn.style.opacity = '0.3';
+    } else {
+      modeBtn.textContent = 'Manual';
+      modeLabel.textContent = 'auto';
+      playBtn.style.opacity = '1';
+    }
+  });
+
+  // ── Mirror ──
+  mirrorBtn.addEventListener('click', () => {
+    scrollEl.classList.toggle('mirrored');
+    mirrorBtn.classList.toggle('active');
+  });
+
+  // ── Fullscreen ──
+  fsBtn.addEventListener('click', () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      document.documentElement.requestFullscreen();
+    }
+  });
+
+  document.addEventListener('fullscreenchange', () => {
+    fsBtn.textContent = document.fullscreenElement ? '⛶ Exit' : '⛶ Fullscreen';
+  });
+
+  // ── Top ──
+  topBtn.addEventListener('click', () => { scrollEl.scrollTop = 0; });
+
+  // ── Focus management ──
+  scrollEl.addEventListener('click', () => scrollEl.focus());
+
+  // ══════════════════════════════════════
+  //  SESSION HISTORY (KPI)
+  // ══════════════════════════════════════
+  const historyPanel  = document.getElementById('history-panel');
+  const historyStats  = document.getElementById('history-stats');
+  const historyList   = document.getElementById('history-list');
+
+  function getLocalSessions() {
+    try { return JSON.parse(localStorage.getItem(SESSIONS_KEY)) || []; }
+    catch { return []; }
+  }
+
+  async function fetchServerSessions() {
+    try {
+      const res = await fetch(SESSIONS_API);
+      if (!res.ok) throw new Error();
+      serverAvailable = true;
+      return await res.json();
+    } catch {
+      serverAvailable = false;
+      return null;
+    }
+  }
+
+  function addSession(title, seconds, sections) {
+    const entry = { title, seconds, date: Date.now(), sections: sections || [] };
+    // Always save locally
+    const sessions = getLocalSessions();
+    sessions.unshift(entry);
+    if (sessions.length > 100) sessions.length = 100;
+    localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
+    // Sync to server (fire-and-forget)
+    fetch(SESSIONS_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(entry)
+    }).then(() => { serverAvailable = true; })
+      .catch(() => { serverAvailable = false; });
+  }
+
+  function renderSessionList(sessions) {
+    if (sessions.length === 0) {
+      historyStats.innerHTML = '';
+      historyList.innerHTML = '<div class="empty">No sessions recorded yet.<br>Use the teleprompter to start tracking.</div>';
+      return;
+    }
+
+    const totalSessions = sessions.length;
+    const totalTime = sessions.reduce((s, r) => s + r.seconds, 0);
+    const avgTime = Math.round(totalTime / totalSessions);
+    const bestTime = Math.min(...sessions.map(r => r.seconds));
+    const longestTime = Math.max(...sessions.map(r => r.seconds));
+
+    historyStats.innerHTML = `
+      <div class="kpi-card"><div class="kpi-value">${totalSessions}</div><div class="kpi-label">Sessions</div></div>
+      <div class="kpi-card"><div class="kpi-value">${fmtTime(avgTime)}</div><div class="kpi-label">Avg Time</div></div>
+      <div class="kpi-card"><div class="kpi-value">${fmtTime(bestTime)}</div><div class="kpi-label">Shortest</div></div>
+      <div class="kpi-card"><div class="kpi-value">${fmtTime(longestTime)}</div><div class="kpi-label">Longest</div></div>
+      <div class="kpi-card"><div class="kpi-value">${fmtTime(totalTime)}</div><div class="kpi-label">Total</div></div>
+    `;
+
+    historyList.innerHTML = sessions.map((r, i) => {
+      const d = new Date(r.date);
+      const dateStr = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+                    + ' ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+      const hasSections = r.sections && r.sections.length > 0;
+      const expandIcon = hasSections ? '<span class="si-expand">▶</span>' : '';
+      let sectionHtml = '';
+      if (hasSections) {
+        const maxSec = Math.max(...r.sections.map(s => s.seconds));
+        sectionHtml = `<div class="section-breakdown">${r.sections.map(s => {
+          const pct = maxSec > 0 ? Math.round((s.seconds / maxSec) * 100) : 0;
+          return `<div class="section-row">
+            <span class="sr-text">${s.text}</span>
+            <span class="sr-time">${fmtTime(s.seconds)}</span>
+            <div class="sr-bar-wrap"><div class="sr-bar" style="width:${pct}%"></div></div>
+          </div>`;
+        }).join('')}</div>`;
+      }
+      return `<div class="session-item" data-idx="${i}">
+        <div class="si-info">
+          <div class="si-title">${r.title} ${expandIcon}</div>
+          <div class="si-meta">${dateStr}</div>
+        </div>
+        <span class="si-duration">${fmtTime(r.seconds)}</span>
+        <button class="si-delete" data-idx="${i}" title="Remove">🗑</button>
+      </div>${sectionHtml}`;
+    }).join('');
+
+    // Expand/collapse section breakdown
+    historyList.querySelectorAll('.session-item').forEach(el => {
+      el.addEventListener('click', (e) => {
+        if (e.target.classList.contains('si-delete')) return;
+        el.classList.toggle('expanded');
+      });
+    });
+
+    historyList.querySelectorAll('.si-delete').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.dataset.idx);
+        if (serverAvailable) {
+          try { await fetch(SESSIONS_API + '?idx=' + idx, { method: 'DELETE' }); } catch {}
+        }
+        const s = getLocalSessions();
+        s.splice(idx, 1);
+        localStorage.setItem(SESSIONS_KEY, JSON.stringify(s));
+        await renderHistory();
+      });
+    });
+  }
+
+  async function renderHistory() {
+    // Try server first; fall back to localStorage
+    const serverData = await fetchServerSessions();
+    const sessions = serverData || getLocalSessions();
+    renderSessionList(sessions);
+  }
+
+  document.getElementById('btn-history').addEventListener('click', async () => {
+    openPanel.classList.remove('visible');
+    const vis = historyPanel.classList.contains('visible');
+    if (vis) { historyPanel.classList.remove('visible'); return; }
+    historyList.innerHTML = '<div class="empty">Loading…</div>';
+    historyPanel.classList.add('visible');
+    await renderHistory();
+  });
+
+  document.getElementById('history-close').addEventListener('click', () => {
+    historyPanel.classList.remove('visible');
+  });
+
+  document.getElementById('history-clear').addEventListener('click', async () => {
+    if (!confirm('Clear all session history?')) return;
+    localStorage.removeItem(SESSIONS_KEY);
+    if (serverAvailable) {
+      try { await fetch(SESSIONS_API, { method: 'DELETE' }); } catch {}
+    }
+    await renderHistory();
+  });
+
+  document.addEventListener('mousedown', (e) => {
+    if (historyPanel.classList.contains('visible') &&
+        !historyPanel.contains(e.target) &&
+        e.target.id !== 'btn-history') {
+      historyPanel.classList.remove('visible');
+    }
+  });
+
+  // ══════════════════════════════════════
+  //  TIMER
+  // ══════════════════════════════════════
+  function fmtTime(s) {
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    const mm = String(m).padStart(2, '0');
+    const ss = String(sec).padStart(2, '0');
+    return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+  }
+
+  function updateTimerDisplay() {
+    const t = fmtTime(timerSeconds);
+    timerDisplay.textContent = t;
+    overlayTotal.textContent = t;
+    localStorage.setItem(TIMER_KEY, timerSeconds);
+    // Update section timer in overlay
+    if (currentSectionStartTime) {
+      const sectionSecs = Math.round((Date.now() - currentSectionStartTime) / 1000);
+      overlaySection.textContent = '§ ' + fmtTime(sectionSecs);
+    }
+  }
+
+  function startTimerInterval() {
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+      if (timerRunning) {
+        timerSeconds++;
+        updateTimerDisplay();
+      }
+    }, 1000);
+  }
+
+  function stopTimerInterval() {
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+  }
+
+  function startTimer() {
+    timerSeconds = 0;
+    timerRunning = true;
+    updateTimerDisplay();
+    timerDisplay.classList.remove('paused');
+    timerBtn.textContent = '⏱ Pause';
+    startTimerInterval();
+  }
+
+  function pauseTimer() {
+    timerRunning = false;
+    timerDisplay.classList.add('paused');
+    timerBtn.textContent = '⏱ Resume';
+  }
+
+  function resumeTimer() {
+    timerRunning = true;
+    timerDisplay.classList.remove('paused');
+    timerBtn.textContent = '⏱ Pause';
+    startTimerInterval();
+  }
+
+  function resetTimer() {
+    stopTimerInterval();
+    timerSeconds = 0;
+    timerRunning = false;
+    updateTimerDisplay();
+    localStorage.removeItem(TIMER_KEY);
+    timerDisplay.classList.remove('paused');
+    timerBtn.textContent = '⏱ Pause';
+    updateStartBtn();
+  }
+
+  timerBtn.addEventListener('click', () => {
+    timerRunning ? pauseTimer() : resumeTimer();
+  });
+
+  timerResetBtn.addEventListener('click', resetTimer);
+
+  // ══════════════════════════════════════
+  //  SECTION TIMING (per-paragraph tracking)
+  // ══════════════════════════════════════
+  function startSectionTracking() {
+    sectionTimings = [];
+    currentSectionEl = null;
+    currentSectionStartTime = 0;
+    overlaySection.textContent = '';
+    // Kick off first section
+    setTimeout(checkCurrentSection, 200);
+  }
+
+  function stopSectionTracking() {
+    recordCurrentSection();
+    currentSectionEl = null;
+    currentSectionStartTime = 0;
+    overlaySection.textContent = '';
+  }
+
+  function checkCurrentSection() {
+    if (!inPrompter) return;
+    const el = getElementAtCenter();
+    if (!el || el === currentSectionEl) return;
+    // Skip cues and slide markers for section timing
+    if (el.classList.contains('cue') || el.classList.contains('next-slide')) return;
+    // Record previous section
+    recordCurrentSection();
+    // Start new section
+    currentSectionEl = el;
+    currentSectionStartTime = Date.now();
+  }
+
+  function recordCurrentSection() {
+    if (!currentSectionEl || !currentSectionStartTime) return;
+    const elapsed = Math.round((Date.now() - currentSectionStartTime) / 1000);
+    if (elapsed >= 1) {
+      const text = currentSectionEl.textContent.trim().substring(0, 80);
+      sectionTimings.push({ text, seconds: elapsed });
+    }
+  }
+
+  // ══════════════════════════════════════
+  //  BOOKMARK ("I am here")
+  // ══════════════════════════════════════
+  function hasRealText(el) {
+    return el.textContent.replace(/[\s\u00a0]+/g, '').length > 0;
+  }
+
+  function getElementAtCenter() {
+    // Find the text element closest to the reading line (~1/3 from top)
+    const rect = scrollEl.getBoundingClientRect();
+    const readingY = rect.top + rect.height * 0.5;
+    const children = scrollEl.querySelectorAll('p, div:not(#prompter-scroll), h1, h2, blockquote, li');
+    let closest = null;
+    let closestDist = Infinity;
+    for (const el of children) {
+      // Skip empty elements (including &nbsp;-only)
+      if (!hasRealText(el)) continue;
+      const r = el.getBoundingClientRect();
+      const elCenter = r.top + r.height / 2;
+      const dist = Math.abs(elCenter - readingY);
+      if (dist < closestDist) {
+        closestDist = dist;
+        closest = el;
+      }
+    }
+    return closest;
+  }
+
+  function clearBookmark() {
+    if (bookmarkEl) bookmarkEl.classList.remove('tp-marked');
+    bookmarkEl = null;
+    bookmarkScrollTop = null;
+    markBtn.classList.remove('has-mark');
+    localStorage.removeItem(BOOKMARK_KEY);
+  }
+
+  function setBookmark() {
+    // Clear previous
+    if (bookmarkEl) bookmarkEl.classList.remove('tp-marked');
+    // Mark current element
+    const el = getElementAtCenter();
+    if (!el) return;
+    el.classList.add('tp-marked');
+    bookmarkEl = el;
+    bookmarkScrollTop = scrollEl.scrollTop;
+    markBtn.classList.add('has-mark');
+    localStorage.setItem(BOOKMARK_KEY, scrollEl.scrollTop);
+  }
+
+  function advanceAndMark() {
+    const scrollRect = scrollEl.getBoundingClientRect();
+    // Content stops only — skip cues, slide markers, and empty/nbsp elements
+    const stops = Array.from(
+      scrollEl.querySelectorAll('p, h1, h2, blockquote, li')
+    ).filter(el => hasRealText(el) && !el.closest('.cue') && !el.closest('.next-slide'));
+    const currentEl = getElementAtCenter();
+    if (!currentEl) return;
+    // Mark current element
+    if (bookmarkEl) bookmarkEl.classList.remove('tp-marked');
+    currentEl.classList.add('tp-marked');
+    bookmarkEl = currentEl;
+    markBtn.classList.add('has-mark');
+    // Find next stop by DOM order (not viewport position)
+    let nextEl = null;
+    const idx = stops.indexOf(currentEl);
+    if (idx >= 0 && idx < stops.length - 1) {
+      nextEl = stops[idx + 1];
+    } else if (idx === -1) {
+      // currentEl is a cue or other non-stop — find first stop after it in DOM
+      for (const el of stops) {
+        if (currentEl.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING) {
+          nextEl = el;
+          break;
+        }
+      }
+    }
+    if (nextEl) {
+      // Center the next element in the viewport
+      const nextRect = nextEl.getBoundingClientRect();
+      const viewCenter = scrollRect.top + scrollRect.height / 2;
+      const offset = (nextRect.top + nextRect.height / 2) - viewCenter;
+      const newTop = scrollEl.scrollTop + offset;
+      scrollEl.scrollTo({ top: newTop, behavior: 'smooth' });
+      bookmarkScrollTop = newTop;
+      localStorage.setItem(BOOKMARK_KEY, String(Math.round(newTop)));
+    } else {
+      // End of script — finalize session!
+      bookmarkScrollTop = scrollEl.scrollTop;
+      localStorage.setItem(BOOKMARK_KEY, String(Math.round(bookmarkScrollTop)));
+      finalizeSession();
+    }
+  }
+
+  function finalizeSession() {
+    stop();
+    pauseTimer();
+    stopTimerInterval();
+    stopSectionTracking();
+    if (timerSeconds >= 1) {
+      addSession(currentFileName || 'Untitled', timerSeconds, sectionTimings);
+    }
+    showCompletionScreen(timerSeconds);
+  }
+
+  function showCompletionScreen(seconds) {
+    const svc = serviceTypeEl.value;
+    let limitSecs;
+    if (svc === 'grace') limitSecs = 1800;      // 30 min
+    else if (svc === 'sunday') limitSecs = 2400; // 40 min
+    else limitSecs = 0;                          // special — no limit
+
+    const CONGRATS = {
+      sunday: [
+        "Congratulations, Pastor! You delivered THE WORD within 40 minutes. Clear, powerful, and on time!",
+        "Congratulations! Solid message, well within the time. Your people heard THE WORD!",
+        "Congratulations, Pastor! Tight, focused, and on point. Well done!",
+        "Congratulations! THE WORD was delivered with clarity. Right on schedule, Pastor!"
+      ],
+      grace: [
+        "Congratulations, Pastor! You finished within 30 minutes. Short, powerful, and to the point!",
+        "Congratulations! Grace Night message delivered clean and on time!",
+        "Congratulations, Pastor! 30 minutes or less \u2014 that's how you do Grace Night!",
+        "Congratulations! Quick, clear, and Spirit-led. Perfect for Grace Night!"
+      ]
+    };
+    const OOPS = {
+      sunday: [
+        "Oops! You went past 40 minutes, Pastor. Check your section times and see where to trim.",
+        "Oops! A bit over time. Some points may need tightening. You'll get it next round!",
+        "Oops! Went a little long, Pastor. Review which sections took the most time.",
+        "Oops! Over 40 minutes, but THE WORD still went forth. Let's trim it next time!"
+      ],
+      grace: [
+        "Oops! You went past 30 minutes, Pastor. Grace Night is meant to be quick!",
+        "Oops! A bit over for Grace Night. See which sections you can shorten.",
+        "Oops! Went a little long for Grace Night. Let's tighten it up!",
+        "Oops! Over 30 minutes. Check your sections and find where to cut."
+      ]
+    };
+    const SPECIAL = [
+      "You took " + fmtTime(seconds) + " for that message. No time limit \u2014 THE WORD goes as long as it needs to!",
+      "Total time: " + fmtTime(seconds) + ". Special event, special message. Hope it blessed the people!",
+      fmtTime(seconds) + " total. No rush on special events \u2014 THE WORD was delivered!",
+      "That was " + fmtTime(seconds) + ", Pastor. The Word took its course!"
+    ];
+
+    let msg;
+    if (svc === 'special') {
+      msg = SPECIAL[Math.floor(Math.random() * SPECIAL.length)];
+    } else if (seconds <= limitSecs) {
+      const pool = CONGRATS[svc];
+      msg = pool[Math.floor(Math.random() * pool.length)];
+    } else {
+      const pool = OOPS[svc];
+      msg = pool[Math.floor(Math.random() * pool.length)];
+    }
+
+    completionTime.textContent = fmtTime(seconds);
+    completionMsg.textContent = msg;
+    completionOverlay.classList.add('visible');
+  }
+
+  function restoreBookmark() {
+    // Clear in-memory state
+    if (bookmarkEl) bookmarkEl.classList.remove('tp-marked');
+    bookmarkEl = null;
+    bookmarkScrollTop = null;
+    markBtn.classList.remove('has-mark');
+    // Restore from localStorage
+    const saved = localStorage.getItem(BOOKMARK_KEY);
+    if (saved !== null) {
+      const savedTop = parseInt(saved, 10);
+      scrollEl.scrollTop = savedTop;
+      bookmarkScrollTop = savedTop;
+      const el = getElementAtCenter();
+      if (el) {
+        el.classList.add('tp-marked');
+        bookmarkEl = el;
+        markBtn.classList.add('has-mark');
+      }
+    }
+  }
+
+  function returnToBookmark() {
+    if (!bookmarkEl) return;
+    // Scroll to put the marked element near center
+    const rect = scrollEl.getBoundingClientRect();
+    const elRect = bookmarkEl.getBoundingClientRect();
+    const offset = elRect.top - rect.top - rect.height / 2 + elRect.height / 2;
+    scrollEl.scrollTop += offset;
+  }
+
+  markBtn.addEventListener('click', setBookmark);
+  returnBtn.addEventListener('click', returnToBookmark);
+
+  completionBtn.addEventListener('click', () => {
+    completionOverlay.classList.remove('visible');
+    resetTimer();
+    clearBookmark();
+    prompterView.style.display = 'none';
+    editorView.style.display = 'flex';
+    inPrompter = false;
+    updateStartBtn();
+    editor.focus();
+  });
+
+  // ── Prompter keyboard shortcuts ──
+  document.addEventListener('keydown', (e) => {
+    if (!inPrompter) return;
+
+    switch (e.code) {
+      case 'Enter':
+        e.preventDefault();
+        togglePlay();
+        break;
+      case 'Space':
+        e.preventDefault();
+        advanceAndMark();
+        break;
+      case 'Equal':
+      case 'NumpadAdd':
+        e.preventDefault();
+        setSpeed(speed + 1);
+        break;
+      case 'Minus':
+      case 'NumpadSubtract':
+        e.preventDefault();
+        setSpeed(speed - 1);
+        break;
+      case 'Home':
+        e.preventDefault();
+        scrollEl.scrollTop = 0;
+        break;
+      case 'End':
+        e.preventDefault();
+        scrollEl.scrollTop = scrollEl.scrollHeight;
+        break;
+      case 'KeyM':
+        modeBtn.click();
+        break;
+      case 'KeyB':
+        setBookmark();
+        break;
+      case 'KeyG':
+        returnToBookmark();
+        break;
+      case 'KeyT':
+        timerRunning ? pauseTimer() : resumeTimer();
+        break;
+      case 'KeyF':
+        fsBtn.click();
+        break;
+      case 'Escape':
+        backBtn.click();
+        break;
+    }
+  });
+
+  // ══════════════════════════════════════
+  //  INIT — restore last session + file handle
+  // ══════════════════════════════════════
+  const savedDraft = localStorage.getItem(DRAFT_KEY);
+  const savedName = localStorage.getItem(DRAFT_NAME_KEY);
+
+  if (savedDraft) {
+    editor.innerHTML = savedDraft;
+    if (savedName) {
+      currentFileName = savedName;
+      isDirty = false;
+    } else {
+      isDirty = true;
+    }
+  } else {
+    editor.innerHTML = '<p><br></p>';
+  }
+
+  // Restore file handle from IndexedDB (Chrome)
+  const restoredHandle = await loadFileHandle();
+  if (restoredHandle) {
+    fileHandle = restoredHandle;
+  }
+
+  // Restore timer from previous session
+  const savedTimer = parseInt(localStorage.getItem(TIMER_KEY), 10);
+  if (savedTimer > 0) {
+    timerSeconds = savedTimer;
+    updateTimerDisplay();
+    updateStartBtn();
+  }
+
+  updateTitle();
+  editor.focus();
+
+})();
+</script>
+</body>
+</html>

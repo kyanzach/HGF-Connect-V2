@@ -1,6 +1,5 @@
 ---
 trigger: always_on
-glob:
 description: HGF Connect — slim rules (details in .agents/docs/connect-hgf-reference.md)
 ---
 
@@ -8,6 +7,9 @@ description: HGF Connect — slim rules (details in .agents/docs/connect-hgf-ref
 
 ## Architecture
 Next.js 16 (App Router) + TypeScript + Prisma (MySQL) + PM2. Server: DO Droplet 159.65.15.225 (≤1GB RAM). Domain: connect.houseofgrace.ph. Brand: #4EB1CB teal, inline styles only.
+
+## Sister App
+`app.houseofgrace.ph` (legacy PHP v1) lives on the **same droplet** at `/var/www/hgf-legacy`. Do NOT modify its files from this project. See reference doc §1b for details.
 
 ## Critical Rules
 1. Never use native `confirm()` / `alert()` — always use `ConfirmModal` from `@/components/ConfirmModal`
@@ -20,6 +22,8 @@ Next.js 16 (App Router) + TypeScript + Prisma (MySQL) + PM2. Server: DO Droplet 
 8. Always add `export const dynamic = "force-dynamic"` to API routes that return stale data
 9. All sticky headers must include `paddingTop: env(safe-area-inset-top)` for iPhone notch
 10. All images go through `lib/processImage.ts` (Sharp → WebP) — `public/uploads/` excluded from rsync
+11. Always update `CHANGELOG.md` and bump `package.json` version before every commit — patch for fixes, minor for features, major for breaking changes
+12. NEVER use native system dialogs** (`alert()`, `confirm()`, `prompt()`) — use modals instead
 
 ## Schema Gotchas
 - `@db.Time` fields → Prisma returns ISO strings like `1970-01-01T01:05:00.000Z`, use `toHHMM()` / `fmtTime()`
@@ -27,4 +31,8 @@ Next.js 16 (App Router) + TypeScript + Prisma (MySQL) + PM2. Server: DO Droplet 
 - Enum changes → run `npx prisma generate` locally, `deploy.sh` auto-runs it on server
 
 ## Git & Versioning
-Check `CHANGELOG.md` at session start for recall — it tracks all recent changes, versions, and context.
+- Check `CHANGELOG.md` at session start for recall — it tracks all recent changes, versions, and context
+- Every functional code change MUST have a CHANGELOG entry before committing — no exceptions
+- Commit often, push often — GitHub has no rate limit on pushes. Each commit = one logical change
+- Bump version in `client/package.json` (patch/minor/major)
+- Update CHANGELOG.md with new entry at top before committing

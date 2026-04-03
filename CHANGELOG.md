@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.10.6] — 2026-04-03
+### Added
+- **Sister app documentation** — Added `§1b. Sister App` section to `.agents/docs/connect-hgf-reference.md` documenting that `app.houseofgrace.ph` (legacy PHP v1) lives on the same DigitalOcean droplet at `/var/www/hgf-legacy`. Also added sister app section to slim rules.
+- **TheWordTool** (`public/thewordtool.html`) — Scripture delivery & timing teleprompter tool by Ryan Nantes Paco. Accessible at `connect.houseofgrace.ph/thewordtool.html`. Self-contained single-file HTML app with rich text editor, auto-scrolling prompter, session history, and timing features.
+
 ## [v2.10.5] — 2026-03-10
 ### Changed
 - **Replaced all native `confirm()` dialogs with custom `ConfirmModal`** — native browser dialogs disappear instantly on PWA/mobile; new styled modal stays visible until user explicitly responds
