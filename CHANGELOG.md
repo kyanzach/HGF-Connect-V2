@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.11.1] — 2026-04-24
+### Fixed
+- Fixed missing "Share Testimony" link in the `UnifiedHeader` dropdown menu.
+
 ## [v2.11.0] — 2026-04-24
 ### Added
 - **AI-Powered Testimony & Praise Report Module**
