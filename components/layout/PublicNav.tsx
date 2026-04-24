@@ -161,6 +161,7 @@ export default function PublicNav() {
                   }}
                 >
                   <DropdownItem href="/feed" label="🏠 Community Feed" />
+                  <DropdownItem href="/testimonies/create" label="✍️ Share Testimony" />
                   <DropdownItem href="/me" label="👤 My Profile" />
                   {["admin", "moderator", "usher"].includes(session.user.role) && (
                     <>

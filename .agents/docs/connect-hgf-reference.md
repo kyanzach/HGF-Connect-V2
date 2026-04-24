@@ -14,6 +14,9 @@
 - **Brand color**: `#4EB1CB` (teal)
 - **Style pattern**: Inline styles (no Tailwind), all client components are `"use client"`
 
+> 🔴 **CRITICAL RULE: LIVE SERVER TESTING ONLY**
+> We no longer test locally. All testing, database migrations, and verifications MUST be referenced to and performed against the droplet live server (`159.65.15.225`). No more local testing from here forward.
+
 ---
 
 ## 1b. Sister App — `app.houseofgrace.ph`
@@ -201,3 +204,7 @@ When a page crashes or shows errors:
 ### 2026-03-10
 - **Events page crash fixed (v2.10.4)**: Prisma `Date` objects for `eventDate`, `startTime`, `endTime` were passed unserialized from server to client components. Fix: `JSON.parse(JSON.stringify(...))` before passing props. Applied to both `/admin/events` and `/events`.
 - **ConfirmModal introduced (v2.10.5)**: Native `confirm()` dialogs disappear instantly on mobile/PWA. Created `components/ConfirmModal.tsx` and replaced all 7 `confirm()` call sites across 6 files (admin events, members, review, SMS, my-listings, prospects).
+
+### 2026-04-24
+- **Testimony Module Hotfix**: Added `testimonies` and `testimony_photos` tables directly to the live server. Fixed the "Failed to get registration options" WebAuthn error which was caused by missing `webauthn_challenge` column on the live DB due to a skipped migration.
+- **Environment Shift**: Transitioned completely to Live Server Testing. Local testing is fully deprecated; all changes and verifications must interact directly with the droplet server (`159.65.15.225`).

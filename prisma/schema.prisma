@@ -112,6 +112,9 @@ model Member {
   loveGiftClaimsAsSharer LoveGiftClaim[]     @relation("ClaimSharer")
   loveGiftClaimsAsSeller LoveGiftClaim[]     @relation("ClaimSeller")
 
+  // Testimonies
+  testimonies           Testimony[]          @relation("TestimonyAuthor")
+
   @@index([invitedBy], name: "idx_referred_by")
   @@index([ageGroup], name: "idx_age_group")
   @@index([type], name: "idx_type")
@@ -1005,4 +1008,41 @@ enum LoveGiftClaimStatus {
   paid
   received
   disputed
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Testimonies & Praise Reports
+// ─────────────────────────────────────────────────────────────────
+
+model Testimony {
+  id                Int      @id @default(autoincrement())
+  memberId          Int      @map("member_id")
+  content           String   @db.Text
+  translatedContent String?  @map("translated_content") @db.Text
+  category          String?  @db.VarChar(100) // e.g., "Healing", "Provision", "Family"
+  tags              String?  @db.Text // AI-generated context tags (JSON or CSV)
+  isFeatured        Boolean  @default(false) @map("is_featured")
+  status            String   @default("pending") // pending, reviewed, featured
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  member            Member   @relation("TestimonyAuthor", fields: [memberId], references: [id], onDelete: Cascade)
+  photos            TestimonyPhoto[]
+
+  @@index([memberId])
+  @@index([category])
+  @@map("testimonies")
+}
+
+model TestimonyPhoto {
+  id          Int       @id @default(autoincrement())
+  testimonyId Int       @map("testimony_id")
+  photoPath   String    @map("photo_path") @db.VarChar(255)
+  sortOrder   Int       @default(0) @map("sort_order") @db.TinyInt
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  testimony   Testimony @relation(fields: [testimonyId], references: [id], onDelete: Cascade)
+
+  @@index([testimonyId])
+  @@map("testimony_photos")
 }

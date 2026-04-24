@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.11.0] — 2026-04-24
+### Added
+- **AI-Powered Testimony & Praise Report Module**
+  - New database tables `testimonies` and `testimony_photos`
+  - Member frontend at `/testimonies/create` for writing testimonies and uploading multiple optimized photos
+  - Smart AI processing (Bisaya-to-English translation and auto-categorization via Gemini 1.5)
+  - Admin/Announcer Dashboard at `/admin/testimonies` to filter testimonies by topic
+  - Dedicated "Presentation View" optimized for Sunday service TV projection
+
 ## [v2.10.9] — 2026-04-03
 ### Added
 - **TheWordTool: OG image & social sharing** — Scripture verse collage OG image (`og-thewordtool.png`) with full Open Graph and Twitter Card meta tags for rich link previews when shared on Messenger, Facebook, Twitter, etc.
