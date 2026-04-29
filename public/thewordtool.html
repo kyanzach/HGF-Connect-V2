@@ -1623,6 +1623,12 @@
 
   editor.addEventListener('input', () => { isDirty = true; updateTitle(); syncDraft(); });
 
+  editor.addEventListener('paste', (e) => {
+    e.preventDefault();
+    const text = (e.originalEvent || e).clipboardData.getData('text/plain');
+    document.execCommand('insertText', false, text);
+  });
+
   // ══════════════════════════════════════
   //  FILE MANAGER (server folders + scripts)
   // ══════════════════════════════════════

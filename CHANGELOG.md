@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.11.2] — 2026-04-29
+### Fixed
+- **TheWordTool**: Added a paste event listener to the rich text editor to intercept pasted text and format it as plain text. This prevents external formatting (e.g. black text on a black background) from ruining the editor's default dark mode styling.
+
 ## [v2.11.1] — 2026-04-24
 ### Fixed
 - Fixed missing "Share Testimony" link in the `UnifiedHeader` dropdown menu.
