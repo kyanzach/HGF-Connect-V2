@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.11.3] — 2026-04-29
+### Fixed
+- **TheWordTool**: Added `!important` to font-size, line-height, and background-color CSS declarations for `#prompter-scroll` children (`p`, `span`, `div`, `li`). This forces all text in the prompter view to display at the uniform, large size intended for presentation, overriding any inherited or inline styles from previously pasted rich text.
+
 ## [v2.11.2] — 2026-04-29
 ### Fixed
 - **TheWordTool**: Added a paste event listener to the rich text editor to intercept pasted text and format it as plain text. This prevents external formatting (e.g. black text on a black background) from ruining the editor's default dark mode styling.

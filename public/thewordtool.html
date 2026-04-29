@@ -444,6 +444,20 @@
     margin-bottom: 24px;
   }
 
+  /* Force override any pasted inline styles */
+  #prompter-scroll p,
+  #prompter-scroll div:not(#prompter-scroll),
+  #prompter-scroll span,
+  #prompter-scroll li {
+    font-size: clamp(28px, 4vw, 48px) !important;
+    line-height: 1.6 !important;
+    background-color: transparent !important;
+  }
+  
+  #prompter-scroll span {
+    color: inherit !important;
+  }
+
   #prompter-scroll strong, #prompter-scroll b { color: #fff; font-weight: 700; }
   #prompter-scroll em, #prompter-scroll i { font-style: italic; }
   #prompter-scroll u { text-decoration: underline; text-underline-offset: 4px; }
