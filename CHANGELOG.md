@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.11.4] — 2026-05-02
+### Fixed
+- **Testimony AI Processing**: The `/api/ai/process-testimony` route was incorrectly calling the Google Gemini API (with a non-existent `GEMINI_API_KEY`) instead of using the project's Straico integration. Rewrote to use `api.straico.com/v1/prompt/completion` with `STRAICO_API_KEY` and `STRAICO_MODEL`, matching the pattern from the working caption and chat AI routes. Also added `force-dynamic` export and robust Straico response parsing with 3 fallback extraction paths.
+
 ## [v2.11.3] — 2026-04-29
 ### Fixed
 - **TheWordTool**: Added `!important` to font-size, line-height, and background-color CSS declarations for `#prompter-scroll` children (`p`, `span`, `div`, `li`). This forces all text in the prompter view to display at the uniform, large size intended for presentation, overriding any inherited or inline styles from previously pasted rich text.
