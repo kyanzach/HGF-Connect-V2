@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.11.6] — 2026-05-13
+### Fixed
+- **TheWordTool — Scroll Centering**: Fixed the ▶▶ Next / double-tap advance scrolling too far, hiding text above the viewport. Replaced viewport-relative `getBoundingClientRect()` math with `offsetTop`-based calculation that correctly centers each paragraph in the visible area. Works reliably in both portrait and landscape orientations on tablets.
+
 ## [v2.11.5] — 2026-05-13
 ### Changed
 - **TheWordTool — Tablet UX Enhancements**:

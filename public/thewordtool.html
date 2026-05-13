@@ -2618,7 +2618,6 @@
   }
 
   function advanceAndMark() {
-    const scrollRect = scrollEl.getBoundingClientRect();
     // Content stops only — skip cues, slide markers, and empty/nbsp elements
     const stops = Array.from(
       scrollEl.querySelectorAll('p, h1, h2, blockquote, li')
@@ -2645,14 +2644,16 @@
       }
     }
     if (nextEl) {
-      // Center the next element in the viewport
-      const nextRect = nextEl.getBoundingClientRect();
-      const viewCenter = scrollRect.top + scrollRect.height / 2;
-      const offset = (nextRect.top + nextRect.height / 2) - viewCenter;
-      const newTop = scrollEl.scrollTop + offset;
-      scrollEl.scrollTo({ top: newTop, behavior: 'smooth' });
-      bookmarkScrollTop = newTop;
-      localStorage.setItem(BOOKMARK_KEY, String(Math.round(newTop)));
+      // Center the next element in the visible scroll area
+      // Use offsetTop (relative to scroll container) for accurate positioning
+      const elTop = nextEl.offsetTop;
+      const elHeight = nextEl.offsetHeight;
+      const containerHeight = scrollEl.clientHeight;
+      // scrollTop that places the element's center at the container's center
+      const newTop = elTop - (containerHeight / 2) + (elHeight / 2);
+      scrollEl.scrollTo({ top: Math.max(0, newTop), behavior: 'smooth' });
+      bookmarkScrollTop = Math.max(0, newTop);
+      localStorage.setItem(BOOKMARK_KEY, String(Math.round(bookmarkScrollTop)));
     } else {
       // End of script — finalize session!
       bookmarkScrollTop = scrollEl.scrollTop;
