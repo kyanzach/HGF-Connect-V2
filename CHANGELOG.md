@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.11.5] — 2026-05-13
+### Changed
+- **TheWordTool — Tablet UX Enhancements**:
+  - ▶▶ Next button is now dramatically larger and prominently styled (18–20px font, green glow, full-width on tablet/phone) so it's easy to press during live delivery
+  - Double-tapping anywhere on the prompter screen now advances to the next paragraph (same as pressing ▶▶ Next), with a visual green ripple feedback
+  - Auto-enters fullscreen when starting the prompter for distraction-free delivery
+  - First-time users see a brief "Double-tap anywhere to go to next" hint that auto-dismisses after 3.5s
+  - Mouse double-click also supported for desktop testing
+
 ## [v2.11.4] — 2026-05-02
 ### Fixed
 - **Testimony AI Processing**: The `/api/ai/process-testimony` route was incorrectly calling the Google Gemini API (with a non-existent `GEMINI_API_KEY`) instead of using the project's Straico integration. Rewrote to use `api.straico.com/v1/prompt/completion` with `STRAICO_API_KEY` and `STRAICO_MODEL`, matching the pattern from the working caption and chat AI routes. Also added `force-dynamic` export and robust Straico response parsing with 3 fallback extraction paths.

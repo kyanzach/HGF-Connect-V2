@@ -556,11 +556,65 @@
 
   .ctrl-btn.play-btn { width: 56px; height: 44px; font-size: 20px; }
 
+  /* ── Advance/Next Button — big and prominent ── */
+  #advance-btn {
+    background: #059669;
+    color: #fff;
+    font-weight: 700;
+    font-size: 18px;
+    padding: 14px 28px;
+    border-radius: 10px;
+    min-height: 52px;
+    min-width: 120px;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 8px rgba(5, 150, 105, 0.3);
+    transition: background 0.15s, transform 0.1s;
+  }
+  #advance-btn:hover { background: #047857; }
+  #advance-btn:active { transform: scale(0.96); background: #065f46; }
+
   #speed-display { color: #aaa; font-size: 14px; min-width: 80px; text-align: center; }
 
   .ctrl-group { display: flex; align-items: center; gap: 8px; }
   .divider { width: 1px; height: 28px; background: #333; margin: 0 4px; }
   #mode-label { font-size: 13px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+
+  /* ── Double-tap ripple feedback ── */
+  .tap-ripple {
+    position: absolute;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: rgba(5, 150, 105, 0.35);
+    transform: scale(0);
+    animation: ripple-expand 0.5s ease-out forwards;
+    pointer-events: none;
+    z-index: 5;
+  }
+  @keyframes ripple-expand {
+    0% { transform: scale(0); opacity: 1; }
+    100% { transform: scale(3); opacity: 0; }
+  }
+
+  /* ── Double-tap hint (shown briefly on first prompter start) ── */
+  #doubletap-hint {
+    position: absolute;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 15;
+    background: rgba(5, 150, 105, 0.85);
+    color: #fff;
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s;
+    white-space: nowrap;
+  }
+  #doubletap-hint.visible { opacity: 1; }
 
   #back-btn {
     position: absolute;
@@ -1236,6 +1290,18 @@
       height: 44px;
     }
 
+    /* Advance button even bigger on tablet */
+    #advance-btn {
+      font-size: 20px;
+      padding: 16px 36px;
+      min-height: 60px;
+      min-width: 160px;
+      border-radius: 12px;
+      order: -1;
+      flex-basis: 100%;
+      text-align: center;
+    }
+
     /* Back button with safe area */
     #back-btn {
       top: calc(12px + env(safe-area-inset-top));
@@ -1325,6 +1391,16 @@
     }
 
     #speed-display { font-size: 12px; min-width: 60px; }
+
+    /* Advance button big on phone too */
+    #advance-btn {
+      font-size: 18px;
+      padding: 14px 24px;
+      min-height: 56px;
+      min-width: 100%;
+      order: -1;
+      flex-basis: 100%;
+    }
 
     /* Panels full width */
     #open-panel, #history-panel {
@@ -1460,7 +1536,7 @@
     </div>
     <div class="divider"></div>
     <button class="ctrl-btn play-btn" id="play-btn">▶</button>
-    <button class="ctrl-btn" id="advance-btn" style="background:#059669;color:#fff;font-weight:600;">▶▶ Next</button>
+    <button class="ctrl-btn" id="advance-btn">▶▶ Next</button>
     <div class="divider"></div>
     <div class="ctrl-group">
       <button class="ctrl-btn" id="up-btn">▲</button>
@@ -1486,6 +1562,7 @@
     <div id="completion-msg"></div>
     <button id="completion-btn">← Back to Editor</button>
   </div>
+  <div id="doubletap-hint">👆 Double-tap anywhere to go to next</div>
 </div>
 
 <script>
@@ -2105,6 +2182,19 @@
     startSectionTracking();
     restoreBookmark();
     scrollEl.focus();
+
+    // Auto-enter fullscreen on start
+    if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    }
+
+    // Show double-tap hint briefly on first use
+    const hintKey = 'theword_doubletap_hint_shown';
+    if (!localStorage.getItem(hintKey)) {
+      const hint = document.getElementById('doubletap-hint');
+      setTimeout(() => hint.classList.add('visible'), 500);
+      setTimeout(() => { hint.classList.remove('visible'); localStorage.setItem(hintKey, '1'); }, 4000);
+    }
   });
 
   backBtn.addEventListener('click', () => {
@@ -2816,6 +2906,60 @@
   // ── Advance button (spacebar equivalent for touch) ──
   const advanceBtn = document.getElementById('advance-btn');
   advanceBtn.addEventListener('click', () => advanceAndMark());
+
+  // ══════════════════════════════════════
+  //  DOUBLE-TAP TO ADVANCE (whole screen)
+  // ══════════════════════════════════════
+  (function setupDoubleTap() {
+    let lastTapTime = 0;
+    const DOUBLE_TAP_DELAY = 400; // ms between taps
+
+    const prompterContainer = document.getElementById('prompter-container');
+
+    prompterContainer.addEventListener('touchend', (e) => {
+      if (!inPrompter) return;
+      // Ignore if tapping on a button or control
+      if (e.target.closest('#controls') || e.target.closest('#back-btn') || e.target.closest('button')) return;
+
+      const now = Date.now();
+      if (now - lastTapTime < DOUBLE_TAP_DELAY) {
+        // Double tap detected!
+        e.preventDefault();
+        advanceAndMark();
+
+        // Visual ripple feedback
+        const touch = e.changedTouches[0];
+        if (touch) {
+          const ripple = document.createElement('div');
+          ripple.className = 'tap-ripple';
+          ripple.style.left = (touch.clientX - 40) + 'px';
+          ripple.style.top = (touch.clientY - 40) + 'px';
+          prompterContainer.appendChild(ripple);
+          setTimeout(() => ripple.remove(), 600);
+        }
+
+        lastTapTime = 0; // Reset to prevent triple-tap triggering again
+      } else {
+        lastTapTime = now;
+      }
+    }, { passive: false });
+
+    // Also support mouse double-click for desktop/laptop testing
+    prompterContainer.addEventListener('dblclick', (e) => {
+      if (!inPrompter) return;
+      if (e.target.closest('#controls') || e.target.closest('#back-btn') || e.target.closest('button')) return;
+      e.preventDefault();
+      advanceAndMark();
+
+      // Visual ripple feedback
+      const ripple = document.createElement('div');
+      ripple.className = 'tap-ripple';
+      ripple.style.left = (e.clientX - 40) + 'px';
+      ripple.style.top = (e.clientY - 40) + 'px';
+      prompterContainer.appendChild(ripple);
+      setTimeout(() => ripple.remove(), 600);
+    });
+  })();
 
 })();
 </script>
