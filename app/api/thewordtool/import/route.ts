@@ -125,6 +125,8 @@ export async function POST(req: NextRequest) {
       .replace(/&#39;/g, "'")
       .replace(/&nbsp;/g, ' ')
       .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+      // Remove lines that are only whitespace (common &nbsp; empty paragraphs)
+      .replace(/^\s+$/gm, '')
       // Clean up: collapse 3+ newlines into 2
       .replace(/\n{3,}/g, '\n\n')
       .trim();
