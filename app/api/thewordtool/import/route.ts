@@ -79,25 +79,31 @@ export async function POST(req: NextRequest) {
     }
 
     // Extract article content from JustPaste.it
-    // The main content is inside <div class="jp-article"> ... </div>
+    // The main content is inside <div id="articleContent"> ... </div>
     let content = '';
 
-    // Try jp-article div first (main JustPaste content container)
-    const jpArticleMatch = html.match(/<div[^>]*class="[^"]*\bjp-article\b[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/i);
-    if (jpArticleMatch) {
-      content = jpArticleMatch[1];
+    // Try id="articleContent" first (actual JustPaste.it DOM structure)
+    const articleContentMatch = html.match(/<div\s+id="articleContent"[^>]*>([\s\S]*?)<\/div>\s*(?:<div\s+(?:id|class)=)/i);
+    if (articleContentMatch) {
+      content = articleContentMatch[1];
     } else {
-      // Try article tag
-      const articleMatch = html.match(/<article[^>]*>([\s\S]*?)<\/article>/i);
-      if (articleMatch) {
-        content = articleMatch[1];
+      // Greedy fallback for articleContent (grab everything until a known footer element)
+      const articleFallback = html.match(/<div\s+id="articleContent"[^>]*>([\s\S]*?)<div\s+class="articleBottomWidgetPlaceholder"/i);
+      if (articleFallback) {
+        content = articleFallback[1];
       } else {
-        // Fallback: try to find the main content area
-        const bodyMatch = html.match(/<div[^>]*class="[^"]*\barticle\b[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
-        if (bodyMatch) {
-          content = bodyMatch[1];
+        // Try jp-article div
+        const jpArticleMatch = html.match(/<div[^>]*class="[^"]*\bjp-article\b[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/i);
+        if (jpArticleMatch) {
+          content = jpArticleMatch[1];
         } else {
-          return NextResponse.json({ error: 'Could not extract content from page.' }, { status: 422 });
+          // Try article tag
+          const articleMatch = html.match(/<article[^>]*>([\s\S]*?)<\/article>/i);
+          if (articleMatch) {
+            content = articleMatch[1];
+          } else {
+            return NextResponse.json({ error: 'Could not extract content from page.' }, { status: 422 });
+          }
         }
       }
     }
