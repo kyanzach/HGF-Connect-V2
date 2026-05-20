@@ -1,6 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server';
+import https from 'https';
+import http from 'http';
 
 export const dynamic = 'force-dynamic';
+
+// Force IPv4 agent — JustPaste.it has an IPv6 AAAA record that is
+// unreachable from the DigitalOcean droplet, causing Node.js fetch()
+// to hang with ETIMEDOUT. Using https.Agent with family:4 forces IPv4.
+const ipv4Agent = new https.Agent({ family: 4 });
+const ipv4AgentHttp = new http.Agent({ family: 4 });
+
+/**
+ * Fetch a URL using Node.js http/https with IPv4 forced.
+ * Returns the response body as a string.
+ */
+function fetchIPv4(url: string, maxRedirects = 5): Promise<{ status: number; body: string }> {
+  return new Promise((resolve, reject) => {
+    const isHttps = url.startsWith('https');
+    const mod = isHttps ? https : http;
+    const agent = isHttps ? ipv4Agent : ipv4AgentHttp;
+
+    const req = mod.get(url, {
+      agent,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml',
+      },
+      timeout: 15000,
+    }, (res) => {
+      // Handle redirects
+      if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        if (maxRedirects <= 0) { reject(new Error('Too many redirects')); return; }
+        const redirectUrl = res.headers.location.startsWith('http')
+          ? res.headers.location
+          : new URL(res.headers.location, url).href;
+        res.resume(); // drain the response
+        fetchIPv4(redirectUrl, maxRedirects - 1).then(resolve).catch(reject);
+        return;
+      }
+
+      let data = '';
+      res.setEncoding('utf8');
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => resolve({ status: res.statusCode || 200, body: data }));
+      res.on('error', reject);
+    });
+
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('Request timed out')); });
+  });
+}
 
 /**
  * POST /api/thewordtool/import
@@ -22,24 +71,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Only JustPaste.it and jpst.it URLs are supported.' }, { status: 400 });
     }
 
-    // Fetch the page HTML
-    const resp = await fetch(trimmed, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml',
-      },
-      redirect: 'follow',
-    });
+    // Fetch the page HTML using IPv4-forced agent
+    const { status, body: html } = await fetchIPv4(trimmed);
 
-    if (!resp.ok) {
-      return NextResponse.json({ error: `Failed to fetch page (HTTP ${resp.status})` }, { status: 502 });
+    if (status !== 200) {
+      return NextResponse.json({ error: `Failed to fetch page (HTTP ${status})` }, { status: 502 });
     }
-
-    const html = await resp.text();
 
     // Extract article content from JustPaste.it
     // The main content is inside <div class="jp-article"> ... </div>
-    // or inside <article> tags
     let content = '';
 
     // Try jp-article div first (main JustPaste content container)

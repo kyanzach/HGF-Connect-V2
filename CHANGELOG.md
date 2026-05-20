@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.12.1] — 2026-05-20
+### Fixed
+- **TheWordTool — Import ETIMEDOUT**: Rewrote the import API to use Node.js native `https.get` with `family: 4` agent instead of `fetch()`. JustPaste.it has an IPv6 AAAA record that is unreachable from the DigitalOcean droplet — Node.js `fetch()` tries IPv6 first and hangs, while `curl` (which falls back to IPv4) works fine. Also added 15s timeout and redirect-following support.
+
 ## [v2.12.0] — 2026-05-20
 ### Added
 - **TheWordTool — Import from JustPaste.it**: New "📥 Import" button in the file bar. Opens a modal where you can paste a JustPaste.it URL (full `justpaste.it/xxxxx` or short `jpst.it/xxxxx`). The tool fetches the content server-side via a new API route (`/api/thewordtool/import`), extracts the article text, and loads it directly into the editor — no copy-paste formatting issues.
