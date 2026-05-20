@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.12.0] — 2026-05-20
+### Added
+- **TheWordTool — Import from JustPaste.it**: New "📥 Import" button in the file bar. Opens a modal where you can paste a JustPaste.it URL (full `justpaste.it/xxxxx` or short `jpst.it/xxxxx`). The tool fetches the content server-side via a new API route (`/api/thewordtool/import`), extracts the article text, and loads it directly into the editor — no copy-paste formatting issues.
+
+### Fixed
+- **TheWordTool — Paste formatting**: Rewrote the paste handler to collapse excessive blank lines. When pasting text from Notes, JustPaste.it, or other apps, consecutive newlines are collapsed so the text doesn't have huge gaps between every sentence. Single line breaks between content are preserved, but 3+ blank lines are reduced to a proper paragraph break.
+
 ## [v2.11.6] — 2026-05-13
 ### Fixed
 - **TheWordTool — Scroll Centering**: Fixed the ▶▶ Next / double-tap advance scrolling too far, hiding text above the viewport. Replaced viewport-relative `getBoundingClientRect()` math with `offsetTop`-based calculation that correctly centers each paragraph in the visible area. Works reliably in both portrait and landscape orientations on tablets.

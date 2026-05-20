@@ -1126,6 +1126,90 @@
   .choice-popup.visible { display: flex; gap: 4px; }
   .choice-popup .file-btn { white-space: nowrap; }
 
+  /* ── Import Modal ── */
+  #import-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    justify-content: center;
+    align-items: center;
+  }
+  #import-overlay.visible { display: flex; }
+  #import-modal {
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 12px;
+    box-shadow: 0 12px 48px rgba(0,0,0,0.8);
+    width: 90%;
+    max-width: 500px;
+    padding: 24px;
+  }
+  #import-modal h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 4px;
+  }
+  #import-modal .import-desc {
+    font-size: 13px;
+    color: #888;
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+  #import-url-input {
+    width: 100%;
+    padding: 12px 14px;
+    font-size: 14px;
+    background: #111;
+    color: #eee;
+    border: 1px solid #444;
+    border-radius: 8px;
+    font-family: inherit;
+    outline: none;
+  }
+  #import-url-input:focus { border-color: #2563eb; }
+  #import-url-input::placeholder { color: #555; }
+  #import-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+    justify-content: flex-end;
+  }
+  #import-actions button {
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s;
+  }
+  #import-cancel-btn {
+    background: #333;
+    color: #ccc;
+  }
+  #import-cancel-btn:hover { background: #444; }
+  #import-fetch-btn {
+    background: #2563eb;
+    color: #fff;
+  }
+  #import-fetch-btn:hover { background: #1d4ed8; }
+  #import-fetch-btn:disabled {
+    background: #333;
+    color: #666;
+    cursor: not-allowed;
+  }
+  #import-error {
+    margin-top: 10px;
+    font-size: 13px;
+    color: #ef4444;
+    display: none;
+  }
+
   /* ── Loading spinner ── */
   .fm-loading {
     display: flex;
@@ -1462,6 +1546,7 @@
     <button class="file-btn" id="btn-save-server">☁ Server</button>
     <button class="file-btn" id="btn-save-local">💾 Local <kbd>⇧⌘S</kbd></button>
     <button class="file-btn" id="btn-history">📊 History</button>
+    <button class="file-btn" id="btn-import" title="Import from JustPaste.it URL">📥 Import</button>
 
     <div id="open-panel">
       <div class="panel-header">
@@ -1716,9 +1801,131 @@
 
   editor.addEventListener('paste', (e) => {
     e.preventDefault();
-    const text = (e.originalEvent || e).clipboardData.getData('text/plain');
+    let text = (e.originalEvent || e).clipboardData.getData('text/plain');
+    // Clean up excessive blank lines: collapse 3+ consecutive newlines into 2
+    text = text.replace(/\n{3,}/g, '\n\n');
+    // Also collapse lines that are just whitespace between real content
+    text = text.replace(/(\S)\n\n+(\S)/g, '$1\n$2');
     document.execCommand('insertText', false, text);
   });
+
+  // ══════════════════════════════════════
+  //  IMPORT FROM URL (JustPaste.it)
+  // ══════════════════════════════════════
+  (function initImport() {
+    // Build overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'import-overlay';
+    overlay.innerHTML = `
+      <div id="import-modal">
+        <h3>📥 Import from URL</h3>
+        <p class="import-desc">Paste a JustPaste.it link to import the script directly.<br>Supports <b>justpaste.it</b> and <b>jpst.it</b> short links.</p>
+        <input id="import-url-input" type="url" placeholder="https://justpaste.it/xxxxx or https://jpst.it/xxxxx" autocomplete="off" />
+        <div id="import-error"></div>
+        <div id="import-actions">
+          <button id="import-cancel-btn">Cancel</button>
+          <button id="import-fetch-btn">Import</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const urlInput = document.getElementById('import-url-input');
+    const fetchBtn = document.getElementById('import-fetch-btn');
+    const cancelBtn = document.getElementById('import-cancel-btn');
+    const errorEl = document.getElementById('import-error');
+
+    function openImportModal() {
+      urlInput.value = '';
+      errorEl.style.display = 'none';
+      fetchBtn.disabled = false;
+      fetchBtn.textContent = 'Import';
+      overlay.classList.add('visible');
+      setTimeout(() => urlInput.focus(), 100);
+    }
+
+    function closeImportModal() {
+      overlay.classList.remove('visible');
+    }
+
+    document.getElementById('btn-import').addEventListener('click', openImportModal);
+    cancelBtn.addEventListener('click', closeImportModal);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeImportModal(); });
+
+    urlInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); doImport(); }
+      if (e.key === 'Escape') closeImportModal();
+    });
+
+    fetchBtn.addEventListener('click', doImport);
+
+    async function doImport() {
+      const url = urlInput.value.trim();
+      if (!url) { showImportError('Please enter a URL.'); return; }
+
+      // Quick client-side validation
+      if (!/^https?:\/\/(www\.)?(justpaste\.it|jpst\.it)\//i.test(url)) {
+        showImportError('Only JustPaste.it and jpst.it URLs are supported.');
+        return;
+      }
+
+      fetchBtn.disabled = true;
+      fetchBtn.textContent = 'Importing…';
+      errorEl.style.display = 'none';
+
+      try {
+        const resp = await fetch('/api/thewordtool/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url }),
+        });
+        const data = await resp.json();
+
+        if (!resp.ok || data.error) {
+          showImportError(data.error || 'Import failed.');
+          fetchBtn.disabled = false;
+          fetchBtn.textContent = 'Import';
+          return;
+        }
+
+        // Insert content into editor
+        // Convert plain text newlines to HTML paragraphs
+        const paragraphs = data.content.split(/\n\n+/);
+        const html = paragraphs
+          .map(p => '<p>' + p.replace(/\n/g, '<br>') + '</p>')
+          .join('');
+
+        if (isDirty && editor.innerText.trim()) {
+          if (!confirm('This will replace the current content. Continue?')) {
+            fetchBtn.disabled = false;
+            fetchBtn.textContent = 'Import';
+            return;
+          }
+        }
+
+        editor.innerHTML = html || '<p><br></p>';
+        if (data.title) {
+          currentFileName = data.title;
+        }
+        isDirty = true;
+        savedToServer = false;
+        updateTitle();
+        syncDraft();
+        closeImportModal();
+        showToast('Imported successfully!');
+        editor.focus();
+      } catch (err) {
+        showImportError('Network error. Please try again.');
+        fetchBtn.disabled = false;
+        fetchBtn.textContent = 'Import';
+      }
+    }
+
+    function showImportError(msg) {
+      errorEl.textContent = msg;
+      errorEl.style.display = 'block';
+    }
+  })();
 
   // ══════════════════════════════════════
   //  FILE MANAGER (server folders + scripts)
