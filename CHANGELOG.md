@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.13.0] — 2026-05-20
+### Added
+- **TheWordTool — Sticky Toolbar**: File bar and formatting toolbar are now frozen/sticky at the top of the screen (like Excel's freeze panes). They stay visible while scrolling long scripts, so you never have to scroll back up to access tools. Includes iPhone notch safe-area support.
+- **TheWordTool — Undo/Redo Buttons**: Added ↩ Undo and ↪ Redo buttons at the start of the toolbar. Works via browser's native undo stack (same as ⌘Z / ⌘⇧Z keyboard shortcuts).
+
 ## [v2.12.1] — 2026-05-20
 ### Fixed
 - **TheWordTool — Import ETIMEDOUT**: Rewrote the import API to use Node.js native `https.get` with `family: 4` agent instead of `fetch()`. JustPaste.it has an IPv6 AAAA record that is unreachable from the DigitalOcean droplet — Node.js `fetch()` tries IPv6 first and hangs, while `curl` (which falls back to IPv4) works fine. Also added 15s timeout and redirect-following support.

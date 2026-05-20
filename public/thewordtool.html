@@ -145,7 +145,11 @@
     align-items: center;
     gap: 4px;
     margin-bottom: 8px;
-    position: relative;
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    background: #111;
+    padding-bottom: 4px;
   }
 
   .file-btn {
@@ -261,6 +265,9 @@
     border-bottom: none;
     border-radius: 8px 8px 0 0;
     flex-wrap: wrap;
+    position: sticky;
+    top: 38px;
+    z-index: 39;
   }
 
   .tb-btn {
@@ -1239,6 +1246,15 @@
       padding-top: calc(12px + env(safe-area-inset-top));
     }
 
+    #file-bar {
+      top: 0;
+      padding-top: env(safe-area-inset-top);
+    }
+
+    #toolbar {
+      top: 52px;
+    }
+
     #header h1 { font-size: 20px; }
 
     #file-name {
@@ -1570,6 +1586,9 @@
   </div>
 
   <div id="toolbar">
+    <button class="tb-btn" id="btn-undo" title="Undo (⌘Z)">↩</button>
+    <button class="tb-btn" id="btn-redo" title="Redo (⌘⇧Z)">↪</button>
+    <div class="tb-sep"></div>
     <button class="tb-btn" data-cmd="bold" title="Bold (⌘B)"><span class="lbl-b">B</span></button>
     <button class="tb-btn" data-cmd="italic" title="Italic (⌘I)"><span class="lbl-i">I</span></button>
     <button class="tb-btn" data-cmd="underline" title="Underline (⌘U)"><span class="lbl-u">U</span></button>
@@ -2355,6 +2374,18 @@
         document.execCommand('formatBlock', false, 'P');
         break;
     }
+  });
+
+  // ── Undo / Redo buttons ──
+  document.getElementById('btn-undo').addEventListener('click', (e) => {
+    e.preventDefault();
+    editor.focus();
+    document.execCommand('undo');
+  });
+  document.getElementById('btn-redo').addEventListener('click', (e) => {
+    e.preventDefault();
+    editor.focus();
+    document.execCommand('redo');
   });
 
   // ══════════════════════════════════════
