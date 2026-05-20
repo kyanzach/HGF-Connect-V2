@@ -367,6 +367,12 @@
     align-items: center;
     gap: 12px;
     margin-top: 12px;
+    position: sticky;
+    bottom: 0;
+    z-index: 38;
+    background: #111;
+    padding-top: 8px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
   }
 
   #service-type {
