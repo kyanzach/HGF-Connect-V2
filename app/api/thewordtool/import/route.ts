@@ -108,28 +108,48 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Convert HTML to clean text
-    // Replace <br> and block-level closing tags with newlines
+    // Convert HTML to clean text, preserving paragraph structure
+    // JustPaste.it uses <p>&nbsp;</p> for spacing between sections —
+    // we preserve those as empty lines so the editor keeps the breathing room.
+
+    // Step 1: Normalize <br> within paragraphs to a placeholder
+    content = content.replace(/<br\s*\/?>/gi, '{{BR}}');
+
+    // Step 2: Mark empty paragraphs (nbsp-only or truly empty) BEFORE stripping tags
+    content = content.replace(/<p[^>]*>\s*(?:&nbsp;|\s)*<\/p>/gi, '{{EMPTY_LINE}}');
+
+    // Step 3: Convert each closing block tag to a newline
+    content = content.replace(/<\/(?:p|div|h[1-6]|li|tr|blockquote)>/gi, '\n');
+    // Strip opening block tags
+    content = content.replace(/<(?:p|div|h[1-6]|li|tr|blockquote)[^>]*>/gi, '');
+    content = content.replace(/<hr[^>]*>/gi, '\n---\n');
+
+    // Step 4: Remove all remaining HTML tags
+    content = content.replace(/<[^>]+>/g, '');
+
+    // Step 5: Decode HTML entities
     content = content
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<\/(?:p|div|h[1-6]|li|tr|blockquote)>/gi, '\n')
-      .replace(/<(?:p|div|h[1-6]|li|tr|blockquote)[^>]*>/gi, '\n')
-      .replace(/<hr[^>]*>/gi, '\n---\n')
-      // Remove all other HTML tags
-      .replace(/<[^>]+>/g, '')
-      // Decode HTML entities
       .replace(/&amp;/g, '&')
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
       .replace(/&quot;/g, '"')
       .replace(/&#39;/g, "'")
       .replace(/&nbsp;/g, ' ')
-      .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
-      // Remove lines that are only whitespace (common &nbsp; empty paragraphs)
-      .replace(/^\s+$/gm, '')
-      // Clean up: collapse 3+ newlines into 2
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
+      .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
+
+    // Step 6: Restore markers
+    content = content.replace(/\{\{BR\}\}/g, '\n');
+    content = content.replace(/\{\{EMPTY_LINE\}\}/g, '\n');
+
+    // Step 7: Trim each line's trailing whitespace, but keep empty lines
+    content = content
+      .split('\n')
+      .map(line => line.trimEnd())
+      .join('\n');
+
+    // Step 8: Collapse runs of 4+ newlines to 3 (keeping some breathing room)
+    content = content.replace(/\n{4,}/g, '\n\n\n');
+    content = content.trim();
 
     if (!content) {
       return NextResponse.json({ error: 'Page content appears to be empty.' }, { status: 422 });

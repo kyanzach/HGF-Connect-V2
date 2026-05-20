@@ -1889,10 +1889,10 @@
         }
 
         // Insert content into editor
-        // Convert plain text newlines to HTML paragraphs
-        const paragraphs = data.content.split(/\n\n+/);
-        const html = paragraphs
-          .map(p => '<p>' + p.replace(/\n/g, '<br>') + '</p>')
+        // Each line → <p>, empty lines → <p><br></p> for spacing
+        const lines = data.content.split('\n');
+        const html = lines
+          .map(line => line.trim() ? '<p>' + line + '</p>' : '<p><br></p>')
           .join('');
 
         if (isDirty && editor.innerText.trim()) {
