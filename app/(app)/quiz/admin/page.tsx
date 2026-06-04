@@ -46,23 +46,29 @@ export default function QuizAdminPage() {
   const [loadingEvent, setLoadingEvent] = useState(false);
 
   useEffect(() => {
-    if (!sermonDate) {
-      setLinkedEvent(null);
-      return;
-    }
     setLoadingEvent(true);
-    fetch(`/api/quiz/admin/latest-sunday?date=${sermonDate}`)
+    fetch("/api/quiz/admin/latest-sunday")
       .then((res) => res.json())
       .then((data) => {
         if (data && data.id) {
           setLinkedEvent(data);
+          // Format eventDate (YYYY-MM-DD) for API compatibility
+          const d = new Date(data.eventDate);
+          const yyyy = d.getFullYear();
+          const mm = String(d.getMonth() + 1).padStart(2, "0");
+          const dd = String(d.getDate()).padStart(2, "0");
+          setSermonDate(`${yyyy}-${mm}-${dd}`);
         } else {
           setLinkedEvent(null);
+          setSermonDate("");
         }
       })
-      .catch(() => setLinkedEvent(null))
+      .catch(() => {
+        setLinkedEvent(null);
+        setSermonDate("");
+      })
       .finally(() => setLoadingEvent(false));
-  }, [sermonDate]);
+  }, []);
 
   // ── Alert state ──
   const [alertModal, setAlertModal] = useState<{
@@ -118,8 +124,8 @@ export default function QuizAdminPage() {
 
   // ── Generate quiz via AI ──
   async function handleGenerate() {
-    if (!sermonDate) {
-      setGenError("Please enter a sermon date first");
+    if (!linkedEvent) {
+      setGenError("No physical Sunday Service event found to link the sermon to. Please add a Sunday Service event first.");
       return;
     }
     if (!sermonText || !sermonText.trim()) {
@@ -151,6 +157,10 @@ export default function QuizAdminPage() {
 
   // ── Save as draft ──
   async function handleSave() {
+    if (!linkedEvent) {
+      showAlert("Error", "No linked Sunday Service event found. You must have a physical Sunday Service event to save a quiz.", "error");
+      return;
+    }
     setSaving(true);
     try {
       const res = await fetch("/api/quiz/save", {
@@ -164,7 +174,7 @@ export default function QuizAdminPage() {
           transcriptText: sermonText || null,
           announcementCaption: generatedCaption,
           questions: generatedQuestions,
-          eventId: linkedEvent?.id || null,
+          eventId: linkedEvent.id,
         }),
       });
       const data = await res.json();
@@ -181,6 +191,10 @@ export default function QuizAdminPage() {
 
   // ── Publish ──
   async function handlePublish() {
+    if (!linkedEvent) {
+      showAlert("Error", "No linked Sunday Service event found. You must have a physical Sunday Service event to publish a quiz.", "error");
+      return;
+    }
     if (!savedQuizId) {
       // Auto-save first
       setSaving(true);
@@ -195,7 +209,7 @@ export default function QuizAdminPage() {
             transcriptText: sermonText || null,
             announcementCaption: generatedCaption,
             questions: generatedQuestions,
-            eventId: linkedEvent?.id || null,
+            eventId: linkedEvent.id,
           }),
         });
         const data = await res.json();
@@ -412,14 +426,6 @@ export default function QuizAdminPage() {
           ✨ Create New Quiz Week
         </div>
 
-        <label style={S.label}>Sermon Date</label>
-        <input
-          type="date"
-          value={sermonDate}
-          onChange={(e) => setSermonDate(e.target.value)}
-          style={S.input}
-        />
-
         <div style={{ marginTop: "16px", padding: "14px", borderRadius: "12px", background: "#f8fafc", border: "1px dashed #cbd5e1" }}>
           <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>
             🔗 Automatically Linked Event (Sunday Gating)
@@ -433,13 +439,9 @@ export default function QuizAdminPage() {
                 📅 Event Date: {new Date(linkedEvent.eventDate).toLocaleDateString()}
               </span>
             </div>
-          ) : !sermonDate ? (
-            <p style={{ margin: "4px 0 0", fontSize: "0.9rem", color: "#64748b" }}>
-              Please select a sermon date above to automatically link the nearest Sunday Service event.
-            </p>
           ) : (
             <p style={{ margin: "4px 0 0", fontSize: "0.9rem", color: "#ef4444", fontWeight: 600 }}>
-              ⚠️ No physical Sunday Service event found on or before this date! Gating will be disabled.
+              ⚠️ No physical Sunday Service event found! Gating will be disabled.
             </p>
           )}
         </div>

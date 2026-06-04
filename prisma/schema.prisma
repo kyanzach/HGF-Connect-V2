@@ -1077,8 +1077,8 @@ model SermonQuiz {
   createdAt             DateTime         @default(now()) @map("created_at")
   updatedAt             DateTime         @updatedAt @map("updated_at")
 
-  eventId               Int?             @map("event_id")
-  event                 Event?           @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  eventId               Int              @map("event_id")
+  event                 Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   creator               Member           @relation("QuizCreator", fields: [createdById], references: [id])
   questions             QuizQuestion[]

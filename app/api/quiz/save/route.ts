@@ -47,10 +47,16 @@ export async function POST(request: Request) {
     if (!title || !sermonDate || !questions?.length) {
       return NextResponse.json({ error: "Title, sermon date, and questions are required" }, { status: 400 });
     }
+    if (!eventId) {
+      return NextResponse.json({ error: "Linked Sunday Service event (eventId) is required" }, { status: 400 });
+    }
 
     const memberId = parseInt(session.user.id, 10);
     const youtubeVideoId = youtubeUrl ? extractVideoId(youtubeUrl) : null;
-    const parsedEventId = eventId ? parseInt(eventId, 10) : null;
+    const parsedEventId = parseInt(eventId, 10);
+    if (isNaN(parsedEventId)) {
+      return NextResponse.json({ error: "Invalid Event ID" }, { status: 400 });
+    }
 
     if (quizId) {
       // ── Update existing draft ──
@@ -69,7 +75,7 @@ export async function POST(request: Request) {
           youtubeVideoId: youtubeVideoId || null,
           transcriptText: transcriptText || null,
           announcementCaption: announcementCaption || null,
-          eventId: parsedEventId || null,
+          eventId: parsedEventId,
         },
       });
 
@@ -101,7 +107,7 @@ export async function POST(request: Request) {
           announcementCaption: announcementCaption || null,
           status: "draft",
           createdById: memberId,
-          eventId: parsedEventId || null,
+          eventId: parsedEventId,
           questions: {
             create: questions.map((q: any) => ({
               dayNumber: q.dayNumber,

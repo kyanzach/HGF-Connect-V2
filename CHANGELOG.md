@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.17.0] — 2026-06-05
+### Added
+- **Database-Enforced Sunday Gating**: Updated the `SermonQuiz` schema to make `eventId` required and non-nullable, enforcing that every sermon quiz is strictly associated with a physical Sunday Service event.
+- **Auto-linking Validation**: Replaced the manual Sermon Date picker on the Admin creation dashboard with auto-fetching of the most recent physical Sunday Service event. Added strict validations preventing quiz saving or publishing if no Sunday Service event is found.
+
 ## [v2.16.1] — 2026-06-04
 ### Fixed
 - **Empty Sermon Date Guidance**: Fixed the Sunday Service gating status box showing a red database warning immediately upon opening the page before the admin has selected a sermon date. It now displays neutral guiding placeholder text.
