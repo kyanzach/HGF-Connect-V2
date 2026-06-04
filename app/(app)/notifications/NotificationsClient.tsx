@@ -18,6 +18,8 @@ function typeIcon(type: string) {
     new_post: "✍️", new_comment: "💬", comment_reply: "↩️",
     mention: "📣", new_like: "❤️", new_member: "👋",
     new_marketplace: "🛍️", prayer_response: "🙏",
+    quiz_announcement: "🧠", quiz_daily: "🧠", quiz_result: "🎯",
+    quiz_reward: "🎁",
   };
   return icons[type] ?? "🔔";
 }

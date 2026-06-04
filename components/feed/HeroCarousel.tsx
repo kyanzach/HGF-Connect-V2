@@ -31,6 +31,7 @@ export default function HeroCarousel({ firstName }: HeroCarouselProps) {
   const [idx, setIdx] = useState(0);
   const [event, setEvent] = useState<UpcomingEvent | null>(null);
   const [prayer, setPrayer] = useState<PrayerSpotlight | null>(null);
+  const [quizProgress, setQuizProgress] = useState<{ active: boolean; title?: string; completed?: number } | null>(null);
   const touchStartX = useRef<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -167,7 +168,7 @@ export default function HeroCarousel({ firstName }: HeroCarouselProps) {
     );
   }, []);
 
-  // Fetch upcoming event + prayer spotlight
+  // Fetch upcoming event + prayer spotlight + active quiz progress
   useEffect(() => {
     let mounted = true;
     fetch("/api/events?upcoming=true&limit=1")
@@ -183,15 +184,60 @@ export default function HeroCarousel({ firstName }: HeroCarouselProps) {
         if (mounted && d.requests?.[0]) setPrayer(d.requests[0]);
       })
       .catch(() => {});
+
+    fetch("/api/quiz/status")
+      .then((r) => r.json())
+      .then((d) => {
+        if (mounted && d.active) {
+          setQuizProgress({
+            active: true,
+            title: d.quiz.title,
+            completed: d.progress.completed,
+          });
+        }
+      })
+      .catch(() => {});
+
     return () => { mounted = false; };
   }, []);
 
-  // Build slides array — always Welcome first, conditionally add Event + Prayer
+  // Build slides array — always Welcome first, conditionally add Event + Prayer + Quiz
   const slides: { key: string; render: () => ReactNode }[] = [
     { key: "welcome", render: renderWelcome },
   ];
   if (event) slides.push({ key: "event", render: () => renderEvent(event) });
   if (prayer) slides.push({ key: "prayer", render: () => renderPrayer(prayer) });
+  if (quizProgress?.active) {
+    slides.push({
+      key: "quiz",
+      render: () => (
+        <>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
+            <span style={{ fontSize: "1.75rem" }}>🧠</span>
+            <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+              Quiz for Christ is LIVE!
+            </span>
+          </div>
+          <h2 style={{ fontSize: "1.125rem", fontWeight: 800, color: "white", margin: "0 0 0.375rem", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>
+            {quizProgress.title}
+          </h2>
+          <p style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.85)", margin: "0 0 0.625rem" }}>
+            📊 Progress: {quizProgress.completed}/5 days complete
+          </p>
+          <Link
+            href="/quiz"
+            style={{
+              display: "inline-block", background: "white", color: PRIMARY,
+              padding: "0.4rem 1rem", borderRadius: "999px", fontSize: "0.8rem",
+              fontWeight: 700, textDecoration: "none",
+            }}
+          >
+            Play Now →
+          </Link>
+        </>
+      ),
+    });
+  }
 
   const total = slides.length;
 

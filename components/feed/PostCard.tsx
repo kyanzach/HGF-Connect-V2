@@ -48,6 +48,8 @@ const TYPE_LABELS: Record<string, { icon: string; label: string; color: string }
   EVENT:         { icon: "📅",  label: "Event",         color: "#E74C3C" },
   PROFILE_PHOTO: { icon: "📷",  label: "Profile Photo", color: "#0ea5e9" },
   COVER_PHOTO:   { icon: "🖼️", label: "Cover Photo",   color: "#8b5cf6" },
+  QUIZ_ANNOUNCEMENT: { icon: "🧠", label: "Quiz Week",       color: PRIMARY },
+  QUIZ_DAILY:        { icon: "🧠", label: "Daily Challenge", color: PRIMARY },
 };
 
 export default function PostCard({ post }: PostCardProps) {
@@ -90,10 +92,13 @@ export default function PostCard({ post }: PostCardProps) {
     return () => clearInterval(id);
   }, [post.id]);
 
-  const authorName = `${post.author.firstName} ${post.author.lastName}`;
-  const initials = `${post.author.firstName[0]}${post.author.lastName[0]}`.toUpperCase();
+  const isQuizPost = post.type === "QUIZ_ANNOUNCEMENT" || post.type === "QUIZ_DAILY";
+  const authorName = isQuizPost ? "HGF Quiz For Christ" : `${post.author.firstName} ${post.author.lastName}`;
+  const initials = isQuizPost ? "🧠" : `${post.author.firstName[0]}${post.author.lastName[0]}`.toUpperCase();
   const typeInfo = TYPE_LABELS[post.type] ?? TYPE_LABELS.TEXT;
-  const profilePic = post.author.profilePicture
+  const profilePic = isQuizPost
+    ? null
+    : post.author.profilePicture
     ? `/uploads/profile_pictures/${post.author.profilePicture}`
     : null;
   const isOwnPost = session?.user?.id === String(post.author.id);
@@ -140,8 +145,8 @@ export default function PostCard({ post }: PostCardProps) {
         <div style={{ display: "flex", alignItems: "center", padding: "0.875rem 1rem 0.5rem", gap: "0.625rem" }}>
           {/* Avatar */}
           <button
-            onClick={() => router.push(`/member/${post.author.id}`)}
-            aria-label={`View ${authorName}'s profile`}
+            onClick={() => router.push(isQuizPost ? "/quiz/hub" : `/member/${post.author.id}`)}
+            aria-label={isQuizPost ? "View Quiz Brand Hub" : `View ${authorName}'s profile`}
             style={{ width: 40, height: 40, borderRadius: "50%", overflow: "hidden", flexShrink: 0, border: "none", padding: 0, cursor: "pointer", background: PRIMARY, display: "flex", alignItems: "center", justifyContent: "center" }}
           >
             {profilePic ? (
@@ -152,7 +157,7 @@ export default function PostCard({ post }: PostCardProps) {
           </button>
 
           <div style={{ flex: 1, minWidth: 0 }}>
-            <button onClick={() => router.push(`/member/${post.author.id}`)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left" }}>
+            <button onClick={() => router.push(isQuizPost ? "/quiz/hub" : `/member/${post.author.id}`)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left" }}>
               <span style={{ fontWeight: 700, fontSize: "0.9rem", color: "#1e293b" }}>{authorName}</span>
             </button>
             <div style={{ display: "flex", alignItems: "center", gap: "0.375rem" }}>
@@ -178,9 +183,9 @@ export default function PostCard({ post }: PostCardProps) {
             )}
             {menuOpen && (
               <div style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", background: "white", borderRadius: "12px", boxShadow: "0 4px 20px rgba(0,0,0,0.15)", minWidth: 160, zIndex: 11, overflow: "hidden" }}>
-                <button onClick={() => { setMenuOpen(false); router.push(`/member/${post.author.id}`); }} style={menuItemStyle}>👤 View Profile</button>
+                <button onClick={() => { setMenuOpen(false); router.push(isQuizPost ? "/quiz/hub" : `/member/${post.author.id}`); }} style={menuItemStyle}>👤 {isQuizPost ? "View Brand Hub" : "View Profile"}</button>
                 <button onClick={() => { setMenuOpen(false); setCommentsOpen(true); }} style={menuItemStyle}>💬 View Comments</button>
-                {isOwnPost && post.type !== "EVENT" && <button onClick={handleDelete} style={{ ...menuItemStyle, color: "#ef4444" }}>🗑️ Delete Post</button>}
+                {isOwnPost && post.type !== "EVENT" && !isQuizPost && <button onClick={handleDelete} style={{ ...menuItemStyle, color: "#ef4444" }}>🗑️ Delete Post</button>}
                 <button onClick={() => { setMenuOpen(false); handleShare(); }} style={menuItemStyle}>📤 Share Post</button>
               </div>
             )}
@@ -249,6 +254,54 @@ export default function PostCard({ post }: PostCardProps) {
                   alt="Post image"
                   style={{ width: "100%", height: "auto", maxHeight: "300px", objectFit: "cover" }}
                 />
+              </div>
+            )}
+
+            {/* Quiz CTA Buttons */}
+            {post.type === "QUIZ_ANNOUNCEMENT" && (
+              <div style={{ padding: "0 1rem 0.75rem", marginTop: "0.5rem" }}>
+                <button
+                  onClick={() => router.push("/quiz")}
+                  style={{
+                    width: "100%",
+                    background: `linear-gradient(135deg, ${PRIMARY} 0%, #38a89d 100%)`,
+                    color: "white",
+                    border: "none",
+                    borderRadius: "12px",
+                    padding: "12px 20px",
+                    fontWeight: 700,
+                    fontSize: "0.9rem",
+                    cursor: "pointer",
+                    boxShadow: `0 4px 15px ${PRIMARY}30`,
+                  }}
+                >
+                  🧠 Start This Week's Quiz →
+                </button>
+              </div>
+            )}
+            {post.type === "QUIZ_DAILY" && (
+              <div style={{ padding: "0 1rem 0.75rem", marginTop: "0.5rem" }}>
+                <button
+                  onClick={() => {
+                    const dayMatch = post.content?.match(/Day (\d)/);
+                    const day = dayMatch ? dayMatch[1] : "";
+                    router.push(day ? `/quiz?day=${day}` : "/quiz");
+                  }}
+                  style={{
+                    width: "100%",
+                    background: `linear-gradient(135deg, ${PRIMARY} 0%, #38a89d 100%)`,
+                    color: "white",
+                    border: "none",
+                    borderRadius: "12px",
+                    padding: "12px 20px",
+                    fontWeight: 700,
+                    fontSize: "0.9rem",
+                    cursor: "pointer",
+                    boxShadow: `0 4px 15px ${PRIMARY}30`,
+                  }}
+                >
+                  🎮 Play Today's Challenge →
+                </button>
               </div>
             )}
           </>

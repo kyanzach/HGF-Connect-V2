@@ -317,6 +317,7 @@ export default function UnifiedHeader() {
                     </Link>
 
                     <DropItem href="/feed"  label="🏠 Community Feed"  onClick={() => setDropOpen(false)} />
+                    <DropItem href="/quiz"  label="🧠 Quiz for Christ"  onClick={() => setDropOpen(false)} />
                     <DropItem href="/me"    label="👤 My Profile"       onClick={() => setDropOpen(false)} />
                     <HR />
                     <DropItem href="/journal"          label="📓 My Journal"          onClick={() => setDropOpen(false)} />
@@ -344,6 +345,7 @@ export default function UnifiedHeader() {
                         </div>
                         <DropItem label="📅 Add Event" onClick={() => { setDropOpen(false); setShowAddEvent(true); }} />
                         <DropItem href="/admin" label="🎛️ Admin Dashboard" onClick={() => setDropOpen(false)} />
+                        <DropItem href="/quiz/admin" label="🧠 Quiz Admin" onClick={() => setDropOpen(false)} />
                       </>
                     )}
 

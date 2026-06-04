@@ -77,6 +77,10 @@ export default function NotificationBell() {
     if (type === "comment_reply") return "↩️";
     if (type === "mention") return "🏷️";
     if (type === "new_marketplace") return "🛍️";
+    if (type === "quiz_announcement") return "🧠";
+    if (type === "quiz_daily") return "🧠";
+    if (type === "quiz_result") return "🎯";
+    if (type === "quiz_reward") return "🎁";
     return "🔔";
   }
 

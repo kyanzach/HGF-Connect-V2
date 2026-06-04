@@ -115,6 +115,11 @@ model Member {
   // Testimonies
   testimonies           Testimony[]          @relation("TestimonyAuthor")
 
+  // Quiz for Christ
+  quizCreated           SermonQuiz[]         @relation("QuizCreator")
+  quizSubmissions       QuizSubmission[]     @relation("QuizSubmissions")
+  quizRewards           QuizReward[]         @relation("QuizRewards")
+
   @@index([invitedBy], name: "idx_referred_by")
   @@index([ageGroup], name: "idx_age_group")
   @@index([type], name: "idx_type")
@@ -637,6 +642,8 @@ enum PostType {
   PRAISE
   PROFILE_PHOTO
   COVER_PHOTO
+  QUIZ_ANNOUNCEMENT
+  QUIZ_DAILY
 }
 
 enum PostVisibility {
@@ -969,6 +976,10 @@ enum NotificationType {
   comment_reply         // Someone replied to your comment
   mention               // Someone @-mentioned you in a comment
   new_marketplace       // New marketplace listing — broadcast to all
+  quiz_announcement     // New quiz week published
+  quiz_daily            // Daily quiz is live
+  quiz_result           // After submission: your score
+  quiz_reward           // Week end: you earned a reward
 }
 
 // ── Love Gift Claims ────────────────────────────────────────────────────────
@@ -1045,4 +1056,118 @@ model TestimonyPhoto {
 
   @@index([testimonyId])
   @@map("testimony_photos")
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Quiz for Christ — Weekly Sermon Drip Quizzes
+// ─────────────────────────────────────────────────────────────────
+
+model SermonQuiz {
+  id                    Int              @id @default(autoincrement())
+  title                 String           @db.VarChar(255)
+  sermonDate            DateTime         @map("sermon_date") @db.Date
+  youtubeUrl            String?          @map("youtube_url") @db.VarChar(500)
+  youtubeVideoId        String?          @map("youtube_video_id") @db.VarChar(20)
+  transcriptText        String?          @map("transcript_text") @db.LongText
+  announcementCaption   String?          @map("announcement_caption") @db.Text
+  announcementPostId    Int?             @unique @map("announcement_post_id")
+  status                SermonQuizStatus @default(draft)
+  createdById           Int              @map("created_by_id")
+  createdAt             DateTime         @default(now()) @map("created_at")
+  updatedAt             DateTime         @updatedAt @map("updated_at")
+
+  creator               Member           @relation("QuizCreator", fields: [createdById], references: [id])
+  questions             QuizQuestion[]
+  submissions           QuizSubmission[]
+  rewards               QuizReward[]
+
+  @@index([sermonDate])
+  @@index([status])
+  @@map("sermon_quizzes")
+}
+
+enum SermonQuizStatus {
+  draft
+  published
+  completed
+}
+
+model QuizQuestion {
+  id              Int              @id @default(autoincrement())
+  quizId          Int              @map("quiz_id")
+  dayNumber       Int              @map("day_number") @db.TinyInt
+  questionType    QuizQuestionType @map("question_type")
+  questionText    String           @map("question_text") @db.Text
+  correctAnswer   String           @map("correct_answer") @db.Text
+  options         Json?
+  hint            String?          @db.VarChar(500)
+  explanation     String?          @db.Text
+  feedPostId      Int?             @map("feed_post_id")
+  createdAt       DateTime         @default(now()) @map("created_at")
+
+  quiz            SermonQuiz       @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  submissions     QuizSubmission[]
+
+  @@index([quizId, dayNumber])
+  @@map("quiz_questions")
+}
+
+enum QuizQuestionType {
+  MULTIPLE_CHOICE
+  FILL_IN_BLANKS
+  SHORT_ANSWER
+  SCRIPTURE_ORDERING
+  TRUE_FALSE_EXPLAIN
+}
+
+model QuizSubmission {
+  id              Int      @id @default(autoincrement())
+  quizId          Int      @map("quiz_id")
+  questionId      Int      @map("question_id")
+  memberId        Int      @map("member_id")
+  answer          String   @db.Text
+  isCorrect       Boolean  @map("is_correct")
+  score           Int      @default(0) @db.TinyInt
+  aiFeedback      String?  @map("ai_feedback") @db.Text
+  submittedAt     DateTime @default(now()) @map("submitted_at")
+
+  quiz            SermonQuiz   @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  question        QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  member          Member       @relation("QuizSubmissions", fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, memberId])
+  @@index([quizId, memberId])
+  @@map("quiz_submissions")
+}
+
+model QuizReward {
+  id              Int             @id @default(autoincrement())
+  quizId          Int             @map("quiz_id")
+  memberId        Int             @map("member_id")
+  totalScore      Int             @map("total_score") @db.TinyInt
+  rewardTier      QuizRewardTier  @map("reward_tier")
+  claimStatus     QuizClaimStatus @default(unclaimed) @map("claim_status")
+  claimDetails    Json?           @map("claim_details")
+  distributedAt   DateTime?       @map("distributed_at")
+  createdAt       DateTime        @default(now()) @map("created_at")
+
+  quiz            SermonQuiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  member          Member     @relation("QuizRewards", fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([quizId, memberId])
+  @@index([claimStatus])
+  @@map("quiz_rewards")
+}
+
+enum QuizRewardTier {
+  PERFECT
+  EXCELLENT
+  GOOD
+  PARTICIPANT
+}
+
+enum QuizClaimStatus {
+  unclaimed
+  claimed
+  distributed
 }

@@ -1,0 +1,233 @@
+/**
+ * lib/quiz-helpers.ts — Quiz for Christ AI prompt builders + utility functions
+ *
+ * - generateQuizPrompt: builds the Straico prompt for quiz generation
+ * - gradeEssay: AI-powered semantic grading (Bisaya/Tagalog/English)
+ * - getDayNumber / canAccessDay: drip schedule logic
+ * - getRewardTier: score → tier mapping
+ */
+
+import axios from "axios";
+
+// ── Day schedule constants ───────────────────────────────────────────────────
+// 0 = Sun, 1 = Mon, 2 = Tue, 3 = Wed, 4 = Thu, 5 = Fri, 6 = Sat
+export const QUIZ_DAYS = [
+  { dayNumber: 1, weekday: 2, label: "Tuesday",   type: "MULTIPLE_CHOICE"    as const },
+  { dayNumber: 2, weekday: 3, label: "Wednesday", type: "FILL_IN_BLANKS"     as const },
+  { dayNumber: 3, weekday: 4, label: "Thursday",  type: "SHORT_ANSWER"       as const },
+  { dayNumber: 4, weekday: 5, label: "Friday",    type: "SCRIPTURE_ORDERING" as const },
+  { dayNumber: 5, weekday: 6, label: "Saturday",  type: "TRUE_FALSE_EXPLAIN" as const },
+] as const;
+
+export const QUIZ_TYPE_LABELS: Record<string, { label: string; difficulty: string; emoji: string }> = {
+  MULTIPLE_CHOICE:    { label: "Balloon Pop",       difficulty: "Easy",        emoji: "🎈" },
+  FILL_IN_BLANKS:     { label: "Fill the Blanks",   difficulty: "Medium-Easy", emoji: "✏️" },
+  SHORT_ANSWER:       { label: "In Your Own Words", difficulty: "Medium",      emoji: "📝" },
+  SCRIPTURE_ORDERING: { label: "Verse Builder",     difficulty: "Medium-Hard", emoji: "🧩" },
+  TRUE_FALSE_EXPLAIN: { label: "Defend Your Faith", difficulty: "Hard",        emoji: "⚖️" },
+};
+
+// ── Get current quiz day number (1–5) or 0 if outside quiz window ────────────
+export function getDayNumber(date?: Date): number {
+  const d = date || new Date();
+  // Convert to Manila time
+  const manila = new Date(d.toLocaleString("en-US", { timeZone: "Asia/Manila" }));
+  const weekday = manila.getDay(); // 0=Sun ... 6=Sat
+  const found = QUIZ_DAYS.find((q) => q.weekday === weekday);
+  return found?.dayNumber ?? 0;
+}
+
+// ── Can the member access this day's quiz? (catch-up allowed, no peek-ahead) ──
+export function canAccessDay(targetDay: number, currentDay: number): boolean {
+  if (currentDay === 0) return false; // Sun/Mon = no quiz days active
+  return targetDay <= currentDay;
+}
+
+// ── Score → reward tier ──────────────────────────────────────────────────────
+export function getRewardTier(totalScore: number): "PERFECT" | "EXCELLENT" | "GOOD" | "PARTICIPANT" {
+  if (totalScore >= 5) return "PERFECT";
+  if (totalScore >= 4) return "EXCELLENT";
+  if (totalScore >= 3) return "GOOD";
+  return "PARTICIPANT";
+}
+
+export const REWARD_DISPLAY: Record<string, { label: string; description: string }> = {
+  PERFECT:     { label: "🏆 Perfect Score!", description: "You've earned a Christian statement t-shirt! Claim your reward." },
+  EXCELLENT:   { label: "🌟 Excellent!",     description: "🎁 Prize: TBA — to be announced this Sunday!" },
+  GOOD:        { label: "👏 Good Job!",      description: "🎁 Prize: TBA — to be announced this Sunday!" },
+  PARTICIPANT: { label: "🙏 Keep Growing!",  description: "Keep studying the Word. Every quiz brings you closer to God!" },
+};
+
+// ── Max transcript length (safety net) ───────────────────────────────────────
+const MAX_TRANSCRIPT_CHARS = 40000;
+
+function truncateTranscript(text: string): string {
+  if (text.length <= MAX_TRANSCRIPT_CHARS) return text;
+  return text.slice(0, MAX_TRANSCRIPT_CHARS) + "\n\n[Transcript truncated for processing]";
+}
+
+// ── Straico API helper ───────────────────────────────────────────────────────
+async function callStraico(prompt: string): Promise<string> {
+  const model = process.env.STRAICO_MODEL ?? "openai/gpt-4o-mini";
+  const response = await axios.post(
+    "https://api.straico.com/v1/prompt/completion",
+    {
+      models: [model],
+      message: prompt,
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${process.env.STRAICO_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      timeout: 60000, // quiz generation can take a while
+    }
+  );
+
+  const completions = response.data?.data?.completions;
+  const rawReply =
+    completions?.[model]?.completion?.choices?.[0]?.message?.content ||
+    response.data?.completion?.choices?.[0]?.message?.content ||
+    response.data?.data?.completion?.choices?.[0]?.message?.content ||
+    "";
+
+  if (!rawReply) throw new Error("No text returned from Straico API");
+  return rawReply;
+}
+
+// ── Extract JSON from AI response (strips markdown fences) ───────────────────
+function extractJson(text: string): any {
+  const cleaned = text.replace(/```json\n?|\n?```/g, "").trim();
+  return JSON.parse(cleaned);
+}
+
+// ── Generate quiz prompt ─────────────────────────────────────────────────────
+export async function generateQuiz(
+  transcript: string,
+  sermonDate: string,
+  sermonTitle: string
+): Promise<{
+  announcementCaption: string;
+  questions: Array<{
+    dayNumber: number;
+    questionType: string;
+    questionText: string;
+    correctAnswer: string;
+    options: any;
+    hint: string;
+    explanation: string;
+  }>;
+}> {
+  const trimmed = truncateTranscript(transcript);
+
+  const prompt = `You are an AI assistant for House of Grace Fellowship, a Christian church.
+You are creating a weekly "Quiz for Christ" based on a Sunday sermon.
+
+SERMON TITLE: "${sermonTitle}"
+SERMON DATE: ${sermonDate}
+
+TRANSCRIPT:
+"""
+${trimmed}
+"""
+
+TASK: Generate TWO things from this sermon:
+
+1. An ANNOUNCEMENT CAPTION — A compelling, uplifting social media-style post that:
+   - Starts with "Here's a replay of Sunday's sermon from ${sermonDate}!"
+   - Includes 2-3 key takeaways from the sermon
+   - Ends with a call to action: "Get ready for this week's Quiz for Christ! 🧠✨"
+   - Tone: warm, encouraging, Bisaya-friendly (but written in English)
+   - Max 200 words
+
+2. FIVE QUIZ QUESTIONS — One for each day (Tuesday to Saturday), getting progressively harder:
+
+   DAY 1 (Tuesday) — MULTIPLE_CHOICE:
+   - A straightforward question about the sermon's main point
+   - 4 options (A, B, C, D) — only 1 correct
+   - options: ["Option A text", "Option B text", "Option C text", "Option D text"]
+   - correctAnswer: the exact text of the correct option
+
+   DAY 2 (Wednesday) — FILL_IN_BLANKS:
+   - A key sentence from the sermon with 1-2 missing words replaced by "______"
+   - correctAnswer: the missing word(s), comma-separated if multiple blanks
+   - options: null
+
+   DAY 3 (Thursday) — SHORT_ANSWER:
+   - An open-ended question requiring the member to explain a concept in their own words
+   - correctAnswer: the ideal answer (used as reference for AI grading)
+   - options: null
+
+   DAY 4 (Friday) — SCRIPTURE_ORDERING:
+   - A key Bible verse or sermon quote broken into 4-6 phrase segments
+   - The segments should be shuffled in the options array
+   - correctAnswer: the segments joined in the correct order, separated by " | "
+   - options: ["shuffled phrase 1", "shuffled phrase 2", ...] (the phrases in WRONG order)
+
+   DAY 5 (Saturday) — TRUE_FALSE_EXPLAIN:
+   - A statement about the sermon that is either true or false
+   - correctAnswer: "TRUE" or "FALSE"
+   - options: null
+   - The explanation should explain WHY it is true or false
+
+For ALL questions, provide:
+- hint: a brief helpful hint (1 sentence)
+- explanation: what is shown after the user answers (educational, encouraging)
+
+OUTPUT FORMAT — Strictly valid JSON, no extra text:
+{
+  "announcementCaption": "...",
+  "questions": [
+    {
+      "dayNumber": 1,
+      "questionType": "MULTIPLE_CHOICE",
+      "questionText": "...",
+      "correctAnswer": "...",
+      "options": [...],
+      "hint": "...",
+      "explanation": "..."
+    },
+    ...
+  ]
+}`;
+
+  const reply = await callStraico(prompt);
+  return extractJson(reply);
+}
+
+// ── Grade essay / short answer (AI semantic grading) ─────────────────────────
+export async function gradeEssay(
+  questionText: string,
+  correctAnswer: string,
+  userAnswer: string
+): Promise<{ isCorrect: boolean; feedback: string }> {
+  const prompt = `You are grading a quiz answer for a Christian church app (House of Grace Fellowship).
+
+QUESTION: "${questionText}"
+IDEAL ANSWER (reference): "${correctAnswer}"
+USER'S ANSWER: "${userAnswer}"
+
+IMPORTANT RULES:
+1. The user may answer in Bisaya (Cebuano), Tagalog, or English. Evaluate based on MEANING, not exact wording or language.
+2. Be GENEROUS — if the user's answer captures the core idea or spiritual truth, mark it as correct.
+3. Minor details or phrasing differences should NOT cause a wrong answer.
+4. Only mark as incorrect if the answer is fundamentally wrong, completely off-topic, or shows no understanding.
+
+OUTPUT — Strictly valid JSON:
+{
+  "isCorrect": true or false,
+  "feedback": "A warm, encouraging 1-2 sentence feedback message. If correct, affirm their understanding. If incorrect, gently explain the right answer without being harsh."
+}`;
+
+  try {
+    const reply = await callStraico(prompt);
+    return extractJson(reply);
+  } catch (error: any) {
+    console.error("[quiz-helpers] Essay grading failed:", error?.message);
+    // Fallback: be generous, mark as correct with a note
+    return {
+      isCorrect: true,
+      feedback: "We couldn't fully evaluate your answer with AI, but we appreciate your thoughtful response! 🙏",
+    };
+  }
+}

@@ -14,7 +14,11 @@ type NotifType =
   | "new_comment"
   | "comment_reply"
   | "mention"
-  | "new_marketplace";
+  | "new_marketplace"
+  | "quiz_announcement"
+  | "quiz_daily"
+  | "quiz_result"
+  | "quiz_reward";
 
 /** Create a single in-app notification. Fire-and-forget — never throws. */
 export async function createNotification({

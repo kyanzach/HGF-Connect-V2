@@ -5,7 +5,15 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
----
+## [v2.14.0] — 2026-06-04
+### Added
+- **Quiz for Christ Gamification**: Added a weekly sermon-based drip quiz system integrated with the community feed.
+  - **Admin Dashboard** (`app/(app)/quiz/admin/page.tsx`): AI-powered sermon quiz generator supporting YouTube transcript fetches and manual note fallbacks. Inline previewing, editing, saving draft, and publishing.
+  - **Member Portal** (`app/(app)/quiz/page.tsx`): Interactive 5-day drip challenge (Tue–Sat) featuring: Balloon Pop (Multiple Choice), Fill the Blanks, In Your Own Words (AI-graded Essay), Verse Builder (Draggable scripture ordering), and Defend Your Faith (T/F + Explain).
+  - **Brand Hub & Leaderboard** (`app/(app)/quiz/hub/page.tsx`): Brand landing page showcasing weekly and all-time standings along with past sermon quiz archives.
+  - **Community Feed Integration** (`components/feed/PostCard.tsx`): Render quiz announcements and daily drip quizzes with custom "HGF Quiz For Christ" brand identities and quick-play CTA buttons.
+  - **Spotlight Banner** (`components/feed/HeroCarousel.tsx`): Live quiz progress slide displayed in the dashboard header carousel.
+  - **Server Cron Script** (`scripts/quiz-cron.mjs`): Standalone, zero-dependency node script to trigger daily quiz posts automatically.
 
 ## [v2.13.0] — 2026-05-20
 ### Added
