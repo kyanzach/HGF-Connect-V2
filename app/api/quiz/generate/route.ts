@@ -45,10 +45,10 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { youtubeUrl, sermonText, sermonDate, title } = body;
+    const { youtubeUrl, sermonText, sermonDate } = body;
 
-    if (!sermonDate || !title) {
-      return NextResponse.json({ error: "Sermon date and title are required" }, { status: 400 });
+    if (!sermonDate) {
+      return NextResponse.json({ error: "Sermon date is required" }, { status: 400 });
     }
 
     let transcript = "";
@@ -81,13 +81,14 @@ export async function POST(request: Request) {
     }
 
     // Generate quiz via AI
-    const result = await generateQuiz(transcript, sermonDate, title);
+    const result = await generateQuiz(transcript, sermonDate);
 
     return NextResponse.json({
       success: true,
       transcriptSource,
       videoId,
       transcriptLength: transcript.length,
+      title: result.title,
       announcementCaption: result.announcementCaption,
       questions: result.questions,
     });

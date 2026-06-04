@@ -104,9 +104,9 @@ function extractJson(text: string): any {
 // ── Generate quiz prompt ─────────────────────────────────────────────────────
 export async function generateQuiz(
   transcript: string,
-  sermonDate: string,
-  sermonTitle: string
+  sermonDate: string
 ): Promise<{
+  title: string;
   announcementCaption: string;
   questions: Array<{
     dayNumber: number;
@@ -123,7 +123,6 @@ export async function generateQuiz(
   const prompt = `You are an AI assistant for House of Grace Fellowship, a Christian church.
 You are creating a weekly "Quiz for Christ" based on a Sunday sermon.
 
-SERMON TITLE: "${sermonTitle}"
 SERMON DATE: ${sermonDate}
 
 TRANSCRIPT:
@@ -131,16 +130,18 @@ TRANSCRIPT:
 ${trimmed}
 """
 
-TASK: Generate TWO things from this sermon:
+TASK: Generate THREE things from this sermon:
 
-1. An ANNOUNCEMENT CAPTION — A compelling, uplifting social media-style post that:
+1. A SUITABLE QUIZ TITLE — A concise title summarizing the sermon theme, formatted as 'Topic — Month Day, Year' (e.g. 'Walking by Faith — June 1, 2026') using the provided sermon date: ${sermonDate}.
+
+2. An ANNOUNCEMENT CAPTION — A compelling, uplifting social media-style post that:
    - Starts with "Here's a replay of Sunday's sermon from ${sermonDate}!"
    - Includes 2-3 key takeaways from the sermon
    - Ends with a call to action: "Get ready for this week's Quiz for Christ! 🧠✨"
    - Tone: warm, encouraging, Bisaya-friendly (but written in English)
    - Max 200 words
 
-2. FIVE QUIZ QUESTIONS — One for each day (Tuesday to Saturday), getting progressively harder:
+3. FIVE QUIZ QUESTIONS — One for each day (Tuesday to Saturday), getting progressively harder:
 
    DAY 1 (Tuesday) — MULTIPLE_CHOICE:
    - A straightforward question about the sermon's main point
@@ -176,6 +177,7 @@ For ALL questions, provide:
 
 OUTPUT FORMAT — Strictly valid JSON, no extra text:
 {
+  "title": "...",
   "announcementCaption": "...",
   "questions": [
     {

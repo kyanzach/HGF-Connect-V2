@@ -43,6 +43,23 @@ export default function QuizAdminPage() {
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [sermonText, setSermonText] = useState("");
 
+  // ── Alert state ──
+  const [alertModal, setAlertModal] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    type: "success" | "error" | "info";
+  }>({
+    open: false,
+    title: "",
+    message: "",
+    type: "info",
+  });
+
+  function showAlert(title: string, message: string, type: "success" | "error" | "info" = "info") {
+    setAlertModal({ open: true, title, message, type });
+  }
+
   // ── Generation state ──
   const [generating, setGenerating] = useState(false);
   const [generatedCaption, setGeneratedCaption] = useState("");
@@ -80,8 +97,8 @@ export default function QuizAdminPage() {
 
   // ── Generate quiz via AI ──
   async function handleGenerate() {
-    if (!title || !sermonDate) {
-      setGenError("Please enter a title and sermon date first");
+    if (!sermonDate) {
+      setGenError("Please enter a sermon date first");
       return;
     }
     if (!youtubeUrl && !sermonText) {
@@ -95,11 +112,12 @@ export default function QuizAdminPage() {
       const res = await fetch("/api/quiz/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ youtubeUrl, sermonText, sermonDate, title }),
+        body: JSON.stringify({ youtubeUrl, sermonText, sermonDate }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
+      setTitle(data.title || "");
       setGeneratedCaption(data.announcementCaption);
       setGeneratedQuestions(data.questions);
       setTranscriptSource(data.transcriptSource);
@@ -132,9 +150,9 @@ export default function QuizAdminPage() {
       if (!res.ok) throw new Error(data.error);
       setSavedQuizId(data.quizId);
       loadQuizzes();
-      alert("✅ Saved as draft!");
+      showAlert("Success", "✅ Saved as draft!", "success");
     } catch (err: any) {
-      alert("Save failed: " + (err?.message || "Unknown error"));
+      showAlert("Error", "Save failed: " + (err?.message || "Unknown error"), "error");
     } finally {
       setSaving(false);
     }
@@ -172,12 +190,12 @@ export default function QuizAdminPage() {
         if (!pubRes.ok) throw new Error(pubData.error);
 
         loadQuizzes();
-        alert("🚀 Quiz published! Announcement posted to community feed.");
+        showAlert("Success", "🚀 Quiz published! Announcement posted to community feed.", "success");
         // Reset form
         setTitle(""); setSermonDate(""); setYoutubeUrl(""); setSermonText("");
         setGeneratedCaption(""); setGeneratedQuestions([]); setSavedQuizId(null);
       } catch (err: any) {
-        alert("Publish failed: " + (err?.message || "Unknown error"));
+        showAlert("Error", "Publish failed: " + (err?.message || "Unknown error"), "error");
       } finally {
         setSaving(false);
         setPublishing(false);
@@ -196,11 +214,11 @@ export default function QuizAdminPage() {
       if (!res.ok) throw new Error(data.error);
 
       loadQuizzes();
-      alert("🚀 Quiz published! Announcement posted to community feed.");
+      showAlert("Success", "🚀 Quiz published! Announcement posted to community feed.", "success");
       setTitle(""); setSermonDate(""); setYoutubeUrl(""); setSermonText("");
       setGeneratedCaption(""); setGeneratedQuestions([]); setSavedQuizId(null);
     } catch (err: any) {
-      alert("Publish failed: " + (err?.message || "Unknown error"));
+      showAlert("Error", "Publish failed: " + (err?.message || "Unknown error"), "error");
     } finally {
       setPublishing(false);
     }
@@ -372,15 +390,6 @@ export default function QuizAdminPage() {
           ✨ Create New Quiz Week
         </div>
 
-        <label style={S.label}>Quiz Title</label>
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="e.g. Walking by Faith — June 1, 2026"
-          style={S.input}
-        />
-
         <label style={S.label}>Sermon Date</label>
         <input
           type="date"
@@ -436,6 +445,15 @@ export default function QuizAdminPage() {
           <div style={S.sectionTitle}>
             📋 Preview & Edit
           </div>
+
+          {/* Quiz Title */}
+          <label style={S.label}>🏷️ Quiz Title</label>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            style={{ ...S.input, background: "#fff", border: "1.5px solid #4EB1CB", marginBottom: "16px" }}
+          />
 
           {/* Announcement caption */}
           <label style={S.label}>📺 Announcement Caption</label>
@@ -628,6 +646,93 @@ export default function QuizAdminPage() {
             </div>
           ))
         )}
+      </div>
+
+      {/* Alert modal */}
+      <AlertModal
+        open={alertModal.open}
+        title={alertModal.title}
+        message={alertModal.message}
+        type={alertModal.type}
+        onClose={() => setAlertModal((prev) => ({ ...prev, open: false }))}
+      />
+    </div>
+  );
+}
+
+// ── AlertModal Component ──
+interface AlertModalProps {
+  open: boolean;
+  title: string;
+  message: string;
+  type: "success" | "error" | "info";
+  onClose: () => void;
+}
+
+function AlertModal({ open, title, message, type, onClose }: AlertModalProps) {
+  if (!open) return null;
+  const isError = type === "error";
+  const btnColor = isError ? "#ef4444" : "#4EB1CB";
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.45)",
+        zIndex: 9999,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "1rem",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "white",
+          borderRadius: "16px",
+          padding: "1.75rem",
+          width: "100%",
+          maxWidth: 400,
+          boxShadow: "0 20px 60px rgba(0,0,0,0.22)",
+        }}
+      >
+        <h3
+          style={{
+            margin: "0 0 0.5rem",
+            fontSize: "1.125rem",
+            fontWeight: 800,
+            color: "#0f172a",
+          }}
+        >
+          {title}
+        </h3>
+        <p
+          style={{
+            margin: "0 0 1.5rem",
+            fontSize: "0.9rem",
+            color: "#64748b",
+            lineHeight: 1.5,
+          }}
+        >
+          {message}
+        </p>
+        <button
+          onClick={onClose}
+          style={{
+            width: "100%",
+            padding: "10px",
+            border: "none",
+            borderRadius: "8px",
+            background: btnColor,
+            color: "white",
+            fontWeight: 700,
+            cursor: "pointer",
+          }}
+        >
+          OK
+        </button>
       </div>
     </div>
   );

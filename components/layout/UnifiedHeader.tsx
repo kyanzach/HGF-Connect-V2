@@ -243,7 +243,7 @@ export default function UnifiedHeader() {
             <span style={{ fontSize: "0.58rem", background: "rgba(255,255,255,0.2)",
               padding: "0.1rem 0.35rem", borderRadius: 999, fontWeight: 600,
               letterSpacing: "0.04em", color: "rgba(255,255,255,0.85)", flexShrink: 0 }}>
-              v{APP_VERSION}
+              BETA v{APP_VERSION}
             </span>
           </Link>
 
