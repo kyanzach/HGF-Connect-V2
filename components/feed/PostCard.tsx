@@ -279,12 +279,13 @@ export default function PostCard({ post }: PostCardProps) {
                 </button>
               </div>
             )}
+
             {post.type === "QUIZ_DAILY" && (
               <div style={{ padding: "0 1rem 0.75rem", marginTop: "0.5rem" }}>
                 <button
                   onClick={() => {
-                    const dayMatch = post.content?.match(/Day (\d)/);
-                    const day = dayMatch ? dayMatch[1] : "";
+                    const match = post.content?.match(/Day (\d+)/);
+                    const day = match ? match[1] : "";
                     router.push(day ? `/quiz?day=${day}` : "/quiz");
                   }}
                   style={{

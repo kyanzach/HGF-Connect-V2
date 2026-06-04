@@ -44,6 +44,8 @@ export default function QuizAdminPage() {
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [linkedEvent, setLinkedEvent] = useState<any | null>(null);
   const [loadingEvent, setLoadingEvent] = useState(false);
+  const [genProgress, setGenProgress] = useState(0);
+  const [genFootnote, setGenFootnote] = useState("");
 
   useEffect(() => {
     setLoadingEvent(true);
@@ -122,6 +124,24 @@ export default function QuizAdminPage() {
 
   useEffect(() => { loadQuizzes(); }, [loadQuizzes]);
 
+  const [backfilling, setBackfilling] = useState(false);
+  async function handleBackfill() {
+    setBackfilling(true);
+    try {
+      const res = await fetch("/api/quiz/admin/backfill", {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to backfill");
+      showAlert("Success", `✅ Backfilled successfully! Created posts and notified members.`, "success");
+      loadQuizzes();
+    } catch (err: any) {
+      showAlert("Error", "Backfill failed: " + err.message, "error");
+    } finally {
+      setBackfilling(false);
+    }
+  }
+
   // ── Generate quiz via AI ──
   async function handleGenerate() {
     if (!linkedEvent) {
@@ -135,6 +155,28 @@ export default function QuizAdminPage() {
 
     setGenerating(true);
     setGenError("");
+    setGenProgress(5);
+    setGenFootnote("Initiating smart switching AI pipeline...");
+
+    let currentProgress = 5;
+    const progressTimer = setInterval(() => {
+      currentProgress += Math.floor(Math.random() * 5) + 3;
+      if (currentProgress > 95) currentProgress = 95;
+      setGenProgress(currentProgress);
+
+      if (currentProgress < 25) {
+        setGenFootnote("Phase 1: Analyzing sermon notes & filtering Tagalog/Bisaya filler words...");
+      } else if (currentProgress < 50) {
+        setGenFootnote("Phase 1: Translating sermon context into English for cost efficiency...");
+      } else if (currentProgress < 75) {
+        setGenFootnote("Phase 2: Generating 7-day progressive quiz challenges (increasing difficulty)...");
+      } else if (currentProgress < 90) {
+        setGenFootnote("Phase 2: Formatting answers, multiple choice options, and hint guidelines...");
+      } else {
+        setGenFootnote("Phase 2: Finalizing pastoral explanations for the congregation...");
+      }
+    }, 900);
+
     try {
       const res = await fetch("/api/quiz/generate", {
         method: "POST",
@@ -144,11 +186,23 @@ export default function QuizAdminPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
+      clearInterval(progressTimer);
+      setGenProgress(100);
+      setGenFootnote("Quiz generated successfully!");
+
       setTitle(data.title || "");
       setGeneratedCaption(data.announcementCaption);
       setGeneratedQuestions(data.questions);
       setTranscriptSource(data.transcriptSource);
+
+      setTimeout(() => {
+        setGenProgress(0);
+        setGenFootnote("");
+      }, 2000);
     } catch (err: any) {
+      clearInterval(progressTimer);
+      setGenProgress(0);
+      setGenFootnote("");
       setGenError(err?.message || "Generation failed");
     } finally {
       setGenerating(false);
@@ -477,6 +531,25 @@ export default function QuizAdminPage() {
           {generating ? "🤖 AI is generating quiz..." : "🤖 Generate Quiz"}
         </button>
 
+        {generating && (
+          <div style={{ marginTop: "16px" }}>
+            <div style={{ width: "100%", height: "8px", background: "#cbd5e1", borderRadius: "4px", overflow: "hidden" }}>
+              <div
+                style={{
+                  width: `${genProgress}%`,
+                  height: "100%",
+                  background: "linear-gradient(135deg, #4EB1CB 0%, #38A89D 100%)",
+                  borderRadius: "4px",
+                  transition: "width 0.4s ease-out",
+                }}
+              />
+            </div>
+            <p style={{ margin: "8px 0 0", fontSize: "0.82rem", color: "#64748b", fontStyle: "italic", textAlign: "center" }}>
+              ✨ {genFootnote}
+            </p>
+          </div>
+        )}
+
         {transcriptSource && (
           <p style={{ color: "#48BB78", fontSize: "0.85rem", marginTop: "12px" }}>
             ✅ Transcript source: {transcriptSource === "youtube" ? "YouTube captions" : "Manual input"}
@@ -589,8 +662,26 @@ export default function QuizAdminPage() {
 
       {/* ═══ Section 3: Manage Existing Quizzes ═══ */}
       <div style={S.section}>
-        <div style={S.sectionTitle}>
-          📊 Manage Quizzes
+        <div style={{ ...S.sectionTitle, justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
+          <span>📊 Manage Quizzes</span>
+          <button
+            onClick={handleBackfill}
+            disabled={backfilling}
+            style={{
+              background: "linear-gradient(135deg, #FF9900 0%, #FF5E00 100%)",
+              color: "#fff",
+              border: "none",
+              borderRadius: "8px",
+              padding: "6px 14px",
+              fontSize: "0.8rem",
+              fontWeight: 700,
+              cursor: "pointer",
+              boxShadow: "0 2px 8px rgba(255,153,0,0.2)",
+              opacity: backfilling ? 0.6 : 1,
+            }}
+          >
+            {backfilling ? "⚡ Backfilling..." : "⚡ Backfill Past Posts"}
+          </button>
         </div>
 
         {loadingQuizzes ? (

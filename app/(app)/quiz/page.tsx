@@ -6,7 +6,7 @@
  * Provides:
  * - Sermon Replay (embedded YouTube or notes excerpt)
  * - Daily drip quiz grid (Tuesday–Saturday)
- * - Weekly Score Wallet (tier tracking + progress)
+ * - Weekly Score & Points (tier tracking + progress)
  * - Perfect score reward claim modal (t-shirt size selection)
  */
 
@@ -138,6 +138,19 @@ export default function MemberQuizPage() {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !quizStatus) return;
+    const params = new URLSearchParams(window.location.search);
+    const targetDay = params.get("day");
+    if (targetDay) {
+      const dayNum = parseInt(targetDay, 10);
+      const matchedDay = quizStatus.days?.find((d) => d.dayNumber === dayNum);
+      if (matchedDay && matchedDay.status !== "locked" && matchedDay.status !== "completed") {
+        handleStartDay(matchedDay);
+      }
+    }
+  }, [quizStatus]);
 
   async function handleClaimReward(e: React.FormEvent) {
     e.preventDefault();
@@ -276,10 +289,10 @@ export default function MemberQuizPage() {
         </div>
       )}
 
-      {/* Weekly Progress Wallet */}
+      {/* Weekly Progress & Points */}
       <div style={{ background: "white", borderRadius: "20px", padding: "18px", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", marginBottom: "20px" }}>
         <h3 style={{ fontSize: "0.85rem", fontWeight: 800, color: "#475569", marginBottom: "12px" }}>
-          📈 Weekly Progress & Wallet
+          📈 Weekly Progress & Points
         </h3>
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem", color: "#64748b", marginBottom: "6px" }}>
           <span>Completed: {progress?.completed}/7 days</span>

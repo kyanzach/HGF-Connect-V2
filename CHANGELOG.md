@@ -5,6 +5,16 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.17.1] — 2026-06-05
+### Added
+- **Visual AI Progress Bar**: Added a simulated loading progress bar and dynamic stage footnotes to the Admin generation panel so admins see exactly what the AI pipeline is doing (formatting, translation, formatting quiz items, structuring explanations).
+- **Deep-Linked Feed Challenges**: Added clickable "Play Today's Challenge" CTA buttons on daily quiz feed posts which route directly to the quiz portal and auto-open the corresponding day's challenge.
+- **Admin Feed Post Backfill**: Created an admin backfill button and a secure `/api/quiz/admin/backfill` API route to post any past missing daily challenge posts to the community feed.
+### Changed
+- **Terminology Migration**: Migrated all quiz-related references to "Wallet" to "Points" (e.g. "Weekly Progress & Points") to align with non-monetary spiritual gamification.
+### Fixed
+- **Player Audio Toggle**: Fixed a casing typo in `CleanYoutubePlayer` mute audio controls where `player.unmute()` failed due to incorrect capitalization. It now correctly calls `unMute()`.
+
 ## [v2.17.0] — 2026-06-05
 ### Added
 - **Database-Enforced Sunday Gating**: Updated the `SermonQuiz` schema to make `eventId` required and non-nullable, enforcing that every sermon quiz is strictly associated with a physical Sunday Service event.

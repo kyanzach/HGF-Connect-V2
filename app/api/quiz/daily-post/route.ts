@@ -63,14 +63,14 @@ export async function POST(request: Request) {
 
     // ── Create feed post ──
     const postContent = [
-      `🧠 Day ${dayInfo.dayNumber} Quiz is LIVE!`,
+      `🧠 Day ${dayInfo.dayNumber} Quiz is LIVE! 🧠`,
+      "",
+      `Topic: "${quiz.title}"`,
       "",
       `${typeInfo.emoji} Today's Challenge: ${typeInfo.label}`,
-      `Difficulty: ${typeInfo.difficulty}`,
+      `⚡ Difficulty: ${typeInfo.difficulty}`,
       "",
-      `Based on: "${quiz.title}"`,
-      "",
-      "Tap below to play! →",
+      `Let's test our understanding of Sunday's sermon and study the Word together! Tap the play button below to launch today's game and earn points.`,
     ].join("\n");
 
     const post = await db.post.create({

@@ -136,7 +136,7 @@ export default function CleanYoutubePlayer({ videoId }: CleanYoutubePlayerProps)
     const player = playerRef.current;
     if (!player) return;
     if (isMuted) {
-      player.unmute();
+      player.unMute();
       setIsMuted(false);
     } else {
       player.mute();
