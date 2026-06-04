@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.16.1] — 2026-06-04
+### Fixed
+- **Empty Sermon Date Guidance**: Fixed the Sunday Service gating status box showing a red database warning immediately upon opening the page before the admin has selected a sermon date. It now displays neutral guiding placeholder text.
+
 ## [v2.16.0] — 2026-06-04
 ### Added
 - **7-Day Drip Schedule (Monday to Sunday)**: Upgraded the weekly sermon quiz from a 5-day cycle to a full 7-day cycle. Day 1 (Monday) starts immediately on publishing, and Days 2-7 (Tuesday to Sunday) post automatically at 7:00 AM Manila time via cron.

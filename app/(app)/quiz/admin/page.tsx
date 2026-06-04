@@ -433,6 +433,10 @@ export default function QuizAdminPage() {
                 📅 Event Date: {new Date(linkedEvent.eventDate).toLocaleDateString()}
               </span>
             </div>
+          ) : !sermonDate ? (
+            <p style={{ margin: "4px 0 0", fontSize: "0.9rem", color: "#64748b" }}>
+              Please select a sermon date above to automatically link the nearest Sunday Service event.
+            </p>
           ) : (
             <p style={{ margin: "4px 0 0", fontSize: "0.9rem", color: "#ef4444", fontWeight: 600 }}>
               ⚠️ No physical Sunday Service event found on or before this date! Gating will be disabled.
