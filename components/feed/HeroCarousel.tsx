@@ -6,9 +6,6 @@ import Link from "next/link";
 const PRIMARY = "#4EB1CB";
 
 const arrowStyle: React.CSSProperties = {
-  position: "absolute",
-  top: "50%",
-  transform: "translateY(-50%)",
   width: "36px",
   height: "36px",
   borderRadius: "50%",
@@ -21,7 +18,6 @@ const arrowStyle: React.CSSProperties = {
   justifyContent: "center",
   cursor: "pointer",
   transition: "all 0.2s ease",
-  zIndex: 10,
   padding: 0,
 };
 
@@ -309,22 +305,25 @@ export default function HeroCarousel({ firstName }: HeroCarouselProps) {
       }}
     >
       <style>{`
-        .carousel-arrow {
+        .carousel-arrows-container {
           display: none;
         }
         @media (min-width: 768px) {
-          .carousel-arrow {
+          .carousel-arrows-container {
             display: flex !important;
             opacity: 0.6;
+            transition: opacity 0.2s;
+          }
+          .carousel-arrows-container:hover {
+            opacity: 1 !important;
           }
           .carousel-arrow:hover {
-            opacity: 1 !important;
             background: rgba(255, 255, 255, 0.28) !important;
-            transform: translateY(-50%) scale(1.05) !important;
+            transform: scale(1.05) !important;
           }
           .carousel-content {
-            padding-left: 2rem;
-            padding-right: 2rem;
+            padding-right: 6.5rem;
+            padding-left: 0;
           }
         }
       `}</style>
@@ -347,32 +346,36 @@ export default function HeroCarousel({ firstName }: HeroCarouselProps) {
         {slides[idx]?.render()}
       </div>
 
-      {/* Navigation Arrows — Desktop Only */}
+      {/* Navigation Arrows — Desktop Only (grouped side-by-side on the right) */}
       {total > 1 && (
-        <>
+        <div
+          className="carousel-arrows-container"
+          style={{
+            position: "absolute",
+            right: "24px",
+            top: "50%",
+            transform: "translateY(-50%)",
+            gap: "8px",
+            zIndex: 10,
+          }}
+        >
           <button
             onClick={(e) => { e.stopPropagation(); prev(); }}
-            className="carousel-arrow carousel-arrow-left"
-            style={{
-              ...arrowStyle,
-              left: "12px",
-            }}
+            className="carousel-arrow"
+            style={arrowStyle}
             aria-label="Previous Slide"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); next(); }}
-            className="carousel-arrow carousel-arrow-right"
-            style={{
-              ...arrowStyle,
-              right: "12px",
-            }}
+            className="carousel-arrow"
+            style={arrowStyle}
             aria-label="Next Slide"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
           </button>
-        </>
+        </div>
       )}
 
       {/* Dot indicators — only show if more than 1 slide */}
