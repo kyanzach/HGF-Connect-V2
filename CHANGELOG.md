@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.18.1] — 2026-06-05
+### Changed
+- **HeroCarousel Laptop Navigation**: Added glassmorphic left/right navigation arrow buttons (`‹` / `›`) to the dashboard header carousel, visible on desktop/laptop hover and hidden on mobile touch devices where touch gestures remain active.
+
 ## [v2.18.0] — 2026-06-05
 ### Added
 - **In-Place Feed Gameplay**: Embeds `CleanYoutubePlayer` directly in `QUIZ_ANNOUNCEMENT` posts on the community feed instead of static thumbnails. Tapping "Start This Week's Quiz" or "Play Today's Challenge" on feed cards now opens the quiz player overlay directly in-place without page redirection.

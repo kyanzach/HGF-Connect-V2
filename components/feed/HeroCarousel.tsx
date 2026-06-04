@@ -5,6 +5,26 @@ import Link from "next/link";
 
 const PRIMARY = "#4EB1CB";
 
+const arrowStyle: React.CSSProperties = {
+  position: "absolute",
+  top: "50%",
+  transform: "translateY(-50%)",
+  width: "36px",
+  height: "36px",
+  borderRadius: "50%",
+  background: "rgba(255, 255, 255, 0.15)",
+  backdropFilter: "blur(8px)",
+  border: "1px solid rgba(255, 255, 255, 0.25)",
+  color: "white",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  cursor: "pointer",
+  transition: "all 0.2s ease",
+  zIndex: 10,
+  padding: 0,
+};
+
 interface UpcomingEvent {
   id: number;
   title: string;
@@ -288,6 +308,27 @@ export default function HeroCarousel({ firstName }: HeroCarouselProps) {
         touchStartX.current = null;
       }}
     >
+      <style>{`
+        .carousel-arrow {
+          display: none;
+        }
+        @media (min-width: 768px) {
+          .carousel-arrow {
+            display: flex !important;
+            opacity: 0.6;
+          }
+          .carousel-arrow:hover {
+            opacity: 1 !important;
+            background: rgba(255, 255, 255, 0.28) !important;
+            transform: translateY(-50%) scale(1.05) !important;
+          }
+          .carousel-content {
+            padding-left: 2rem;
+            padding-right: 2rem;
+          }
+        }
+      `}</style>
+
       {/* Dark overlay when cover photo is shown */}
       {slides[idx]?.key === "event" && event?.coverPhoto && (
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg, rgba(15,45,61,0.85) 0%, rgba(26,90,118,0.75) 100%)", zIndex: 0 }} />
@@ -302,9 +343,37 @@ export default function HeroCarousel({ firstName }: HeroCarouselProps) {
       )}
 
       {/* Current slide content */}
-      <div style={{ position: "relative", zIndex: 1 }}>
+      <div className="carousel-content" style={{ position: "relative", zIndex: 1 }}>
         {slides[idx]?.render()}
       </div>
+
+      {/* Navigation Arrows — Desktop Only */}
+      {total > 1 && (
+        <>
+          <button
+            onClick={(e) => { e.stopPropagation(); prev(); }}
+            className="carousel-arrow carousel-arrow-left"
+            style={{
+              ...arrowStyle,
+              left: "12px",
+            }}
+            aria-label="Previous Slide"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); next(); }}
+            className="carousel-arrow carousel-arrow-right"
+            style={{
+              ...arrowStyle,
+              right: "12px",
+            }}
+            aria-label="Next Slide"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </button>
+        </>
+      )}
 
       {/* Dot indicators — only show if more than 1 slide */}
       {total > 1 && (
