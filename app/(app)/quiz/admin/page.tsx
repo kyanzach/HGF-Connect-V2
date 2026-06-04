@@ -40,7 +40,6 @@ export default function QuizAdminPage() {
   // ── Form state ──
   const [title, setTitle] = useState("");
   const [sermonDate, setSermonDate] = useState("");
-  const [youtubeUrl, setYoutubeUrl] = useState("");
   const [sermonText, setSermonText] = useState("");
 
   // ── Alert state ──
@@ -101,8 +100,8 @@ export default function QuizAdminPage() {
       setGenError("Please enter a sermon date first");
       return;
     }
-    if (!youtubeUrl && !sermonText) {
-      setGenError("Please provide a YouTube URL or paste the sermon text");
+    if (!sermonText || !sermonText.trim()) {
+      setGenError("Please paste the sermon notes or transcript script first");
       return;
     }
 
@@ -112,7 +111,7 @@ export default function QuizAdminPage() {
       const res = await fetch("/api/quiz/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ youtubeUrl, sermonText, sermonDate }),
+        body: JSON.stringify({ sermonText, sermonDate }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -139,8 +138,8 @@ export default function QuizAdminPage() {
           quizId: savedQuizId,
           title,
           sermonDate,
-          youtubeUrl: youtubeUrl || null,
-          youtubeVideoId: null, // extracted on server
+          youtubeUrl: null,
+          youtubeVideoId: null,
           transcriptText: sermonText || null,
           announcementCaption: generatedCaption,
           questions: generatedQuestions,
@@ -170,7 +169,7 @@ export default function QuizAdminPage() {
           body: JSON.stringify({
             title,
             sermonDate,
-            youtubeUrl: youtubeUrl || null,
+            youtubeUrl: null,
             transcriptText: sermonText || null,
             announcementCaption: generatedCaption,
             questions: generatedQuestions,
@@ -192,7 +191,7 @@ export default function QuizAdminPage() {
         loadQuizzes();
         showAlert("Success", "🚀 Quiz published! Announcement posted to community feed.", "success");
         // Reset form
-        setTitle(""); setSermonDate(""); setYoutubeUrl(""); setSermonText("");
+        setTitle(""); setSermonDate(""); setSermonText("");
         setGeneratedCaption(""); setGeneratedQuestions([]); setSavedQuizId(null);
       } catch (err: any) {
         showAlert("Error", "Publish failed: " + (err?.message || "Unknown error"), "error");
@@ -215,7 +214,7 @@ export default function QuizAdminPage() {
 
       loadQuizzes();
       showAlert("Success", "🚀 Quiz published! Announcement posted to community feed.", "success");
-      setTitle(""); setSermonDate(""); setYoutubeUrl(""); setSermonText("");
+      setTitle(""); setSermonDate(""); setSermonText("");
       setGeneratedCaption(""); setGeneratedQuestions([]); setSavedQuizId(null);
     } catch (err: any) {
       showAlert("Error", "Publish failed: " + (err?.message || "Unknown error"), "error");
@@ -398,28 +397,16 @@ export default function QuizAdminPage() {
           style={S.input}
         />
 
-        <label style={S.label}>YouTube URL (optional)</label>
-        <input
-          type="text"
-          value={youtubeUrl}
-          onChange={(e) => setYoutubeUrl(e.target.value)}
-          placeholder="https://youtube.com/watch?v=..."
-          style={S.input}
-        />
-        <p style={{ color: "#a0aec0", fontSize: "0.8rem", marginTop: "4px" }}>
-          We&apos;ll try to fetch the sermon transcript from this video
-        </p>
-
-        <label style={S.label}>Sermon Notes / Script (optional fallback)</label>
+        <label style={S.label}>Sermon Notes / Script / Transcript</label>
         <textarea
           value={sermonText}
           onChange={(e) => setSermonText(e.target.value)}
-          placeholder="Paste the full sermon script or notes here if YouTube transcript is unavailable..."
-          rows={8}
+          placeholder="Paste the full sermon script, notes, or copied transcript here..."
+          rows={12}
           style={S.textarea}
         />
         <p style={{ color: "#a0aec0", fontSize: "0.8rem", marginTop: "4px" }}>
-          Either YouTube URL or sermon text — at least one is required
+          Provide the sermon notes or copy-pasted transcript. Bisaya, Tagalog, and English are all accepted.
         </p>
 
         {genError && <div style={S.error}>{genError}</div>}

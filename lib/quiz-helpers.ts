@@ -58,17 +58,9 @@ export const REWARD_DISPLAY: Record<string, { label: string; description: string
   PARTICIPANT: { label: "🙏 Keep Growing!",  description: "Keep studying the Word. Every quiz brings you closer to God!" },
 };
 
-// ── Max transcript length (safety net) ───────────────────────────────────────
-const MAX_TRANSCRIPT_CHARS = 40000;
-
-function truncateTranscript(text: string): string {
-  if (text.length <= MAX_TRANSCRIPT_CHARS) return text;
-  return text.slice(0, MAX_TRANSCRIPT_CHARS) + "\n\n[Transcript truncated for processing]";
-}
-
 // ── Straico API helper ───────────────────────────────────────────────────────
-async function callStraico(prompt: string): Promise<string> {
-  const model = process.env.STRAICO_MODEL ?? "openai/gpt-4o-mini";
+async function callStraico(prompt: string, modelName?: string): Promise<string> {
+  const model = modelName ?? process.env.STRAICO_MODEL ?? "openai/gpt-4o-mini";
   const response = await axios.post(
     "https://api.straico.com/v1/prompt/completion",
     {
@@ -80,7 +72,7 @@ async function callStraico(prompt: string): Promise<string> {
         Authorization: `Bearer ${process.env.STRAICO_API_KEY}`,
         "Content-Type": "application/json",
       },
-      timeout: 60000, // quiz generation can take a while
+      timeout: 90000, // quiz generation with model switching can take a while
     }
   );
 
@@ -103,7 +95,7 @@ function extractJson(text: string): any {
 
 // ── Generate quiz prompt ─────────────────────────────────────────────────────
 export async function generateQuiz(
-  transcript: string,
+  rawTranscript: string,
   sermonDate: string
 ): Promise<{
   title: string;
@@ -118,19 +110,42 @@ export async function generateQuiz(
     explanation: string;
   }>;
 }> {
-  const trimmed = truncateTranscript(transcript);
+  // PHASE 1: Clean and format raw transcript using the cheap model
+  const cheapModel = process.env.STRAICO_CHEAP_MODEL ?? "openai/gpt-4o-mini";
 
-  const prompt = `You are an AI assistant for House of Grace Fellowship, a Christian church.
+  const cleanPrompt = `You are a sermon transcription assistant for House of Grace Fellowship.
+Analyze the following raw, unformatted sermon transcript. It contains a mix of English (~70%) and Tagalog/Bisaya (~30%).
+Your task is to translate all Tagalog and Bisaya parts to English and compile a highly structured, comprehensive, and detailed English sermon outline/summary.
+
+CRITICAL RULES:
+1. Translate any Tagalog or Bisaya preaching sections into clear English.
+2. PRESERVE all exact biblical scripture references, proper names, sermon-specific illustrations, metaphors, and key phrases used by the pastor. Do not replace or generalize important exact words used by the pastors.
+3. Do NOT omit details. The summary should be thorough enough that a quiz generator can construct specific questions based on it.
+4. Output only the structured English summary. No conversational preamble or postscript.
+
+SERMON DATE: ${sermonDate}
+RAW TRANSCRIPT:
+"""
+${rawTranscript}
+"""`;
+
+  console.log(`[quiz-helpers] Starting Phase 1: Clean up via ${cheapModel}...`);
+  const cleanSummary = await callStraico(cleanPrompt, cheapModel);
+  console.log(`[quiz-helpers] Phase 1 complete. Summary length: ${cleanSummary.length} chars.`);
+
+  // PHASE 2: Generate the quiz from the summary using the smart model
+  const smartModel = process.env.STRAICO_SMART_MODEL ?? process.env.STRAICO_MODEL ?? "openai/gpt-4o";
+
+  const quizPrompt = `You are an AI assistant for House of Grace Fellowship, a Christian church.
 You are creating a weekly "Quiz for Christ" based on a Sunday sermon.
 
 SERMON DATE: ${sermonDate}
-
-TRANSCRIPT:
+SERMON SUMMARY:
 """
-${trimmed}
+${cleanSummary}
 """
 
-TASK: Generate THREE things from this sermon:
+TASK: Generate THREE things from this sermon summary:
 
 1. A SUITABLE QUIZ TITLE — A concise title summarizing the sermon theme, formatted as 'Topic — Month Day, Year' (e.g. 'Walking by Faith — June 1, 2026') using the provided sermon date: ${sermonDate}.
 
@@ -193,7 +208,10 @@ OUTPUT FORMAT — Strictly valid JSON, no extra text:
   ]
 }`;
 
-  const reply = await callStraico(prompt);
+  console.log(`[quiz-helpers] Starting Phase 2: Quiz generation via ${smartModel}...`);
+  const reply = await callStraico(quizPrompt, smartModel);
+  console.log(`[quiz-helpers] Phase 2 complete. Reply length: ${reply.length} chars.`);
+
   return extractJson(reply);
 }
 

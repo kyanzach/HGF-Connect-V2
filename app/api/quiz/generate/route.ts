@@ -2,14 +2,13 @@
  * POST /api/quiz/generate — AI quiz generation (preview only, not saved to DB)
  *
  * Admin/Pastor only.
- * Accepts YouTube URL and/or manual sermon text.
- * Returns generated announcement caption + 5 quiz questions for inline preview.
+ * Accepts manual sermon text/transcript.
+ * Returns generated quiz title, announcement caption, and 5 progressive quiz questions.
  */
 
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { extractVideoId, fetchTranscript } from "@/lib/youtube";
 import { generateQuiz } from "@/lib/quiz-helpers";
 
 export const dynamic = "force-dynamic";
@@ -45,49 +44,23 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { youtubeUrl, sermonText, sermonDate } = body;
+    const { sermonText, sermonDate } = body;
 
     if (!sermonDate) {
       return NextResponse.json({ error: "Sermon date is required" }, { status: 400 });
     }
-
-    let transcript = "";
-    let videoId: string | null = null;
-    let transcriptSource: "youtube" | "manual" | null = null;
-
-    // Try YouTube first if provided
-    if (youtubeUrl) {
-      videoId = extractVideoId(youtubeUrl);
-      if (videoId) {
-        const ytTranscript = await fetchTranscript(videoId);
-        if (ytTranscript) {
-          transcript = ytTranscript;
-          transcriptSource = "youtube";
-        }
-      }
-    }
-
-    // Fall back to manual sermon text
-    if (!transcript && sermonText) {
-      transcript = sermonText;
-      transcriptSource = "manual";
-    }
-
-    if (!transcript) {
-      return NextResponse.json({
-        error: "No transcript available. Please provide a YouTube URL with captions, or paste the sermon notes manually.",
-        transcriptSource: null,
-      }, { status: 400 });
+    if (!sermonText || !sermonText.trim()) {
+      return NextResponse.json({ error: "Sermon notes or transcript script is required" }, { status: 400 });
     }
 
     // Generate quiz via AI
-    const result = await generateQuiz(transcript, sermonDate);
+    const result = await generateQuiz(sermonText, sermonDate);
 
     return NextResponse.json({
       success: true,
-      transcriptSource,
-      videoId,
-      transcriptLength: transcript.length,
+      transcriptSource: "manual",
+      videoId: null,
+      transcriptLength: sermonText.length,
       title: result.title,
       announcementCaption: result.announcementCaption,
       questions: result.questions,
