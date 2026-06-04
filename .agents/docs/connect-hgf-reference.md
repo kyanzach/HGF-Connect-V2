@@ -205,6 +205,11 @@ When a page crashes or shows errors:
 - **Events page crash fixed (v2.10.4)**: Prisma `Date` objects for `eventDate`, `startTime`, `endTime` were passed unserialized from server to client components. Fix: `JSON.parse(JSON.stringify(...))` before passing props. Applied to both `/admin/events` and `/events`.
 - **ConfirmModal introduced (v2.10.5)**: Native `confirm()` dialogs disappear instantly on mobile/PWA. Created `components/ConfirmModal.tsx` and replaced all 7 `confirm()` call sites across 6 files (admin events, members, review, SMS, my-listings, prospects).
 
-### 2026-04-24
-- **Testimony Module Hotfix**: Added `testimonies` and `testimony_photos` tables directly to the live server. Fixed the "Failed to get registration options" WebAuthn error which was caused by missing `webauthn_challenge` column on the live DB due to a skipped migration.
-- **Environment Shift**: Transitioned completely to Live Server Testing. Local testing is fully deprecated; all changes and verifications must interact directly with the droplet server (`159.65.15.225`).
+### 2026-06-04
+- **Quiz for Christ Gamification (v2.14.0)**:
+  - Implemented weekly sermon-based drip quiz system with 5 interactive question types (balloon multiple-choice, fill in blanks, AI-graded essay, touch-friendly reordering, true/false with justification).
+  - Integrated `lib/youtube.ts` using custom IPv4-only agents to fetch YouTube transcripts without encountering server IPv6 timeout issues.
+  - Replaced regular expression dotAll `/s` flags with ES-compatible `[\s\S]` character class pattern matching to solve TypeScript build issues.
+  - Deployed database schema updates on the remote server using `npx prisma db push --accept-data-loss` loading production configuration from `.env.production`.
+  - Configured standalone daily quiz publisher cron task (`scripts/quiz-cron.mjs`) on server crontab (6:00 AM Manila time).
+
