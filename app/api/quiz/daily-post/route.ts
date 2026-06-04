@@ -28,7 +28,11 @@ export async function POST(request: Request) {
 
     const dayInfo = QUIZ_DAYS.find((d) => d.weekday === weekday);
     if (!dayInfo) {
-      return NextResponse.json({ message: "Not a quiz day (Sun/Mon)" });
+      return NextResponse.json({ message: "Invalid weekday" });
+    }
+
+    if (dayInfo.dayNumber === 1) {
+      return NextResponse.json({ message: "Monday quiz post is handled by the main announcement post" });
     }
 
     // Find the currently published quiz
@@ -103,10 +107,9 @@ export async function POST(request: Request) {
       });
     }
 
-    // If this is the last day (Saturday), also mark quiz as completed
-    if (dayInfo.dayNumber === 5) {
-      // We'll complete it the next day (Sunday) or leave it published
-      // so late Saturday players can still submit
+    // If this is the last day (Sunday), also mark quiz as completed
+    if (dayInfo.dayNumber === 7) {
+      // We'll complete it or leave it published for late submissions
     }
 
     return NextResponse.json({

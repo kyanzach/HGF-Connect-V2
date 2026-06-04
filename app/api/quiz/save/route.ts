@@ -9,6 +9,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { extractVideoId } from "@/lib/youtube";
 
 export const dynamic = "force-dynamic";
 
@@ -37,10 +38,10 @@ export async function POST(request: Request) {
       title,
       sermonDate,
       youtubeUrl,
-      youtubeVideoId,
       transcriptText,
       announcementCaption,
       questions,
+      eventId,
     } = body;
 
     if (!title || !sermonDate || !questions?.length) {
@@ -48,6 +49,8 @@ export async function POST(request: Request) {
     }
 
     const memberId = parseInt(session.user.id, 10);
+    const youtubeVideoId = youtubeUrl ? extractVideoId(youtubeUrl) : null;
+    const parsedEventId = eventId ? parseInt(eventId, 10) : null;
 
     if (quizId) {
       // ── Update existing draft ──
@@ -66,6 +69,7 @@ export async function POST(request: Request) {
           youtubeVideoId: youtubeVideoId || null,
           transcriptText: transcriptText || null,
           announcementCaption: announcementCaption || null,
+          eventId: parsedEventId || null,
         },
       });
 
@@ -97,6 +101,7 @@ export async function POST(request: Request) {
           announcementCaption: announcementCaption || null,
           status: "draft",
           createdById: memberId,
+          eventId: parsedEventId || null,
           questions: {
             create: questions.map((q: any) => ({
               dayNumber: q.dayNumber,

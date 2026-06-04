@@ -165,13 +165,13 @@ export async function POST(request: Request) {
       },
     });
 
-    // ── Check if all 5 days completed → generate reward ──
+    // ── Check if all 7 days completed → generate reward ──
     const totalSubmissions = await db.quizSubmission.count({
       where: { quizId: question.quiz.id, memberId },
     });
 
     let reward = null;
-    if (totalSubmissions === 5) {
+    if (totalSubmissions === 7) {
       const totalScore = await db.quizSubmission.aggregate({
         _sum: { score: true },
         where: { quizId: question.quiz.id, memberId },
@@ -204,10 +204,10 @@ export async function POST(request: Request) {
                 ? "🙏 Quiz for Christ complete!"
                 : "🎁 You earned a prize this week!",
             body: tier === "PERFECT"
-              ? "You aced all 5 days! Tap to claim your Christian statement t-shirt."
+              ? "You aced all 7 days! Tap to claim your Christian statement t-shirt."
               : tier === "PARTICIPANT"
-                ? `You scored ${finalScore}/5. Keep growing in the Word!`
-                : `You scored ${finalScore}/5! Your prize will be announced this Sunday. 🎁`,
+                ? `You scored ${finalScore}/7. Keep growing in the Word!`
+                : `You scored ${finalScore}/7! Your prize will be announced this Sunday. 🎁`,
             link: "/quiz",
           },
         });

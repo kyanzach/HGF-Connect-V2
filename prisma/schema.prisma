@@ -145,6 +145,7 @@ model Event {
   creator         Member             @relation("EventCreatedBy", fields: [createdBy], references: [id], onDelete: Cascade, onUpdate: Cascade)
   attendance      AttendanceRecord[]
   smsReminders    SmsReminder[]
+  sermonQuizzes   SermonQuiz[]
 
   @@index([eventDate], name: "idx_event_date")
   @@index([eventType], name: "idx_event_type")
@@ -1075,6 +1076,9 @@ model SermonQuiz {
   createdById           Int              @map("created_by_id")
   createdAt             DateTime         @default(now()) @map("created_at")
   updatedAt             DateTime         @updatedAt @map("updated_at")
+
+  eventId               Int?             @map("event_id")
+  event                 Event?           @relation(fields: [eventId], references: [id], onDelete: SetNull)
 
   creator               Member           @relation("QuizCreator", fields: [createdById], references: [id])
   questions             QuizQuestion[]

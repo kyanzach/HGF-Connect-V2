@@ -90,10 +90,22 @@ export async function GET() {
       };
     });
 
+    // Check attendance gating if event is linked to the quiz
+    let attended = true;
+    if (quiz.eventId) {
+      const attendanceRecord = await db.attendanceRecord.findFirst({
+        where: {
+          memberId,
+          eventId: quiz.eventId,
+        },
+      });
+      attended = !!attendanceRecord;
+    }
+
     // Calculate totals
     const completedCount = submissions.length;
     const totalScore = submissions.reduce((sum, s) => sum + s.score, 0);
-    const isWeekComplete = completedCount >= 5;
+    const isWeekComplete = completedCount >= 7;
     const rewardTier = isWeekComplete ? getRewardTier(totalScore) : null;
 
     // Check for existing reward claim
@@ -114,18 +126,20 @@ export async function GET() {
 
     return NextResponse.json({
       active: true,
+      attended,
       quiz: {
         id: quiz.id,
         title: quiz.title,
         sermonDate: quiz.sermonDate,
         youtubeVideoId: quiz.youtubeVideoId,
         status: quiz.status,
+        eventId: quiz.eventId,
       },
       days,
       currentDay,
       progress: {
         completed: completedCount,
-        total: 5,
+        total: 7,
         totalScore,
         isWeekComplete,
         rewardTier,

@@ -14,8 +14,8 @@
 - **Brand color**: `#4EB1CB` (teal)
 - **Style pattern**: Inline styles (no Tailwind), all client components are `"use client"`
 
-> 🔴 **CRITICAL RULE: LIVE SERVER TESTING ONLY**
-> We no longer test locally. All testing, database migrations, and verifications MUST be referenced to and performed against the droplet live server (`159.65.15.225`). No more local testing from here forward.
+> 🔴 **CRITICAL RULE: SKIP LOCALHOST TESTING & DEPLOY DIRECTLY**
+> We no longer run localhost or perform local testing. We compile, commit, and deploy straight to the droplet server instead of testing locally, unless explicitly instructed. All migrations and validations are performed directly on the server.
 
 ---
 

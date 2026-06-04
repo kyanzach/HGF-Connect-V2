@@ -5,6 +5,13 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.16.0] — 2026-06-04
+### Added
+- **7-Day Drip Schedule (Monday to Sunday)**: Upgraded the weekly sermon quiz from a 5-day cycle to a full 7-day cycle. Day 1 (Monday) starts immediately on publishing, and Days 2-7 (Tuesday to Sunday) post automatically at 7:00 AM Manila time via cron.
+- **Physical Sunday Service Attendance Gating**: Integrated the quiz with the church's unified database. Quizzes now query and automatically link the most recent past Sunday Service event. Members must have an active attendance record for that physical service to join the quiz; otherwise, they are shown a warm, welcoming invitation to gather in person.
+- **Locked Embed Player**: Created a custom `CleanYoutubePlayer` using the YouTube Iframe Player API. By disabling pointer events on the iframe and layering a custom play/pause/replay and seek control overlay, we prevent users from clicking outgoing YouTube/external links, keeping them 100% inside the app.
+- **Admin Panel Event Link**: Displays the automatically matched physical Sunday Service event for the quiz week and re-added the optional YouTube video URL input.
+
 ## [v2.15.0] — 2026-06-04
 ### Added
 - **Two-Phase "Smart Model Switching" Pipeline**: Implemented a systematic cost-saving algorithm for sermon quiz generation.

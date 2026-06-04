@@ -12,11 +12,13 @@ import axios from "axios";
 // ── Day schedule constants ───────────────────────────────────────────────────
 // 0 = Sun, 1 = Mon, 2 = Tue, 3 = Wed, 4 = Thu, 5 = Fri, 6 = Sat
 export const QUIZ_DAYS = [
-  { dayNumber: 1, weekday: 2, label: "Tuesday",   type: "MULTIPLE_CHOICE"    as const },
-  { dayNumber: 2, weekday: 3, label: "Wednesday", type: "FILL_IN_BLANKS"     as const },
-  { dayNumber: 3, weekday: 4, label: "Thursday",  type: "SHORT_ANSWER"       as const },
-  { dayNumber: 4, weekday: 5, label: "Friday",    type: "SCRIPTURE_ORDERING" as const },
-  { dayNumber: 5, weekday: 6, label: "Saturday",  type: "TRUE_FALSE_EXPLAIN" as const },
+  { dayNumber: 1, weekday: 1, label: "Monday",    type: "MULTIPLE_CHOICE"    as const },
+  { dayNumber: 2, weekday: 2, label: "Tuesday",   type: "FILL_IN_BLANKS"     as const },
+  { dayNumber: 3, weekday: 3, label: "Wednesday", type: "SHORT_ANSWER"       as const },
+  { dayNumber: 4, weekday: 4, label: "Thursday",  type: "SCRIPTURE_ORDERING" as const },
+  { dayNumber: 5, weekday: 5, label: "Friday",    type: "TRUE_FALSE_EXPLAIN" as const },
+  { dayNumber: 6, weekday: 6, label: "Saturday",  type: "MULTIPLE_CHOICE"    as const },
+  { dayNumber: 7, weekday: 0, label: "Sunday",    type: "SHORT_ANSWER"       as const },
 ] as const;
 
 export const QUIZ_TYPE_LABELS: Record<string, { label: string; difficulty: string; emoji: string }> = {
@@ -27,27 +29,26 @@ export const QUIZ_TYPE_LABELS: Record<string, { label: string; difficulty: strin
   TRUE_FALSE_EXPLAIN: { label: "Defend Your Faith", difficulty: "Hard",        emoji: "⚖️" },
 };
 
-// ── Get current quiz day number (1–5) or 0 if outside quiz window ────────────
+// ── Get current quiz day number (1–7) ────────────────────────────────────────
 export function getDayNumber(date?: Date): number {
   const d = date || new Date();
   // Convert to Manila time
   const manila = new Date(d.toLocaleString("en-US", { timeZone: "Asia/Manila" }));
   const weekday = manila.getDay(); // 0=Sun ... 6=Sat
   const found = QUIZ_DAYS.find((q) => q.weekday === weekday);
-  return found?.dayNumber ?? 0;
+  return found?.dayNumber ?? 1; // Default to Day 1
 }
 
 // ── Can the member access this day's quiz? (catch-up allowed, no peek-ahead) ──
 export function canAccessDay(targetDay: number, currentDay: number): boolean {
-  if (currentDay === 0) return false; // Sun/Mon = no quiz days active
   return targetDay <= currentDay;
 }
 
 // ── Score → reward tier ──────────────────────────────────────────────────────
 export function getRewardTier(totalScore: number): "PERFECT" | "EXCELLENT" | "GOOD" | "PARTICIPANT" {
-  if (totalScore >= 5) return "PERFECT";
-  if (totalScore >= 4) return "EXCELLENT";
-  if (totalScore >= 3) return "GOOD";
+  if (totalScore >= 7) return "PERFECT";
+  if (totalScore >= 6) return "EXCELLENT";
+  if (totalScore >= 4) return "GOOD";
   return "PARTICIPANT";
 }
 
@@ -125,9 +126,9 @@ CRITICAL RULES:
 
 SERMON DATE: ${sermonDate}
 RAW TRANSCRIPT:
-"""
+""
 ${rawTranscript}
-"""`;
+""`;
 
   console.log(`[quiz-helpers] Starting Phase 1: Clean up via ${cheapModel}...`);
   const cleanSummary = await callStraico(cleanPrompt, cheapModel);
@@ -141,9 +142,9 @@ You are creating a weekly "Quiz for Christ" based on a Sunday sermon.
 
 SERMON DATE: ${sermonDate}
 SERMON SUMMARY:
-"""
+""
 ${cleanSummary}
-"""
+""
 
 TASK: Generate THREE things from this sermon summary:
 
@@ -151,40 +152,51 @@ TASK: Generate THREE things from this sermon summary:
 
 2. An ANNOUNCEMENT CAPTION — A compelling, uplifting social media-style post that:
    - Starts with "Here's a replay of Sunday's sermon from ${sermonDate}!"
-   - Includes 2-3 key takeaways from the sermon
-   - Ends with a call to action: "Get ready for this week's Quiz for Christ! 🧠✨"
+   - Includes 2-3 key takeaways from the sermon (highly brief, only 1 sentence each, do NOT expose any quiz answers)
+   - Ends with a call to action: "Get ready for the quiz! 🧠✨"
    - Tone: warm, encouraging, Bisaya-friendly (but written in English)
-   - Max 200 words
+   - Max 150 words
 
-3. FIVE QUIZ QUESTIONS — One for each day (Tuesday to Saturday), getting progressively harder:
+3. SEVEN QUIZ QUESTIONS — One for each day (Monday to Sunday), getting progressively harder:
 
-   DAY 1 (Tuesday) — MULTIPLE_CHOICE:
+   DAY 1 (Monday) — MULTIPLE_CHOICE:
    - A straightforward question about the sermon's main point
    - 4 options (A, B, C, D) — only 1 correct
    - options: ["Option A text", "Option B text", "Option C text", "Option D text"]
    - correctAnswer: the exact text of the correct option
 
-   DAY 2 (Wednesday) — FILL_IN_BLANKS:
+   DAY 2 (Tuesday) — FILL_IN_BLANKS:
    - A key sentence from the sermon with 1-2 missing words replaced by "______"
    - correctAnswer: the missing word(s), comma-separated if multiple blanks
    - options: null
 
-   DAY 3 (Thursday) — SHORT_ANSWER:
+   DAY 3 (Wednesday) — SHORT_ANSWER:
    - An open-ended question requiring the member to explain a concept in their own words
    - correctAnswer: the ideal answer (used as reference for AI grading)
    - options: null
 
-   DAY 4 (Friday) — SCRIPTURE_ORDERING:
+   DAY 4 (Thursday) — SCRIPTURE_ORDERING:
    - A key Bible verse or sermon quote broken into 4-6 phrase segments
    - The segments should be shuffled in the options array
    - correctAnswer: the segments joined in the correct order, separated by " | "
    - options: ["shuffled phrase 1", "shuffled phrase 2", ...] (the phrases in WRONG order)
 
-   DAY 5 (Saturday) — TRUE_FALSE_EXPLAIN:
+   DAY 5 (Friday) — TRUE_FALSE_EXPLAIN:
    - A statement about the sermon that is either true or false
    - correctAnswer: "TRUE" or "FALSE"
    - options: null
    - The explanation should explain WHY it is true or false
+
+   DAY 6 (Saturday) — MULTIPLE_CHOICE:
+   - Scripture Trivia or detailed application question from the sermon
+   - 4 options (A, B, C, D) — only 1 correct
+   - options: ["Option A text", "Option B text", "Option C text", "Option D text"]
+   - correctAnswer: the exact text of the correct option
+
+   DAY 7 (Sunday) — SHORT_ANSWER:
+   - Reflection question asking the member how they will apply this sermon's teachings in their daily life.
+   - correctAnswer: "Any sincere reflection showing personal application is correct."
+   - options: null
 
 For ALL questions, provide:
 - hint: a brief helpful hint (1 sentence)

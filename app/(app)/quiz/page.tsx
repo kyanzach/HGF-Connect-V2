@@ -15,6 +15,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import QuizPlayer from "@/components/quiz/QuizPlayer";
 import ConfirmModal from "@/components/ConfirmModal";
+import CleanYoutubePlayer from "@/components/quiz/CleanYoutubePlayer";
 
 const PRIMARY = "#4EB1CB";
 
@@ -34,6 +35,7 @@ interface QuizDay {
 
 interface QuizStatus {
   active: boolean;
+  attended?: boolean;
   message?: string;
   quiz?: {
     id: number;
@@ -184,7 +186,7 @@ export default function MemberQuizPage() {
         <div style={{ fontSize: "4.5rem", marginBottom: "16px" }}>🧠</div>
         <h2 style={{ fontSize: "1.4rem", fontWeight: 800, color: "#0f172a", marginBottom: "8px", textAlign: "center" }}>No Active Quiz Week</h2>
         <p style={{ color: "#64748b", fontSize: "0.95rem", textAlign: "center", maxWidth: "340px", lineHeight: 1.6, marginBottom: "24px" }}>
-          The pastors are preparing this week&apos;s sermon quiz. Check back on Tuesday morning, or browse previous weeks!
+          The pastors are preparing this week&apos;s sermon quiz. Check back on Monday morning, or browse previous weeks!
         </p>
         <button
           onClick={() => router.push("/quiz/hub")}
@@ -192,6 +194,40 @@ export default function MemberQuizPage() {
         >
           📂 Browse Quiz Hub & Leaderboard
         </button>
+      </div>
+    );
+  }
+
+  // Attendance Check Gating
+  if (quizStatus.active && quizStatus.attended === false) {
+    return (
+      <div style={{ minHeight: "80vh", padding: "24px 20px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#f8fafc", paddingTop: "calc(env(safe-area-inset-top) + 24px)" }}>
+        <div style={{
+          background: "white",
+          borderRadius: "24px",
+          padding: "32px 24px",
+          boxShadow: "0 10px 30px rgba(0,0,0,0.05)",
+          border: "2px solid #F3F4F6",
+          maxWidth: "420px",
+          textAlign: "center" as const,
+          display: "flex",
+          flexDirection: "column" as const,
+          alignItems: "center"
+        }}>
+          <div style={{ fontSize: "4.5rem", marginBottom: "16px" }}>🏠</div>
+          <h2 style={{ fontSize: "1.4rem", fontWeight: 800, color: "#0f172a", marginBottom: "12px" }}>
+            Join Us in the House!
+          </h2>
+          <p style={{ color: "#475569", fontSize: "0.92rem", lineHeight: 1.6, marginBottom: "24px" }}>
+            We missed you at our physical Sunday Service! The <strong>Quiz for Christ</strong> is a special blessing reserved for those who gather with us in person. We warmly invite you to join our next Sunday Service at the physical church to experience the fellowship, worship, and Word together. We can't wait to see you there!
+          </p>
+          <button
+            onClick={() => router.push("/quiz/hub")}
+            style={{ width: "100%", background: PRIMARY, color: "white", padding: "12px 24px", borderRadius: "12px", border: "none", fontWeight: 700, fontSize: "0.95rem", cursor: "pointer", boxShadow: `0 4px 14px ${PRIMARY}40`, transition: "all 0.2s" }}
+          >
+            📂 View Leaderboard & Hub
+          </button>
+        </div>
       </div>
     );
   }
@@ -236,16 +272,7 @@ export default function MemberQuizPage() {
           <h3 style={{ fontSize: "0.85rem", fontWeight: 800, color: "#475569", marginBottom: "8px", display: "flex", alignItems: "center", gap: "6px" }}>
             📺 Sermon Study Guide
           </h3>
-          <div style={{ position: "relative", width: "100%", paddingBottom: "56.25%", borderRadius: "12px", overflow: "hidden" }}>
-            <iframe
-              src={`https://www.youtube.com/embed/${quiz.youtubeVideoId}`}
-              title="YouTube video player"
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-              style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}
-            />
-          </div>
+          <CleanYoutubePlayer videoId={quiz.youtubeVideoId} />
         </div>
       )}
 
@@ -255,12 +282,12 @@ export default function MemberQuizPage() {
           📈 Weekly Progress & Wallet
         </h3>
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem", color: "#64748b", marginBottom: "6px" }}>
-          <span>Completed: {progress?.completed}/5 days</span>
-          <span style={{ fontWeight: 700, color: "#0f172a" }}>Score: {progress?.totalScore}/5</span>
+          <span>Completed: {progress?.completed}/7 days</span>
+          <span style={{ fontWeight: 700, color: "#0f172a" }}>Score: {progress?.totalScore}/7</span>
         </div>
         {/* Progress Bar */}
         <div style={{ width: "100%", height: "8px", background: "#f1f5f9", borderRadius: "10px", overflow: "hidden", marginBottom: "16px" }}>
-          <div style={{ width: `${((progress?.completed || 0) / 5) * 100}%`, height: "100%", background: PRIMARY, borderRadius: "10px", transition: "width 0.4s ease" }} />
+          <div style={{ width: `${((progress?.completed || 0) / 7) * 100}%`, height: "100%", background: PRIMARY, borderRadius: "10px", transition: "width 0.4s ease" }} />
         </div>
 
         {/* Reward info */}
@@ -280,7 +307,7 @@ export default function MemberQuizPage() {
           </div>
         ) : (
           <p style={{ color: "#64748b", fontSize: "0.8rem", margin: 0, fontStyle: "italic", textAlign: "center" }}>
-            Complete all 5 days to unlock your weekly reward tier!
+            Complete all 7 days to unlock your weekly reward tier!
           </p>
         )}
       </div>

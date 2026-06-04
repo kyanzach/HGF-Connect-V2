@@ -41,6 +41,28 @@ export default function QuizAdminPage() {
   const [title, setTitle] = useState("");
   const [sermonDate, setSermonDate] = useState("");
   const [sermonText, setSermonText] = useState("");
+  const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [linkedEvent, setLinkedEvent] = useState<any | null>(null);
+  const [loadingEvent, setLoadingEvent] = useState(false);
+
+  useEffect(() => {
+    if (!sermonDate) {
+      setLinkedEvent(null);
+      return;
+    }
+    setLoadingEvent(true);
+    fetch(`/api/quiz/admin/latest-sunday?date=${sermonDate}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.id) {
+          setLinkedEvent(data);
+        } else {
+          setLinkedEvent(null);
+        }
+      })
+      .catch(() => setLinkedEvent(null))
+      .finally(() => setLoadingEvent(false));
+  }, [sermonDate]);
 
   // ── Alert state ──
   const [alertModal, setAlertModal] = useState<{
@@ -138,11 +160,11 @@ export default function QuizAdminPage() {
           quizId: savedQuizId,
           title,
           sermonDate,
-          youtubeUrl: null,
-          youtubeVideoId: null,
+          youtubeUrl: youtubeUrl || null,
           transcriptText: sermonText || null,
           announcementCaption: generatedCaption,
           questions: generatedQuestions,
+          eventId: linkedEvent?.id || null,
         }),
       });
       const data = await res.json();
@@ -169,10 +191,11 @@ export default function QuizAdminPage() {
           body: JSON.stringify({
             title,
             sermonDate,
-            youtubeUrl: null,
+            youtubeUrl: youtubeUrl || null,
             transcriptText: sermonText || null,
             announcementCaption: generatedCaption,
             questions: generatedQuestions,
+            eventId: linkedEvent?.id || null,
           }),
         });
         const data = await res.json();
@@ -191,7 +214,7 @@ export default function QuizAdminPage() {
         loadQuizzes();
         showAlert("Success", "🚀 Quiz published! Announcement posted to community feed.", "success");
         // Reset form
-        setTitle(""); setSermonDate(""); setSermonText("");
+        setTitle(""); setSermonDate(""); setSermonText(""); setYoutubeUrl(""); setLinkedEvent(null);
         setGeneratedCaption(""); setGeneratedQuestions([]); setSavedQuizId(null);
       } catch (err: any) {
         showAlert("Error", "Publish failed: " + (err?.message || "Unknown error"), "error");
@@ -214,7 +237,7 @@ export default function QuizAdminPage() {
 
       loadQuizzes();
       showAlert("Success", "🚀 Quiz published! Announcement posted to community feed.", "success");
-      setTitle(""); setSermonDate(""); setSermonText("");
+      setTitle(""); setSermonDate(""); setSermonText(""); setYoutubeUrl(""); setLinkedEvent(null);
       setGeneratedCaption(""); setGeneratedQuestions([]); setSavedQuizId(null);
     } catch (err: any) {
       showAlert("Error", "Publish failed: " + (err?.message || "Unknown error"), "error");
@@ -394,6 +417,35 @@ export default function QuizAdminPage() {
           type="date"
           value={sermonDate}
           onChange={(e) => setSermonDate(e.target.value)}
+          style={S.input}
+        />
+
+        <div style={{ marginTop: "16px", padding: "14px", borderRadius: "12px", background: "#f8fafc", border: "1px dashed #cbd5e1" }}>
+          <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>
+            🔗 Automatically Linked Event (Sunday Gating)
+          </span>
+          {loadingEvent ? (
+            <p style={{ margin: "4px 0 0", fontSize: "0.9rem", color: "#64748b" }}>Loading nearest Sunday Service event...</p>
+          ) : linkedEvent ? (
+            <div style={{ marginTop: "6px" }}>
+              <strong style={{ fontSize: "0.95rem", color: "#0f172a", display: "block" }}>{linkedEvent.title}</strong>
+              <span style={{ fontSize: "0.8rem", color: "#4EB1CB", fontWeight: 700 }}>
+                📅 Event Date: {new Date(linkedEvent.eventDate).toLocaleDateString()}
+              </span>
+            </div>
+          ) : (
+            <p style={{ margin: "4px 0 0", fontSize: "0.9rem", color: "#ef4444", fontWeight: 600 }}>
+              ⚠️ No physical Sunday Service event found on or before this date! Gating will be disabled.
+            </p>
+          )}
+        </div>
+
+        <label style={S.label}>YouTube Sermon Video URL (Optional)</label>
+        <input
+          type="text"
+          value={youtubeUrl}
+          onChange={(e) => setYoutubeUrl(e.target.value)}
+          placeholder="e.g. https://www.youtube.com/watch?v=..."
           style={S.input}
         />
 

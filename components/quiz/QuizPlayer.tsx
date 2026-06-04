@@ -146,6 +146,8 @@ export default function QuizPlayer({ question, onComplete, onClose }: QuizPlayer
     3: "📝 Day 3 — In Your Own Words",
     4: "🧩 Day 4 — Verse Builder",
     5: "⚖️ Day 5 — Defend Your Faith",
+    6: "🎈 Day 6 — Scripture Trivia",
+    7: "📝 Day 7 — Heart Reflection",
   };
 
   async function submitAnswer(answer: string) {
@@ -226,7 +228,7 @@ export default function QuizPlayer({ question, onComplete, onClose }: QuizPlayer
           {result.reward && (
             <div style={{ ...S.resultCard, borderColor: "rgba(78,177,203,0.5)", border: "2px solid rgba(78,177,203,0.5)" }}>
               <p style={{ color: "#4EB1CB", fontSize: "1.1rem", fontWeight: 700 }}>
-                🏆 Week Complete! Score: {result.reward.totalScore}/5
+                🏆 Week Complete! Score: {result.reward.totalScore}/7
               </p>
               <p style={{ color: "#e2e8f0", fontSize: "0.9rem", marginTop: "8px" }}>
                 {result.reward.tier === "PERFECT"

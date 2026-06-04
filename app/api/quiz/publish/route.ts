@@ -44,8 +44,8 @@ export async function POST(request: Request) {
     if (quiz.status !== "draft") {
       return NextResponse.json({ error: "Quiz already published" }, { status: 400 });
     }
-    if (quiz.questions.length < 5) {
-      return NextResponse.json({ error: "Quiz must have 5 questions (one per day)" }, { status: 400 });
+    if (quiz.questions.length < 7) {
+      return NextResponse.json({ error: "Quiz must have 7 questions (one per day)" }, { status: 400 });
     }
 
     const memberId = parseInt(session.user.id, 10);
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
       quiz.announcementCaption || `📺 Here's a replay of Sunday's sermon: "${quiz.title}"`,
       "",
       "🧠 Get ready for this week's Quiz for Christ!",
-      "5 daily challenges starting Tuesday — from easy to hard.",
+      "7 daily challenges starting today — from easy to hard.",
       "Perfect score? You might win a prize! 🎁",
     ].join("\n");
 
@@ -95,7 +95,7 @@ export async function POST(request: Request) {
           memberId: m.id,
           type: "quiz_announcement" as const,
           title: "🧠 Quiz for Christ is HERE!",
-          body: `This week's quiz based on "${quiz.title}" starts Tuesday. Are you ready?`,
+          body: `This week's quiz based on "${quiz.title}" starts today. Are you ready?`,
           link: "/quiz",
           actorId: memberId,
         })),
