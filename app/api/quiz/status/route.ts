@@ -14,33 +14,52 @@ import { getDayNumber, QUIZ_DAYS, QUIZ_TYPE_LABELS, REWARD_DISPLAY, getRewardTie
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const memberId = parseInt(session.user.id, 10);
   if (isNaN(memberId)) return NextResponse.json({ error: "Invalid session" }, { status: 401 });
 
+  const { searchParams } = new URL(request.url);
+  const quizIdParam = searchParams.get("quizId");
+  const quizId = quizIdParam ? parseInt(quizIdParam, 10) : null;
+
   try {
-    // Find active published quiz (most recent)
-    const quiz = await db.sermonQuiz.findFirst({
-      where: { status: { in: ["published", "completed"] } },
-      orderBy: { sermonDate: "desc" },
-      include: {
-        questions: {
-          orderBy: { dayNumber: "asc" },
-          select: {
-            id: true,
-            dayNumber: true,
-            questionType: true,
-            questionText: true,
+    // Find active published/completed quiz
+    const quiz = quizId && !isNaN(quizId)
+      ? await db.sermonQuiz.findFirst({
+          where: { id: quizId, status: { in: ["published", "completed"] } },
+          include: {
+            questions: {
+              orderBy: { dayNumber: "asc" },
+              select: {
+                id: true,
+                dayNumber: true,
+                questionType: true,
+                questionText: true,
+              },
+            },
           },
-        },
-      },
-    });
+        })
+      : await db.sermonQuiz.findFirst({
+          where: { status: { in: ["published", "completed"] } },
+          orderBy: { sermonDate: "desc" },
+          include: {
+            questions: {
+              orderBy: { dayNumber: "asc" },
+              select: {
+                id: true,
+                dayNumber: true,
+                questionType: true,
+                questionText: true,
+              },
+            },
+          },
+        });
 
     if (!quiz) {
-      return NextResponse.json({ active: false, message: "No active quiz this week" });
+      return NextResponse.json({ active: false, message: "Quiz not found" });
     }
 
     // Get member's submissions for this quiz

@@ -8,7 +8,7 @@ type ConfirmModalProps = {
   title?: string;
   message: string;
   confirmLabel?: string;
-  cancelLabel?: string;
+  cancelLabel?: string | null;
   confirmColor?: string;
   loading?: boolean;
   onConfirm: () => void;
@@ -75,24 +75,26 @@ export default function ConfirmModal({
           {message}
         </p>
         <div style={{ display: "flex", gap: "0.75rem" }}>
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={loading}
-            style={{
-              flex: 1,
-              padding: "0.625rem",
-              border: "1.5px solid #e2e8f0",
-              borderRadius: "8px",
-              background: "white",
-              cursor: "pointer",
-              fontWeight: 700,
-              fontSize: "0.875rem",
-              color: "#374151",
-            }}
-          >
-            {cancelLabel}
-          </button>
+          {cancelLabel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={loading}
+              style={{
+                flex: 1,
+                padding: "0.625rem",
+                border: "1.5px solid #e2e8f0",
+                borderRadius: "8px",
+                background: "white",
+                cursor: "pointer",
+                fontWeight: 700,
+                fontSize: "0.875rem",
+                color: "#374151",
+              }}
+            >
+              {cancelLabel}
+            </button>
+          )}
           <button
             type="button"
             onClick={onConfirm}

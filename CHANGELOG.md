@@ -5,6 +5,13 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.18.0] — 2026-06-05
+### Added
+- **In-Place Feed Gameplay**: Embeds `CleanYoutubePlayer` directly in `QUIZ_ANNOUNCEMENT` posts on the community feed instead of static thumbnails. Tapping "Start This Week's Quiz" or "Play Today's Challenge" on feed cards now opens the quiz player overlay directly in-place without page redirection.
+- **HTML5 Fullscreen Toggle**: Added native fullscreen enter/exit controls (`⛶` / `🗗`) to the customized youtube player, expanding the study video to fill the screen while keeping custom controls functional.
+- **Past Quizzes Hub**: Populated the "Past Quizzes" tab on the Quiz Hub page with clickable past weeks, routing users to `/quiz?quizId=ID` to view historical performance stats.
+- **Friendly Progress Badges**: Replaced raw numeric `1/1` and `0/1` challenge checklist scores with positive styled status badges: `🏆 +1 Point` for correct answers and `💡 Learned` for completed incorrect ones.
+
 ## [v2.17.1] — 2026-06-05
 ### Added
 - **Visual AI Progress Bar**: Added a simulated loading progress bar and dynamic stage footnotes to the Admin generation panel so admins see exactly what the AI pipeline is doing (formatting, translation, formatting quiz items, structuring explanations).

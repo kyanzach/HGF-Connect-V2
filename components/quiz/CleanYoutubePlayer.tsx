@@ -21,6 +21,29 @@ export default function CleanYoutubePlayer({ videoId }: CleanYoutubePlayerProps)
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const playerWrapperRef = useRef<HTMLDivElement>(null);
+
+  const toggleFullscreen = () => {
+    if (!playerWrapperRef.current) return;
+    if (!document.fullscreenElement) {
+      playerWrapperRef.current.requestFullscreen().catch((err) => {
+        console.error("Error enabling fullscreen:", err);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, []);
 
   // Load YouTube script once globally
   useEffect(() => {
@@ -154,14 +177,19 @@ export default function CleanYoutubePlayer({ videoId }: CleanYoutubePlayerProps)
 
   return (
     <div
+      ref={playerWrapperRef}
       style={{
-        position: "relative",
+        position: isFullscreen ? "fixed" : "relative",
+        top: isFullscreen ? 0 : undefined,
+        left: isFullscreen ? 0 : undefined,
         width: "100%",
-        paddingBottom: "56.25%", // 16:9 Aspect Ratio
+        height: isFullscreen ? "100%" : undefined,
+        paddingBottom: isFullscreen ? "0" : "56.25%", // 16:9 Aspect Ratio
         background: "#000",
-        borderRadius: "14px",
+        borderRadius: isFullscreen ? "0" : "14px",
         overflow: "hidden",
-        boxShadow: "0 10px 30px rgba(0, 0, 0, 0.25)",
+        boxShadow: isFullscreen ? "none" : "0 10px 30px rgba(0, 0, 0, 0.25)",
+        zIndex: isFullscreen ? 99999 : undefined,
       }}
     >
       {/* Target div for YouTube player replacement */}
@@ -324,6 +352,24 @@ export default function CleanYoutubePlayer({ videoId }: CleanYoutubePlayerProps)
           }}
         >
           {isMuted ? "🔇" : "🔊"}
+        </button>
+
+        {/* Fullscreen Button */}
+        <button
+          onClick={toggleFullscreen}
+          style={{
+            background: "none",
+            border: "none",
+            color: "#fff",
+            fontSize: "1.1rem",
+            cursor: "pointer",
+            padding: 0,
+            display: "flex",
+            alignItems: "center",
+          }}
+          aria-label={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+        >
+          {isFullscreen ? "🗗" : "⛶"}
         </button>
       </div>
     </div>

@@ -69,6 +69,7 @@ export default function MemberQuizPage() {
   const [loading, setLoading] = useState(true);
   const [quizStatus, setQuizStatus] = useState<QuizStatus | null>(null);
   const [activeQuestion, setActiveQuestion] = useState<any | null>(null);
+  const [isPastQuiz, setIsPastQuiz] = useState(false);
 
   // ── Reward Claiming state ──
   const [claiming, setClaiming] = useState(false);
@@ -82,7 +83,10 @@ export default function MemberQuizPage() {
 
   const loadStatus = useCallback(async () => {
     try {
-      const res = await fetch("/api/quiz/status");
+      const params = new URLSearchParams(window.location.search);
+      const quizId = params.get("quizId") || "";
+      const url = quizId ? `/api/quiz/status?quizId=${quizId}` : "/api/quiz/status";
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         setQuizStatus(data);
@@ -91,6 +95,13 @@ export default function MemberQuizPage() {
       console.error("Failed to load status:", err);
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      setIsPastQuiz(params.has("quizId"));
     }
   }, []);
 
@@ -106,7 +117,16 @@ export default function MemberQuizPage() {
       setInfoModal({
         open: true,
         title: `${day.label} Complete`,
-        message: `${day.isCorrect ? "Correct! 🎉" : "Incorrect. 😅"} You scored ${day.score}/1 for this day. Feedback: "${day.feedback}"`,
+        message: `${day.isCorrect ? "🏆 +1 Point" : "💡 Learned"} - Feedback: "${day.feedback || 'No feedback provided.'}"`,
+      });
+      return;
+    }
+
+    if (isPastQuiz) {
+      setInfoModal({
+        open: true,
+        title: "Past Quiz Week",
+        message: "You cannot play challenges from previous weeks. Browse the active week to play!",
       });
       return;
     }
@@ -483,11 +503,34 @@ export default function MemberQuizPage() {
 
               <div>
                 {isCompleted ? (
-                  <span style={{ fontSize: "0.85rem", fontWeight: 700, color: day.isCorrect ? "#16a34a" : "#dc2626" }}>
-                    {day.score}/1
+                  <span style={{
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    padding: "4px 8px",
+                    borderRadius: "8px",
+                    background: day.isCorrect ? "#16a34a15" : "#64748b15",
+                    color: day.isCorrect ? "#16a34a" : "#64748b",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px"
+                  }}>
+                    {day.isCorrect ? "🏆 +1 Point" : "💡 Learned"}
                   </span>
                 ) : isLocked ? (
                   <span style={{ fontSize: "1.1rem" }}>🔒</span>
+                ) : isPastQuiz ? (
+                  <span style={{
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    padding: "4px 8px",
+                    borderRadius: "8px",
+                    background: "#f1f5f9",
+                    color: "#94a3b8",
+                    display: "inline-flex",
+                    alignItems: "center"
+                  }}>
+                    Not Played
+                  </span>
                 ) : (
                   <span style={{ fontSize: "0.8rem", color: PRIMARY, fontWeight: 700 }}>PLAY →</span>
                 )}

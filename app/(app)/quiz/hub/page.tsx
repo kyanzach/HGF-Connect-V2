@@ -323,8 +323,9 @@ export default function QuizHubPage() {
                 const tier = week.rewards[0]?.rewardTier;
 
                 return (
-                  <div
+                  <button
                     key={week.id}
+                    onClick={() => router.push(`/quiz?quizId=${week.id}`)}
                     style={{
                       background: "white",
                       borderRadius: "16px",
@@ -332,7 +333,20 @@ export default function QuizHubPage() {
                       boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
                       display: "flex",
                       justifyContent: "space-between",
-                      alignItems: "center"
+                      alignItems: "center",
+                      border: "none",
+                      width: "100%",
+                      textAlign: "left",
+                      cursor: "pointer",
+                      transition: "transform 0.15s, box-shadow 0.15s",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = "translateY(-2px)";
+                      e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.08)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = "translateY(0)";
+                      e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.05)";
                     }}
                   >
                     <div>
@@ -348,7 +362,7 @@ export default function QuizHubPage() {
                       {played ? (
                         <div>
                           <span style={{ fontSize: "0.88rem", fontWeight: 700, color: PRIMARY }}>
-                            Score: {score}/5
+                            Score: {score}/7
                           </span>
                           <span style={{ display: "block", fontSize: "0.68rem", color: "#64748b", fontWeight: 500, marginTop: "2px" }}>
                             Tier: {tier}
@@ -360,7 +374,7 @@ export default function QuizHubPage() {
                         </span>
                       )}
                     </div>
-                  </div>
+                  </button>
                 );
               })
             )}

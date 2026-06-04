@@ -4,6 +4,9 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import CommentDrawer from "./CommentDrawer";
+import CleanYoutubePlayer from "@/components/quiz/CleanYoutubePlayer";
+import QuizPlayer from "@/components/quiz/QuizPlayer";
+import ConfirmModal from "@/components/ConfirmModal";
 
 const PRIMARY = "#4EB1CB";
 
@@ -63,6 +66,107 @@ export default function PostCard({ post }: PostCardProps) {
   const [commentsOpen, setCommentsOpen] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
+
+  const [activeQuestion, setActiveQuestion] = useState<any | null>(null);
+  const [loadingQuiz, setLoadingQuiz] = useState(false);
+  const [infoModal, setInfoModal] = useState({ open: false, title: "", message: "" });
+
+  function extractYoutubeIdFromThumbnail(url: string | null | undefined): string | null {
+    if (!url) return null;
+    const match = url.match(/vi\/([a-zA-Z0-9_-]{11})/);
+    return match ? match[1] : null;
+  }
+
+  async function handlePlayQuiz() {
+    if (loadingQuiz) return;
+    setLoadingQuiz(true);
+    try {
+      const res = await fetch("/api/quiz/status");
+      if (!res.ok) throw new Error("Failed to load quiz status");
+      const data = await res.json();
+      
+      if (!data.active) {
+        setInfoModal({
+          open: true,
+          title: "No Active Quiz",
+          message: "There is no active quiz week at the moment."
+        });
+        return;
+      }
+
+      // Check attendance gating
+      if (data.attended === false) {
+        setInfoModal({
+          open: true,
+          title: "Join Us in the House!",
+          message: "We missed you at our physical Sunday Service! The Quiz for Christ is a special blessing reserved for those who gather with us in person. We warmly invite you to join our next Sunday Service at the physical church to experience the fellowship, worship, and Word together.",
+        });
+        return;
+      }
+
+      // Determine day number
+      let targetDayNum = 1;
+      if (post.type === "QUIZ_DAILY") {
+        const match = post.content?.match(/Day (\d+)/);
+        if (match) {
+          targetDayNum = parseInt(match[1], 10);
+        }
+      }
+
+      const day = data.days?.find((d: any) => d.dayNumber === targetDayNum);
+      if (!day) {
+        setInfoModal({
+          open: true,
+          title: "Challenge Not Found",
+          message: `Could not find challenge details for Day ${targetDayNum}.`
+        });
+        return;
+      }
+
+      if (day.status === "locked") {
+        setInfoModal({
+          open: true,
+          title: "Challenge Locked",
+          message: "This daily challenge is locked. Check back on the scheduled day!"
+        });
+        return;
+      }
+
+      if (day.status === "completed") {
+        setInfoModal({
+          open: true,
+          title: `${day.label} Complete`,
+          message: `${day.isCorrect ? "🏆 +1 Point" : "💡 Learned"} - You have already completed this challenge. Feedback: "${day.feedback || 'No feedback provided.'}"`,
+        });
+        return;
+      }
+
+      // Load specific question details
+      const qRes = await fetch(`/api/quiz/question?id=${day.questionId}`);
+      if (!qRes.ok) {
+        const qErr = await qRes.json();
+        throw new Error(qErr.error || "Failed to load question details");
+      }
+      const qData = await qRes.json();
+      setActiveQuestion({
+        questionId: day.questionId,
+        dayNumber: day.dayNumber,
+        type: day.type,
+        questionText: qData.questionText,
+        options: qData.options,
+        hint: qData.hint,
+      });
+
+    } catch (err: any) {
+      setInfoModal({
+        open: true,
+        title: "Error",
+        message: err?.message || "Could not launch today's challenge. Please try again."
+      });
+    } finally {
+      setLoadingQuiz(false);
+    }
+  }
 
   // Deep-link: ?post=ID auto-opens this card's comment drawer
   useEffect(() => {
@@ -240,8 +344,26 @@ export default function PostCard({ post }: PostCardProps) {
               </div>
             )}
 
-            {/* Image */}
-            {post.imageUrl && (
+            {/* Image or Video Player */}
+            {post.type === "QUIZ_ANNOUNCEMENT" ? (() => {
+              const youtubeVideoId = extractYoutubeIdFromThumbnail(post.imageUrl);
+              if (youtubeVideoId) {
+                return (
+                  <div style={{ margin: "0.25rem 0" }}>
+                    <CleanYoutubePlayer videoId={youtubeVideoId} />
+                  </div>
+                );
+              }
+              return post.imageUrl ? (
+                <div style={{ margin: "0.25rem 0" }}>
+                  <img
+                    src={post.imageUrl.startsWith("http") || post.imageUrl.startsWith("/") ? post.imageUrl : `/uploads/${post.imageUrl}`}
+                    alt="Post image"
+                    style={{ width: "100%", height: "auto", maxHeight: "300px", objectFit: "cover" }}
+                  />
+                </div>
+              ) : null;
+            })() : post.imageUrl && (
               <div style={{ margin: "0.25rem 0" }}>
                 <img
                   src={
@@ -261,7 +383,8 @@ export default function PostCard({ post }: PostCardProps) {
             {post.type === "QUIZ_ANNOUNCEMENT" && (
               <div style={{ padding: "0 1rem 0.75rem", marginTop: "0.5rem" }}>
                 <button
-                  onClick={() => router.push("/quiz")}
+                  onClick={handlePlayQuiz}
+                  disabled={loadingQuiz}
                   style={{
                     width: "100%",
                     background: `linear-gradient(135deg, ${PRIMARY} 0%, #38a89d 100%)`,
@@ -271,11 +394,12 @@ export default function PostCard({ post }: PostCardProps) {
                     padding: "12px 20px",
                     fontWeight: 700,
                     fontSize: "0.9rem",
-                    cursor: "pointer",
+                    cursor: loadingQuiz ? "not-allowed" : "pointer",
                     boxShadow: `0 4px 15px ${PRIMARY}30`,
+                    opacity: loadingQuiz ? 0.7 : 1,
                   }}
                 >
-                  🧠 Start This Week's Quiz →
+                  {loadingQuiz ? "⏳ Loading challenge..." : "🧠 Start This Week's Quiz →"}
                 </button>
               </div>
             )}
@@ -283,11 +407,8 @@ export default function PostCard({ post }: PostCardProps) {
             {post.type === "QUIZ_DAILY" && (
               <div style={{ padding: "0 1rem 0.75rem", marginTop: "0.5rem" }}>
                 <button
-                  onClick={() => {
-                    const match = post.content?.match(/Day (\d+)/);
-                    const day = match ? match[1] : "";
-                    router.push(day ? `/quiz?day=${day}` : "/quiz");
-                  }}
+                  onClick={handlePlayQuiz}
+                  disabled={loadingQuiz}
                   style={{
                     width: "100%",
                     background: `linear-gradient(135deg, ${PRIMARY} 0%, #38a89d 100%)`,
@@ -297,11 +418,12 @@ export default function PostCard({ post }: PostCardProps) {
                     padding: "12px 20px",
                     fontWeight: 700,
                     fontSize: "0.9rem",
-                    cursor: "pointer",
+                    cursor: loadingQuiz ? "not-allowed" : "pointer",
                     boxShadow: `0 4px 15px ${PRIMARY}30`,
+                    opacity: loadingQuiz ? 0.7 : 1,
                   }}
                 >
-                  🎮 Play Today's Challenge →
+                  {loadingQuiz ? "⏳ Loading challenge..." : "🎮 Play Today's Challenge →"}
                 </button>
               </div>
             )}
@@ -349,6 +471,30 @@ export default function PostCard({ post }: PostCardProps) {
         isOpen={commentsOpen}
         onClose={() => setCommentsOpen(false)}
         onCommentCountChange={(delta) => setCommentCount((c) => c + delta)}
+      />
+
+      {/* Active Quiz Player */}
+      {activeQuestion && (
+        <QuizPlayer
+          question={activeQuestion}
+          onComplete={() => {
+            setActiveQuestion(null);
+            window.location.reload();
+          }}
+          onClose={() => setActiveQuestion(null)}
+        />
+      )}
+
+      {/* Info Alert Modal */}
+      <ConfirmModal
+        open={infoModal.open}
+        title={infoModal.title}
+        message={infoModal.message}
+        confirmLabel="Close"
+        confirmColor={PRIMARY}
+        cancelLabel={null} // Single-button style
+        onConfirm={() => setInfoModal({ open: false, title: "", message: "" })}
+        onCancel={() => setInfoModal({ open: false, title: "", message: "" })}
       />
     </>
   );
