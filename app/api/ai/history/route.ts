@@ -10,8 +10,13 @@ export async function GET() {
   const memberId = parseInt(session.user.id);
 
   try {
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const conversations = await db.aiConversation.findMany({
-      where: { memberId, messageCount: { gt: 0 } },
+      where: {
+        memberId,
+        messageCount: { gt: 0 },
+        lastMessageAt: { lt: twentyFourHoursAgo }
+      },
       orderBy: { startedAt: "desc" },
       take: 50,
       include: {

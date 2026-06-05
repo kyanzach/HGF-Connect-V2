@@ -124,7 +124,8 @@ const RATE_MESSAGES = {
 
 // ── DB helpers (wrapped so rate limiting NEVER breaks the AI call) ─────────────
 async function getUsage(memberId: number): Promise<{ today: string; count: number; lastAt: Date | null }> {
-  const today = new Date().toISOString().slice(0, 10);
+  // Manila is UTC+8. Offset UTC time by 8 hours to get Manila today's date.
+  const today = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const row = await db.$queryRaw<{ question_count: number; last_request_at: Date | null }[]>`
     SELECT question_count, last_request_at FROM ai_usage
     WHERE member_id = ${memberId} AND usage_date = ${today}

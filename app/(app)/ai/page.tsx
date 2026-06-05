@@ -91,7 +91,7 @@ export default function AiChatPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch today's quota on mount (§5.6)
+  // Fetch today's quota and active conversation on mount (§5.6)
   useEffect(() => {
     fetch("/api/ai/usage-status")
       .then((r) => r.json())
@@ -99,6 +99,13 @@ export default function AiChatPage() {
         const rem = d.questions_remaining ?? DAILY_LIMIT;
         setQuestionsLeft(rem);
         setIsLimitReached(rem <= 0);
+        
+        if (d.active_conversation) {
+          setConversationId(d.active_conversation.id);
+          if (d.active_conversation.messages && d.active_conversation.messages.length > 0) {
+            setMessages(d.active_conversation.messages);
+          }
+        }
       })
       .catch(() => {});
   }, []);
