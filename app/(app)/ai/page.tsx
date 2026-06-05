@@ -196,7 +196,7 @@ export default function AiChatPage() {
       {/* Header */}
       <div style={{ background: PRIMARY, padding: "0.75rem 1rem", color: "white", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 700 }}>✝️ HGF AI Assistant</h2>
+          <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 700 }}>💡 HGF AI Assistant</h2>
           <p style={{ margin: 0, fontSize: "0.7rem", opacity: 0.85 }}>Ask me about church events, cell groups, and more</p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -263,7 +263,7 @@ export default function AiChatPage() {
         {messages.map((msg, i) => (
           <div key={i} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start", alignItems: "flex-end", gap: "0.5rem" }}>
             {msg.role === "ai" && (
-              <div style={{ width: 30, height: 30, borderRadius: "50%", background: PRIMARY, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.875rem", flexShrink: 0 }}>✝️</div>
+              <div style={{ width: 30, height: 30, borderRadius: "50%", background: PRIMARY, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.875rem", flexShrink: 0 }}>💡</div>
             )}
             <div style={{ maxWidth: "78%", background: msg.role === "user" ? PRIMARY : "white", color: msg.role === "user" ? "white" : "#1e293b", borderRadius: msg.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px", padding: "0.625rem 0.875rem", fontSize: "0.9rem", lineHeight: 1.6, boxShadow: msg.role === "ai" ? "0 1px 4px rgba(0,0,0,0.08)" : "none", whiteSpace: "pre-line" }}>
               {msg.content}
@@ -272,7 +272,7 @@ export default function AiChatPage() {
         ))}
         {loading && (
           <div style={{ display: "flex", alignItems: "flex-end", gap: "0.5rem" }}>
-            <div style={{ width: 30, height: 30, borderRadius: "50%", background: PRIMARY, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.875rem" }}>✝️</div>
+            <div style={{ width: 30, height: 30, borderRadius: "50%", background: PRIMARY, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.875rem" }}>💡</div>
             <div style={{ background: "white", borderRadius: "18px 18px 18px 4px", boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}><TypingIndicator /></div>
           </div>
         )}
@@ -365,7 +365,7 @@ export default function AiChatPage() {
                 {viewingConv.messages.map((msg, i) => (
                   <div key={i} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start", alignItems: "flex-end", gap: "0.5rem" }}>
                     {msg.role === "assistant" && (
-                      <div style={{ width: 28, height: 28, borderRadius: "50%", background: PRIMARY, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.8rem", flexShrink: 0 }}>✝️</div>
+                      <div style={{ width: 28, height: 28, borderRadius: "50%", background: PRIMARY, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.8rem", flexShrink: 0 }}>💡</div>
                     )}
                     <div>
                       <div style={{ maxWidth: "75vw", background: msg.role === "user" ? PRIMARY : "white", color: msg.role === "user" ? "white" : "#1e293b", borderRadius: msg.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px", padding: "0.5rem 0.75rem", fontSize: "0.875rem", lineHeight: 1.5, boxShadow: msg.role === "assistant" ? "0 1px 4px rgba(0,0,0,0.08)" : "none", whiteSpace: "pre-line" }}>

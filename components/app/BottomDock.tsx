@@ -15,7 +15,7 @@ interface DockItem {
 const DOCK_ITEMS: DockItem[] = [
   { href: "/feed", icon: "🏠", label: "Home" },
   { href: "/prayer", icon: "🙏", label: "Prayer" },
-  { href: "/devo/new", icon: "✝️", label: "+Devo", isFab: true },
+  { href: "/feed/create", icon: "✍️", label: "Write", isFab: true },
   { href: "/stewardshop", icon: "🤝", label: "StewardShop" },
   { href: "/me", icon: "👤", label: "Me" },
 ];

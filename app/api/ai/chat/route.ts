@@ -5,17 +5,87 @@ import axios from "axios";
 import * as fs from "fs";
 import * as path from "path";
 
-// ── Church knowledge KB — loaded once at module startup ───────────────────────
-let churchKnowledgeText = "";
-try {
-  const kbPath = path.join(process.cwd(), "data/church_knowledge.json");
-  const kb = JSON.parse(fs.readFileSync(kbPath, "utf-8"));
-  kb.categories.forEach((cat: { label: string; articles: { title: string; content: string }[] }) => {
-    churchKnowledgeText += `\n\n=== ${cat.label} ===\n`;
-    cat.articles.forEach((a) => { churchKnowledgeText += `\n[${a.title}]\n${a.content}\n`; });
-  });
-} catch {
-  churchKnowledgeText = "House of Grace: Sunday services at 9AM and 11AM. Cell groups meet weekly.";
+// ── Church knowledge KB — loaded dynamically from DB with defaults ──────────
+async function getDynamicChurchKnowledge(): Promise<string> {
+  let settingsMap = new Map<string, string>();
+  try {
+    const settingsList = await db.churchSetting.findMany();
+    settingsList.forEach((s) => settingsMap.set(s.key, s.value));
+  } catch (err: unknown) {
+    console.error("[AI] Failed to fetch settings from DB, using defaults:", (err as Error).message);
+  }
+
+  const churchName = settingsMap.get("church_name") || "House of Grace Fellowship";
+  const churchAddress = settingsMap.get("church_address") || "11-A Iñigo St., Obrero, Davao City";
+  const sundayServices = settingsMap.get("sunday_services") || "Sunday Schedule: Service 1: 9:00 AM. Service 2: 11:00 AM. Both are held at the main HGF venue.";
+  const midweekServices = settingsMap.get("midweek_services") || "Wednesday prayer meeting at 7:00 PM. Open to all members and visitors.";
+  const prayerSchedules = settingsMap.get("prayer_schedules") || "Wednesday Midweek Prayer meeting: 7:00 PM. Saturday Morning Dawn Prayer: 6:00 AM.";
+  const cellGroups = settingsMap.get("cell_groups") || "Cell groups meet weekly for Bible study, prayer, and fellowship. Contact the church office to join a group near you.";
+  const volunteering = settingsMap.get("volunteering") || "To volunteer, attend our monthly ministry orientation and contact our ministry leaders.";
+  const worshipTeam = settingsMap.get("worship_team") || "Our worship team leads praise and worship. Rehearsals are held weekly.";
+  const prayerSupport = settingsMap.get("prayer_support") || "Post prayer requests on the Prayer Wall or contact leaders directly.";
+  const latestAnnouncements = settingsMap.get("latest_announcements") || "Check our events page and community feed for the latest announcements.";
+
+  // Fetch upcoming events
+  let eventsText = "No upcoming events scheduled at the moment.";
+  try {
+    const upcomingEvents = await db.event.findMany({
+      where: { eventDate: { gte: new Date() }, status: "scheduled" },
+      orderBy: { eventDate: "asc" },
+      take: 5,
+      select: { title: true, eventDate: true, startTime: true, location: true, description: true }
+    });
+    if (upcomingEvents.length > 0) {
+      eventsText = upcomingEvents.map(e => {
+        const dateStr = new Date(e.eventDate).toLocaleDateString("en-PH", { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+        const timeStr = new Date(e.startTime).toLocaleTimeString("en-PH", { hour: '2-digit', minute: '2-digit' });
+        return `- ${e.title} on ${dateStr} at ${timeStr} (Location: ${e.location ?? "TBA"})${e.description ? ` - ${e.description}` : ""}`;
+      }).join("\n");
+    }
+  } catch (err: unknown) {
+    console.error("[AI] Failed to fetch upcoming events from DB:", (err as Error).message);
+  }
+
+  return `
+=== Church Information ===
+[Church Name]
+${churchName}
+
+[Location & Address]
+${churchAddress}
+
+=== Worship Services ===
+[Sunday Service Times]
+${sundayServices}
+
+[Midweek (Wednesday) Services]
+${midweekServices}
+
+=== Prayer & Support ===
+[Prayer Schedules]
+${prayerSchedules}
+
+[Prayer Support]
+${prayerSupport}
+
+=== Small Groups & Volunteering ===
+[Cell Groups & Joining]
+${cellGroups}
+
+[Volunteering & Ministry Involvement]
+${volunteering}
+
+=== Ministries ===
+[Worship Team]
+${worshipTeam}
+
+=== Upcoming Events ===
+${eventsText}
+
+=== Latest Updates ===
+[Announcements]
+${latestAnnouncements}
+`;
 }
 
 // ── Rate limiting constants ───────────────────────────────────────────────────
@@ -90,7 +160,7 @@ async function saveMessage(convId: number, memberId: number, role: "user" | "ass
 }
 
 // ── System prompt builder ─────────────────────────────────────────────────────
-function buildSystemPrompt(memberName: string): string {
+function buildSystemPrompt(memberName: string, knowledgeText: string): string {
   return `You are HGF Connect AI, a helpful assistant for House of Grace church members.
 
 YOUR STRICT SCOPE — you ONLY answer about:
@@ -109,7 +179,7 @@ MEMBER PROFILE:
 - Name: ${memberName}
 
 CHURCH KNOWLEDGE BASE:
-${churchKnowledgeText}
+${knowledgeText}
 
 Answer helpfully and concisely (max 3 paragraphs). Add a relevant emoji when appropriate.`;
 }
@@ -191,7 +261,8 @@ export async function POST(request: Request) {
         ? "\n\nPREVIOUS CONVERSATION:\n" + conversationHistory.slice(-5).map((m: { role: string; content: string }) => `${m.role === "user" ? "Member" : "AI"}: ${m.content}`).join("\n")
         : "";
 
-      const prompt = `${buildSystemPrompt(memberName)}${historyContext}\n\nMember asks: "${message}"`;
+      const knowledgeText = await getDynamicChurchKnowledge();
+      const prompt = `${buildSystemPrompt(memberName, knowledgeText)}${historyContext}\n\nMember asks: "${message}"`;
 
       const response = await axios.post(
         "https://api.straico.com/v1/prompt/completion",

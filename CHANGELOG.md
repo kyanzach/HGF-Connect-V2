@@ -5,6 +5,15 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.19.0] — 2026-06-05
+### Added
+- **Dynamic AI Church Knowledge Settings (s3)**: Added a settings panel at `/admin/church-settings` restricted to admin/moderator roles where leaders can modify basic church info (name, address, service times, prayer schedules, cell groups, volunteering, etc.).
+- **Real-time AI Settings Gating (s3)**: Configured `app/api/ai/chat/route.ts` to fetch custom church configurations and upcoming event schedules directly from the MySQL database in real-time.
+### Changed
+- **Bottom Dock FAB Link & Icon (s1)**: Changed the center dock FAB button from "+Devo" (which pointed to `/devo/new` with `✝️` icon) to "Write" (pointing to `/feed/create` with the writing hand `✍️` icon).
+- **AI Helper Icon Swap (s2)**: Replaced the AI Helper / AI Assistant icon from `✝️` (cross) to `💡` (lightbulb) globally across shortcuts, chat headers, suggestion chips, message avatars, and landing page highlights.
+- **Shortcut Reordering (s4)**: Reordered the horizontal shortcuts list on the dashboard to place Events, Directory, and Market immediately next to Write.
+
 ## [v2.18.3] — 2026-06-05
 ### Fixed
 - **Timezone Offset Bug**: Fixed `getDayNumber()` inside `lib/quiz-helpers.ts` to use `d.toLocaleDateString` for Philippine timezone offset calculations, avoiding fragile string-parsing in different system/node server locales.
