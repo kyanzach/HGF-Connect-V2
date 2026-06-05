@@ -93,7 +93,7 @@ export default function AiChatPage() {
 
   // Fetch today's quota and active conversation on mount (§5.6)
   useEffect(() => {
-    fetch("/api/ai/usage-status")
+    fetch("/api/ai/usage-status", { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
         const rem = d.questions_remaining ?? DAILY_LIMIT;
@@ -165,7 +165,7 @@ export default function AiChatPage() {
   const loadHistory = useCallback(async () => {
     setHistoryLoading(true);
     try {
-      const r = await fetch("/api/ai/history");
+      const r = await fetch("/api/ai/history", { cache: "no-store" });
       const data = await r.json();
       setHistory(Array.isArray(data) ? data : []);
     } catch { setHistory([]); }

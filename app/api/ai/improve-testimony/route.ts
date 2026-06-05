@@ -4,18 +4,6 @@ import axios from "axios";
 
 export const dynamic = "force-dynamic";
 
-const REWRITE_SYSTEM_PROMPT = `You are a warm, encouraging Christian editor for a church community application.
-The member has written a testimony sharing what God has done in their life.
-Your task is to improve the flow, grammar, and spelling of the text.
-
-CRITICAL RULES:
-1. PRESERVE their original voice, heart, emotions, and language/dialect.
-2. If they wrote in Cebuano/Bisaya, keep it in Cebuano/Bisaya (improve spelling, formatting, and sentence structure, but do NOT translate it to English).
-3. If they wrote in Tagalog or Taglish, keep it in Tagalog or Taglish.
-4. If they wrote in English, keep it in English.
-5. Do NOT change the meaning or the details of their story.
-6. Return ONLY the rewritten, polished testimony. Do not include any introductory remarks, warnings, or explanatory notes.`;
-
 export async function POST(request: Request) {
   const session = await auth();
   if (!session) {
@@ -23,12 +11,33 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { content } = await request.json();
+    const { content, language } = await request.json();
     if (!content?.trim()) {
       return NextResponse.json({ error: "Content is required" }, { status: 400 });
     }
 
-    const prompt = `${REWRITE_SYSTEM_PROMPT}\n\nTestimony to improve:\n"${content.trim()}"`;
+    let langInstruction = "";
+    if (language === "Bisaya") {
+      langInstruction = "Translate (if needed) and rewrite the testimony entirely in Cebuano/Bisaya. Make it flow naturally in conversational Bisaya, fixing spelling and grammar.";
+    } else if (language === "Taglish") {
+      langInstruction = "Translate (if needed) and rewrite the testimony entirely in Taglish (Filipino mixed with English, commonly spoken in urban Philippines). Make it flow naturally, fixing spelling and grammar.";
+    } else if (language === "English") {
+      langInstruction = "Translate (if needed) and rewrite the testimony entirely in English. Make it flow naturally in professional yet warm English, fixing spelling and grammar.";
+    } else {
+      langInstruction = "Preserve their original voice, heart, emotions, and language/dialect. Improve spelling, formatting, and sentence structure.";
+    }
+
+    const systemPrompt = `You are a warm, encouraging Christian editor for a church community application.
+The member has written a testimony sharing what God has done in their life.
+Your task is to improve the flow, grammar, and spelling of the text.
+
+CRITICAL RULES:
+1. PRESERVE their original voice, heart, emotions, and the key details of their story.
+2. ${langInstruction}
+3. Do NOT change the meaning or add any external narrative details.
+4. Return ONLY the rewritten, polished testimony. Do not include any introductory remarks, warnings, or explanatory notes.`;
+
+    const prompt = `${systemPrompt}\n\nTestimony to improve:\n"${content.trim()}"`;
 
     const response = await axios.post(
       "https://api.straico.com/v1/prompt/completion",

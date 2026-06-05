@@ -39,6 +39,8 @@ export default function CreatePostPage() {
 
   // AI improve state
   const [improvingText, setImprovingText] = useState(false);
+  const [showLangSelector, setShowLangSelector] = useState(false);
+  const [improvingLang, setImprovingLang] = useState<string | null>(null);
 
   // Listen for links in content
   useEffect(() => {
@@ -69,15 +71,17 @@ export default function CreatePostPage() {
     }
   }, [content]);
 
-  const handleImproveText = async () => {
+  const handleImproveText = async (lang: string) => {
     if (!content.trim()) return;
     setImprovingText(true);
+    setImprovingLang(lang);
+    setShowLangSelector(false);
     setError("");
     try {
       const res = await fetch("/api/ai/improve-testimony", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content, language: lang }),
       });
       if (!res.ok) throw new Error("Improvement failed");
       const data = await res.json();
@@ -88,6 +92,7 @@ export default function CreatePostPage() {
       setError("AI was unable to rewrite at this moment. Please try again.");
     } finally {
       setImprovingText(false);
+      setImprovingLang(null);
     }
   };
 
@@ -229,27 +234,77 @@ export default function CreatePostPage() {
           {/* AI Helper for Testimony */}
           {type === "PRAISE" && content.trim().length > 0 && (
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "0.5rem" }}>
-              <button
-                type="button"
-                onClick={handleImproveText}
-                disabled={improvingText}
-                style={{
-                  background: `linear-gradient(135deg, ${PRIMARY} 0%, #1a7a94 100%)`,
-                  color: "white",
-                  border: "none",
-                  borderRadius: "20px",
-                  padding: "0.35rem 0.875rem",
-                  fontSize: "0.75rem",
-                  fontWeight: 700,
-                  cursor: improvingText ? "not-allowed" : "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.25rem",
-                  boxShadow: "0 2px 4px rgba(78,177,203,0.2)",
-                }}
-              >
-                {improvingText ? "✨ Improving flow..." : "✨ Make it better with AI"}
-              </button>
+              {showLangSelector ? (
+                <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", alignItems: "center", gap: "0.375rem" }}>
+                  <span style={{ fontSize: "0.75rem", color: "#64748b", marginRight: "0.25rem", fontWeight: 600 }}>Rewrite in:</span>
+                  {["Bisaya", "Taglish", "English"].map((lang) => (
+                    <button
+                      key={lang}
+                      type="button"
+                      onClick={() => handleImproveText(lang)}
+                      disabled={improvingText}
+                      style={{
+                        background: PRIMARY,
+                        color: "white",
+                        border: "none",
+                        borderRadius: "16px",
+                        padding: "0.3rem 0.8rem",
+                        fontSize: "0.75rem",
+                        fontWeight: 700,
+                        cursor: improvingText ? "not-allowed" : "pointer",
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                        transition: "transform 0.1s",
+                      }}
+                    >
+                      {lang}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setShowLangSelector(false)}
+                    disabled={improvingText}
+                    style={{
+                      background: "#f1f5f9",
+                      color: "#64748b",
+                      border: "none",
+                      borderRadius: "50%",
+                      width: "24px",
+                      height: "24px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "0.75rem",
+                      fontWeight: 700,
+                      cursor: improvingText ? "not-allowed" : "pointer",
+                      marginLeft: "0.25rem",
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowLangSelector(true)}
+                  disabled={improvingText}
+                  style={{
+                    background: `linear-gradient(135deg, ${PRIMARY} 0%, #1a7a94 100%)`,
+                    color: "white",
+                    border: "none",
+                    borderRadius: "20px",
+                    padding: "0.35rem 0.875rem",
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    cursor: improvingText ? "not-allowed" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.25rem",
+                    boxShadow: "0 2px 4px rgba(78,177,203,0.2)",
+                  }}
+                >
+                  {improvingText ? `✨ Improving flow in ${improvingLang}...` : "✨ Make it better with AI"}
+                </button>
+              )}
             </div>
           )}
 

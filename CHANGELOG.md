@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.21.1] — 2026-06-06
+### Added
+- **AI Rewrite Language Selector (s1)**: Implemented an interactive inline choice selector when clicking "Make it better with AI" inside the Testimony post composer. Users can choose to rewrite/polish their testimony in Bisaya, Taglish, or English.
+- **AI Assistant Fetch Caching Fix (s2)**: Added dynamic server configuration (`force-dynamic`) and disabled browser/client-side query caching (`cache: "no-store"`) on the `usage-status` and `history` API routes. This resolves a bug where the browser cached initial empty states and failed to reload active conversations.
+
 ## [v2.21.0] — 2026-06-06
 ### Changed
 - **Grace Notes to Grace Blog Rebranding**: Renamed "Grace Notes" / "Grace Note" to "Grace Blog" / "Blog Post" across all client pages, settings menus, and editor composers to make the feature's purpose clearer.
