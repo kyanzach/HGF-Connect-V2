@@ -32,10 +32,8 @@ export const QUIZ_TYPE_LABELS: Record<string, { label: string; difficulty: strin
 // ── Get current quiz day number (1–7) ────────────────────────────────────────
 export function getDayNumber(date?: Date): number {
   const d = date || new Date();
-  // Convert to Manila time
-  const manila = new Date(d.toLocaleString("en-US", { timeZone: "Asia/Manila" }));
-  const weekday = manila.getDay(); // 0=Sun ... 6=Sat
-  const found = QUIZ_DAYS.find((q) => q.weekday === weekday);
+  const weekdayStr = d.toLocaleDateString("en-US", { timeZone: "Asia/Manila", weekday: "long" });
+  const found = QUIZ_DAYS.find((q) => q.label === weekdayStr);
   return found?.dayNumber ?? 1; // Default to Day 1
 }
 

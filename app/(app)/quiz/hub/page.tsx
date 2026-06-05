@@ -109,7 +109,7 @@ export default function QuizHubPage() {
           onClick={() => router.push("/quiz")}
           style={{
             position: "absolute",
-            top: "16px",
+            top: "calc(env(safe-area-inset-top, 0px) + 16px)",
             left: "16px",
             background: "rgba(0,0,0,0.4)",
             border: "none",

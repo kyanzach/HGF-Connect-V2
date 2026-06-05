@@ -5,6 +5,14 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.18.3] — 2026-06-05
+### Fixed
+- **Timezone Offset Bug**: Fixed `getDayNumber()` inside `lib/quiz-helpers.ts` to use `d.toLocaleDateString` for Philippine timezone offset calculations, avoiding fragile string-parsing in different system/node server locales.
+- **Active Week "Past Quiz" Lockout**: Updated the status API `/api/quiz/status` to return `isActiveQuiz: boolean`. The client side now checks this flag instead of checking for a search param `quizId`, preventing active week quizzes from showing the locked lockout warning.
+- **PWA Header Notch Overlap**: Padded the absolute back button in `app/(app)/quiz/hub/page.tsx` with `env(safe-area-inset-top)` to resolve status bar cutoffs.
+### Added
+- **Feed Infinite Scroll Auto-Loading**: Replaced the manual "Load More" pagination button with an automated `IntersectionObserver` trigger div at the bottom of the feed page. It fetches the next page automatically when scrolled to, displaying a custom spinner.
+
 ## [v2.18.2] — 2026-06-05
 ### Fixed
 - **HeroCarousel Arrow Placement & Mobile Hiding**: Fixed inline style override so navigation arrows are properly hidden on mobile screen widths (where swipe works), resolving text overlapping issues and grouping buttons together.

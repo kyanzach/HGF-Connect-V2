@@ -62,6 +62,14 @@ export async function GET(request: Request) {
       return NextResponse.json({ active: false, message: "Quiz not found" });
     }
 
+    // Determine if the loaded quiz is the latest published/completed quiz
+    const latestQuiz = await db.sermonQuiz.findFirst({
+      where: { status: { in: ["published", "completed"] } },
+      orderBy: { sermonDate: "desc" },
+      select: { id: true },
+    });
+    const isActiveQuiz = latestQuiz ? quiz.id === latestQuiz.id : true;
+
     // Get member's submissions for this quiz
     const submissions = await db.quizSubmission.findMany({
       where: { quizId: quiz.id, memberId },
@@ -146,6 +154,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       active: true,
       attended,
+      isActiveQuiz,
       quiz: {
         id: quiz.id,
         title: quiz.title,

@@ -90,6 +90,9 @@ export default function MemberQuizPage() {
       if (res.ok) {
         const data = await res.json();
         setQuizStatus(data);
+        if (data.isActiveQuiz !== undefined) {
+          setIsPastQuiz(!data.isActiveQuiz);
+        }
       }
     } catch (err) {
       console.error("Failed to load status:", err);

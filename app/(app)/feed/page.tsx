@@ -44,6 +44,7 @@ export default function FeedPage() {
   const { data: session } = useSession();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -51,20 +52,44 @@ export default function FeedPage() {
 
   const loadPosts = useCallback(async (p = 1) => {
     try {
-      setLoading(true);
+      if (p === 1) setLoading(true);
+      else setLoadingMore(true);
+
       const res = await fetch(`/api/posts?page=${p}`);
       const data = await res.json();
       if (p === 1) setPosts(data.posts ?? []);
       else setPosts((prev) => [...prev, ...(data.posts ?? [])]);
       setTotalPages(data.totalPages ?? 1);
+      setPage(p);
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, []);
 
   useEffect(() => { loadPosts(1); }, [loadPosts]);
+
+  useEffect(() => {
+    if (loading || page >= totalPages) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !loadingMore) {
+          loadPosts(page + 1);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    const target = document.getElementById("feed-bottom-trigger");
+    if (target) observer.observe(target);
+
+    return () => {
+      if (target) observer.unobserve(target);
+    };
+  }, [loading, loadingMore, page, totalPages, loadPosts]);
 
   return (
     <div style={{ paddingBottom: "0.5rem" }}>
@@ -213,27 +238,36 @@ export default function FeedPage() {
               <PostCard key={post.id} post={post} />
             ))}
             {page < totalPages && (
-              <button
-                onClick={() => {
-                  const next = page + 1;
-                  setPage(next);
-                  loadPosts(next);
-                }}
+              <div
+                id="feed-bottom-trigger"
                 style={{
                   width: "100%",
-                  padding: "0.875rem",
-                  background: "white",
-                  border: `1.5px solid ${PRIMARY}`,
-                  borderRadius: "14px",
+                  padding: "1.25rem",
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
                   color: PRIMARY,
-                  fontWeight: 600,
                   fontSize: "0.875rem",
-                  cursor: "pointer",
-                  marginBottom: "0.75rem",
+                  fontWeight: 600,
+                  marginBottom: "1rem",
                 }}
               >
-                Load More
-              </button>
+                {loadingMore ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <div style={{
+                      border: `2px solid ${PRIMARY}20`,
+                      borderTop: `2px solid ${PRIMARY}`,
+                      borderRadius: "50%",
+                      width: 16,
+                      height: 16,
+                      animation: "hgf-spin 0.8s linear infinite"
+                    }} />
+                    <span>Loading more posts...</span>
+                  </div>
+                ) : (
+                  <span>Scroll for more</span>
+                )}
+              </div>
             )}
           </>
         )}
