@@ -20,9 +20,15 @@ export async function GET(request: Request) {
     ],
   };
 
+  // System post types that are community-wide, not personal content.
+  // Exclude from profile walls so they don't appear as the creator's own posts.
+  const SYSTEM_POST_TYPES = ["QUIZ_DAILY", "QUIZ_ANNOUNCEMENT", "QUIZ_WEEK", "EVENT"];
+
   const where: any = {
     ...visibilityFilter,
-    ...(memberId ? { authorId: memberId } : {}),
+    ...(memberId
+      ? { authorId: memberId, type: { notIn: SYSTEM_POST_TYPES } }
+      : {}),
   };
 
   try {

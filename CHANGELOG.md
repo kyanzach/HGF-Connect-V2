@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.21.4] — 2026-06-06
+### Fixed
+- **Profile Wall Showing System Posts**: Quiz For Christ posts (`QUIZ_DAILY`, `QUIZ_ANNOUNCEMENT`, `QUIZ_WEEK`) and Event posts were appearing on the quiz creator/publisher's personal profile wall because the `authorId` was set to the admin who published them. Added a `notIn` filter to exclude system/community post types from profile wall queries so only personal content (reflections, devotionals, testimonies, etc.) appears on member walls.
+
 ## [v2.21.3] — 2026-06-06
 ### Added
 - **AI Assistant Message Timestamp Footnotes**: Added sent/replied timestamp footnotes directly below each message bubble in the AI Chat interface.
