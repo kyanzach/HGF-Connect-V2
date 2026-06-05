@@ -20,6 +20,7 @@ export async function GET() {
         content: true,
         mood: true,
         verseRef: true,
+        visibility: true,
         createdAt: true,
       },
     });
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
   const memberId = parseInt(session.user.id);
 
   try {
-    const { title, content, mood, verseRef, verseText } = await request.json();
+    const { title, content, mood, verseRef, verseText, visibility } = await request.json();
     if (!content?.trim()) {
       return NextResponse.json({ error: "Journal entry cannot be empty" }, { status: 400 });
     }
@@ -52,6 +53,7 @@ export async function POST(request: Request) {
         mood: mood || null,
         verseRef: verseRef || null,
         verseText: verseText || null,
+        visibility: visibility || "PRIVATE",
       },
     });
 

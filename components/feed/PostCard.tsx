@@ -5,10 +5,17 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import CommentDrawer from "./CommentDrawer";
 import CleanYoutubePlayer from "@/components/quiz/CleanYoutubePlayer";
+import CleanEmbedPlayer from "@/components/feed/CleanEmbedPlayer";
 import QuizPlayer from "@/components/quiz/QuizPlayer";
 import ConfirmModal from "@/components/ConfirmModal";
 
 const PRIMARY = "#4EB1CB";
+
+function getYoutubeId(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const match = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
+  return match ? match[1] : null;
+}
 
 interface PostCardProps {
   post: {
@@ -19,6 +26,10 @@ interface PostCardProps {
     aiCaption?: string | null;
     verseRef?: string | null;
     verseText?: string | null;
+    linkUrl?: string | null;
+    linkTitle?: string | null;
+    linkDesc?: string | null;
+    linkImage?: string | null;
     createdAt: Date | string;
     author: {
       id: number;
@@ -47,7 +58,7 @@ const TYPE_LABELS: Record<string, { icon: string; label: string; color: string }
   DEVO:          { icon: "📖",  label: "Devotional",    color: PRIMARY },
   VERSE_CARD:    { icon: "📜",  label: "Bible Verse",   color: "#805AD5" },
   PRAYER:        { icon: "🙏",  label: "Prayer",        color: "#E67E22" },
-  PRAISE:        { icon: "🙌",  label: "Praise Report", color: "#27AE60" },
+  PRAISE:        { icon: "🙌",  label: "Testimony",     color: "#27AE60" },
   EVENT:         { icon: "📅",  label: "Event",         color: "#E74C3C" },
   PROFILE_PHOTO: { icon: "📷",  label: "Profile Photo", color: "#0ea5e9" },
   COVER_PHOTO:   { icon: "🖼️", label: "Cover Photo",   color: "#8b5cf6" },
@@ -66,6 +77,7 @@ export default function PostCard({ post }: PostCardProps) {
   const [commentsOpen, setCommentsOpen] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const [activeQuestion, setActiveQuestion] = useState<any | null>(null);
   const [loadingQuiz, setLoadingQuiz] = useState(false);
@@ -228,15 +240,19 @@ export default function PostCard({ post }: PostCardProps) {
     if (navigator.share) {
       navigator.share({ title: `${authorName} on HGF Connect`, text: post.content ?? "", url });
     } else {
-      navigator.clipboard.writeText(url).then(() => alert("Link copied!"));
+      navigator.clipboard.writeText(url).then(() => {
+        setInfoModal({
+          open: true,
+          title: "Link Copied",
+          message: "The shareable link has been copied to your clipboard. 📋",
+        });
+      });
     }
   }
 
   async function handleDelete() {
-    if (!confirm("Delete this post?")) return;
+    setDeleteConfirmOpen(true);
     setMenuOpen(false);
-    await fetch(`/api/posts/${post.id}`, { method: "DELETE" });
-    window.location.reload();
   }
 
   return (
@@ -363,20 +379,91 @@ export default function PostCard({ post }: PostCardProps) {
                   />
                 </div>
               ) : null;
-            })() : post.imageUrl && (
-              <div style={{ margin: "0.25rem 0" }}>
-                <img
-                  src={
-                    post.imageUrl.startsWith("http") || post.imageUrl.startsWith("/")
-                      ? post.imageUrl
-                      : post.imageUrl.startsWith("uploads/")
-                      ? `/${post.imageUrl}`
-                      : `/uploads/${post.imageUrl}`
+            })() : (
+              <>
+                {post.imageUrl && (
+                  <div style={{ margin: "0.25rem 0" }}>
+                    <img
+                      src={
+                        post.imageUrl.startsWith("http") || post.imageUrl.startsWith("/")
+                          ? post.imageUrl
+                          : post.imageUrl.startsWith("uploads/")
+                          ? `/${post.imageUrl}`
+                          : `/uploads/${post.imageUrl}`
+                      }
+                      alt="Post image"
+                      style={{ width: "100%", height: "auto", maxHeight: "300px", objectFit: "cover" }}
+                    />
+                  </div>
+                )}
+
+                {post.linkUrl && (() => {
+                  const ytId = getYoutubeId(post.linkUrl);
+                  if (ytId) {
+                    return (
+                      <div style={{ margin: "0.25rem 0" }}>
+                        <CleanYoutubePlayer videoId={ytId} />
+                      </div>
+                    );
                   }
-                  alt="Post image"
-                  style={{ width: "100%", height: "auto", maxHeight: "300px", objectFit: "cover" }}
-                />
-              </div>
+                  const isFb = /facebook\.com|fb\.watch/i.test(post.linkUrl);
+                  if (isFb) {
+                    return (
+                      <div style={{ margin: "0.25rem 0" }}>
+                        <CleanEmbedPlayer url={post.linkUrl} type="facebook" />
+                      </div>
+                    );
+                  }
+                  const isIg = /instagram\.com/i.test(post.linkUrl);
+                  if (isIg) {
+                    return (
+                      <div style={{ margin: "0.25rem 0" }}>
+                        <CleanEmbedPlayer url={post.linkUrl} type="instagram" />
+                      </div>
+                    );
+                  }
+
+                  // Standard OG link preview card
+                  return (
+                    <div style={{ margin: "0.5rem 1rem 0.75rem" }}>
+                      <a
+                        href={post.linkUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          textDecoration: "none",
+                          display: "block",
+                          background: "#f8fafc",
+                          border: "1px solid #e2e8f0",
+                          borderRadius: "12px",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {post.linkImage && (
+                          <img
+                            src={post.linkImage}
+                            alt={post.linkTitle || "Link preview"}
+                            style={{ width: "100%", height: "140px", objectFit: "cover" }}
+                          />
+                        )}
+                        <div style={{ padding: "0.75rem" }}>
+                          <h4 style={{ margin: "0 0 0.25rem", fontSize: "0.85rem", fontWeight: 700, color: "#1e293b" }}>
+                            {post.linkTitle || "Visit Link"}
+                          </h4>
+                          {post.linkDesc && (
+                            <p style={{ margin: "0 0 0.5rem", fontSize: "0.75rem", color: "#64748b", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as any, overflow: "hidden", lineHeight: 1.4 }}>
+                              {post.linkDesc}
+                            </p>
+                          )}
+                          <span style={{ fontSize: "0.7rem", color: PRIMARY, fontWeight: 600 }}>
+                            🔗 {new URL(post.linkUrl).hostname}
+                          </span>
+                        </div>
+                      </a>
+                    </div>
+                  );
+                })()}
+              </>
             )}
 
             {/* Quiz CTA Buttons */}
@@ -495,6 +582,20 @@ export default function PostCard({ post }: PostCardProps) {
         cancelLabel={null} // Single-button style
         onConfirm={() => setInfoModal({ open: false, title: "", message: "" })}
         onCancel={() => setInfoModal({ open: false, title: "", message: "" })}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        open={deleteConfirmOpen}
+        title="Delete Post"
+        message="Are you sure you want to delete this post? This action cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={async () => {
+          setDeleteConfirmOpen(false);
+          await fetch(`/api/posts/${post.id}`, { method: "DELETE" });
+          window.location.reload();
+        }}
+        onCancel={() => setDeleteConfirmOpen(false)}
       />
     </>
   );

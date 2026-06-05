@@ -85,10 +85,10 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { content, type, imageUrl, verseRef, verseText, aiCaption, visibility } = body;
+    const { content, type, imageUrl, verseRef, verseText, aiCaption, visibility, linkUrl, linkTitle, linkDesc, linkImage } = body;
 
-    if (!content && !imageUrl && !verseText) {
-      return NextResponse.json({ error: "Post must have content, image, or verse" }, { status: 400 });
+    if (!content && !imageUrl && !verseText && !linkUrl) {
+      return NextResponse.json({ error: "Post must have content, image, verse, or link" }, { status: 400 });
     }
 
     const post = await (db as any).post.create({
@@ -101,6 +101,10 @@ export async function POST(request: Request) {
         verseRef: verseRef ?? null,
         verseText: verseText ?? null,
         visibility: visibility ?? "MEMBERS_ONLY",
+        linkUrl: linkUrl ?? null,
+        linkTitle: linkTitle ?? null,
+        linkDesc: linkDesc ?? null,
+        linkImage: linkImage ?? null,
       },
       include: {
         author: {
@@ -119,7 +123,7 @@ export async function POST(request: Request) {
     // ------ Notify all members (fire-and-forget) ------
     const TYPE_LABEL: Record<string, string> = {
       TEXT: "a reflection", DEVO: "a devotional", VERSE_CARD: "a Bible verse",
-      PRAYER: "a prayer", PRAISE: "a praise report", EVENT: "an event",
+      PRAYER: "a prayer", PRAISE: "a testimony", EVENT: "an event",
     };
     const label = TYPE_LABEL[type ?? "TEXT"] ?? "something";
     const authorName = `${post.author.firstName} ${post.author.lastName}`;

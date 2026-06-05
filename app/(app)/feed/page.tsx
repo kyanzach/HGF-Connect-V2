@@ -30,14 +30,14 @@ interface Post {
 
 // GCash-style horizontal scrollable shortcuts
 const SHORTCUTS = [
-  { icon: "✍️", label: "Write", href: "/feed/create?type=TEXT", color: "#e0f2fe", iconBg: "#0ea5e9" },
+  { icon: "✍️", label: "Write", href: "/feed/create", color: "#e0f2fe", iconBg: "#0ea5e9" },
+  { icon: "📝", label: "Grace Notes", href: "/grace-notes", color: "#e6fffa", iconBg: "#14b8a6" },
   { icon: "📅", label: "Events", href: "/events", color: "#fef3c7", iconBg: "#f59e0b" },
   { icon: "👥", label: "Directory", href: "/directory", color: "#fce7f3", iconBg: "#ec4899" },
   { icon: "🛍️", label: "Market", href: "/stewardshop", color: "#f0f9ff", iconBg: PRIMARY },
   { icon: "📖", label: "Devo", href: "/devo/new", color: "#e0fdf4", iconBg: "#10b981" },
   { icon: "🙏", label: "Pray", href: "/prayer/new", color: "#faf5ff", iconBg: "#a855f7" },
   { icon: "💡", label: "AI Helper", href: "/ai", color: "#fff7ed", iconBg: "#f97316" },
-  { icon: "📚", label: "Resources", href: "/resources", color: "#f0fdf4", iconBg: "#22c55e" },
 ];
 
 export default function FeedPage() {

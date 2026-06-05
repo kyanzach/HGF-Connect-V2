@@ -23,7 +23,7 @@ interface MemberData {
 const MENU_ITEMS = [
   { icon: "👤", label: "Edit Profile", href: "/profile/edit" },
   { icon: "🔔", label: "Notifications", href: "/notifications" },
-  { icon: "📖", label: "My Journal", href: "/journal" },
+  { icon: "📖", label: "My Grace Notes", href: "/journal" },
   { icon: "🙏", label: "My Prayers", href: "/prayer" },
   { icon: "🤝", label: "My Listings", href: "/stewardshop/my-listings" },
   { icon: "⚙️", label: "Settings", href: "/profile/edit" },

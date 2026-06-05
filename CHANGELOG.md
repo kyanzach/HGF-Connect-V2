@@ -5,6 +5,17 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.20.0] — 2026-06-05
+### Added
+- **Grace Notes Blog & Rich Text Editor**: Added a WordPress-style contentEditable WYSIWYG editor for writing Grace Notes, supporting formatting styles, links, image URLs, and raw HTML toggle.
+- **Grace Notes Public Feeds & SEO Reader**: Built a public directory at `/grace-notes` and article reader at `/grace-notes/[id]` with server-side OpenGraph tags for search engines, supporting private, member-only, and public options.
+- **Testimony Composer & AI Rewrite Assistant**: Implemented `✨ Make it better with AI` rewrite helper in the testimony tab to polish Cebuano/Bisaya/Taglish stories without losing the author's native dialect.
+- **PWA Auto-Metadata Fetching & Embed Player**: Added link preview parser that fetches OpenGraph headers dynamically. Secure iframe players keep users inside the PWA when playing YouTube, Facebook, and Instagram links.
+- **PWA Video Fullscreen Rotation**: Added custom pseudo-fullscreen fallback with 90-degree CSS rotations on mobile portrait viewports to fix iOS maximize bugs.
+### Changed
+- **Praise Option Renaming**: Renamed "Praise Report" to "Testimony" across all composer tabs, feed tags, notifications, and menus.
+- **Modal Dialog Standardization**: Replaced native window `confirm` and `alert` dialogs with stylized `ConfirmModal` overlays to follow app safety guidelines.
+
 ## [v2.19.0] — 2026-06-05
 ### Added
 - **Dynamic AI Church Knowledge Settings (s3)**: Added a settings panel at `/admin/church-settings` restricted to admin/moderator roles where leaders can modify basic church info (name, address, service times, prayer schedules, cell groups, volunteering, etc.).

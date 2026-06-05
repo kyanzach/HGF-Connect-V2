@@ -22,22 +22,36 @@ export default function CleanYoutubePlayer({ videoId }: CleanYoutubePlayerProps)
   const [duration, setDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isPseudoFullscreen, setIsPseudoFullscreen] = useState(false);
   const playerWrapperRef = useRef<HTMLDivElement>(null);
 
   const toggleFullscreen = () => {
     if (!playerWrapperRef.current) return;
-    if (!document.fullscreenElement) {
-      playerWrapperRef.current.requestFullscreen().catch((err) => {
-        console.error("Error enabling fullscreen:", err);
-      });
+
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches || (navigator as any).standalone;
+    const usePseudo = !playerWrapperRef.current.requestFullscreen || isIOS || isStandalone;
+
+    if (usePseudo) {
+      setIsPseudoFullscreen(!isPseudoFullscreen);
     } else {
-      document.exitFullscreen();
+      if (!document.fullscreenElement) {
+        playerWrapperRef.current.requestFullscreen().catch((err) => {
+          console.error("Error enabling fullscreen, falling back to pseudo:", err);
+          setIsPseudoFullscreen(true);
+        });
+      } else {
+        document.exitFullscreen();
+      }
     }
   };
 
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
+      if (!document.fullscreenElement) {
+        setIsPseudoFullscreen(false);
+      }
     };
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => {
@@ -178,18 +192,19 @@ export default function CleanYoutubePlayer({ videoId }: CleanYoutubePlayerProps)
   return (
     <div
       ref={playerWrapperRef}
+      className={isPseudoFullscreen ? "pseudo-fullscreen-active" : ""}
       style={{
-        position: isFullscreen ? "fixed" : "relative",
-        top: isFullscreen ? 0 : undefined,
-        left: isFullscreen ? 0 : undefined,
+        position: (isFullscreen || isPseudoFullscreen) ? "fixed" : "relative",
+        top: (isFullscreen || isPseudoFullscreen) ? 0 : undefined,
+        left: (isFullscreen || isPseudoFullscreen) ? 0 : undefined,
         width: "100%",
-        height: isFullscreen ? "100%" : undefined,
-        paddingBottom: isFullscreen ? "0" : "56.25%", // 16:9 Aspect Ratio
+        height: (isFullscreen || isPseudoFullscreen) ? "100%" : undefined,
+        paddingBottom: (isFullscreen || isPseudoFullscreen) ? "0" : "56.25%", // 16:9 Aspect Ratio
         background: "#000",
-        borderRadius: isFullscreen ? "0" : "14px",
+        borderRadius: (isFullscreen || isPseudoFullscreen) ? "0" : "14px",
         overflow: "hidden",
-        boxShadow: isFullscreen ? "none" : "0 10px 30px rgba(0, 0, 0, 0.25)",
-        zIndex: isFullscreen ? 99999 : undefined,
+        boxShadow: (isFullscreen || isPseudoFullscreen) ? "none" : "0 10px 30px rgba(0, 0, 0, 0.25)",
+        zIndex: (isFullscreen || isPseudoFullscreen) ? 99999 : undefined,
       }}
     >
       {/* Target div for YouTube player replacement */}
@@ -367,11 +382,36 @@ export default function CleanYoutubePlayer({ videoId }: CleanYoutubePlayerProps)
             display: "flex",
             alignItems: "center",
           }}
-          aria-label={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+          aria-label={(isFullscreen || isPseudoFullscreen) ? "Exit Fullscreen" : "Enter Fullscreen"}
         >
-          {isFullscreen ? "🗗" : "⛶"}
+          {(isFullscreen || isPseudoFullscreen) ? "🗗" : "⛶"}
         </button>
       </div>
+
+      <style>{`
+        .pseudo-fullscreen-active {
+          position: fixed !important;
+          top: 0 !important;
+          left: 0 !important;
+          width: 100vw !important;
+          height: 100vh !important;
+          z-index: 99999 !important;
+          border-radius: 0 !important;
+          box-shadow: none !important;
+        }
+        @media (max-width: 767px) and (orientation: portrait) {
+          .pseudo-fullscreen-active {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100dvh !important;
+            height: 100dvw !important;
+            transform: rotate(90deg) translateY(-100dvw) !important;
+            transform-origin: top left !important;
+            z-index: 99999 !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

@@ -663,6 +663,10 @@ model Post {
   verseRef   String?        @map("verse_ref") @db.VarChar(200)
   verseText  String?        @map("verse_text") @db.Text
   visibility PostVisibility @default(MEMBERS_ONLY)
+  linkUrl    String?        @map("link_url") @db.VarChar(500)
+  linkTitle  String?        @map("link_title") @db.VarChar(255)
+  linkDesc   String?        @map("link_desc") @db.Text
+  linkImage  String?        @map("link_image") @db.VarChar(500)
   author     Member         @relation("PostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
   likes      PostLike[]
   comments   Comment[]
