@@ -20,7 +20,7 @@ export async function GET() {
       WHERE member_id = ${memberId} AND usage_date = ${today}
       LIMIT 1
     `;
-    const used = row[0]?.question_count ?? 0;
+    const used = Number(row[0]?.question_count ?? 0);
 
     // Fetch the most recent active conversation updated within the last 24 hours
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);

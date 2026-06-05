@@ -131,7 +131,7 @@ async function getUsage(memberId: number): Promise<{ today: string; count: numbe
     WHERE member_id = ${memberId} AND usage_date = ${today}
     LIMIT 1
   `;
-  return { today, count: row[0]?.question_count ?? 0, lastAt: row[0]?.last_request_at ?? null };
+  return { today, count: Number(row[0]?.question_count ?? 0), lastAt: row[0]?.last_request_at ?? null };
 }
 
 async function incrementUsage(memberId: number, today: string): Promise<void> {

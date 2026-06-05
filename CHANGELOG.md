@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.21.2] — 2026-06-06
+### Fixed
+- **Database Table Creation (`ai_usage`)**: Created the missing `ai_usage` table in the production MySQL database to store daily assistant query usage.
+- **BigInt Casting Mismatches**: Wrapped raw MySQL query counts in `Number(...)` on both server routes to prevent BigInt arithmetic exceptions, resolving the `TypeError` crashes that forced both endpoints to fail and return fallbacks.
+
 ## [v2.21.1] — 2026-06-06
 ### Added
 - **AI Rewrite Language Selector (s1)**: Implemented an interactive inline choice selector when clicking "Make it better with AI" inside the Testimony post composer. Users can choose to rewrite/polish their testimony in Bisaya, Taglish, or English.
