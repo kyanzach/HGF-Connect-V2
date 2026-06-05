@@ -55,7 +55,7 @@ export default function NewJournalPage() {
         }
       })
       .catch(() => {
-        setError("Failed to load Grace Note for editing.");
+        setError("Failed to load blog post for editing.");
       });
   }, [editId]);
 
@@ -170,7 +170,7 @@ export default function NewJournalPage() {
       router.push("/journal");
       router.refresh();
     } catch {
-      setError("Failed to save Grace Note. Please check connection and try again.");
+      setError("Failed to save blog post. Please check connection and try again.");
     } finally {
       setSubmitting(false);
     }
@@ -197,7 +197,7 @@ export default function NewJournalPage() {
         </button>
         <div style={{ flex: 1 }}>
           <h1 style={{ margin: 0, fontSize: "1rem", fontWeight: 700 }}>
-            {editId ? "Edit Grace Note" : "New Grace Note 📝"}
+            {editId ? "Edit Blog Post" : "New Blog Post 📝"}
           </h1>
           <p style={{ margin: 0, fontSize: "0.65rem", opacity: 0.85 }}>
             {editId ? "Update your published article" : "Write your walk of faith story"}
@@ -262,7 +262,7 @@ export default function NewJournalPage() {
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Grace Note Title..."
+          placeholder="Blog Post Title..."
           style={{
             border: "none",
             borderBottom: "1.5px solid #e2e8f0",

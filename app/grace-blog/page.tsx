@@ -5,7 +5,7 @@ import Image from "next/image";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Grace Notes — House of Grace Fellowship",
+  title: "Grace Blog — House of Grace Fellowship",
   description: "Browse members' walk of faith stories, diaries, and spiritual reflections from the House of Grace community.",
 };
 
@@ -86,10 +86,10 @@ export default async function GraceNotesPage({ searchParams }: GraceNotesPagePro
           ← Home
         </Link>
         <h1 style={{ fontSize: "1.5rem", fontWeight: 800, margin: "0 0 0.25rem" }}>
-          📝 Grace Notes
+          📝 Grace Blog
         </h1>
         <p style={{ fontSize: "0.8rem", opacity: 0.9, margin: 0 }}>
-          Spiritual diaries and walk of faith stories from our members
+          Spiritual diaries and walk of faith blog posts from our members
         </p>
       </div>
 
@@ -97,7 +97,7 @@ export default async function GraceNotesPage({ searchParams }: GraceNotesPagePro
         {notes.length === 0 ? (
           <div style={{ textAlign: "center", padding: "4rem 1rem", background: "white", borderRadius: "16px", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
             <span style={{ fontSize: "3rem" }}>📝</span>
-            <p style={{ margin: "1rem 0 0", color: "#64748b", fontWeight: 600 }}>No public Grace Notes found.</p>
+            <p style={{ margin: "1rem 0 0", color: "#64748b", fontWeight: 600 }}>No public Grace Blog posts found.</p>
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
@@ -114,7 +114,7 @@ export default async function GraceNotesPage({ searchParams }: GraceNotesPagePro
               return (
                 <Link
                   key={note.id}
-                  href={`/grace-notes/${note.id}`}
+                  href={`/grace-blog/${note.id}`}
                   style={{ textDecoration: "none" }}
                 >
                   <div
@@ -190,7 +190,7 @@ export default async function GraceNotesPage({ searchParams }: GraceNotesPagePro
         {totalPages > 1 && (
           <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "1rem", marginTop: "1.5rem" }}>
             <Link
-              href={`/grace-notes?page=${page - 1}`}
+              href={`/grace-blog?page=${page - 1}`}
               style={{
                 background: "white",
                 border: "1px solid #cbd5e1",
@@ -210,7 +210,7 @@ export default async function GraceNotesPage({ searchParams }: GraceNotesPagePro
               Page {page} of {totalPages}
             </span>
             <Link
-              href={`/grace-notes?page=${page + 1}`}
+              href={`/grace-blog?page=${page + 1}`}
               style={{
                 background: "white",
                 border: "1px solid #cbd5e1",

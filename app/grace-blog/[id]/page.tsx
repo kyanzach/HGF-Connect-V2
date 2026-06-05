@@ -13,7 +13,7 @@ interface GraceNoteDetailProps {
 export async function generateMetadata({ params }: GraceNoteDetailProps): Promise<Metadata> {
   const resolvedParams = await params;
   const noteId = parseInt(resolvedParams.id);
-  if (isNaN(noteId)) return { title: "Grace Note — HGF Connect" };
+  if (isNaN(noteId)) return { title: "Grace Blog — HGF Connect" };
 
   const note = await db.journalEntry.findUnique({
     where: { id: noteId },
@@ -21,11 +21,11 @@ export async function generateMetadata({ params }: GraceNoteDetailProps): Promis
   });
 
   if (!note || note.visibility !== "PUBLIC") {
-    return { title: "Grace Note — HGF Connect" };
+    return { title: "Grace Blog — HGF Connect" };
   }
 
   const authorName = `${note.author.firstName} ${note.author.lastName}`;
-  const titleText = note.title || "Grace Note";
+  const titleText = note.title || "Grace Blog Post";
   const snippet = note.content.replace(/<[^>]*>/g, " ").slice(0, 155);
 
   return {
@@ -35,7 +35,7 @@ export async function generateMetadata({ params }: GraceNoteDetailProps): Promis
       title: `${titleText} by ${authorName}`,
       description: snippet,
       type: "article",
-      url: `https://connect.houseofgrace.ph/grace-notes/${note.id}`,
+      url: `https://connect.houseofgrace.ph/grace-blog/${note.id}`,
     },
   };
 }
@@ -98,7 +98,7 @@ export default async function GraceNoteDetailPage({ params }: GraceNoteDetailPro
         }}
       >
         <Link
-          href="/grace-notes"
+          href="/grace-blog"
           style={{
             border: "none",
             fontSize: "0.875rem",
@@ -110,7 +110,7 @@ export default async function GraceNoteDetailPage({ params }: GraceNoteDetailPro
             background: "#e0f7fb",
           }}
         >
-          ← All Grace Notes
+          ← All Blog Posts
         </Link>
         <div style={{ marginLeft: "auto" }} />
         {note.visibility === "PUBLIC" && (
@@ -133,7 +133,7 @@ export default async function GraceNoteDetailPage({ params }: GraceNoteDetailPro
       <div style={{ padding: "1.25rem" }}>
         {/* Title */}
         <h1 style={{ fontSize: "1.375rem", fontWeight: 800, color: "#0f172a", margin: "0 0 1rem", lineHeight: 1.35 }}>
-          {note.title || "Untitled Grace Note"}
+          {note.title || "Untitled Blog Post"}
         </h1>
 
         {/* Author Line */}

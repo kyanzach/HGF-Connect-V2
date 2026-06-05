@@ -78,9 +78,9 @@ export default function JournalPage() {
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <h1 style={{ margin: 0, fontSize: "1.125rem", fontWeight: 800 }}>📝 My Grace Notes</h1>
+            <h1 style={{ margin: 0, fontSize: "1.125rem", fontWeight: 800 }}>📝 My Grace Blog</h1>
             <p style={{ margin: "0.125rem 0 0", fontSize: "0.75rem", opacity: 0.85 }}>
-              Your private reflections, member diaries, and public walk of faith
+              Your private reflection diary and public faith blog — sharing your personal walk of faith with the community.
             </p>
           </div>
           <Link
@@ -96,7 +96,7 @@ export default function JournalPage() {
               boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
             }}
           >
-            + Write Note
+            + Write Blog
           </Link>
         </div>
       </div>
@@ -124,10 +124,10 @@ export default function JournalPage() {
           <div style={{ textAlign: "center", padding: "3rem 1rem", color: "#94a3b8" }}>
             <div style={{ fontSize: "3.5rem", marginBottom: "0.75rem" }}>📔</div>
             <p style={{ fontWeight: 600, color: "#64748b", margin: "0 0 0.25rem" }}>
-              No Grace Notes yet
+              No Grace Blog posts yet
             </p>
             <p style={{ fontSize: "0.8rem", margin: "0 0 1.25rem" }}>
-              Start writing your Grace Journey or spiritual Walk of Faith today.
+              Start writing your Grace Journey or sharing your spiritual Walk of Faith on your blog today.
             </p>
             <Link
               href="/journal/new"
@@ -143,7 +143,7 @@ export default function JournalPage() {
                 boxShadow: "0 4px 12px rgba(78,177,203,0.3)",
               }}
             >
-              Write First Grace Note ✍️
+              Write First Blog Post ✍️
             </Link>
           </div>
         ) : (
@@ -311,8 +311,8 @@ export default function JournalPage() {
       {/* Delete Confirmation Modal */}
       <ConfirmModal
         open={deleteConfirmId !== null}
-        title="Delete Grace Note"
-        message="Are you sure you want to delete this Grace Note? This will permanently remove it."
+        title="Delete Blog Post"
+        message="Are you sure you want to delete this blog post? This will permanently remove it."
         confirmLabel="Delete"
         onConfirm={async () => {
           if (!deleteConfirmId) return;

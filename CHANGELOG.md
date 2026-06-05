@@ -5,6 +5,12 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.21.0] — 2026-06-06
+### Changed
+- **Grace Notes to Grace Blog Rebranding**: Renamed "Grace Notes" / "Grace Note" to "Grace Blog" / "Blog Post" across all client pages, settings menus, and editor composers to make the feature's purpose clearer.
+- **Grace Notes URL Renaming**: Updated public directory path to `/grace-blog` and detailed reader route to `/grace-blog/[id]`.
+- **Dashboard Header Wording Update**: Redesigned the member blog dashboard description to state: "Your private reflection diary and public faith blog — sharing your personal walk of faith with the community." to clearly emphasize the personal blog utility.
+
 ## [v2.20.1] — 2026-06-06
 ### Fixed
 - **AI Assistant Quota Reset**: Fixed the daily limit calculations to use the Manila timezone (`Asia/Manila` offset) instead of standard UTC. This prevents limits from resetting prematurely or resetting upon browser refreshes due to timezone date boundary mismatch.
