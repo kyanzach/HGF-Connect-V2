@@ -5,6 +5,12 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.21.3] — 2026-06-06
+### Added
+- **AI Assistant Message Timestamp Footnotes**: Added sent/replied timestamp footnotes directly below each message bubble in the AI Chat interface.
+- **Enhanced History Button UI**: Upgraded the header clock icon to a premium glassmorphic button with a custom vector SVG icon and a clear "History" label.
+- **Empty History State Guidance**: Added informative text within the empty history drawer explaining that active conversation turns are kept for 24 hours on the main screen before rolling over to the past History list.
+
 ## [v2.21.2] — 2026-06-06
 ### Fixed
 - **Database Table Creation (`ai_usage`)**: Created the missing `ai_usage` table in the production MySQL database to store daily assistant query usage.

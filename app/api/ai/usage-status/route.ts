@@ -53,6 +53,7 @@ export async function GET() {
       messages: activeConv.messages.map((m) => ({
         role: m.role === "user" ? "user" : "ai",
         content: m.content,
+        createdAt: m.createdAt.toISOString(),
       })),
     } : null;
 

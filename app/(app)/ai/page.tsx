@@ -8,6 +8,7 @@ const DAILY_LIMIT = 20;
 interface Message {
   role: "user" | "ai";
   content: string;
+  createdAt?: string;
 }
 
 interface ConvSummary {
@@ -118,7 +119,8 @@ export default function AiChatPage() {
     if (!text.trim() || loading || isLimitReached) return;
     const userMessage = text.trim();
     setInput("");
-    setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+    const sentTime = new Date().toISOString();
+    setMessages((prev) => [...prev, { role: "user", content: userMessage, createdAt: sentTime }]);
     setLoading(true);
 
     // §5.6 — OPTIMISTIC DECREMENT: counter drops instantly before server responds
@@ -139,7 +141,8 @@ export default function AiChatPage() {
         }),
       });
       const data = await res.json();
-      setMessages((prev) => [...prev, { role: "ai", content: data.reply }]);
+      const replyTime = new Date().toISOString();
+      setMessages((prev) => [...prev, { role: "ai", content: data.reply, createdAt: replyTime }]);
 
       // §5.6 — sync authoritative count from server
       if (typeof data.questions_remaining === "number") {
@@ -207,13 +210,31 @@ export default function AiChatPage() {
           <p style={{ margin: 0, fontSize: "0.7rem", opacity: 0.85 }}>Ask me about church events, cell groups, and more</p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          {/* §5.7 — History button (clock icon) */}
+          {/* §5.7 — History button (styled with SVG and text) */}
           <button
             onClick={openHistory}
             title="Chat History"
-            style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: "50%", width: 32, height: 32, cursor: "pointer", color: "white", fontSize: "1rem", display: "flex", alignItems: "center", justifyContent: "center" }}
+            style={{
+              background: "rgba(255,255,255,0.2)",
+              border: "1px solid rgba(255,255,255,0.35)",
+              borderRadius: "999px",
+              padding: "0.3rem 0.6rem",
+              cursor: "pointer",
+              color: "white",
+              fontSize: "0.75rem",
+              fontWeight: 600,
+              display: "flex",
+              alignItems: "center",
+              gap: "0.3rem",
+            }}
           >
-            🕐
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <polyline points="3 3 3 8 8 8" />
+              <line x1="12" y1="7" x2="12" y2="12" />
+              <line x1="12" y1="12" x2="16" y2="14" />
+            </svg>
+            <span>History</span>
           </button>
           {/* §4.5 — Daily quota pill */}
           <div style={{ display: "flex", alignItems: "center", gap: "0.25rem", background: "rgba(255,255,255,0.2)", borderRadius: "999px", padding: "0.2rem 0.6rem" }}>
@@ -266,20 +287,27 @@ export default function AiChatPage() {
       )}
 
       {/* Message List */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem", scrollbarWidth: "none" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "1rem", display: "flex", flexDirection: "column", gap: "1rem", scrollbarWidth: "none" }}>
         {messages.map((msg, i) => (
-          <div key={i} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start", alignItems: "flex-end", gap: "0.5rem" }}>
+          <div key={i} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start", alignItems: "flex-start", gap: "0.5rem" }}>
             {msg.role === "ai" && (
-              <div style={{ width: 30, height: 30, borderRadius: "50%", background: PRIMARY, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.875rem", flexShrink: 0 }}>💡</div>
+              <div style={{ width: 30, height: 30, borderRadius: "50%", background: PRIMARY, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.875rem", flexShrink: 0, marginTop: "2px" }}>💡</div>
             )}
-            <div style={{ maxWidth: "78%", background: msg.role === "user" ? PRIMARY : "white", color: msg.role === "user" ? "white" : "#1e293b", borderRadius: msg.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px", padding: "0.625rem 0.875rem", fontSize: "0.9rem", lineHeight: 1.6, boxShadow: msg.role === "ai" ? "0 1px 4px rgba(0,0,0,0.08)" : "none", whiteSpace: "pre-line" }}>
-              {msg.content}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: msg.role === "user" ? "flex-end" : "flex-start", maxWidth: "78%" }}>
+              <div style={{ background: msg.role === "user" ? PRIMARY : "white", color: msg.role === "user" ? "white" : "#1e293b", borderRadius: msg.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px", padding: "0.625rem 0.875rem", fontSize: "0.9rem", lineHeight: 1.6, boxShadow: msg.role === "ai" ? "0 1px 4px rgba(0,0,0,0.08)" : "none", whiteSpace: "pre-line" }}>
+                {msg.content}
+              </div>
+              {msg.createdAt && (
+                <div style={{ fontSize: "0.65rem", color: "#94a3b8", marginTop: "0.2rem", padding: "0 0.25rem" }}>
+                  {formatTime(msg.createdAt)}
+                </div>
+              )}
             </div>
           </div>
         ))}
         {loading && (
-          <div style={{ display: "flex", alignItems: "flex-end", gap: "0.5rem" }}>
-            <div style={{ width: 30, height: 30, borderRadius: "50%", background: PRIMARY, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.875rem" }}>💡</div>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem" }}>
+            <div style={{ width: 30, height: 30, borderRadius: "50%", background: PRIMARY, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.875rem", flexShrink: 0, marginTop: "2px" }}>💡</div>
             <div style={{ background: "white", borderRadius: "18px 18px 18px 4px", boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}><TypingIndicator /></div>
           </div>
         )}
@@ -337,10 +365,12 @@ export default function AiChatPage() {
               historyLoading ? (
                 <p style={{ textAlign: "center", color: "#94a3b8", marginTop: "2rem" }}>Loading…</p>
               ) : history.length === 0 ? (
-                <div style={{ textAlign: "center", marginTop: "3rem", color: "#94a3b8" }}>
+                <div style={{ textAlign: "center", marginTop: "3rem", color: "#94a3b8", padding: "0 1.5rem" }}>
                   <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>💬</div>
-                  <p style={{ fontSize: "0.875rem" }}>No past conversations yet.</p>
-                  <p style={{ fontSize: "0.8rem" }}>Start chatting to see your history here!</p>
+                  <p style={{ fontSize: "0.875rem", fontWeight: 700, color: "#64748b", marginBottom: "0.25rem" }}>No past conversations yet</p>
+                  <p style={{ fontSize: "0.8rem", color: "#94a3b8", lineHeight: 1.4 }}>
+                    Conversations active within the last 24 hours are shown directly in your main chat screen. They move here to History after 24 hours of inactivity.
+                  </p>
                 </div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
