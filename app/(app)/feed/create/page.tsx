@@ -57,7 +57,7 @@ function getPostBgStyle(bgName: string | null | undefined): React.CSSProperties 
 export default function CreatePostPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("thoughts");
-  const [subType, setSubType] = useState("TEXT");
+  const [subType, setSubType] = useState<string | null>(null);
   const [content, setContent] = useState("");
   const [verseRef, setVerseRef] = useState("");
   const [verseText, setVerseText] = useState("");
@@ -190,11 +190,11 @@ export default function CreatePostPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          type: activeTab === "thoughts" ? subType : (activeTab === "testimony" ? "PRAISE" : "PRAYER"),
+          type: activeTab === "thoughts" ? (subType || "TEXT") : (activeTab === "testimony" ? "PRAISE" : "PRAYER"),
           content: content || null,
           imageUrl: (activeTab === "thoughts" ? selectedBg : null) || null,
-          verseRef: activeTab === "thoughts" && (subType === "DEVO" || subType === "VERSE_CARD") ? verseRef || null : null,
-          verseText: activeTab === "thoughts" && (subType === "DEVO" || subType === "VERSE_CARD") ? verseText || null : null,
+          verseRef: activeTab === "thoughts" && subType ? verseRef || null : null,
+          verseText: activeTab === "thoughts" && subType ? verseText || null : null,
           visibility,
           linkUrl: linkMetadata?.url || null,
           linkTitle: linkMetadata?.title || null,
@@ -214,7 +214,7 @@ export default function CreatePostPage() {
   }
 
   const selectedType = activeTab === "thoughts"
-    ? THOUGHT_SUBTYPES.find((t) => t.value === subType)!
+    ? (subType ? THOUGHT_SUBTYPES.find((t) => t.value === subType)! : { value: "TEXT", icon: "✍️", label: "Thoughts" })
     : activeTab === "testimony"
     ? { value: "PRAISE", icon: "🙌", label: "Testimony" }
     : { value: "PRAYER", icon: "🙏", label: "Prayer" };
@@ -296,15 +296,16 @@ export default function CreatePostPage() {
               alignItems: "center",
             }}
           >
-            <span style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: 600, marginRight: "0.25rem" }}>
-              Category:
-            </span>
             {THOUGHT_SUBTYPES.map((st) => (
               <button
                 key={st.value}
                 type="button"
                 onClick={() => {
-                  setSubType(st.value);
+                  if (subType === st.value) {
+                    setSubType(null);
+                  } else {
+                    setSubType(st.value);
+                  }
                   setError("");
                 }}
                 style={{
@@ -558,8 +559,8 @@ export default function CreatePostPage() {
             </div>
           )}
 
-          {/* Bible Verse fields (Thoughts Tab + DEVO/VERSE_CARD category) */}
-          {activeTab === "thoughts" && (subType === "VERSE_CARD" || subType === "DEVO") && (
+          {/* Bible Verse fields (Thoughts Tab + any selected category) */}
+          {activeTab === "thoughts" && subType && (
             <div
               style={{
                 borderTop: `1px solid ${selectedBg ? "rgba(255,255,255,0.2)" : "#f1f5f9"}`,
