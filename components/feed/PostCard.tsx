@@ -22,7 +22,7 @@ function getPostBgStyle(bgName: string | null | undefined): React.CSSProperties 
   switch (bgName) {
     case "bg:teal":
       return {
-        background: "linear-gradient(135deg, #0f766e 0%, #14b8a6 100%)",
+        background: "linear-gradient(135deg, #2d8fa6 0%, #4EB1CB 100%)",
         color: "#ffffff",
       };
     case "bg:red":

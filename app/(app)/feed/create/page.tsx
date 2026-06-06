@@ -27,7 +27,7 @@ function getPostBgStyle(bgName: string | null | undefined): React.CSSProperties 
   switch (bgName) {
     case "bg:teal":
       return {
-        background: "linear-gradient(135deg, #0f766e 0%, #14b8a6 100%)",
+        background: "linear-gradient(135deg, #2d8fa6 0%, #4EB1CB 100%)",
         color: "#ffffff",
       };
     case "bg:red":
@@ -678,7 +678,7 @@ export default function CreatePostPage() {
                           height: "26px",
                           borderRadius: "50%",
                           border: `2px solid ${selectedBg === "bg:teal" ? "#ffffff" : "transparent"}`,
-                          background: "linear-gradient(135deg, #0f766e 0%, #14b8a6 100%)",
+                          background: "linear-gradient(135deg, #2d8fa6 0%, #4EB1CB 100%)",
                           cursor: "pointer",
                           boxShadow: "0 1px 3px rgba(0,0,0,0.15)"
                         }}
