@@ -17,6 +17,39 @@ function getYoutubeId(url: string | null | undefined): string | null {
   return match ? match[1] : null;
 }
 
+function getPostBgStyle(bgName: string | null | undefined): React.CSSProperties | undefined {
+  if (!bgName) return undefined;
+  switch (bgName) {
+    case "bg:teal":
+      return {
+        background: "linear-gradient(135deg, #0f766e 0%, #14b8a6 100%)",
+        color: "#ffffff",
+      };
+    case "bg:red":
+      return {
+        background: "linear-gradient(135deg, #991b1b 0%, #ef4444 100%)",
+        color: "#ffffff",
+      };
+    case "bg:mountain":
+      return {
+        background: "linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.45)), url('/backgrounds/mountain.png')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        color: "#ffffff",
+      };
+    case "bg:ocean":
+      return {
+        background: "linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.45)), url('/backgrounds/ocean.png')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        color: "#ffffff",
+      };
+    default:
+      return undefined;
+  }
+}
+
+
 interface PostCardProps {
   post: {
     id: number;
@@ -259,7 +292,7 @@ export default function PostCard({ post }: PostCardProps) {
     <>
       <div
         ref={cardRef}
-        style={{ background: "white", borderRadius: "16px", marginBottom: "0.75rem", overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}
+        style={{ background: "white", borderRadius: "16px", marginBottom: "0.75rem", overflow: "visible", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", position: "relative" }}
       >
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", padding: "0.875rem 1rem 0.5rem", gap: "0.625rem" }}>
@@ -354,10 +387,38 @@ export default function PostCard({ post }: PostCardProps) {
           );
         })() : (
           <>
-            {post.content && (
-              <div style={{ padding: "0 1rem 0.5rem", fontSize: "0.9375rem", color: "#334155", lineHeight: 1.65, whiteSpace: "pre-line" }}>
-                {post.content}
+            {post.imageUrl && post.imageUrl.startsWith("bg:") ? (
+              <div
+                style={{
+                  margin: "0 0.75rem 0.5rem",
+                  borderRadius: "14px",
+                  minHeight: "260px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "2rem",
+                  boxSizing: "border-box",
+                  textAlign: "center",
+                  wordBreak: "break-word",
+                  ...getPostBgStyle(post.imageUrl),
+                }}
+              >
+                <div style={{
+                  fontSize: "1.35rem",
+                  fontWeight: 800,
+                  lineHeight: 1.5,
+                  textShadow: "0 1px 4px rgba(0,0,0,0.3)",
+                  whiteSpace: "pre-line",
+                }}>
+                  {post.content}
+                </div>
               </div>
+            ) : (
+              post.content && (
+                <div style={{ padding: "0 1rem 0.5rem", fontSize: "0.9375rem", color: "#334155", lineHeight: 1.65, whiteSpace: "pre-line" }}>
+                  {post.content}
+                </div>
+              )
             )}
 
             {/* Image or Video Player */}
@@ -370,7 +431,7 @@ export default function PostCard({ post }: PostCardProps) {
                   </div>
                 );
               }
-              return post.imageUrl ? (
+              return post.imageUrl && !post.imageUrl.startsWith("bg:") ? (
                 <div style={{ margin: "0.25rem 0" }}>
                   <img
                     src={post.imageUrl.startsWith("http") || post.imageUrl.startsWith("/") ? post.imageUrl : `/uploads/${post.imageUrl}`}
@@ -381,7 +442,7 @@ export default function PostCard({ post }: PostCardProps) {
               ) : null;
             })() : (
               <>
-                {post.imageUrl && (
+                {post.imageUrl && !post.imageUrl.startsWith("bg:") && (
                   <div style={{ margin: "0.25rem 0" }}>
                     <img
                       src={

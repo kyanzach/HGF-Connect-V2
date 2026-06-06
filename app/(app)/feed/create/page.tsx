@@ -6,19 +6,58 @@ import SubmitButton from "@/components/SubmitButton";
 
 const PRIMARY = "#4EB1CB";
 
-const POST_TYPES = [
-  { value: "DEVO", icon: "📖", label: "Devotional" },
-  { value: "PRAISE", icon: "🙌", label: "Testimony" },
-  { value: "VERSE_CARD", icon: "📜", label: "Bible Verse" },
+const PRIMARY_TABS = [
+  { value: "thoughts", icon: "✍️", label: "Thoughts" },
+  { value: "testimony", icon: "🙌", label: "Testimony" },
+  { value: "prayer", icon: "🙏", label: "Prayer" },
+];
+
+const THOUGHT_SUBTYPES = [
   { value: "TEXT", icon: "✍️", label: "Reflection" },
-  { value: "PRAYER", icon: "🙏", label: "Prayer" },
+  { value: "DEVO", icon: "📖", label: "Devotional" },
+  { value: "VERSE_CARD", icon: "📜", label: "Bible Verse" },
 ];
 
 const URL_REGEX = /(https?:\/\/[^\s]+)/gi;
 
+const EMOJIS = ["🙏", "🙌", "❤️", "✨", "📖", "📜", "🕊️", "⛪", "😊", "👍", "🎉", "🔥", "🌟", "💡", "👏"];
+
+function getPostBgStyle(bgName: string | null | undefined): React.CSSProperties | undefined {
+  if (!bgName) return undefined;
+  switch (bgName) {
+    case "bg:teal":
+      return {
+        background: "linear-gradient(135deg, #0f766e 0%, #14b8a6 100%)",
+        color: "#ffffff",
+      };
+    case "bg:red":
+      return {
+        background: "linear-gradient(135deg, #991b1b 0%, #ef4444 100%)",
+        color: "#ffffff",
+      };
+    case "bg:mountain":
+      return {
+        background: "linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.45)), url('/backgrounds/mountain.png')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        color: "#ffffff",
+      };
+    case "bg:ocean":
+      return {
+        background: "linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.45)), url('/backgrounds/ocean.png')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        color: "#ffffff",
+      };
+    default:
+      return undefined;
+  }
+}
+
 export default function CreatePostPage() {
   const router = useRouter();
-  const [type, setType] = useState("DEVO");
+  const [activeTab, setActiveTab] = useState("thoughts");
+  const [subType, setSubType] = useState("TEXT");
   const [content, setContent] = useState("");
   const [verseRef, setVerseRef] = useState("");
   const [verseText, setVerseText] = useState("");
@@ -26,6 +65,14 @@ export default function CreatePostPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [shakeKey, setShakeKey] = useState(0);
+
+  // Background and Emoji UI States
+  const [selectedBg, setSelectedBg] = useState("");
+  const [showBgOptions, setShowBgOptions] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  // Textarea Ref for size auto-adjust and emoji focus insertion
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Link metadata preview states
   const [linkMetadata, setLinkMetadata] = useState<{
@@ -36,18 +83,22 @@ export default function CreatePostPage() {
   } | null>(null);
   const [fetchingMetadata, setFetchingMetadata] = useState(false);
   const lastCheckedUrl = useRef("");
+  const closedUrl = useRef("");
 
-  // AI improve state
-  const [improvingText, setImprovingText] = useState(false);
-  const [showLangSelector, setShowLangSelector] = useState(false);
-  const [improvingLang, setImprovingLang] = useState<string | null>(null);
+  // Auto-resize textarea depending on content & selected background
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [content, selectedBg]);
 
   // Listen for links in content
   useEffect(() => {
     const match = content.match(URL_REGEX);
     if (match && match[0]) {
       const url = match[0];
-      if (url !== lastCheckedUrl.current) {
+      if (url !== lastCheckedUrl.current && url !== closedUrl.current) {
         lastCheckedUrl.current = url;
         setFetchingMetadata(true);
         fetch(`/api/metadata?url=${encodeURIComponent(url)}`)
@@ -66,10 +117,21 @@ export default function CreatePostPage() {
           });
       }
     } else if (!match) {
-      lastCheckedUrl.current = "";
-      setLinkMetadata(null);
+      if (!content.trim()) {
+        setLinkMetadata(null);
+        lastCheckedUrl.current = "";
+        closedUrl.current = "";
+      } else {
+        lastCheckedUrl.current = "";
+        closedUrl.current = "";
+      }
     }
   }, [content]);
+
+  // AI improve state
+  const [improvingText, setImprovingText] = useState(false);
+  const [showLangSelector, setShowLangSelector] = useState(false);
+  const [improvingLang, setImprovingLang] = useState<string | null>(null);
 
   const handleImproveText = async (lang: string) => {
     if (!content.trim()) return;
@@ -96,6 +158,23 @@ export default function CreatePostPage() {
     }
   };
 
+  const insertEmoji = (emoji: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      setContent((c) => c + emoji);
+      return;
+    }
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const newContent = text.substring(0, start) + emoji + text.substring(end);
+    setContent(newContent);
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + emoji.length, start + emoji.length);
+    }, 0);
+  };
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!content.trim() && !verseText.trim() && !linkMetadata) {
@@ -111,10 +190,11 @@ export default function CreatePostPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          type,
-          content,
-          verseRef: verseRef || null,
-          verseText: verseText || null,
+          type: activeTab === "thoughts" ? subType : (activeTab === "testimony" ? "PRAISE" : "PRAYER"),
+          content: content || null,
+          imageUrl: (activeTab === "thoughts" ? selectedBg : null) || null,
+          verseRef: activeTab === "thoughts" && (subType === "DEVO" || subType === "VERSE_CARD") ? verseRef || null : null,
+          verseText: activeTab === "thoughts" && (subType === "DEVO" || subType === "VERSE_CARD") ? verseText || null : null,
           visibility,
           linkUrl: linkMetadata?.url || null,
           linkTitle: linkMetadata?.title || null,
@@ -133,7 +213,11 @@ export default function CreatePostPage() {
     }
   }
 
-  const selectedType = POST_TYPES.find((t) => t.value === type)!;
+  const selectedType = activeTab === "thoughts"
+    ? THOUGHT_SUBTYPES.find((t) => t.value === subType)!
+    : activeTab === "testimony"
+    ? { value: "PRAISE", icon: "🙌", label: "Testimony" }
+    : { value: "PRAYER", icon: "🙏", label: "Prayer" };
 
   return (
     <div style={{ padding: "1rem" }}>
@@ -158,35 +242,42 @@ export default function CreatePostPage() {
       </div>
 
       <form onSubmit={handleSubmit}>
-        {/* Post Type Selector */}
+        {/* Streamlined Primary Tabs */}
         <div
           style={{
             display: "flex",
             gap: "0.5rem",
-            overflowX: "auto",
             marginBottom: "1rem",
-            paddingBottom: "0.25rem",
-            scrollbarWidth: "none",
+            borderBottom: "1px solid #e2e8f0",
+            paddingBottom: "0.5rem",
           }}
         >
-          {POST_TYPES.map((t) => (
+          {PRIMARY_TABS.map((t) => (
             <button
               key={t.value}
               type="button"
-              onClick={() => setType(t.value)}
+              onClick={() => {
+                setActiveTab(t.value);
+                setError("");
+                if (t.value !== "thoughts") {
+                  setSelectedBg("");
+                  setShowBgOptions(false);
+                }
+              }}
               style={{
+                flex: 1,
                 display: "flex",
                 alignItems: "center",
+                justifyContent: "center",
                 gap: "0.375rem",
-                padding: "0.45rem 0.875rem",
-                borderRadius: "999px",
-                border: `1.5px solid ${type === t.value ? PRIMARY : "#e2e8f0"}`,
-                background: type === t.value ? "#e0f7fb" : "white",
-                color: type === t.value ? PRIMARY : "#64748b",
-                fontWeight: type === t.value ? 700 : 500,
-                fontSize: "0.8125rem",
+                padding: "0.6rem 0.5rem",
+                borderRadius: "10px",
+                border: "none",
+                background: activeTab === t.value ? "#e0f7fb" : "transparent",
+                color: activeTab === t.value ? PRIMARY : "#64748b",
+                fontWeight: activeTab === t.value ? 700 : 500,
+                fontSize: "0.875rem",
                 cursor: "pointer",
-                flexShrink: 0,
                 transition: "all 0.15s",
               }}
             >
@@ -195,44 +286,103 @@ export default function CreatePostPage() {
           ))}
         </div>
 
-        {/* Content Card */}
+        {/* Thoughts Sub-Type Selectors */}
+        {activeTab === "thoughts" && (
+          <div
+            style={{
+              display: "flex",
+              gap: "0.375rem",
+              marginBottom: "0.75rem",
+              alignItems: "center",
+            }}
+          >
+            <span style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: 600, marginRight: "0.25rem" }}>
+              Category:
+            </span>
+            {THOUGHT_SUBTYPES.map((st) => (
+              <button
+                key={st.value}
+                type="button"
+                onClick={() => {
+                  setSubType(st.value);
+                  setError("");
+                }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.25rem",
+                  padding: "0.35rem 0.75rem",
+                  borderRadius: "20px",
+                  border: `1px solid ${subType === st.value ? PRIMARY : "#cbd5e1"}`,
+                  background: subType === st.value ? "#e0f7fb" : "white",
+                  color: subType === st.value ? PRIMARY : "#64748b",
+                  fontWeight: subType === st.value ? 700 : 500,
+                  fontSize: "0.75rem",
+                  cursor: "pointer",
+                  transition: "all 0.15s",
+                }}
+              >
+                {st.icon} {st.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Content Card container with custom background option */}
         <div
           style={{
-            background: "white",
             borderRadius: "16px",
-            padding: "1rem",
+            padding: "1.25rem",
             marginBottom: "0.75rem",
-            boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+            boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
+            transition: "all 0.3s ease",
+            position: "relative",
+            ...(activeTab === "thoughts" && selectedBg ? {
+              minHeight: "280px",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              ...getPostBgStyle(selectedBg)
+            } : {
+              background: "white",
+              border: "1px solid #e2e8f0",
+            })
           }}
         >
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder={
-              type === "PRAYER"
-                ? "Share your prayer request with the community..."
-                : type === "PRAISE"
-                ? "Share what God has done in your life! Feel free to write in Bisaya, Tagalog, English, or Taglish... 🙌"
-                : type === "DEVO"
-                ? "Share your devotional reflection or lesson learned today..."
-                : "What's on your heart today?"
-            }
-            rows={5}
-            style={{
-              width: "100%",
-              border: "none",
-              outline: "none",
-              resize: "none",
-              fontSize: "0.9375rem",
-              color: "#1e293b",
-              lineHeight: 1.65,
-              fontFamily: "inherit",
-              boxSizing: "border-box",
-            }}
-          />
+          {/* Text Area */}
+          <div style={activeTab === "thoughts" && selectedBg ? { flex: 1, display: "flex", alignItems: "center", justifyContent: "center", width: "100%" } : undefined}>
+            <textarea
+              ref={textareaRef}
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder={
+                activeTab === "prayer"
+                  ? "Share your prayer request with the community..."
+                  : activeTab === "testimony"
+                  ? "Share what God has done in your life! Feel free to write in Bisaya, Tagalog, English, or Taglish... 🙌"
+                  : "What are your thoughts?"
+              }
+              rows={activeTab === "thoughts" && selectedBg ? 3 : 5}
+              style={{
+                width: "100%",
+                border: "none",
+                outline: "none",
+                resize: "none",
+                fontSize: activeTab === "thoughts" && selectedBg ? "1.35rem" : "0.9375rem",
+                fontWeight: activeTab === "thoughts" && selectedBg ? 800 : 500,
+                color: activeTab === "thoughts" && selectedBg ? "white" : "#1e293b",
+                textAlign: activeTab === "thoughts" && selectedBg ? "center" : "left",
+                textShadow: activeTab === "thoughts" && selectedBg ? "0 1px 4px rgba(0,0,0,0.3)" : "none",
+                lineHeight: 1.65,
+                fontFamily: "inherit",
+                boxSizing: "border-box",
+                background: "transparent",
+              }}
+            />
+          </div>
 
-          {/* AI Helper for Testimony */}
-          {type === "PRAISE" && content.trim().length > 0 && (
+          {/* AI Helper for Testimony (Praise Tab Only) */}
+          {activeTab === "testimony" && content.trim().length > 0 && (
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "0.5rem" }}>
               {showLangSelector ? (
                 <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", alignItems: "center", gap: "0.375rem" }}>
@@ -339,6 +489,7 @@ export default function CreatePostPage() {
               <button
                 type="button"
                 onClick={() => {
+                  closedUrl.current = lastCheckedUrl.current || (linkMetadata ? linkMetadata.url : "");
                   setLinkMetadata(null);
                   lastCheckedUrl.current = "";
                 }}
@@ -407,11 +558,11 @@ export default function CreatePostPage() {
             </div>
           )}
 
-          {/* Bible Verse block */}
-          {(type === "VERSE_CARD" || type === "DEVO") && (
+          {/* Bible Verse fields (Thoughts Tab + DEVO/VERSE_CARD category) */}
+          {activeTab === "thoughts" && (subType === "VERSE_CARD" || subType === "DEVO") && (
             <div
               style={{
-                borderTop: "1px solid #f1f5f9",
+                borderTop: `1px solid ${selectedBg ? "rgba(255,255,255,0.2)" : "#f1f5f9"}`,
                 marginTop: "0.75rem",
                 paddingTop: "0.75rem",
               }}
@@ -422,13 +573,15 @@ export default function CreatePostPage() {
                 placeholder="Reference (e.g. Psalm 23:1)"
                 style={{
                   width: "100%",
-                  border: "1px solid #e2e8f0",
+                  border: selectedBg ? "1px solid rgba(255,255,255,0.4)" : "1px solid #e2e8f0",
                   borderRadius: "8px",
                   padding: "0.5rem 0.75rem",
                   fontSize: "0.875rem",
                   marginBottom: "0.5rem",
                   outline: "none",
                   boxSizing: "border-box",
+                  background: selectedBg ? "rgba(255,255,255,0.1)" : "white",
+                  color: selectedBg ? "white" : "#1e293b",
                 }}
               />
               <textarea
@@ -438,7 +591,7 @@ export default function CreatePostPage() {
                 rows={3}
                 style={{
                   width: "100%",
-                  border: "1px solid #e2e8f0",
+                  border: selectedBg ? "1px solid rgba(255,255,255,0.4)" : "1px solid #e2e8f0",
                   borderRadius: "8px",
                   padding: "0.5rem 0.75rem",
                   fontSize: "0.875rem",
@@ -446,10 +599,219 @@ export default function CreatePostPage() {
                   outline: "none",
                   fontFamily: "inherit",
                   boxSizing: "border-box",
+                  background: selectedBg ? "rgba(255,255,255,0.1)" : "white",
+                  color: selectedBg ? "white" : "#1e293b",
                 }}
               />
             </div>
           )}
+
+          {/* Bottom control row: "Aa" backgrounds selector and Smiley Emoji button */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginTop: "1rem",
+              borderTop: `1px solid ${selectedBg ? "rgba(255,255,255,0.15)" : "#f1f5f9"}`,
+              paddingTop: "0.75rem",
+            }}
+          >
+            {/* Left: Aa color toggler and circular buttons */}
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              {activeTab === "thoughts" && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setShowBgOptions(!showBgOptions)}
+                    style={{
+                      width: "32px",
+                      height: "32px",
+                      borderRadius: "8px",
+                      border: "none",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "white",
+                      fontWeight: 800,
+                      fontSize: "0.8rem",
+                      background: "linear-gradient(45deg, #f093fb 0%, #f5576c 100%)",
+                      cursor: "pointer",
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                    }}
+                    title="Toggle backgrounds"
+                  >
+                    Aa
+                  </button>
+
+                  {showBgOptions && (
+                    <div style={{ display: "flex", gap: "0.375rem", alignItems: "center", animation: "fadeIn 0.2s" }}>
+                      {/* Clear Bg Circle */}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedBg("")}
+                        style={{
+                          width: "26px",
+                          height: "26px",
+                          borderRadius: "50%",
+                          border: `2px solid ${selectedBg === "" ? PRIMARY : "#cbd5e1"}`,
+                          background: "white",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "0.65rem",
+                          fontWeight: 700,
+                          color: "#64748b"
+                        }}
+                        title="Plain Background"
+                      >
+                        ✕
+                      </button>
+
+                      {/* Teal Circle */}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedBg("bg:teal")}
+                        style={{
+                          width: "26px",
+                          height: "26px",
+                          borderRadius: "50%",
+                          border: `2px solid ${selectedBg === "bg:teal" ? "#ffffff" : "transparent"}`,
+                          background: "linear-gradient(135deg, #0f766e 0%, #14b8a6 100%)",
+                          cursor: "pointer",
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.15)"
+                        }}
+                        title="Teal Theme"
+                      />
+
+                      {/* Red Circle */}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedBg("bg:red")}
+                        style={{
+                          width: "26px",
+                          height: "26px",
+                          borderRadius: "50%",
+                          border: `2px solid ${selectedBg === "bg:red" ? "#ffffff" : "transparent"}`,
+                          background: "linear-gradient(135deg, #991b1b 0%, #ef4444 100%)",
+                          cursor: "pointer",
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.15)"
+                        }}
+                        title="Red Theme"
+                      />
+
+                      {/* Mountain Image Circle */}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedBg("bg:mountain")}
+                        style={{
+                          width: "26px",
+                          height: "26px",
+                          borderRadius: "50%",
+                          border: `2px solid ${selectedBg === "bg:mountain" ? "#ffffff" : "transparent"}`,
+                          background: "url('/backgrounds/mountain.png') center/cover no-repeat",
+                          cursor: "pointer",
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.15)"
+                        }}
+                        title="Mountain Theme"
+                      />
+
+                      {/* Ocean Image Circle */}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedBg("bg:ocean")}
+                        style={{
+                          width: "26px",
+                          height: "26px",
+                          borderRadius: "50%",
+                          border: `2px solid ${selectedBg === "bg:ocean" ? "#ffffff" : "transparent"}`,
+                          background: "url('/backgrounds/ocean.png') center/cover no-repeat",
+                          cursor: "pointer",
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.15)"
+                        }}
+                        title="Ocean Theme"
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Right: Emoji Picker Toggler Button */}
+            <div style={{ position: "relative" }}>
+              <button
+                type="button"
+                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  fontSize: "1.25rem",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "0.25rem",
+                  borderRadius: "50%",
+                  width: "32px",
+                  height: "32px",
+                  transition: "background 0.2s",
+                }}
+                title="Add Emoji"
+              >
+                😊
+              </button>
+
+              {/* Emoji Picker absolute menu */}
+              {showEmojiPicker && (
+                <>
+                  <div
+                    onClick={() => setShowEmojiPicker(false)}
+                    style={{ position: "fixed", inset: 0, zIndex: 99 }}
+                  />
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: "2.75rem",
+                      right: 0,
+                      background: "white",
+                      borderRadius: "12px",
+                      boxShadow: "0 4px 15px rgba(0,0,0,0.15)",
+                      padding: "0.5rem",
+                      display: "grid",
+                      gridTemplateColumns: "repeat(5, 1fr)",
+                      gap: "0.375rem",
+                      zIndex: 100,
+                      border: "1px solid #cbd5e1",
+                      width: "180px",
+                    }}
+                  >
+                    {EMOJIS.map((emoji) => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        onClick={() => insertEmoji(emoji)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          fontSize: "1.25rem",
+                          cursor: "pointer",
+                          padding: "0.25rem",
+                          borderRadius: "6px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          transition: "background 0.1s",
+                        }}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Visibility */}
@@ -463,6 +825,7 @@ export default function CreatePostPage() {
             alignItems: "center",
             justifyContent: "space-between",
             boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+            border: "1px solid #e2e8f0",
           }}
         >
           <span style={{ fontSize: "0.875rem", fontWeight: 600, color: "#475569" }}>
@@ -520,6 +883,10 @@ export default function CreatePostPage() {
         @keyframes spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(4px); }
+          to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
     </div>

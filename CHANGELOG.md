@@ -5,6 +5,17 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.21.7] — 2026-06-06
+### Added
+- **Styled Text Post Backgrounds (s2)**: Added Facebook-style styled text post backgrounds (Teal, Red, Mountain, Ocean). Users can toggle background themes in the post composer to center their text and display it using large, bold white typography.
+- **Composer Emoji Picker (s2)**: Added an inline emoji panel to the composer allowing quick insertion of popular church/general emojis at the cursor position.
+- **Scripture Sub-type Selectors (s2)**: Added category pills (Devotional, Bible Verse, Reflection) under the Thoughts tab that dynamically reveal scripture reference and verse text inputs.
+### Changed
+- **Streamlined Composer Navigation (s2)**: Consolidated the top post type selectors into three main tabs: Thoughts, Testimony, and Prayer.
+### Fixed
+- **Dropdown Menu Clipping (s1)**: Changed the main PostCard container's overflow from `hidden` to `visible` so absolute options dropdowns overlay outside the card borders on short posts.
+- **Link Scraper Preview Retention (s3)**: Configured the composer's URL parser to retain the fetched link preview when the raw URL is manually deleted from the text editor. Previews are dismissed only when explicitly closed or when the text area is fully cleared.
+
 ## [v2.21.6] — 2026-06-06
 ### Fixed
 - **Daily Quiz Cron Job Configuration**:
