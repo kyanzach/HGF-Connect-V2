@@ -12,7 +12,10 @@ import path from "path";
 
 // ── Manual .env parser (keeps script zero-dependency) ──
 try {
-  const envPath = path.resolve(process.cwd(), ".env");
+  let envPath = path.resolve(process.cwd(), ".env");
+  if (!fs.existsSync(envPath)) {
+    envPath = path.resolve(process.cwd(), ".env.production");
+  }
   if (fs.existsSync(envPath)) {
     const envContent = fs.readFileSync(envPath, "utf8");
     for (const line of envContent.split("\n")) {
@@ -30,7 +33,7 @@ try {
     }
   }
 } catch (e) {
-  console.warn("[quiz-cron] Failed to read .env file:", e?.message);
+  console.warn("[quiz-cron] Failed to read environment file:", e?.message);
 }
 
 const secret = process.env.CRON_SECRET;

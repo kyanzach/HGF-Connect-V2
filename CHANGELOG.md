@@ -5,6 +5,13 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.21.6] — 2026-06-06
+### Fixed
+- **Daily Quiz Cron Job Configuration**:
+  - Fixed environment loading inside the standalone `quiz-cron.mjs` script by adding a fallback to `.env.production` in production.
+  - Added the missing `CRON_SECRET` variable to production environment variables to enable successful authentication against the secure `/api/quiz/daily-post` endpoint.
+  - Scheduled the cron task on the UTC server to run at `0 23 * * 1-6` to align with 7:00 AM Manila Time (Tue-Sun), ensuring Sunday's final quiz also gets posted automatically.
+
 ## [v2.21.5] — 2026-06-06
 ### Fixed
 - **Profile Wall Loading Crash**: Fixed a database query crash on member profile walls where an invalid post type `QUIZ_WEEK` (which does not exist in the Prisma `PostType` enum) was included in the `notIn` filter. This validation error was causing the `/api/posts` endpoint to return a 500 error, resulting in the page showing "You haven't posted anything yet." for all users. Defining `SYSTEM_POST_TYPES` type-safely as `PostType[]` ensures only valid enums (`QUIZ_DAILY`, `QUIZ_ANNOUNCEMENT`, `EVENT`) are filtered, restoring the display of users' original posts (reflections, testimonies, etc.).
