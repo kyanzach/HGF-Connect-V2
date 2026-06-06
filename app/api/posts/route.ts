@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import type { Prisma } from "@prisma/client";
+import { PostType, type Prisma } from "@prisma/client";
 import { notifyAllMembers } from "@/lib/notify";
 
 export async function GET(request: Request) {
@@ -22,7 +22,11 @@ export async function GET(request: Request) {
 
   // System post types that are community-wide, not personal content.
   // Exclude from profile walls so they don't appear as the creator's own posts.
-  const SYSTEM_POST_TYPES = ["QUIZ_DAILY", "QUIZ_ANNOUNCEMENT", "QUIZ_WEEK", "EVENT"];
+  const SYSTEM_POST_TYPES: PostType[] = [
+    PostType.QUIZ_DAILY,
+    PostType.QUIZ_ANNOUNCEMENT,
+    PostType.EVENT,
+  ];
 
   const where: any = {
     ...visibilityFilter,

@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.21.5] — 2026-06-06
+### Fixed
+- **Profile Wall Loading Crash**: Fixed a database query crash on member profile walls where an invalid post type `QUIZ_WEEK` (which does not exist in the Prisma `PostType` enum) was included in the `notIn` filter. This validation error was causing the `/api/posts` endpoint to return a 500 error, resulting in the page showing "You haven't posted anything yet." for all users. Defining `SYSTEM_POST_TYPES` type-safely as `PostType[]` ensures only valid enums (`QUIZ_DAILY`, `QUIZ_ANNOUNCEMENT`, `EVENT`) are filtered, restoring the display of users' original posts (reflections, testimonies, etc.).
+
 ## [v2.21.4] — 2026-06-06
 ### Fixed
 - **Profile Wall Showing System Posts**: Quiz For Christ posts (`QUIZ_DAILY`, `QUIZ_ANNOUNCEMENT`, `QUIZ_WEEK`) and Event posts were appearing on the quiz creator/publisher's personal profile wall because the `authorId` was set to the admin who published them. Added a `notIn` filter to exclude system/community post types from profile wall queries so only personal content (reflections, devotionals, testimonies, etc.) appears on member walls.
