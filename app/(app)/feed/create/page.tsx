@@ -1,21 +1,16 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import SubmitButton from "@/components/SubmitButton";
 
 const PRIMARY = "#4EB1CB";
+const PURPLE = "#7c3aed";
 
 const PRIMARY_TABS = [
   { value: "thoughts", icon: "✍️", label: "Thoughts" },
   { value: "testimony", icon: "🙌", label: "Testimony" },
   { value: "prayer", icon: "🙏", label: "Prayer" },
-];
-
-const THOUGHT_SUBTYPES = [
-  { value: "TEXT", icon: "✍️", label: "Reflection" },
-  { value: "DEVO", icon: "📖", label: "Devotional" },
-  { value: "VERSE_CARD", icon: "📜", label: "Bible Verse" },
 ];
 
 const URL_REGEX = /(https?:\/\/[^\s]+)/gi;
@@ -56,11 +51,13 @@ function getPostBgStyle(bgName: string | null | undefined): React.CSSProperties 
 
 export default function CreatePostPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState("thoughts");
-  const [subType, setSubType] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const tabParam = searchParams?.get("tab");
+
+  const [activeTab, setActiveTab] = useState(
+    tabParam === "prayer" ? "prayer" : (tabParam === "testimony" ? "testimony" : "thoughts")
+  );
   const [content, setContent] = useState("");
-  const [verseRef, setVerseRef] = useState("");
-  const [verseText, setVerseText] = useState("");
   const [visibility, setVisibility] = useState("MEMBERS_ONLY");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -177,7 +174,7 @@ export default function CreatePostPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!content.trim() && !verseText.trim() && !linkMetadata) {
+    if (!content.trim() && !linkMetadata) {
       setError("Write something to share first! ✍️");
       setShakeKey((k) => k + 1);
       return;
@@ -190,11 +187,11 @@ export default function CreatePostPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          type: activeTab === "thoughts" ? (subType || "TEXT") : (activeTab === "testimony" ? "PRAISE" : "PRAYER"),
+          type: activeTab === "thoughts" ? "TEXT" : (activeTab === "testimony" ? "PRAISE" : "PRAYER"),
           content: content || null,
           imageUrl: (activeTab === "thoughts" ? selectedBg : null) || null,
-          verseRef: activeTab === "thoughts" && subType ? verseRef || null : null,
-          verseText: activeTab === "thoughts" && subType ? verseText || null : null,
+          verseRef: null,
+          verseText: null,
           visibility,
           linkUrl: linkMetadata?.url || null,
           linkTitle: linkMetadata?.title || null,
@@ -213,32 +210,33 @@ export default function CreatePostPage() {
     }
   }
 
-  const selectedType = activeTab === "thoughts"
-    ? (subType ? THOUGHT_SUBTYPES.find((t) => t.value === subType)! : { value: "TEXT", icon: "✍️", label: "Thoughts" })
-    : activeTab === "testimony"
-    ? { value: "PRAISE", icon: "🙌", label: "Testimony" }
-    : { value: "PRAYER", icon: "🙏", label: "Prayer" };
-
   return (
     <div style={{ padding: "1rem" }}>
-      {/* Back button */}
-      <div style={{ marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-        <button
-          onClick={() => router.back()}
-          style={{
-            background: "none",
-            border: "none",
-            fontSize: "1.125rem",
-            cursor: "pointer",
-            color: PRIMARY,
-            padding: "0.25rem",
-          }}
-        >
-          ← Back
-        </button>
-        <h2 style={{ fontSize: "1rem", fontWeight: 700, color: "#1e293b", margin: 0 }}>
-          Share with the Community
-        </h2>
+      {/* Header */}
+      <div style={{ marginBottom: "1.25rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <button
+            onClick={() => router.back()}
+            style={{
+              background: "none",
+              border: "none",
+              fontSize: "1.125rem",
+              cursor: "pointer",
+              color: PRIMARY,
+              padding: "0.25rem",
+            }}
+          >
+            ← Back
+          </button>
+          <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "#1e293b", margin: 0 }}>
+            {activeTab === "prayer" ? "Submit Prayer Request" : "Share with the Community"}
+          </h2>
+        </div>
+        {activeTab === "prayer" && (
+          <div style={{ fontSize: "0.78rem", color: "#64748b", marginTop: "0.25rem", paddingLeft: "1.85rem" }}>
+            The community will pray with you
+          </div>
+        )}
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -273,8 +271,8 @@ export default function CreatePostPage() {
                 padding: "0.6rem 0.5rem",
                 borderRadius: "10px",
                 border: "none",
-                background: activeTab === t.value ? "#e0f7fb" : "transparent",
-                color: activeTab === t.value ? PRIMARY : "#64748b",
+                background: activeTab === t.value ? (activeTab === "prayer" ? "#f3e8ff" : "#e0f7fb") : "transparent",
+                color: activeTab === t.value ? (activeTab === "prayer" ? PURPLE : PRIMARY) : "#64748b",
                 fontWeight: activeTab === t.value ? 700 : 500,
                 fontSize: "0.875rem",
                 cursor: "pointer",
@@ -285,49 +283,6 @@ export default function CreatePostPage() {
             </button>
           ))}
         </div>
-
-        {/* Thoughts Sub-Type Selectors */}
-        {activeTab === "thoughts" && (
-          <div
-            style={{
-              display: "flex",
-              gap: "0.375rem",
-              marginBottom: "0.75rem",
-              alignItems: "center",
-            }}
-          >
-            {THOUGHT_SUBTYPES.map((st) => (
-              <button
-                key={st.value}
-                type="button"
-                onClick={() => {
-                  if (subType === st.value) {
-                    setSubType(null);
-                  } else {
-                    setSubType(st.value);
-                  }
-                  setError("");
-                }}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.25rem",
-                  padding: "0.35rem 0.75rem",
-                  borderRadius: "20px",
-                  border: `1px solid ${subType === st.value ? PRIMARY : "#cbd5e1"}`,
-                  background: subType === st.value ? "#e0f7fb" : "white",
-                  color: subType === st.value ? PRIMARY : "#64748b",
-                  fontWeight: subType === st.value ? 700 : 500,
-                  fontSize: "0.75rem",
-                  cursor: "pointer",
-                  transition: "all 0.15s",
-                }}
-              >
-                {st.icon} {st.label}
-              </button>
-            ))}
-          </div>
-        )}
 
         {/* Content Card container with custom background option */}
         <div
@@ -350,6 +305,13 @@ export default function CreatePostPage() {
             })
           }}
         >
+          {/* Label inside card for Prayer Requests */}
+          {activeTab === "prayer" && (
+            <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#475569", marginBottom: "0.5rem" }}>
+              Your Prayer Request
+            </div>
+          )}
+
           {/* Text Area */}
           <div style={activeTab === "thoughts" && selectedBg ? { flex: 1, display: "flex", alignItems: "center", justifyContent: "center", width: "100%" } : undefined}>
             <textarea
@@ -358,7 +320,7 @@ export default function CreatePostPage() {
               onChange={(e) => setContent(e.target.value)}
               placeholder={
                 activeTab === "prayer"
-                  ? "Share your prayer request with the community..."
+                  ? "Share your prayer request with the community...\n\nE.g. 'Please pray for my mother who is in the hospital. Thank you for your prayers and support.'"
                   : activeTab === "testimony"
                   ? "Share what God has done in your life! Feel free to write in Bisaya, Tagalog, English, or Taglish... 🙌"
                   : "What are your thoughts?"
@@ -382,8 +344,8 @@ export default function CreatePostPage() {
             />
           </div>
 
-          {/* AI Helper for Testimony (Praise Tab Only) */}
-          {activeTab === "testimony" && content.trim().length > 0 && (
+          {/* AI Helper rewrite (Uniform for all tabs) */}
+          {content.trim().length > 0 && (
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "0.5rem" }}>
               {showLangSelector ? (
                 <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", alignItems: "center", gap: "0.375rem" }}>
@@ -395,7 +357,7 @@ export default function CreatePostPage() {
                       onClick={() => handleImproveText(lang)}
                       disabled={improvingText}
                       style={{
-                        background: PRIMARY,
+                        background: activeTab === "prayer" ? PURPLE : PRIMARY,
                         color: "white",
                         border: "none",
                         borderRadius: "16px",
@@ -439,7 +401,9 @@ export default function CreatePostPage() {
                   onClick={() => setShowLangSelector(true)}
                   disabled={improvingText}
                   style={{
-                    background: `linear-gradient(135deg, ${PRIMARY} 0%, #1a7a94 100%)`,
+                    background: activeTab === "prayer"
+                      ? `linear-gradient(135deg, ${PURPLE} 0%, #5b21b6 100%)`
+                      : `linear-gradient(135deg, ${PRIMARY} 0%, #1a7a94 100%)`,
                     color: "white",
                     border: "none",
                     borderRadius: "20px",
@@ -450,7 +414,9 @@ export default function CreatePostPage() {
                     display: "flex",
                     alignItems: "center",
                     gap: "0.25rem",
-                    boxShadow: "0 2px 4px rgba(78,177,203,0.2)",
+                    boxShadow: activeTab === "prayer"
+                      ? "0 2px 4px rgba(124,58,237,0.2)"
+                      : "0 2px 4px rgba(78,177,203,0.2)",
                   }}
                 >
                   {improvingText ? `✨ Improving flow in ${improvingLang}...` : "✨ Make it better with AI"}
@@ -551,59 +517,11 @@ export default function CreatePostPage() {
                   >
                     {linkMetadata.description}
                   </p>
-                  <span style={{ fontSize: "0.7rem", color: PRIMARY, fontWeight: 600 }}>
+                  <span style={{ fontSize: "0.7rem", color: activeTab === "prayer" ? PURPLE : PRIMARY, fontWeight: 600 }}>
                     🔗 {new URL(linkMetadata.url).hostname}
                   </span>
                 </div>
               </div>
-            </div>
-          )}
-
-          {/* Bible Verse fields (Thoughts Tab + any selected category) */}
-          {activeTab === "thoughts" && subType && (
-            <div
-              style={{
-                borderTop: `1px solid ${selectedBg ? "rgba(255,255,255,0.2)" : "#f1f5f9"}`,
-                marginTop: "0.75rem",
-                paddingTop: "0.75rem",
-              }}
-            >
-              <input
-                value={verseRef}
-                onChange={(e) => setVerseRef(e.target.value)}
-                placeholder="Reference (e.g. Psalm 23:1)"
-                style={{
-                  width: "100%",
-                  border: selectedBg ? "1px solid rgba(255,255,255,0.4)" : "1px solid #e2e8f0",
-                  borderRadius: "8px",
-                  padding: "0.5rem 0.75rem",
-                  fontSize: "0.875rem",
-                  marginBottom: "0.5rem",
-                  outline: "none",
-                  boxSizing: "border-box",
-                  background: selectedBg ? "rgba(255,255,255,0.1)" : "white",
-                  color: selectedBg ? "white" : "#1e293b",
-                }}
-              />
-              <textarea
-                value={verseText}
-                onChange={(e) => setVerseText(e.target.value)}
-                placeholder="Verse text..."
-                rows={3}
-                style={{
-                  width: "100%",
-                  border: selectedBg ? "1px solid rgba(255,255,255,0.4)" : "1px solid #e2e8f0",
-                  borderRadius: "8px",
-                  padding: "0.5rem 0.75rem",
-                  fontSize: "0.875rem",
-                  resize: "none",
-                  outline: "none",
-                  fontFamily: "inherit",
-                  boxSizing: "border-box",
-                  background: selectedBg ? "rgba(255,255,255,0.1)" : "white",
-                  color: selectedBg ? "white" : "#1e293b",
-                }}
-              />
             </div>
           )}
 
@@ -874,10 +792,25 @@ export default function CreatePostPage() {
         <SubmitButton
           loading={submitting}
           shakeKey={shakeKey}
-          color={PRIMARY}
+          color={activeTab === "prayer" ? PURPLE : PRIMARY}
         >
-          {selectedType.icon} Post {selectedType.label}
+          {activeTab === "prayer" ? "🙏 Submit Prayer Request" : (activeTab === "testimony" ? "🙌 Post Testimony" : "✍️ Post Thoughts")}
         </SubmitButton>
+
+        {activeTab === "prayer" && (
+          <span
+            style={{
+              display: "block",
+              fontSize: "0.75rem",
+              color: "#64748b",
+              textAlign: "center",
+              marginTop: "0.75rem",
+              lineHeight: 1.45,
+            }}
+          >
+            Your request will be visible on the Prayer Wall for the community to pray over.
+          </span>
+        )}
       </form>
 
       <style>{`

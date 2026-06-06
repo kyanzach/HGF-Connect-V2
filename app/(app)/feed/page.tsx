@@ -36,7 +36,7 @@ const SHORTCUTS = [
   { icon: "👥", label: "Directory", href: "/directory", color: "#fce7f3", iconBg: "#ec4899" },
   { icon: "🛍️", label: "Market", href: "/stewardshop", color: "#f0f9ff", iconBg: PRIMARY },
   { icon: "📖", label: "Devo", href: "/devo/new", color: "#e0fdf4", iconBg: "#10b981" },
-  { icon: "🙏", label: "Pray", href: "/prayer/new", color: "#faf5ff", iconBg: "#a855f7" },
+  { icon: "🙏", label: "Pray", href: "/feed/create?tab=prayer", color: "#faf5ff", iconBg: "#a855f7" },
   { icon: "💡", label: "AI Helper", href: "/ai", color: "#fff7ed", iconBg: "#f97316" },
 ];
 
