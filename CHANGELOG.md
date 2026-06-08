@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.8] — 2026-06-08
+### Changed
+- **Birthday Circle Center Photo & Bottom Name Banner**: Redesigned the birthday orbit carousel (`BirthdayCircle.tsx`) to show the hovered/tapped celebrant's profile or cover photo framed in the center circle instead of their name, and added a clean name banner capsule below the carousel circles for the active profile name. Height adjusted from 220px to 240px for proper alignment.
+
 ## [v2.22.7] — 2026-06-08
 ### Added
 - **Birthdate on Daily Birthday Posts (s1)**: Configured the sub-header metadata for daily birthday posts to show the celebrant's birthdate next to "Happy Birthday" accompanied by a birthday cake emoji (e.g. `· 🎂 June 30`). Deployed backward-compatible fallback parsing the post creation date for older legacy posts.

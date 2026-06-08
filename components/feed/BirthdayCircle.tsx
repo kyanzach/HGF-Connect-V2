@@ -16,7 +16,7 @@ interface BirthdayCircleProps {
 const PRIMARY = "#4EB1CB";
 
 export default function BirthdayCircle({ month, celebrants }: BirthdayCircleProps) {
-  const [hoveredName, setHoveredName] = useState<string | null>(null);
+  const [activeCelebrant, setActiveCelebrant] = useState<Celebrant | null>(null);
 
   if (celebrants.length === 0) return null;
 
@@ -28,7 +28,7 @@ export default function BirthdayCircle({ month, celebrants }: BirthdayCircleProp
     <div style={{
       position: "relative",
       width: "100%",
-      height: 220,
+      height: 240,
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
@@ -101,8 +101,9 @@ export default function BirthdayCircle({ month, celebrants }: BirthdayCircleProp
                 left: `calc(50% + ${x}px - 22px)`,
                 top: `calc(50% + ${y}px - 22px)`,
               }}
-              onMouseEnter={() => setHoveredName(c.name)}
-              onMouseLeave={() => setHoveredName(null)}
+              onMouseEnter={() => setActiveCelebrant(c)}
+              onMouseLeave={() => setActiveCelebrant(null)}
+              onClick={() => setActiveCelebrant(c)}
             >
               {c.profilePicture ? (
                 <img
@@ -137,26 +138,80 @@ export default function BirthdayCircle({ month, celebrants }: BirthdayCircleProp
         padding: "6px",
         boxSizing: "border-box",
         transition: "all 0.2s ease-out",
+        position: "relative",
+        overflow: "hidden",
       }}>
-        {hoveredName ? (
-          <span style={{
-            fontSize: "0.72rem",
-            fontWeight: 800,
-            color: "#b45309",
-            wordBreak: "break-word",
-            lineHeight: 1.1,
+        {activeCelebrant ? (
+          <div style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            borderRadius: "50%",
+            overflow: "hidden",
             animation: "fadeIn 0.15s ease-out",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "#fffbeb",
           }}>
-            {hoveredName}
-          </span>
+            {activeCelebrant.profilePicture ? (
+              <img
+                src={activeCelebrant.profilePicture.startsWith("/") ? activeCelebrant.profilePicture : `/uploads/profile_pictures/${activeCelebrant.profilePicture}`}
+                alt={activeCelebrant.name}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            ) : (
+              <span style={{ fontSize: "1.4rem", fontWeight: 800, color: PRIMARY }}>
+                {activeCelebrant.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)}
+              </span>
+            )}
+          </div>
         ) : (
-          <>
+          <div style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            height: "100%",
+          }}>
             <span style={{ fontSize: "1.5rem", display: "block", marginBottom: 2 }}>🎂</span>
             <span style={{ fontSize: "0.72rem", fontWeight: 800, color: "#1e293b", textTransform: "uppercase" }}>
               {month}
             </span>
-          </>
+          </div>
         )}
+      </div>
+
+      {/* Name banner below the circles */}
+      <div style={{
+        position: "absolute",
+        bottom: "12px",
+        left: 0,
+        right: 0,
+        textAlign: "center",
+        zIndex: 15,
+        pointerEvents: "none",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        height: "24px",
+      }}>
+        <span style={{
+          fontSize: "0.85rem",
+          fontWeight: 800,
+          color: activeCelebrant ? "#b45309" : "#64748b",
+          transition: "all 0.2s ease",
+          background: activeCelebrant ? "#fffbeb" : "rgba(255, 255, 255, 0.4)",
+          padding: "3px 12px",
+          borderRadius: "999px",
+          border: `1px solid ${activeCelebrant ? "#fde68a" : "rgba(204, 251, 241, 0.5)"}`,
+          boxShadow: activeCelebrant ? "0 2px 6px rgba(245, 158, 11, 0.08)" : "none",
+          animation: activeCelebrant ? "fadeIn 0.15s ease-out" : "none",
+        }}>
+          {activeCelebrant ? activeCelebrant.name : `🎂 ${month} Celebrants`}
+        </span>
       </div>
 
       <style>{`
