@@ -42,6 +42,55 @@ export function canAccessDay(targetDay: number, currentDay: number): boolean {
   return targetDay <= currentDay;
 }
 
+// ── Quiz week boundary utilities ─────────────────────────────────────────────
+// Quiz week: Monday (Day 1) through Sunday (Day 7) after the sermon date.
+// sermonDate is always a Sunday. The quiz week starts the next day (Monday).
+
+/**
+ * Get the end of the quiz week (Sunday 23:59:59.999 Manila time).
+ * sermonDate (Sunday) → quiz runs Mon–Sun → ends next Sunday midnight.
+ */
+export function getQuizWeekEnd(sermonDate: Date | string): Date {
+  const sermon = new Date(sermonDate);
+  // sermonDate is Sunday. Quiz week ends the FOLLOWING Sunday at 23:59:59 Manila.
+  // That's sermonDate + 7 days (next Sunday) at end of day Manila time.
+  const weekEndManila = new Date(sermon);
+  weekEndManila.setDate(weekEndManila.getDate() + 7); // next Sunday
+  weekEndManila.setHours(23, 59, 59, 999);
+  // Convert Manila 23:59:59 to UTC (subtract 8 hours)
+  const weekEndUTC = new Date(weekEndManila.getTime() - 8 * 60 * 60 * 1000);
+  return weekEndUTC;
+}
+
+/**
+ * Check if the quiz week has expired (current Manila time > Sunday 23:59:59).
+ */
+export function isQuizWeekExpired(sermonDate: Date | string): boolean {
+  const weekEnd = getQuizWeekEnd(sermonDate);
+  return new Date() > weekEnd;
+}
+
+/**
+ * Get the quiz day number (1–7) relative to the quiz's actual week.
+ * Returns the day number based on how many days have passed since the sermon date,
+ * rather than using the current weekday — this prevents day regression on the next Monday.
+ *
+ * Returns 0 if before the quiz week, or 8+ if after (expired).
+ */
+export function getQuizDayForDate(sermonDate: Date | string, now?: Date): number {
+  const sermon = new Date(sermonDate);
+  // Get current date in Manila timezone
+  const current = now || new Date();
+  const manilaStr = current.toLocaleDateString("en-US", { timeZone: "Asia/Manila" });
+  const manilaDate = new Date(manilaStr);
+  // Sermon date (Sunday) — quiz week day 1 is the next day (Monday)
+  const sermonDay = new Date(sermon.toLocaleDateString("en-US"));
+  const diffMs = manilaDate.getTime() - sermonDay.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  // diffDays: 0=sermon Sunday, 1=Monday(Day1), 2=Tuesday(Day2), ... 7=next Sunday(Day7)
+  return diffDays; // 1=Day1, 2=Day2, ..., 7=Day7, 8+=expired
+}
+
 // ── Score → reward tier ──────────────────────────────────────────────────────
 export function getRewardTier(totalScore: number): "PERFECT" | "EXCELLENT" | "GOOD" | "PARTICIPANT" {
   if (totalScore >= 7) return "PERFECT";

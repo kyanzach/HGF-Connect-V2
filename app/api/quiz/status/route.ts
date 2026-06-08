@@ -10,7 +10,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { getDayNumber, QUIZ_DAYS, QUIZ_TYPE_LABELS, REWARD_DISPLAY, getRewardTier } from "@/lib/quiz-helpers";
+import { getDayNumber, getQuizDayForDate, isQuizWeekExpired, QUIZ_DAYS, QUIZ_TYPE_LABELS, REWARD_DISPLAY, getRewardTier } from "@/lib/quiz-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -83,7 +83,11 @@ export async function GET(request: Request) {
     });
 
     const submissionMap = new Map(submissions.map((s) => [s.questionId, s]));
-    const currentDay = getDayNumber();
+    // Use quiz-relative day number instead of raw weekday to prevent re-locking
+    const quizRelativeDay = getQuizDayForDate(quiz.sermonDate);
+    // Clamp to 1–7 for active week, >7 means expired
+    const currentDay = Math.min(Math.max(quizRelativeDay, 0), 7);
+    const isExpired = isQuizWeekExpired(quiz.sermonDate);
 
     // Build day status
     const days = quiz.questions.map((q) => {
@@ -91,9 +95,12 @@ export async function GET(request: Request) {
       const typeInfo = QUIZ_TYPE_LABELS[q.questionType];
       const dayMeta = QUIZ_DAYS.find((d) => d.dayNumber === q.dayNumber);
 
-      let status: "completed" | "available" | "locked" | "today";
+      let status: "completed" | "available" | "locked" | "today" | "expired";
       if (sub) {
         status = "completed";
+      } else if (isExpired) {
+        // Week is over — unplayed days are permanently expired
+        status = "expired";
       } else if (q.dayNumber === currentDay) {
         status = "today";
       } else if (currentDay > 0 && q.dayNumber <= currentDay) {
@@ -151,10 +158,15 @@ export async function GET(request: Request) {
 
     const rewardDisplay = rewardTier ? REWARD_DISPLAY[rewardTier] : null;
 
+    // Determine week status label for the client
+    const quizWeekStatus = isExpired ? "COMPLETED" : "ACTIVE";
+
     return NextResponse.json({
       active: true,
       attended,
       isActiveQuiz,
+      isExpired,
+      quizWeekStatus,
       quiz: {
         id: quiz.id,
         title: quiz.title,

@@ -44,6 +44,28 @@ if (!secret) {
   process.exit(1);
 }
 
+async function autoCompleteExpired() {
+  console.log(`[quiz-cron] Checking for expired quizzes to auto-complete...`);
+  try {
+    const res = await fetch(`${baseUrl}/api/quiz/auto-complete`, {
+      method: "POST",
+      headers: { "x-cron-secret": secret },
+    });
+    const data = await res.json();
+    if (res.ok) {
+      if (data.archived?.length > 0) {
+        console.log("[quiz-cron] Auto-completed:", data.archived.map(q => q.title).join(", "));
+      } else {
+        console.log("[quiz-cron] No expired quizzes to archive.");
+      }
+    } else {
+      console.warn("[quiz-cron] Auto-complete failed:", res.status, data);
+    }
+  } catch (error) {
+    console.warn("[quiz-cron] Auto-complete network error:", error?.message || error);
+  }
+}
+
 async function triggerDailyPost() {
   console.log(`[quiz-cron] Triggering daily quiz post at ${baseUrl}...`);
   try {
@@ -65,4 +87,8 @@ async function triggerDailyPost() {
   }
 }
 
-triggerDailyPost();
+// Run auto-complete first, then trigger daily post
+(async () => {
+  await autoCompleteExpired();
+  await triggerDailyPost();
+})();

@@ -27,7 +27,7 @@ interface QuizDay {
   typeLabel: string;
   typeEmoji: string;
   difficulty: string;
-  status: "completed" | "available" | "locked" | "today";
+  status: "completed" | "available" | "locked" | "today" | "expired";
   score: number | null;
   isCorrect: boolean | null;
   feedback: string | null;
@@ -46,6 +46,8 @@ interface QuizStatus {
   };
   days?: QuizDay[];
   currentDay?: number;
+  isExpired?: boolean;
+  quizWeekStatus?: string;
   progress?: {
     completed: number;
     total: number;
@@ -68,8 +70,6 @@ export default function MemberQuizPage() {
 
   const [loading, setLoading] = useState(true);
   const [quizStatus, setQuizStatus] = useState<QuizStatus | null>(null);
-  const [activeQuestion, setActiveQuestion] = useState<any | null>(null);
-  const [isPastQuiz, setIsPastQuiz] = useState(false);
 
   // ── Reward Claiming state ──
   const [claiming, setClaiming] = useState(false);
@@ -90,9 +90,6 @@ export default function MemberQuizPage() {
       if (res.ok) {
         const data = await res.json();
         setQuizStatus(data);
-        if (data.isActiveQuiz !== undefined) {
-          setIsPastQuiz(!data.isActiveQuiz);
-        }
       }
     } catch (err) {
       console.error("Failed to load status:", err);
@@ -101,12 +98,9 @@ export default function MemberQuizPage() {
     }
   }, []);
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      setIsPastQuiz(params.has("quizId"));
-    }
-  }, []);
+  const [activeQuestion, setActiveQuestion] = useState<any | null>(null);
+
+
 
   useEffect(() => {
     if (authStatus === "authenticated") {
@@ -116,6 +110,14 @@ export default function MemberQuizPage() {
 
   async function handleStartDay(day: QuizDay) {
     if (day.status === "locked") return;
+    if (day.status === "expired") {
+      setInfoModal({
+        open: true,
+        title: "Week Ended",
+        message: "This quiz week has ended. You can no longer play missed challenges. Check back when a new quiz is published!",
+      });
+      return;
+    }
     if (day.status === "completed") {
       setInfoModal({
         open: true,
@@ -125,7 +127,9 @@ export default function MemberQuizPage() {
       return;
     }
 
-    if (isPastQuiz) {
+    // Block play from past quiz archive view
+    const isPastQuizView = !!(new URLSearchParams(window.location.search).get("quizId"));
+    if (isPastQuizView) {
       setInfoModal({
         open: true,
         title: "Past Quiz Week",
@@ -290,9 +294,9 @@ export default function MemberQuizPage() {
       </div>
 
       {/* Week Title Card */}
-      <div style={{ background: "linear-gradient(135deg, #0f2d3d 0%, #1a5276 100%)", borderRadius: "20px", padding: "20px", color: "white", boxShadow: "0 4px 20px rgba(0,0,0,0.12)", marginBottom: "20px" }}>
-        <span style={{ background: `${PRIMARY}30`, color: PRIMARY, fontSize: "0.7rem", fontWeight: 700, padding: "4px 10px", borderRadius: "20px", border: `1px solid ${PRIMARY}40` }}>
-          ACTIVE QUIZ WEEK
+      <div style={{ background: quizStatus?.isExpired ? "linear-gradient(135deg, #374151 0%, #4b5563 100%)" : "linear-gradient(135deg, #0f2d3d 0%, #1a5276 100%)", borderRadius: "20px", padding: "20px", color: "white", boxShadow: "0 4px 20px rgba(0,0,0,0.12)", marginBottom: "20px" }}>
+        <span style={{ background: quizStatus?.isExpired ? "rgba(255,255,255,0.15)" : `${PRIMARY}30`, color: quizStatus?.isExpired ? "#d1d5db" : PRIMARY, fontSize: "0.7rem", fontWeight: 700, padding: "4px 10px", borderRadius: "20px", border: quizStatus?.isExpired ? "1px solid rgba(255,255,255,0.2)" : `1px solid ${PRIMARY}40` }}>
+          {quizStatus?.isExpired ? "COMPLETED WEEK" : "ACTIVE QUIZ WEEK"}
         </span>
         <h2 style={{ fontSize: "1.2rem", fontWeight: 800, marginTop: "8px", marginBottom: "6px", lineHeight: 1.4 }}>
           {quiz?.title}
@@ -303,6 +307,32 @@ export default function MemberQuizPage() {
       </div>
 
       {/* YouTube Sermon Embed (if available) */}
+
+      {/* Expired Week Banner */}
+      {quizStatus?.isExpired && (
+        <div style={{
+          background: "#fef3c7",
+          border: "1px solid #fbbf24",
+          borderRadius: "16px",
+          padding: "14px 16px",
+          marginBottom: "20px",
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+        }}>
+          <span style={{ fontSize: "1.4rem" }}>⏰</span>
+          <div>
+            <strong style={{ fontSize: "0.85rem", color: "#92400e", display: "block" }}>
+              This quiz week has ended
+            </strong>
+            <span style={{ fontSize: "0.78rem", color: "#a16207", lineHeight: 1.4 }}>
+              Your completed challenges and scores are saved. Check back when a new quiz is published!
+            </span>
+          </div>
+        </div>
+      )}
+
+
       {quiz?.youtubeVideoId && (
         <div style={{ background: "white", borderRadius: "20px", overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", marginBottom: "20px", padding: "12px" }}>
           <h3 style={{ fontSize: "0.85rem", fontWeight: 800, color: "#475569", marginBottom: "8px", display: "flex", alignItems: "center", gap: "6px" }}>
@@ -440,12 +470,14 @@ export default function MemberQuizPage() {
           const isLocked = day.status === "locked";
           const isToday = day.status === "today";
           const isAvailable = day.status === "available";
+          const isDayExpired = day.status === "expired";
+          const isPastQuizView = !!(typeof window !== "undefined" && new URLSearchParams(window.location.search).get("quizId"));
 
           return (
             <button
               key={day.questionId}
               onClick={() => handleStartDay(day)}
-              disabled={isLocked}
+              disabled={isLocked || isDayExpired}
               style={{
                 width: "100%",
                 padding: "16px",
@@ -461,8 +493,8 @@ export default function MemberQuizPage() {
                 alignItems: "center",
                 justifyContent: "space-between",
                 textAlign: "left",
-                cursor: isLocked ? "not-allowed" : "pointer",
-                opacity: isLocked ? 0.65 : 1,
+              cursor: isLocked || isDayExpired ? "not-allowed" : "pointer",
+                opacity: isLocked || isDayExpired ? 0.65 : 1,
                 outline: "none",
                 transition: "transform 0.15s, border-color 0.15s",
               }}
@@ -521,7 +553,20 @@ export default function MemberQuizPage() {
                   </span>
                 ) : isLocked ? (
                   <span style={{ fontSize: "1.1rem" }}>🔒</span>
-                ) : isPastQuiz ? (
+                ) : isDayExpired ? (
+                  <span style={{
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    padding: "4px 8px",
+                    borderRadius: "8px",
+                    background: "#fef2f2",
+                    color: "#dc2626",
+                    display: "inline-flex",
+                    alignItems: "center"
+                  }}>
+                    Missed
+                  </span>
+                ) : isPastQuizView ? (
                   <span style={{
                     fontSize: "0.75rem",
                     fontWeight: 700,

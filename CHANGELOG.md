@@ -5,6 +5,17 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.0] — 2026-06-08
+### Added
+- **Quiz Auto-Archival System**: Added automatic lifecycle management for Quiz for Christ. Quizzes now transition from `published` to `completed` automatically when their week ends (Sunday 23:59:59 Manila time). The cron script (`quiz-cron.mjs`) calls a new `/api/quiz/auto-complete` endpoint before each daily post trigger.
+- **Expired Week UI State**: When a quiz week has ended, the quiz page shows a "COMPLETED WEEK" badge (muted gray), an informational banner explaining the week is over, and "Missed" labels on unplayed days.
+### Fixed
+- **Day Access Regression Bug**: Fixed a critical bug where quiz day statuses used the current weekday (`getDayNumber()`) instead of calculating the day relative to the quiz's actual sermon date. This caused all days 2–7 to re-lock on the Monday after the quiz week ended, preventing any catch-up. The new `getQuizDayForDate()` utility calculates the correct day number based on elapsed days since the sermon date.
+- **Quiz Stays Active Indefinitely**: Quizzes no longer show "ACTIVE QUIZ WEEK" after their week has ended. The status API now includes `isExpired` and `quizWeekStatus` flags for the client.
+### Changed
+- **Bell Icon Style**: Replaced the 3D gold bell emoji in the notification header with a flat-white SVG bell icon to match the unified header styling.
+- **Stale Quiz Archived**: Manually transitioned the May 31, 2026 quiz ("Planted, Rooted, and Multiply") from `published` to `completed` in the production database since its week ended on June 7.
+
 ## [v2.21.7] — 2026-06-06
 ### Added
 - **Styled Text Post Backgrounds (s2)**: Added Facebook-style styled text post backgrounds (Teal, Red, Mountain, Ocean). Users can toggle background themes in the post composer to center their text and display it using large, bold white typography.
