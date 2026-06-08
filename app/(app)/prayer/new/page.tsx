@@ -74,7 +74,7 @@ export default function NewPrayerPage() {
             value={request}
             onChange={(e) => { setRequest(e.target.value); if (e.target.value.trim()) setError(""); }}
             onBlur={() => setTouched(true)}
-            placeholder={`Share your prayer request with the community... \n\nE.g. 'Please pray for my mother who is in the hospital. Thank you for your prayers and support.'`}
+            placeholder="Share your prayer request with the community..."
             rows={8}
             style={{
               width: "100%",

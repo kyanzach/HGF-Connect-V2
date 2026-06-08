@@ -320,7 +320,7 @@ export default function CreatePostPage() {
               onChange={(e) => setContent(e.target.value)}
               placeholder={
                 activeTab === "prayer"
-                  ? "Share your prayer request with the community...\n\nE.g. 'Please pray for my mother who is in the hospital. Thank you for your prayers and support.'"
+                  ? "Share your prayer request with the community..."
                   : activeTab === "testimony"
                   ? "Share what God has done in your life! Feel free to write in Bisaya, Tagalog, English, or Taglish... 🙌"
                   : "What are your thoughts?"
