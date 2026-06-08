@@ -79,6 +79,7 @@ interface PostCardProps {
     };
     _count?: { likes: number; comments: number };
     isLiked?: boolean;
+    photos?: { id: number; photoPath: string; sortOrder: number }[];
   };
 }
 
@@ -916,6 +917,52 @@ export default function PostCard({ post }: PostCardProps) {
                       alt="Post image"
                       style={{ width: "100%", height: "auto", maxHeight: "300px", objectFit: "cover" }}
                     />
+                  </div>
+                )}
+
+                {post.photos && post.photos.length > 0 && (
+                  <div style={{ margin: "0.5rem 0", width: "100%" }}>
+                    <div
+                      className="no-scrollbar"
+                      style={{
+                        display: "flex",
+                        gap: "0.5rem",
+                        overflowX: "auto",
+                        paddingBottom: "0.25rem",
+                        WebkitOverflowScrolling: "touch",
+                        scrollbarWidth: "none",
+                      }}
+                    >
+                      {post.photos.map((photo, i) => (
+                        <div
+                          key={photo.id || i}
+                          style={{
+                            flexShrink: 0,
+                            width: post.photos!.length === 1 ? "100%" : "260px",
+                            height: "200px",
+                            borderRadius: "12px",
+                            overflow: "hidden",
+                            border: "1px solid #f1f5f9",
+                            position: "relative",
+                          }}
+                        >
+                          <img
+                            src={
+                              photo.photoPath.startsWith("http") || photo.photoPath.startsWith("/")
+                                ? photo.photoPath
+                                : `/uploads/posts/${photo.photoPath}`
+                            }
+                            alt={`Post photo ${i + 1}`}
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "cover",
+                            }}
+                            loading="lazy"
+                          />
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
 

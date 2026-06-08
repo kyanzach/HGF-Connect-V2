@@ -5,6 +5,17 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.18] — 2026-06-09
+### Added
+- **Multiple Photos in Prayer Requests**: Enabled up to 21 photo attachments for Prayer Requests (aligning with the Testimony tab). Attached photos are uploaded to the post uploads endpoint (`/api/posts/upload`), persisted via the new `PostPhoto` relation schema, and rendered in a clean horizontal scroll list on their card inside the community feed.
+- **Admin Testimonies Read Status Toggle**: Added a `readByAnnouncer` Boolean field to the database schema. Rendered a `Mark Read` (green) / `Read` (disabled grey) status button next to "Present" in `/admin/testimonies` dashboard panel, enabling ushers and admins to update and persist whether a testimony was read during the Sunday service.
+- **Automated Testimony Translation & Categorization**: Removed manual "Process with AI" button on the client. Testimonies are now automatically parsed, translated, categorized, and tagged in the background on the backend `/api/testimonies` POST handler using Straico (gpt-4o-mini).
+
+### Changed
+- **Testimony Editor Refinement**: Renamed "Your Story (Bisaya / English)" to "Your Testimony" on the community feed create page. Enabled the standard "Make it better with AI" options (Cebuano/Taglish/English) to assist in editing styling before posting.
+- **Registrations Module Naming Update**: Renamed the registrations sidebar link in the Admin Dashboard from "Registrations" to "Review" to serve as a shorter name for "Review New Registration", located next to the "Members" menu.
+- **PWA Bottom Dock Layout Adjustments**: Corrected mobile notch space overlaps in `BottomDock.tsx` by setting the height to `calc(64px + env(safe-area-inset-bottom))`, removing the active page absolute dot indicator, and centering all navigation links.
+
 ## [v2.22.17] — 2026-06-09
 ### Added
 - **Usher Admin Permissions**: Expanded the `usher` role permissions to allow access to exactly 7 allowed admin console modules: Members, Registrations (Review), Events, Testimonies, Ministries, StewardShop, and Birthdays.

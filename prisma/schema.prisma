@@ -677,10 +677,24 @@ model Post {
   comments   Comment[]
   createdAt  DateTime       @default(now()) @map("created_at")
   updatedAt  DateTime       @updatedAt @map("updated_at")
+  photos     PostPhoto[]
 
   @@index([authorId])
   @@index([createdAt])
   @@map("posts")
+}
+
+model PostPhoto {
+  id        Int      @id @default(autoincrement())
+  postId    Int      @map("post_id")
+  photoPath String   @map("photo_path") @db.VarChar(255)
+  sortOrder Int      @default(0) @map("sort_order") @db.TinyInt
+  createdAt DateTime @default(now()) @map("created_at")
+
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@map("post_photos")
 }
 
 model Comment {
@@ -1043,6 +1057,7 @@ model Testimony {
   category          String?  @db.VarChar(100) // e.g., "Healing", "Provision", "Family"
   tags              String?  @db.Text // AI-generated context tags (JSON or CSV)
   isFeatured        Boolean  @default(false) @map("is_featured")
+  readByAnnouncer   Boolean  @default(false) @map("read_by_announcer")
   status            String   @default("pending") // pending, reviewed, featured
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")

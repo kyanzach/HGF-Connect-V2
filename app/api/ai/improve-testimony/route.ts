@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     }
 
     let langInstruction = "";
-    if (language === "Bisaya") {
+    if (language === "Bisaya" || language === "Cebuano") {
       langInstruction = "Translate (if needed) and rewrite the testimony entirely in Cebuano/Bisaya. Make it flow naturally in conversational Bisaya, fixing spelling and grammar.";
     } else if (language === "Taglish") {
       langInstruction = "Translate (if needed) and rewrite the testimony entirely in Taglish (Filipino mixed with English, commonly spoken in urban Philippines). Make it flow naturally, fixing spelling and grammar.";

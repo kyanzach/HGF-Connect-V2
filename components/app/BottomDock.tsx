@@ -40,7 +40,7 @@ export default function BottomDock() {
         borderTop: "1px solid #e2e8f0",
         display: "flex",
         alignItems: "center",
-        height: "64px",
+        height: "calc(64px + env(safe-area-inset-bottom))",
         paddingBottom: "env(safe-area-inset-bottom)",
         boxShadow: "0 -2px 12px rgba(0,0,0,0.08)",
       }}
@@ -111,7 +111,6 @@ export default function BottomDock() {
               justifyContent: "center",
               textDecoration: "none",
               gap: "2px",
-              paddingTop: "6px",
             }}
           >
             <span style={{ fontSize: "1.375rem", lineHeight: 1 }}>{item.icon}</span>
@@ -125,19 +124,6 @@ export default function BottomDock() {
             >
               {item.label}
             </span>
-            {/* Active underline dot */}
-            {active && (
-              <span
-                style={{
-                  width: "4px",
-                  height: "4px",
-                  borderRadius: "50%",
-                  background: PRIMARY,
-                  position: "absolute",
-                  bottom: "6px",
-                }}
-              />
-            )}
           </Link>
         );
       })}

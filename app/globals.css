@@ -154,3 +154,13 @@ body {
   animation: hgf-pulse-highlight 1.4s ease 3;
   border-radius: 12px;
 }
+
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+

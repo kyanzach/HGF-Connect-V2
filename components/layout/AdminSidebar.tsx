@@ -9,7 +9,7 @@ import { useState } from "react";
 const NAV = [
   { label: "Dashboard", href: "/admin", icon: "📊" },
   { label: "Members", href: "/admin/members", icon: "👥", usherAllowed: true },
-  { label: "Registrations", href: "/admin/review", icon: "✅", usherAllowed: true },
+  { label: "Review", href: "/admin/review", icon: "✅", usherAllowed: true },
   { label: "Events", href: "/admin/events", icon: "📅", usherAllowed: true },
   { label: "Testimonies", href: "/admin/testimonies", icon: "🙌", usherAllowed: true },
   { label: "Ministries", href: "/admin/ministries", icon: "⛪", usherAllowed: true },

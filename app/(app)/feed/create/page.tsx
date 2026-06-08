@@ -68,11 +68,7 @@ export default function CreatePostPage() {
   const [showBgOptions, setShowBgOptions] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
-  // Testimony specific states
-  const [translatedContent, setTranslatedContent] = useState("");
-  const [category, setCategory] = useState("");
-  const [tags, setTags] = useState<string[]>([]);
-  const [aiProcessing, setAiProcessing] = useState(false);
+  // Testimony and Prayer photo states
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -100,35 +96,6 @@ export default function CreatePostPage() {
   const removePhoto = (index: number) => {
     setPhotos((prev) => prev.filter((_, i) => i !== index));
     setPhotoPreviews((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const processWithAI = async () => {
-    if (!content.trim()) {
-      setError("Please write your testimony first before translating. ✍️");
-      return;
-    }
-
-    setAiProcessing(true);
-    setError("");
-
-    try {
-      const res = await fetch("/api/ai/process-testimony", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content }),
-      });
-
-      if (!res.ok) throw new Error("Failed to process with AI");
-
-      const data = await res.json();
-      setTranslatedContent(data.translatedContent);
-      setCategory(data.category);
-      setTags(data.tags || []);
-    } catch (err) {
-      setError("AI Processing failed. Please try again or submit without AI translation.");
-    } finally {
-      setAiProcessing(false);
-    }
   };
 
   // Textarea Ref for size auto-adjust and emoji focus insertion
@@ -237,7 +204,7 @@ export default function CreatePostPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!content.trim() && !linkMetadata) {
+    if (!content.trim() && !linkMetadata && photos.length === 0) {
       setError("Write something to share first! ✍️");
       setShakeKey((k) => k + 1);
       return;
@@ -269,15 +236,31 @@ export default function CreatePostPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             content,
-            translatedContent,
-            category,
-            tags,
             photos: uploadedPhotoPaths,
           }),
         });
 
         if (!res.ok) throw new Error("Failed to submit testimony");
       } else {
+        // 1. Upload post/prayer photos if activeTab is prayer
+        const uploadedPhotoPaths: string[] = [];
+        if (activeTab === "prayer") {
+          for (const photo of photos) {
+            const formData = new FormData();
+            formData.append("file", photo);
+
+            const uploadRes = await fetch("/api/posts/upload", {
+              method: "POST",
+              body: formData,
+            });
+
+            if (!uploadRes.ok) throw new Error("Failed to upload photo");
+            const uploadData = await uploadRes.json();
+            uploadedPhotoPaths.push(uploadData.photoPath);
+          }
+        }
+
+        // 2. Submit post
         const res = await fetch("/api/posts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -292,6 +275,7 @@ export default function CreatePostPage() {
             linkTitle: linkMetadata?.title || null,
             linkDesc: linkMetadata?.description || null,
             linkImage: linkMetadata?.image || null,
+            photos: uploadedPhotoPaths,
           }),
         });
 
@@ -357,6 +341,9 @@ export default function CreatePostPage() {
                 if (t.value !== "thoughts") {
                   setSelectedBg("");
                   setShowBgOptions(false);
+                } else {
+                  setPhotos([]);
+                  setPhotoPreviews([]);
                 }
               }}
               style={{
@@ -383,7 +370,7 @@ export default function CreatePostPage() {
 
         {activeTab === "testimony" && (
           <div style={{ background: "#f8fafc", padding: "1rem", borderRadius: "12px", marginBottom: "1rem", fontSize: "0.875rem", color: "#475569" }}>
-            Share what God has done in your life! You can write in Bisaya or English. Tap the ✨ AI button to automatically translate it and help us categorize your story.
+            Share what God has done in your life! You can write in Cebuano, Taglish, or English. The app will automatically translate, tag, and categorize your testimony once posted, or you can use the ✨ AI button inside the card to improve the flow of your writing first.
           </div>
         )}
 
@@ -411,7 +398,7 @@ export default function CreatePostPage() {
           {/* Label inside card for Testimonies */}
           {activeTab === "testimony" && (
             <div style={{ fontSize: "0.875rem", fontWeight: 600, color: "#334155", marginBottom: "0.5rem" }}>
-              Your Story (Bisaya / English)
+              Your Testimony
             </div>
           )}
 
@@ -454,13 +441,13 @@ export default function CreatePostPage() {
             />
           </div>
 
-          {/* AI Helper rewrite (Only for thoughts and prayer tabs) */}
-          {activeTab !== "testimony" && content.trim().length > 0 && (
+          {/* AI Helper rewrite (All tabs thoughts, prayer, testimony) */}
+          {content.trim().length > 0 && (
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "0.5rem" }}>
               {showLangSelector ? (
                 <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", alignItems: "center", gap: "0.375rem" }}>
                   <span style={{ fontSize: "0.75rem", color: "#64748b", marginRight: "0.25rem", fontWeight: 600 }}>Rewrite in:</span>
-                  {["Bisaya", "Taglish", "English"].map((lang) => (
+                  {["Cebuano", "Taglish", "English"].map((lang) => (
                     <button
                       key={lang}
                       type="button"
@@ -531,77 +518,6 @@ export default function CreatePostPage() {
                 >
                   {improvingText ? `✨ Improving flow in ${improvingLang}...` : "✨ Make it better with AI"}
                 </button>
-              )}
-            </div>
-          )}
-
-          {/* AI Testimony processing button */}
-          {activeTab === "testimony" && content.trim().length > 0 && (
-            <button
-              type="button"
-              onClick={processWithAI}
-              disabled={aiProcessing}
-              style={{
-                marginTop: "0.75rem",
-                background: aiProcessing ? "#e2e8f0" : "#fffbeb",
-                color: aiProcessing ? "#94a3b8" : "#d97706",
-                border: `1px solid ${aiProcessing ? "#e2e8f0" : "#fde68a"}`,
-                padding: "0.5rem 1rem",
-                borderRadius: "8px",
-                fontSize: "0.875rem",
-                fontWeight: 600,
-                cursor: aiProcessing ? "not-allowed" : "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
-                width: "100%",
-                justifyContent: "center",
-                transition: "all 0.2s",
-              }}
-            >
-              {aiProcessing ? "Processing..." : "✨ Process with AI (Translate & Tag)"}
-            </button>
-          )}
-
-          {/* AI Results Preview (Only for Testimony Tab) */}
-          {activeTab === "testimony" && (translatedContent || category) && (
-            <div style={{ background: "white", borderRadius: "16px", padding: "1rem", marginTop: "0.75rem", marginBottom: "0.75rem", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", border: "1px solid #e0f7fb" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.75rem" }}>
-                <span style={{ fontSize: "0.75rem", fontWeight: 700, color: PRIMARY, textTransform: "uppercase", letterSpacing: "0.05em" }}>AI Translation</span>
-                {category && (
-                  <span style={{ background: PRIMARY, color: "white", padding: "0.15rem 0.5rem", borderRadius: "99px", fontSize: "0.7rem", fontWeight: 600 }}>
-                    {category}
-                  </span>
-                )}
-              </div>
-              
-              <textarea
-                value={translatedContent}
-                onChange={(e) => setTranslatedContent(e.target.value)}
-                rows={5}
-                style={{
-                  width: "100%",
-                  border: "none",
-                  background: "#f8fafc",
-                  borderRadius: "8px",
-                  padding: "0.75rem",
-                  fontSize: "0.9375rem",
-                  color: "#1e293b",
-                  lineHeight: 1.65,
-                  fontFamily: "inherit",
-                  boxSizing: "border-box",
-                  resize: "none",
-                }}
-              />
-              
-              {tags.length > 0 && (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.3rem", marginTop: "0.75rem" }}>
-                  {tags.map((tag, i) => (
-                    <span key={i} style={{ fontSize: "0.7rem", color: "#64748b", background: "#f1f5f9", padding: "0.2rem 0.5rem", borderRadius: "4px" }}>
-                      #{tag}
-                    </span>
-                  ))}
-                </div>
               )}
             </div>
           )}
@@ -914,8 +830,8 @@ export default function CreatePostPage() {
           </div>
         </div>
 
-        {/* Photo Upload (Only for Testimony Tab) */}
-        {activeTab === "testimony" && (
+        {/* Photo Upload (Testimony and Prayer Tabs) */}
+        {(activeTab === "testimony" || activeTab === "prayer") && (
           <div style={{ background: "white", borderRadius: "16px", padding: "1rem", marginBottom: "1rem", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", border: "1px solid #e2e8f0" }}>
             <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, color: "#334155", marginBottom: "0.5rem" }}>
               Add Photos (Optional)

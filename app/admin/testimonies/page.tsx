@@ -12,6 +12,7 @@ type Testimony = {
   category: string | null;
   tags: string | null;
   isFeatured: boolean;
+  readByAnnouncer: boolean;
   status: string;
   createdAt: string;
   member: {
@@ -55,6 +56,25 @@ export default function AdminTestimoniesDashboard() {
       console.error(error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleReadStatus = async (id: number, currentStatus: boolean) => {
+    try {
+      const res = await fetch(`/api/testimonies/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ readByAnnouncer: !currentStatus }),
+      });
+      if (res.ok) {
+        setTestimonies((prev) =>
+          prev.map((t) => (t.id === id ? { ...t, readByAnnouncer: !currentStatus } : t))
+        );
+      } else {
+        console.error("Failed to update testimony read status");
+      }
+    } catch (error) {
+      console.error(error);
     }
   };
 
@@ -131,6 +151,26 @@ export default function AdminTestimoniesDashboard() {
                     >
                       📺 Present
                     </Link>
+                    <button
+                      onClick={() => toggleReadStatus(testimony.id, testimony.readByAnnouncer)}
+                      disabled={testimony.readByAnnouncer}
+                      style={{
+                        background: testimony.readByAnnouncer ? "#cbd5e1" : "#10b981",
+                        color: testimony.readByAnnouncer ? "#64748b" : "white",
+                        border: "none",
+                        padding: "0.4rem 1rem",
+                        borderRadius: "8px",
+                        fontSize: "0.875rem",
+                        fontWeight: 600,
+                        cursor: testimony.readByAnnouncer ? "not-allowed" : "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.3rem",
+                        transition: "all 0.2s",
+                      }}
+                    >
+                      {testimony.readByAnnouncer ? "📢 Read" : "📖 Mark Read"}
+                    </button>
                   </div>
                 </div>
 

@@ -58,6 +58,9 @@ export async function GET(request: Request) {
           _count: {
             select: { likes: true, comments: true },
           },
+          photos: {
+            orderBy: { sortOrder: "asc" },
+          },
           ...(session
             ? {
                 likes: {
@@ -101,13 +104,13 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { content, type, imageUrl, verseRef, verseText, aiCaption, visibility, linkUrl, linkTitle, linkDesc, linkImage } = body;
+    const { content, type, imageUrl, verseRef, verseText, aiCaption, visibility, linkUrl, linkTitle, linkDesc, linkImage, photos } = body;
 
-    if (!content && !imageUrl && !verseText && !linkUrl) {
-      return NextResponse.json({ error: "Post must have content, image, verse, or link" }, { status: 400 });
+    if (!content && !imageUrl && !verseText && !linkUrl && (!photos || photos.length === 0)) {
+      return NextResponse.json({ error: "Post must have content, image, photos, verse, or link" }, { status: 400 });
     }
 
-    const post = await (db as any).post.create({
+    const post = await db.post.create({
       data: {
         authorId: parseInt(session.user.id),
         type: type ?? "TEXT",
@@ -121,6 +124,12 @@ export async function POST(request: Request) {
         linkTitle: linkTitle ?? null,
         linkDesc: linkDesc ?? null,
         linkImage: linkImage ?? null,
+        photos: {
+          create: (photos || []).map((photoUrl: string, index: number) => ({
+            photoPath: photoUrl,
+            sortOrder: index,
+          })),
+        },
       },
       include: {
         author: {
@@ -131,6 +140,9 @@ export async function POST(request: Request) {
             profilePicture: true,
             username: true,
           },
+        },
+        photos: {
+          orderBy: { sortOrder: "asc" },
         },
         _count: { select: { likes: true, comments: true } },
       },

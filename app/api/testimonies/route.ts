@@ -2,6 +2,62 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { notifyAllMembers } from "@/lib/notify";
+import axios from "axios";
+
+const SYSTEM_PROMPT = `You are a helpful assistant for a Christian church application (House of Grace Fellowship).
+Your task is to analyze a testimony or praise report written in Bisaya (Cebuano) or English.
+1. Translate the text into natural, uplifting English. Preserve the spiritual tone.
+2. Determine the primary category of the testimony. Choose ONE from this list: Healing, Provision, Relationships, Deliverance, Career, Spiritual Growth, Other.
+3. Generate 2 to 4 relevant context tags (e.g., "hospital bill", "family reconciliation", "job offer").
+
+Output the result strictly as a JSON object with this format (no extra text):
+{
+  "translatedContent": "The English translation here...",
+  "category": "Provision",
+  "tags": ["tag1", "tag2"]
+}`;
+
+async function autoProcessTestimony(content: string) {
+  try {
+    const prompt = `${SYSTEM_PROMPT}\n\nTestimony to process:\n"${content}"`;
+    const response = await axios.post(
+      "https://api.straico.com/v1/prompt/completion",
+      {
+        models: [process.env.STRAICO_MODEL ?? "openai/gpt-4o-mini"],
+        message: prompt,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.STRAICO_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 25000,
+      }
+    );
+
+    const model = process.env.STRAICO_MODEL ?? "openai/gpt-4o-mini";
+    const completions = response.data?.data?.completions;
+    const rawReply =
+      completions?.[model]?.completion?.choices?.[0]?.message?.content ||
+      response.data?.completion?.choices?.[0]?.message?.content ||
+      response.data?.data?.completion?.choices?.[0]?.message?.content ||
+      "";
+
+    if (!rawReply) return null;
+
+    const cleaned = rawReply.replace(/```json\n?|\n?```/g, "").trim();
+    const parsed = JSON.parse(cleaned);
+    return {
+      translatedContent: parsed.translatedContent || content,
+      category: parsed.category || "Other",
+      tags: parsed.tags || [],
+    };
+  } catch (error) {
+    console.error("autoProcessTestimony error:", error);
+    return null;
+  }
+}
+
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -48,17 +104,26 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { content, translatedContent, category, tags, photos } = body;
 
-    if (!content) {
-      return NextResponse.json({ error: "Content is required" }, { status: 400 });
+    let finalTranslated = translatedContent;
+    let finalCategory = category;
+    let finalTags = tags;
+
+    if (!finalCategory || !finalTags || !finalTranslated) {
+      const aiResult = await autoProcessTestimony(content);
+      if (aiResult) {
+        finalTranslated = aiResult.translatedContent;
+        finalCategory = aiResult.category;
+        finalTags = aiResult.tags;
+      }
     }
 
     const testimony = await db.testimony.create({
       data: {
         memberId: parseInt(session.user.id),
         content,
-        translatedContent: translatedContent || null,
-        category: category || null,
-        tags: tags ? JSON.stringify(tags) : null,
+        translatedContent: finalTranslated || null,
+        category: finalCategory || null,
+        tags: finalTags ? (Array.isArray(finalTags) ? JSON.stringify(finalTags) : finalTags) : null,
         photos: {
           create: (photos || []).map((photoUrl: string, index: number) => ({
             photoPath: photoUrl,
