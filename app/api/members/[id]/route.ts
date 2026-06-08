@@ -9,7 +9,7 @@ export async function GET(
   const { id: idStr } = await params;
   const id = parseInt(idStr);
   const session = await auth();
-  const isAdmin = session && ["admin", "moderator"].includes(session.user.role);
+  const isAdmin = session && ["admin", "moderator", "usher"].includes(session.user.role);
 
   const member = await db.member.findUnique({
     where: { id },
@@ -44,7 +44,7 @@ export async function PATCH(
   const { id: idStr } = await params;
   const id = parseInt(idStr);
   const body = await request.json();
-  const isAdmin = ["admin", "moderator"].includes(session.user.role);
+  const isAdmin = ["admin", "moderator", "usher"].includes(session.user.role);
   const isSelf = session.user.id === String(id);
 
   if (!isAdmin && !isSelf) {
@@ -107,7 +107,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
-  if (!session || !["admin"].includes(session.user.role)) {
+  if (!session || !["admin", "moderator", "usher"].includes(session.user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

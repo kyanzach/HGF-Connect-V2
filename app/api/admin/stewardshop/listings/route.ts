@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const session = await auth();
-  if (!session || !["admin", "moderator"].includes(session.user.role ?? "")) {
+  if (!session || !["admin", "moderator", "usher"].includes(session.user.role ?? "")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -39,7 +39,7 @@ export async function GET() {
 
 export async function PATCH(request: Request) {
   const session = await auth();
-  if (!session || !["admin", "moderator"].includes(session.user.role ?? "")) {
+  if (!session || !["admin", "moderator", "usher"].includes(session.user.role ?? "")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

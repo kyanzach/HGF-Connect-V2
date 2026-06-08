@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Members — Admin" };
 
 export default async function AdminMembersPage() {
   const session = await auth();
-  if (!session || !["admin", "moderator"].includes(session.user.role)) redirect("/login");
+  if (!session || !["admin", "moderator", "usher"].includes(session.user.role)) redirect("/login");
 
   const [members, ministries] = await Promise.all([
     db.member.findMany({
@@ -23,5 +23,5 @@ export default async function AdminMembersPage() {
     db.ministry.findMany({ where: { status: "active" }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
 
-  return <AdminMembersClient members={members as any} ministries={ministries} isAdmin={session.user.role === "admin"} />;
+  return <AdminMembersClient members={members as any} ministries={ministries} isAdmin={["admin", "moderator", "usher"].includes(session.user.role)} />;
 }

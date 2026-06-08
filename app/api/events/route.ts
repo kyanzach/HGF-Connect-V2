@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 // POST /api/events — create event (admin/moderator only)
 export async function POST(request: NextRequest) {
   const session = await auth();
-  if (!session || !["admin", "moderator"].includes(session.user.role)) {
+  if (!session || !["admin", "moderator", "usher"].includes(session.user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

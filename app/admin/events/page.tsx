@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Events — Admin" };
 
 export default async function AdminEventsPage() {
   const session = await auth();
-  if (!session || !["admin", "moderator"].includes(session.user.role)) redirect("/login");
+  if (!session || !["admin", "moderator", "usher"].includes(session.user.role)) redirect("/login");
 
   const events = await db.event.findMany({
     orderBy: [{ eventDate: "desc" }],

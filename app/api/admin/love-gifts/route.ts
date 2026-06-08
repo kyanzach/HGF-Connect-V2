@@ -15,7 +15,7 @@ export async function GET() {
     where: { id: parseInt(session.user.id) },
     select: { role: true },
   });
-  if (!member || !["admin", "moderator"].includes(member.role)) {
+  if (!member || !["admin", "moderator", "usher"].includes(member.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

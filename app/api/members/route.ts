@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
   // Admins/mods see all fields; public/non-admin sees privacy-filtered data
   const isAdmin =
-    session && ["admin", "moderator"].includes(session.user.role);
+    session && ["admin", "moderator", "usher"].includes(session.user.role);
 
   const where: any = {};
   if (!isAdmin) {
@@ -76,6 +76,10 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const session = await auth();
+  const isAdmin =
+    session && ["admin", "moderator", "usher"].includes(session.user.role);
+
   const body = await request.json();
   const {
     firstName,
@@ -86,16 +90,23 @@ export async function POST(request: NextRequest) {
     ageGroup,
     type,
     invitedBy,
+    role,
+    joinDate,
   } = body;
 
   // Basic validation
-  if (!firstName || !lastName || !email || !password) {
+  let finalPassword = password;
+  if (!finalPassword && isAdmin) {
+    finalPassword = "Godisgood";
+  }
+
+  if (!firstName || !lastName || !email || !finalPassword) {
     return NextResponse.json(
       { error: "First name, last name, email, and password are required." },
       { status: 400 }
     );
   }
-  if (password.length < 8) {
+  if (finalPassword.length < 8) {
     return NextResponse.json(
       { error: "Password must be at least 8 characters." },
       { status: 400 }
@@ -111,7 +122,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const hashedPassword = await bcrypt.hash(password, 12);
+  const hashedPassword = await bcrypt.hash(finalPassword, 12);
   const username = await generateUsername(firstName, lastName, db);
   const normalizedPhone = phone ? formatPhoneNumber(phone) : undefined;
 
@@ -126,8 +137,9 @@ export async function POST(request: NextRequest) {
       ageGroup: (ageGroup as any) || "Adult",
       type: (type?.replace(" ", "") as any) || "GrowingFriend",
       invitedBy,
-      status: "pending",
-      role: "user",
+      status: isAdmin ? "active" : "pending",
+      role: isAdmin && role ? (role as any) : "user",
+      joinDate: isAdmin && joinDate ? new Date(joinDate) : undefined,
     },
   });
 
@@ -135,7 +147,9 @@ export async function POST(request: NextRequest) {
     {
       id: member.id,
       username: member.username,
-      message: `Account created for ${firstName}! Your account is pending admin approval.`,
+      message: isAdmin 
+        ? `Member account created successfully for ${firstName}!` 
+        : `Account created for ${firstName}! Your account is pending admin approval.`,
     },
     { status: 201 }
   );

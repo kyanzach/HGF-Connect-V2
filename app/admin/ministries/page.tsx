@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Ministries — Admin" };
 
 export default async function AdminMinistriesPage() {
   const session = await auth();
-  if (!session || !["admin", "moderator"].includes(session.user.role)) redirect("/login");
+  if (!session || !["admin", "moderator", "usher"].includes(session.user.role)) redirect("/login");
 
   const ministries = await db.ministry.findMany({
     orderBy: { name: "asc" },

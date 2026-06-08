@@ -38,7 +38,7 @@ export default async function AdminDashboardPage() {
   const [session, stats] = await Promise.all([auth(), getDashboardStats()]);
 
   if (session?.user?.role === "usher") {
-    redirect("/admin/birthdays");
+    redirect("/admin/members");
   }
 
   return (

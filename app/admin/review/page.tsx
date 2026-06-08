@@ -4,11 +4,11 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import AdminReviewClient from "./AdminReviewClient";
 
-export const metadata: Metadata = { title: "Review Pending — Admin" };
+export const metadata: Metadata = { title: "Review New Registration — Admin" };
 
 export default async function AdminReviewPage() {
   const session = await auth();
-  if (!session || !["admin", "moderator"].includes(session.user.role)) redirect("/login");
+  if (!session || !["admin", "moderator", "usher"].includes(session.user.role)) redirect("/login");
 
   const pending = await db.member.findMany({
     where: { status: "pending" },

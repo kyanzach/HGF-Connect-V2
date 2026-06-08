@@ -5,6 +5,12 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.17] — 2026-06-09
+### Added
+- **Usher Admin Permissions**: Expanded the `usher` role permissions to allow access to exactly 7 allowed admin console modules: Members, Registrations (Review), Events, Testimonies, Ministries, StewardShop, and Birthdays.
+- **Registrations Module Naming & Placement**: Renamed the "Review" admin page title to "Review New Registration" and modified the admin sidebar navigation to label it "Registrations", repositioning it right next to "Members".
+- **Admin Access Control & API Safeguards**: Added server-side role validation checking to block ushers from `/admin/send-sms`, `/admin/sms`, `/admin/church-settings`, and `/admin/users`, while updating API routes (`/api/events/[id]`, `/api/ministries/[id]`, `/api/admin/stewardshop/listings`, `/api/admin/love-gifts`, `/api/members`) to authorize ushers for their permitted actions.
+
 ## [v2.22.16] — 2026-06-09
 ### Added
 - **StewardShop L.O.V.E. Acronym Details Card**: Inserted a premium L.O.V.E. definition card explaining Livelihood, Opportunity, Value, and Empowerment on the "Share & Bless" page.

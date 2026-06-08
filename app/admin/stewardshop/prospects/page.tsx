@@ -14,7 +14,7 @@ export default async function AdminProspectAuditPage({
   const session = await auth();
   if (!session?.user) redirect("/login");
   // Admin-only
-  if (!["admin", "superadmin"].includes((session.user as any).role ?? "")) {
+  if (!["admin", "superadmin", "moderator", "usher"].includes((session.user as any).role ?? "")) {
     redirect("/feed");
   }
 

@@ -57,7 +57,7 @@ export default function AdminReviewClient({ pending: init }: { pending: PendingM
   return (
     <div style={{ padding: "1.5rem 2rem" }}>
       <div style={{ marginBottom: "1.5rem" }}>
-        <h1 style={{ fontSize: "1.5rem", fontWeight: 800, color: "#0f172a", margin: 0 }}>⏳ Review Pending</h1>
+        <h1 style={{ fontSize: "1.5rem", fontWeight: 800, color: "#0f172a", margin: 0 }}>⏳ Review New Registration</h1>
         <p style={{ color: "#64748b", fontSize: "0.875rem", margin: "0.25rem 0 0" }}>{pending.length} registration{pending.length !== 1 ? "s" : ""} awaiting approval</p>
       </div>
       <div style={{ display: "grid", gap: "1rem" }}>
