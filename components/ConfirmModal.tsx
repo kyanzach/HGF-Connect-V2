@@ -6,7 +6,7 @@ const P = "#4EB1CB";
 type ConfirmModalProps = {
   open: boolean;
   title?: string;
-  message: string;
+  message: string | React.ReactNode;
   confirmLabel?: string;
   cancelLabel?: string | null;
   confirmColor?: string;
@@ -64,7 +64,7 @@ export default function ConfirmModal({
         >
           {title}
         </h3>
-        <p
+        <div
           style={{
             margin: "0 0 1.5rem",
             fontSize: "0.9rem",
@@ -73,7 +73,7 @@ export default function ConfirmModal({
           }}
         >
           {message}
-        </p>
+        </div>
         <div style={{ display: "flex", gap: "0.75rem" }}>
           {cancelLabel && (
             <button

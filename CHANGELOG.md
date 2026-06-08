@@ -5,6 +5,18 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.1] — 2026-06-08
+### Added
+- **Quiz Cover Banner**: Added a high-quality photographic cover photo showing church members engaging with the mobile quiz app together, replacing the solid gradient header on the Quiz Hub page.
+
+### Changed
+- **Completed Day Modal UX**: Upgraded daily quiz completion popups to a premium layout, replacing raw text strings with styled React elements showing color-coded score status and AI feedback blocks.
+- **Friendly Empty States & Error Modals**: Replaced generic robotic "Quiz is not active" error alert popups with encouraging, detailed instructions pointing users to the Quiz Hub.
+
+### Fixed
+- **Past Quizzes Score & Tier Display**: Fixed an issue where the past quizzes list on the Quiz Hub showed missing tiers ("Tier: ") and 0/7 scores for users without explicit QuizReward records. The backend history API now dynamically calculates scores and tiers based on correct submissions.
+- **Info Alert Modal Buttons**: Removed the redundant and confusing "Cancel" button from informative dialogs on the quiz portal.
+
 ## [v2.22.0] — 2026-06-08
 ### Added
 - **Quiz Auto-Archival System**: Added automatic lifecycle management for Quiz for Christ. Quizzes now transition from `published` to `completed` automatically when their week ends (Sunday 23:59:59 Manila time). The cron script (`quiz-cron.mjs`) calls a new `/api/quiz/auto-complete` endpoint before each daily post trigger.

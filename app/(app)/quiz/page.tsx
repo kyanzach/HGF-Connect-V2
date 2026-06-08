@@ -79,7 +79,11 @@ export default function MemberQuizPage() {
   const [claimError, setClaimError] = useState("");
 
   // ── Info Modal state ──
-  const [infoModal, setInfoModal] = useState({ open: false, title: "", message: "" });
+  const [infoModal, setInfoModal] = useState<{
+    open: boolean;
+    title: string;
+    message: string | React.ReactNode;
+  }>({ open: false, title: "", message: "" });
 
   const loadStatus = useCallback(async () => {
     try {
@@ -119,10 +123,54 @@ export default function MemberQuizPage() {
       return;
     }
     if (day.status === "completed") {
+      const messageContent = (
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px", textAlign: "left" }}>
+          <div style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
+            padding: "6px 12px",
+            borderRadius: "8px",
+            fontSize: "0.85rem",
+            fontWeight: 700,
+            background: day.isCorrect ? "#eff6ff" : "#f1f5f9",
+            color: day.isCorrect ? "#1e40af" : "#475569",
+            width: "fit-content"
+          }}>
+            {day.isCorrect ? "🏆 Correct Answer! (+1 Point)" : "💡 Opportunity to Learn"}
+          </div>
+          
+          <div style={{ color: "#334155", fontSize: "0.92rem", lineHeight: 1.5 }}>
+            {day.isCorrect ? (
+              <span style={{ fontWeight: 600, color: "#0f172a" }}>Awesome job! You've successfully completed this challenge.</span>
+            ) : (
+              <span style={{ fontWeight: 600, color: "#0f172a" }}>You have completed this challenge and gained valuable knowledge.</span>
+            )}
+          </div>
+
+          {day.feedback && (
+            <div style={{
+              background: "#f8fafc",
+              borderLeft: `3px solid ${day.isCorrect ? "#3b82f6" : "#94a3b8"}`,
+              padding: "10px 12px",
+              borderRadius: "0 8px 8px 0",
+              fontSize: "0.85rem",
+              color: "#475569",
+              lineHeight: 1.4,
+            }}>
+              <strong style={{ display: "block", fontSize: "0.78rem", textTransform: "uppercase", letterSpacing: "0.05em", color: "#64748b", marginBottom: "4px" }}>
+                Pastor's Notes / AI Feedback:
+              </strong>
+              "{day.feedback}"
+            </div>
+          )}
+        </div>
+      );
+
       setInfoModal({
         open: true,
         title: `${day.label} Complete`,
-        message: `${day.isCorrect ? "🏆 +1 Point" : "💡 Learned"} - Feedback: "${day.feedback || 'No feedback provided.'}"`,
+        message: messageContent,
       });
       return;
     }
@@ -153,13 +201,22 @@ export default function MemberQuizPage() {
           hint: qData.hint,
         });
       } else {
-        throw new Error("Failed to load question details");
+        const errData = await res.json().catch(() => ({}));
+        if (errData.error === "Quiz is not active") {
+          setInfoModal({
+            open: true,
+            title: "Quiz Week Completed! 🎉",
+            message: "This weekly challenge has already ended. Don't worry! You can check all past quizzes, correct answers, and climb the leaderboard in the Quiz Hub. Get ready for the next weekly quiz starting next Monday at 7:00 AM Manila Time!"
+          });
+          return;
+        }
+        throw new Error(errData.error || "Failed to load question details");
       }
-    } catch {
+    } catch (err: any) {
       setInfoModal({
         open: true,
         title: "Error",
-        message: "Could not load question details. Please try again.",
+        message: err?.message || "Could not load question details. Please try again.",
       });
     } finally {
       setLoading(false);
@@ -607,6 +664,7 @@ export default function MemberQuizPage() {
         message={infoModal.message}
         confirmLabel="Close"
         confirmColor="teal"
+        cancelLabel={null}
         onConfirm={() => setInfoModal({ open: false, title: "", message: "" })}
         onCancel={() => setInfoModal({ open: false, title: "", message: "" })}
       />

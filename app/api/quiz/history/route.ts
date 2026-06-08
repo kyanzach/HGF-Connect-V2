@@ -28,17 +28,43 @@ export async function GET() {
             claimStatus: true,
           },
         },
-        _count: {
+        submissions: {
+          where: { memberId },
           select: {
-            submissions: {
-              where: { memberId },
-            },
+            isCorrect: true,
           },
         },
       },
     });
 
-    return NextResponse.json(JSON.parse(JSON.stringify(quizzes)));
+    const formatted = quizzes.map((q) => {
+      const reward = q.rewards[0];
+      const played = q.submissions.length > 0;
+      
+      // Compute score: count how many of the user's submissions are correct
+      const score = reward ? reward.totalScore : q.submissions.filter((s) => s.isCorrect).length;
+      
+      // Map score to tier if not explicitly saved in reward
+      let tier = reward?.rewardTier || null;
+      if (played && !tier) {
+        if (score >= 7) tier = "PERFECT";
+        else if (score >= 6) tier = "EXCELLENT";
+        else if (score >= 4) tier = "GOOD";
+        else tier = "PARTICIPANT";
+      }
+
+      return {
+        id: q.id,
+        title: q.title,
+        sermonDate: q.sermonDate,
+        status: q.status,
+        played,
+        score,
+        tier,
+      };
+    });
+
+    return NextResponse.json(formatted);
   } catch (error: any) {
     console.error("[api/quiz/history]", error?.message);
     return NextResponse.json({ error: "Failed to fetch quiz history" }, { status: 500 });

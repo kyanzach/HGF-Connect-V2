@@ -31,14 +31,9 @@ interface QuizHistoryEntry {
   title: string;
   sermonDate: string;
   status: string;
-  rewards: Array<{
-    totalScore: number;
-    rewardTier: string;
-    claimStatus: string;
-  }>;
-  _count: {
-    submissions: number;
-  };
+  played: boolean;
+  score: number;
+  tier: string | null;
 }
 
 export default function QuizHubPage() {
@@ -96,7 +91,9 @@ export default function QuizHubPage() {
     <div style={{ background: "#f8fafc", minHeight: "100vh", padding: "0 0 100px", paddingTop: "calc(env(safe-area-inset-top) + 0px)" }}>
       {/* Brand Cover Banner */}
       <div style={{
-        background: "linear-gradient(135deg, #0f2d3d 0%, #1a5276 50%, #2980b9 100%)",
+        backgroundImage: "linear-gradient(to bottom, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.6)), url('/quiz-cover-banner.png')",
+        backgroundSize: "cover",
+        backgroundPosition: "center 30%",
         height: "180px",
         position: "relative",
         display: "flex",
@@ -318,9 +315,16 @@ export default function QuizHubPage() {
               </p>
             ) : (
               quizHistory.map((week) => {
-                const played = week._count.submissions > 0;
-                const score = week.rewards[0]?.totalScore ?? 0;
-                const tier = week.rewards[0]?.rewardTier;
+                const played = week.played;
+                const score = week.score;
+                const tier = week.tier;
+
+                const TIER_LABELS: Record<string, string> = {
+                  PERFECT: "🏆 Perfect",
+                  EXCELLENT: "🌟 Excellent",
+                  GOOD: "👏 Good Job",
+                  PARTICIPANT: "🙏 Participant",
+                };
 
                 return (
                   <button
@@ -364,9 +368,11 @@ export default function QuizHubPage() {
                           <span style={{ fontSize: "0.88rem", fontWeight: 700, color: PRIMARY }}>
                             Score: {score}/7
                           </span>
-                          <span style={{ display: "block", fontSize: "0.68rem", color: "#64748b", fontWeight: 500, marginTop: "2px" }}>
-                            Tier: {tier}
-                          </span>
+                          {tier && (
+                            <span style={{ display: "block", fontSize: "0.68rem", color: "#64748b", fontWeight: 600, marginTop: "2px" }}>
+                              {TIER_LABELS[tier] || tier}
+                            </span>
+                          )}
                         </div>
                       ) : (
                         <span style={{ fontSize: "0.8rem", color: "#94a3b8", fontStyle: "italic" }}>
