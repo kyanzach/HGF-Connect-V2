@@ -5,6 +5,14 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.2] — 2026-06-08
+### Added
+- **Automated Birthday System**: Implemented automated monthly birthday circle announcements featuring rotating animated profile pictures, and daily personalized birthday greeting feed posts with Encouraging Scripture cards and warm greetings.
+- **Birthday Check API & Cron**: Added `/api/birthdays/check` endpoint and daily schedule cron runner script (`scripts/birthday-cron.mjs`) executing at 7:00 AM Manila Time.
+
+### Changed
+- **Quiz Hub Header UI Layout**: Refactored Quiz Hub header (`app/(app)/quiz/hub/page.tsx`) to move title, subtitle, and brain logo avatar out of the cover banner onto a clean white background with the logo overlapping the bottom of the cover banner.
+
 ## [v2.22.1] — 2026-06-08
 ### Added
 - **Quiz Cover Banner**: Added a high-quality photographic cover photo showing church members engaging with the mobile quiz app together, replacing the solid gradient header on the Quiz Hub page.

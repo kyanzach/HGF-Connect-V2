@@ -8,6 +8,7 @@ import CleanYoutubePlayer from "@/components/quiz/CleanYoutubePlayer";
 import CleanEmbedPlayer from "@/components/feed/CleanEmbedPlayer";
 import QuizPlayer from "@/components/quiz/QuizPlayer";
 import ConfirmModal from "@/components/ConfirmModal";
+import BirthdayCircle from "@/components/feed/BirthdayCircle";
 
 const PRIMARY = "#4EB1CB";
 
@@ -97,6 +98,8 @@ const TYPE_LABELS: Record<string, { icon: string; label: string; color: string }
   COVER_PHOTO:   { icon: "🖼️", label: "Cover Photo",   color: "#8b5cf6" },
   QUIZ_ANNOUNCEMENT: { icon: "🧠", label: "Quiz Week",       color: PRIMARY },
   QUIZ_DAILY:        { icon: "🧠", label: "Daily Challenge", color: PRIMARY },
+  BIRTHDAY_MONTHLY:  { icon: "🎂",  label: "Monthly Celebrants", color: "#f59e0b" },
+  BIRTHDAY_DAILY:    { icon: "🎉",  label: "Happy Birthday", color: "#f59e0b" },
 };
 
 export default function PostCard({ post }: PostCardProps) {
@@ -298,15 +301,50 @@ export default function PostCard({ post }: PostCardProps) {
   }, [post.id]);
 
   const isQuizPost = post.type === "QUIZ_ANNOUNCEMENT" || post.type === "QUIZ_DAILY";
-  const authorName = isQuizPost ? "HGF Quiz For Christ" : `${post.author.firstName} ${post.author.lastName}`;
-  const initials = isQuizPost ? "🧠" : `${post.author.firstName[0]}${post.author.lastName[0]}`.toUpperCase();
+  const isBirthdayPost = post.type === "BIRTHDAY_MONTHLY" || post.type === "BIRTHDAY_DAILY";
+  const authorName = isQuizPost 
+    ? "HGF Quiz For Christ" 
+    : isBirthdayPost 
+    ? "House of Grace Fellowship" 
+    : `${post.author.firstName} ${post.author.lastName}`;
+  const initials = isQuizPost 
+    ? "🧠" 
+    : isBirthdayPost 
+    ? "⛪" 
+    : `${post.author.firstName[0]}${post.author.lastName[0]}`.toUpperCase();
   const typeInfo = TYPE_LABELS[post.type] ?? TYPE_LABELS.TEXT;
-  const profilePic = isQuizPost
+  const profilePic = (isQuizPost || isBirthdayPost)
     ? null
     : post.author.profilePicture
     ? `/uploads/profile_pictures/${post.author.profilePicture}`
     : null;
   const isOwnPost = session?.user?.id === String(post.author.id);
+
+  // Parse birthday data if applicable
+  let monthlyData: { month: string; celebrants: any[] } | null = null;
+  if (post.type === "BIRTHDAY_MONTHLY" && post.content) {
+    try {
+      monthlyData = JSON.parse(post.content);
+    } catch (e) {
+      console.error("Failed to parse BIRTHDAY_MONTHLY content", e);
+    }
+  }
+
+  let dailyData: {
+    memberId: number;
+    name: string;
+    profilePicture: string | null;
+    message: string;
+    verseRef: string;
+    verseText: string;
+  } | null = null;
+  if (post.type === "BIRTHDAY_DAILY" && post.content) {
+    try {
+      dailyData = JSON.parse(post.content);
+    } catch (e) {
+      console.error("Failed to parse BIRTHDAY_DAILY content", e);
+    }
+  }
 
   async function toggleLike() {
     if (!session || loading) return;
@@ -470,11 +508,158 @@ export default function PostCard({ post }: PostCardProps) {
                 </div>
               </div>
             ) : (
-              post.content && (
+              post.content && post.type !== "BIRTHDAY_MONTHLY" && post.type !== "BIRTHDAY_DAILY" && (
                 <div style={{ padding: "0 1rem 0.5rem", fontSize: "0.9375rem", color: "#334155", lineHeight: 1.65, whiteSpace: "pre-line" }}>
                   {post.content}
                 </div>
               )
+            )}
+
+            {/* Birthday Monthly Layout */}
+            {post.type === "BIRTHDAY_MONTHLY" && monthlyData && (
+              <div style={{ padding: "0 1rem 0.75rem" }}>
+                <div style={{
+                  fontSize: "0.9375rem",
+                  color: "#334155",
+                  lineHeight: 1.6,
+                  marginBottom: "12px",
+                  fontWeight: 500
+                }}>
+                  🎉 We celebrate our brothers and sisters in Christ who are celebrating their birthdays this month of <strong>{monthlyData.month}</strong>! Let's shower them with love, prayers, and blessings! 🎂🎈
+                </div>
+                <BirthdayCircle month={monthlyData.month} celebrants={monthlyData.celebrants} />
+              </div>
+            )}
+
+            {/* Birthday Daily Layout */}
+            {post.type === "BIRTHDAY_DAILY" && dailyData && (
+              <div style={{ padding: "0 1rem 0.75rem" }}>
+                <div style={{
+                  background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
+                  border: "1px solid #fde68a",
+                  borderRadius: "16px",
+                  padding: "1.25rem",
+                  boxShadow: "0 4px 12px rgba(245, 158, 11, 0.08)",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  textAlign: "center",
+                }}>
+                  <div style={{
+                    position: "relative",
+                    width: "90px",
+                    height: "90px",
+                    borderRadius: "50%",
+                    background: "white",
+                    padding: "4px",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                    border: "2px solid #f59e0b",
+                    marginBottom: "12px",
+                    cursor: "pointer",
+                  }}
+                  onClick={() => router.push(`/member/${dailyData.memberId}`)}
+                  >
+                    <div style={{
+                      width: "100%",
+                      height: "100%",
+                      borderRadius: "50%",
+                      overflow: "hidden",
+                      background: PRIMARY,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}>
+                      {dailyData.profilePicture ? (
+                        <img
+                          src={`/uploads/profile_pictures/${dailyData.profilePicture}`}
+                          alt={dailyData.name}
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        />
+                      ) : (
+                        <span style={{ fontSize: "1.75rem", fontWeight: 800, color: "white" }}>
+                          {dailyData.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{
+                      position: "absolute",
+                      bottom: -2,
+                      right: -2,
+                      background: "#f59e0b",
+                      borderRadius: "50%",
+                      width: "28px",
+                      height: "28px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "1.1rem",
+                      boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+                      border: "2px solid white",
+                    }}>
+                      🎉
+                    </div>
+                  </div>
+
+                  <h3 style={{
+                    margin: "0 0 8px 0",
+                    fontSize: "1.1rem",
+                    fontWeight: 800,
+                    color: "#78350f",
+                  }}>
+                    {dailyData.name}
+                  </h3>
+
+                  <p style={{
+                    fontSize: "0.875rem",
+                    color: "#451a03",
+                    lineHeight: 1.6,
+                    margin: "0 0 16px 0",
+                    whiteSpace: "pre-line",
+                  }}>
+                    {dailyData.message}
+                  </p>
+
+                  {dailyData.verseText && (
+                    <div style={{
+                      background: "white",
+                      borderLeft: "4px solid #f59e0b",
+                      borderRadius: "8px",
+                      padding: "12px 14px",
+                      width: "100%",
+                      boxSizing: "border-box",
+                      textAlign: "left",
+                      boxShadow: "0 2px 6px rgba(0,0,0,0.03)",
+                    }}>
+                      <div style={{
+                        fontSize: "1.2rem",
+                        color: "#f59e0b",
+                        lineHeight: 1,
+                        fontWeight: 700,
+                        marginBottom: 2
+                      }}>
+                        ❝
+                      </div>
+                      <p style={{
+                        fontSize: "0.85rem",
+                        lineHeight: 1.5,
+                        margin: "0 0 6px 0",
+                        fontStyle: "italic",
+                        color: "#78350f",
+                      }}>
+                        {dailyData.verseText}
+                      </p>
+                      <div style={{
+                        fontSize: "0.75rem",
+                        fontWeight: 700,
+                        color: "#b45309",
+                        textAlign: "right",
+                      }}>
+                        — {dailyData.verseRef}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
 
             {/* Image or Video Player */}

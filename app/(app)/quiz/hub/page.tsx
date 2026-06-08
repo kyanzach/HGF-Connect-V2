@@ -91,15 +91,11 @@ export default function QuizHubPage() {
     <div style={{ background: "#f8fafc", minHeight: "100vh", padding: "0 0 100px", paddingTop: "calc(env(safe-area-inset-top) + 0px)" }}>
       {/* Brand Cover Banner */}
       <div style={{
-        backgroundImage: "linear-gradient(to bottom, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.6)), url('/quiz-cover-banner.png')",
+        backgroundImage: "url('/quiz-cover-banner.png')",
         backgroundSize: "cover",
         backgroundPosition: "center 30%",
         height: "180px",
         position: "relative",
-        display: "flex",
-        alignItems: "flex-end",
-        padding: "20px",
-        boxSizing: "border-box"
       }}>
         {/* Back Button */}
         <button
@@ -123,9 +119,11 @@ export default function QuizHubPage() {
         >
           ←
         </button>
+      </div>
 
-        {/* Brand Details Container */}
-        <div style={{ display: "flex", alignItems: "center", gap: "16px", transform: "translateY(40px)", width: "100%" }}>
+      {/* Brand Info Card — Sits below banner with logo overlapping */}
+      <div style={{ background: "white", padding: "0 16px 12px", position: "relative" }}>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: "16px", marginTop: -40 }}>
           {/* Brand Logo Avatar */}
           <div style={{
             width: "80px",
@@ -133,7 +131,7 @@ export default function QuizHubPage() {
             borderRadius: "24px",
             background: PRIMARY,
             border: "4px solid white",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -142,8 +140,8 @@ export default function QuizHubPage() {
           }}>
             🧠
           </div>
-          <div style={{ minWidth: 0, paddingBottom: "10px" }}>
-            <h1 style={{ fontSize: "1.25rem", fontWeight: 800, color: "#0f172a", margin: "0 0 2px", textShadow: "0 1px 2px rgba(255,255,255,0.8)" }}>
+          <div style={{ minWidth: 0, paddingBottom: "6px" }}>
+            <h1 style={{ fontSize: "1.25rem", fontWeight: 800, color: "#0f172a", margin: "0 0 2px" }}>
               HGF Quiz For Christ
             </h1>
             <span style={{ fontSize: "0.8rem", color: "#64748b", fontWeight: 600 }}>
@@ -152,9 +150,6 @@ export default function QuizHubPage() {
           </div>
         </div>
       </div>
-
-      {/* Spacing for Avatar overlap */}
-      <div style={{ height: "55px" }} />
 
       {/* Brand Statistics / Intro */}
       <div style={{ padding: "0 16px 16px" }}>

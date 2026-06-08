@@ -645,6 +645,8 @@ enum PostType {
   COVER_PHOTO
   QUIZ_ANNOUNCEMENT
   QUIZ_DAILY
+  BIRTHDAY_MONTHLY
+  BIRTHDAY_DAILY
 }
 
 enum PostVisibility {
