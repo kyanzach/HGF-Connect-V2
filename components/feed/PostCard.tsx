@@ -307,23 +307,28 @@ export default function PostCard({ post }: PostCardProps) {
 
   const isQuizPost = post.type === "QUIZ_ANNOUNCEMENT" || post.type === "QUIZ_DAILY";
   const isBirthdayPost = post.type === "BIRTHDAY_MONTHLY" || post.type === "BIRTHDAY_DAILY";
+  const isEventPost = post.type === "EVENT";
+  const isChurchPost = isBirthdayPost || isEventPost;
+
   const authorName = isQuizPost 
     ? "HGF Quiz For Christ" 
-    : isBirthdayPost 
+    : isChurchPost 
     ? "House of Grace Fellowship" 
     : `${post.author.firstName} ${post.author.lastName}`;
   const initials = isQuizPost 
     ? "🧠" 
-    : isBirthdayPost 
+    : isChurchPost 
     ? "⛪" 
     : `${post.author.firstName[0]}${post.author.lastName[0]}`.toUpperCase();
   const typeInfo = TYPE_LABELS[post.type] ?? TYPE_LABELS.TEXT;
-  const profilePic = (isQuizPost || isBirthdayPost)
+  const profilePic = (isQuizPost || isChurchPost)
     ? null
     : post.author.profilePicture
     ? `/uploads/profile_pictures/${post.author.profilePicture}`
     : null;
   const isOwnPost = session?.user?.id === String(post.author.id);
+  const isAdminOrMod = session?.user?.role === "admin" || session?.user?.role === "moderator";
+  const canDelete = isOwnPost || isAdminOrMod;
 
   // Parse birthday data if applicable
   let monthlyData: { month: string; celebrants: any[] } | null = null;
@@ -407,8 +412,8 @@ export default function PostCard({ post }: PostCardProps) {
         <div style={{ display: "flex", alignItems: "center", padding: "0.875rem 1rem 0.5rem", gap: "0.625rem" }}>
           {/* Avatar */}
           <button
-            onClick={() => router.push(isQuizPost ? "/quiz/hub" : isBirthdayPost ? "/birthdays" : `/member/${post.author.id}`)}
-            aria-label={isQuizPost ? "View Quiz Brand Hub" : isBirthdayPost ? "View Birthdays Directory" : `View ${authorName}'s profile`}
+            onClick={() => router.push(isQuizPost ? "/quiz/hub" : isChurchPost ? "/church" : `/member/${post.author.id}`)}
+            aria-label={isQuizPost ? "View Quiz Brand Hub" : isChurchPost ? "View Church Page" : `View ${authorName}'s profile`}
             style={{ width: 40, height: 40, borderRadius: "50%", overflow: "hidden", flexShrink: 0, border: "none", padding: 0, cursor: "pointer", background: PRIMARY, display: "flex", alignItems: "center", justifyContent: "center" }}
           >
             {profilePic ? (
@@ -419,7 +424,7 @@ export default function PostCard({ post }: PostCardProps) {
           </button>
 
           <div style={{ flex: 1, minWidth: 0 }}>
-            <button onClick={() => router.push(isQuizPost ? "/quiz/hub" : isBirthdayPost ? "/birthdays" : `/member/${post.author.id}`)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left" }}>
+            <button onClick={() => router.push(isQuizPost ? "/quiz/hub" : isChurchPost ? "/church" : `/member/${post.author.id}`)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left" }}>
               <span style={{ fontWeight: 700, fontSize: "0.9rem", color: "#1e293b" }}>{authorName}</span>
             </button>
             <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", flexWrap: "wrap" }}>
@@ -453,9 +458,9 @@ export default function PostCard({ post }: PostCardProps) {
             )}
             {menuOpen && (
               <div style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", background: "white", borderRadius: "12px", boxShadow: "0 4px 20px rgba(0,0,0,0.15)", minWidth: 160, zIndex: 11, overflow: "hidden" }}>
-                <button onClick={() => { setMenuOpen(false); router.push(isQuizPost ? "/quiz/hub" : isBirthdayPost ? "/birthdays" : `/member/${post.author.id}`); }} style={menuItemStyle}>👤 {isQuizPost ? "View Brand Hub" : isBirthdayPost ? "View Birthdays Page" : "View Profile"}</button>
+                <button onClick={() => { setMenuOpen(false); router.push(isQuizPost ? "/quiz/hub" : isChurchPost ? "/church" : `/member/${post.author.id}`); }} style={menuItemStyle}>👤 {isQuizPost ? "View Brand Hub" : isChurchPost ? "View Church Page" : "View Profile"}</button>
                 <button onClick={() => { setMenuOpen(false); setCommentsOpen(true); }} style={menuItemStyle}>💬 View Comments</button>
-                {isOwnPost && post.type !== "EVENT" && !isQuizPost && <button onClick={handleDelete} style={{ ...menuItemStyle, color: "#ef4444" }}>🗑️ Delete Post</button>}
+                {canDelete && <button onClick={handleDelete} style={{ ...menuItemStyle, color: "#ef4444" }}>🗑️ Delete Post</button>}
                 <button onClick={() => { setMenuOpen(false); handleShare(); }} style={menuItemStyle}>📤 Share Post</button>
               </div>
             )}

@@ -30,9 +30,13 @@ export async function GET(request: Request) {
     PostType.BIRTHDAY_DAILY,
   ];
 
+  const isChurch = searchParams.get("church") === "true";
+
   const where: any = {
     ...visibilityFilter,
-    ...(memberId
+    ...(isChurch
+      ? { type: { in: [PostType.EVENT, PostType.BIRTHDAY_MONTHLY, PostType.BIRTHDAY_DAILY] } }
+      : memberId
       ? { authorId: memberId, type: { notIn: SYSTEM_POST_TYPES } }
       : {}),
   };

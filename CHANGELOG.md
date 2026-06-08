@@ -5,6 +5,19 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.10] — 2026-06-08
+### Added
+- **Official Church Page (/church)**: Created a Facebook Business-style organization hub for "House of Grace Fellowship" under `/church` featuring three tabs:
+  - Wall: Displays official church events and daily/monthly birthday system posts (fetched via `?church=true` filter).
+  - Birthdays: Embeds the monthly birthday orbit circle selector and member listings.
+  - Events: Lists upcoming events and past events with search/type filters and pagination.
+
+### Changed
+- **Unified Redirects to Church Page**: Modified feed item click routing for `EVENT` posts, monthly birthdays, and daily birthdays to link to `/church` instead of `/birthdays` or member profile pages.
+
+### Fixed
+- **Event Post Deletion**: Adjusted delete permissions on `PostCard.tsx` to allow creators, admins, and moderators to delete `EVENT` posts in the community feed.
+
 ## [v2.22.9] — 2026-06-08
 ### Fixed
 - **Prayer Placeholder (s1)**: Removed the verbose placeholder example ("E.g. Please pray...") from the textareas in both the main Composer feed (`app/(app)/feed/create/page.tsx`) and the dedicated Prayer Request page (`app/(app)/prayer/new/page.tsx`) to simplify and clean the interface.
