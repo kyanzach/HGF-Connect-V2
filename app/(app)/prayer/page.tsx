@@ -171,7 +171,7 @@ function PrayerWallContent() {
           {mine ? "Manage your personal active and answered prayer requests" : "Stand together in prayer for one another"}
         </p>
         <Link
-          href="/prayer/new"
+          href="/feed/create?tab=prayer"
           style={{
             display: "inline-block",
             marginTop: "0.875rem",

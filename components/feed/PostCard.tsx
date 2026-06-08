@@ -434,10 +434,14 @@ export default function PostCard({ post }: PostCardProps) {
             </button>
             <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", flexWrap: "wrap" }}>
               <span style={{ fontSize: "0.7rem", color: "#94a3b8" }}>{timeAgo(post.createdAt)}</span>
-              <span style={{ fontSize: "0.6rem", color: "#94a3b8" }}>·</span>
-              <span style={{ fontSize: "0.6875rem", color: typeInfo.color, fontWeight: 600 }}>
-                {typeInfo.icon} {typeInfo.label}
-              </span>
+              {post.type !== "TEXT" && (
+                <>
+                  <span style={{ fontSize: "0.6rem", color: "#94a3b8" }}>·</span>
+                  <span style={{ fontSize: "0.6875rem", color: typeInfo.color, fontWeight: 600 }}>
+                    {typeInfo.icon} {typeInfo.label}
+                  </span>
+                </>
+              )}
               {post.type === "BIRTHDAY_DAILY" && dailyBirthMonth && (
                 <>
                   <span style={{ fontSize: "0.6rem", color: "#94a3b8" }}>·</span>

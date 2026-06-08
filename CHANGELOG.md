@@ -5,6 +5,13 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.21] — 2026-06-09
+### Changed
+- **Redirect Submit Prayer Request**: Changed the "+ Submit Prayer Request" button on the Prayer Wall (`/prayer`) to redirect to the new unified compose page (`/feed/create?tab=prayer`).
+- **Remove Old Prayer Input**: Deleted the redundant old composer page at `app/(app)/prayer/new/page.tsx`.
+- **Refine Testimony Tab Instructions**: Simplified the instruction text card under the Testimony composer tab to: "Share what God has done in your life! Feel free to write in Cebuano, Taglish, or English in your own words."
+- **Hide Thoughts Reflection Tag**: Removed the "Reflection" tag label from rendering above normal text thoughts posts (`TEXT` type) in the community feed (`PostCard.tsx`).
+
 ## [v2.22.20] — 2026-06-09
 ### Added
 - **My Prayer Requests View**: Created a private personal prayer requests tab (`/prayer?mine=true`) accessible via the Avatar dropdown menu. Enabled inline text editing and request deletion (using custom `ConfirmModal`). Added status toggle to mark personal requests as active or answered.

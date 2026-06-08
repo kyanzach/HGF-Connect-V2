@@ -370,7 +370,7 @@ export default function CreatePostPage() {
 
         {activeTab === "testimony" && (
           <div style={{ background: "#f8fafc", padding: "1rem", borderRadius: "12px", marginBottom: "1rem", fontSize: "0.875rem", color: "#475569" }}>
-            Share what God has done in your life! You can write in Cebuano, Taglish, or English. The app will automatically translate, tag, and categorize your testimony once posted, or you can use the ✨ AI button inside the card to improve the flow of your writing first.
+            Share what God has done in your life! Feel free to write in Cebuano, Taglish, or English in your own words.
           </div>
         )}
 
