@@ -68,6 +68,69 @@ export default function CreatePostPage() {
   const [showBgOptions, setShowBgOptions] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
+  // Testimony specific states
+  const [translatedContent, setTranslatedContent] = useState("");
+  const [category, setCategory] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [aiProcessing, setAiProcessing] = useState(false);
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const selectedFiles = Array.from(e.target.files);
+      if (photos.length + selectedFiles.length > 21) {
+        setError("You can upload a maximum of 21 photos. 📸");
+        const allowedSlots = 21 - photos.length;
+        if (allowedSlots <= 0) return;
+        const slicedFiles = selectedFiles.slice(0, allowedSlots);
+        setPhotos((prev) => [...prev, ...slicedFiles]);
+        const newPreviews = slicedFiles.map((file) => URL.createObjectURL(file));
+        setPhotoPreviews((prev) => [...prev, ...newPreviews]);
+      } else {
+        setError("");
+        setPhotos((prev) => [...prev, ...selectedFiles]);
+        const newPreviews = selectedFiles.map((file) => URL.createObjectURL(file));
+        setPhotoPreviews((prev) => [...prev, ...newPreviews]);
+      }
+    }
+  };
+
+  const removePhoto = (index: number) => {
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
+    setPhotoPreviews((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const processWithAI = async () => {
+    if (!content.trim()) {
+      setError("Please write your testimony first before translating. ✍️");
+      return;
+    }
+
+    setAiProcessing(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/ai/process-testimony", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
+      });
+
+      if (!res.ok) throw new Error("Failed to process with AI");
+
+      const data = await res.json();
+      setTranslatedContent(data.translatedContent);
+      setCategory(data.category);
+      setTags(data.tags || []);
+    } catch (err) {
+      setError("AI Processing failed. Please try again or submit without AI translation.");
+    } finally {
+      setAiProcessing(false);
+    }
+  };
+
   // Textarea Ref for size auto-adjust and emoji focus insertion
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -183,28 +246,62 @@ export default function CreatePostPage() {
     setError("");
 
     try {
-      const res = await fetch("/api/posts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: activeTab === "thoughts" ? "TEXT" : (activeTab === "testimony" ? "PRAISE" : "PRAYER"),
-          content: content || null,
-          imageUrl: (activeTab === "thoughts" ? selectedBg : null) || null,
-          verseRef: null,
-          verseText: null,
-          visibility,
-          linkUrl: linkMetadata?.url || null,
-          linkTitle: linkMetadata?.title || null,
-          linkDesc: linkMetadata?.description || null,
-          linkImage: linkMetadata?.image || null,
-        }),
-      });
+      if (activeTab === "testimony") {
+        // 1. Upload Photos first
+        const uploadedPhotoPaths: string[] = [];
+        for (const photo of photos) {
+          const formData = new FormData();
+          formData.append("file", photo);
 
-      if (!res.ok) throw new Error("Failed to post");
+          const uploadRes = await fetch("/api/testimonies/upload", {
+            method: "POST",
+            body: formData,
+          });
+
+          if (!uploadRes.ok) throw new Error("Failed to upload photo");
+          const uploadData = await uploadRes.json();
+          uploadedPhotoPaths.push(uploadData.photoPath);
+        }
+
+        // 2. Submit Testimony
+        const res = await fetch("/api/testimonies", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            content,
+            translatedContent,
+            category,
+            tags,
+            photos: uploadedPhotoPaths,
+          }),
+        });
+
+        if (!res.ok) throw new Error("Failed to submit testimony");
+      } else {
+        const res = await fetch("/api/posts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: activeTab === "thoughts" ? "TEXT" : "PRAYER",
+            content: content || null,
+            imageUrl: (activeTab === "thoughts" ? selectedBg : null) || null,
+            verseRef: null,
+            verseText: null,
+            visibility,
+            linkUrl: linkMetadata?.url || null,
+            linkTitle: linkMetadata?.title || null,
+            linkDesc: linkMetadata?.description || null,
+            linkImage: linkMetadata?.image || null,
+          }),
+        });
+
+        if (!res.ok) throw new Error("Failed to post");
+      }
+
       router.push("/feed");
       router.refresh();
-    } catch {
-      setError("Something went wrong. Please try again.");
+    } catch (err: any) {
+      setError(err?.message || "Something went wrong. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -284,6 +381,12 @@ export default function CreatePostPage() {
           ))}
         </div>
 
+        {activeTab === "testimony" && (
+          <div style={{ background: "#f8fafc", padding: "1rem", borderRadius: "12px", marginBottom: "1rem", fontSize: "0.875rem", color: "#475569" }}>
+            Share what God has done in your life! You can write in Bisaya or English. Tap the ✨ AI button to automatically translate it and help us categorize your story.
+          </div>
+        )}
+
         {/* Content Card container with custom background option */}
         <div
           style={{
@@ -305,6 +408,13 @@ export default function CreatePostPage() {
             })
           }}
         >
+          {/* Label inside card for Testimonies */}
+          {activeTab === "testimony" && (
+            <div style={{ fontSize: "0.875rem", fontWeight: 600, color: "#334155", marginBottom: "0.5rem" }}>
+              Your Story (Bisaya / English)
+            </div>
+          )}
+
           {/* Label inside card for Prayer Requests */}
           {activeTab === "prayer" && (
             <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#475569", marginBottom: "0.5rem" }}>
@@ -322,7 +432,7 @@ export default function CreatePostPage() {
                 activeTab === "prayer"
                   ? "Share your prayer request with the community..."
                   : activeTab === "testimony"
-                  ? "Share what God has done in your life! Feel free to write in Bisaya, Tagalog, English, or Taglish... 🙌"
+                  ? "Salamat sa Ginoo kay..."
                   : "What are your thoughts?"
               }
               rows={activeTab === "thoughts" && selectedBg ? 3 : 5}
@@ -344,8 +454,8 @@ export default function CreatePostPage() {
             />
           </div>
 
-          {/* AI Helper rewrite (Uniform for all tabs) */}
-          {content.trim().length > 0 && (
+          {/* AI Helper rewrite (Only for thoughts and prayer tabs) */}
+          {activeTab !== "testimony" && content.trim().length > 0 && (
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "0.5rem" }}>
               {showLangSelector ? (
                 <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", alignItems: "center", gap: "0.375rem" }}>
@@ -421,6 +531,77 @@ export default function CreatePostPage() {
                 >
                   {improvingText ? `✨ Improving flow in ${improvingLang}...` : "✨ Make it better with AI"}
                 </button>
+              )}
+            </div>
+          )}
+
+          {/* AI Testimony processing button */}
+          {activeTab === "testimony" && content.trim().length > 0 && (
+            <button
+              type="button"
+              onClick={processWithAI}
+              disabled={aiProcessing}
+              style={{
+                marginTop: "0.75rem",
+                background: aiProcessing ? "#e2e8f0" : "#fffbeb",
+                color: aiProcessing ? "#94a3b8" : "#d97706",
+                border: `1px solid ${aiProcessing ? "#e2e8f0" : "#fde68a"}`,
+                padding: "0.5rem 1rem",
+                borderRadius: "8px",
+                fontSize: "0.875rem",
+                fontWeight: 600,
+                cursor: aiProcessing ? "not-allowed" : "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                width: "100%",
+                justifyContent: "center",
+                transition: "all 0.2s",
+              }}
+            >
+              {aiProcessing ? "Processing..." : "✨ Process with AI (Translate & Tag)"}
+            </button>
+          )}
+
+          {/* AI Results Preview (Only for Testimony Tab) */}
+          {activeTab === "testimony" && (translatedContent || category) && (
+            <div style={{ background: "white", borderRadius: "16px", padding: "1rem", marginTop: "0.75rem", marginBottom: "0.75rem", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", border: "1px solid #e0f7fb" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.75rem" }}>
+                <span style={{ fontSize: "0.75rem", fontWeight: 700, color: PRIMARY, textTransform: "uppercase", letterSpacing: "0.05em" }}>AI Translation</span>
+                {category && (
+                  <span style={{ background: PRIMARY, color: "white", padding: "0.15rem 0.5rem", borderRadius: "99px", fontSize: "0.7rem", fontWeight: 600 }}>
+                    {category}
+                  </span>
+                )}
+              </div>
+              
+              <textarea
+                value={translatedContent}
+                onChange={(e) => setTranslatedContent(e.target.value)}
+                rows={5}
+                style={{
+                  width: "100%",
+                  border: "none",
+                  background: "#f8fafc",
+                  borderRadius: "8px",
+                  padding: "0.75rem",
+                  fontSize: "0.9375rem",
+                  color: "#1e293b",
+                  lineHeight: 1.65,
+                  fontFamily: "inherit",
+                  boxSizing: "border-box",
+                  resize: "none",
+                }}
+              />
+              
+              {tags.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.3rem", marginTop: "0.75rem" }}>
+                  {tags.map((tag, i) => (
+                    <span key={i} style={{ fontSize: "0.7rem", color: "#64748b", background: "#f1f5f9", padding: "0.2rem 0.5rem", borderRadius: "4px" }}>
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
               )}
             </div>
           )}
@@ -732,6 +913,66 @@ export default function CreatePostPage() {
             </div>
           </div>
         </div>
+
+        {/* Photo Upload (Only for Testimony Tab) */}
+        {activeTab === "testimony" && (
+          <div style={{ background: "white", borderRadius: "16px", padding: "1rem", marginBottom: "1rem", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", border: "1px solid #e2e8f0" }}>
+            <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, color: "#334155", marginBottom: "0.5rem" }}>
+              Add Photos (Optional)
+            </label>
+            
+            <input
+              type="file"
+              accept="image/jpeg, image/png, image/webp"
+              multiple
+              ref={fileInputRef}
+              onChange={handlePhotoSelect}
+              style={{ display: "none" }}
+            />
+            
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+              {photoPreviews.map((preview, i) => (
+                <div key={i} style={{ position: "relative", width: "80px", height: "80px", borderRadius: "8px", overflow: "hidden", border: "1px solid #e2e8f0" }}>
+                  <img src={preview} alt="preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <button
+                    type="button"
+                    onClick={() => removePhoto(i)}
+                    style={{
+                      position: "absolute", top: 4, right: 4,
+                      background: "rgba(0,0,0,0.5)", color: "white", border: "none",
+                      borderRadius: "50%", width: "20px", height: "20px",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: "12px", cursor: "pointer"
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+              
+              {photos.length < 21 && (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    width: "80px", height: "80px", borderRadius: "8px",
+                    border: "2px dashed #cbd5e1", background: "#f8fafc",
+                    display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                    color: "#64748b", cursor: "pointer", gap: "0.25rem"
+                  }}
+                >
+                  <span style={{ fontSize: "1.5rem" }}>+</span>
+                  <span style={{ fontSize: "0.65rem", fontWeight: 600 }}>Add</span>
+                </button>
+              )}
+            </div>
+            
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.72rem", color: "#64748b", marginTop: "0.5rem" }}>
+              <span>Max 21 photos</span>
+              <span>{photos.length} / 21 selected</span>
+            </div>
+          </div>
+        )}
 
         {/* Visibility */}
         <div

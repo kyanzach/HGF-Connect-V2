@@ -5,6 +5,12 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.15] — 2026-06-08
+### Added
+- **Testimonies Submission Consolidation**: Consolidated the dedicated `/testimonies/create` page into the main community write page (`/feed/create?tab=testimony`). Changed the original route `/testimonies/create` to perform a server-side redirect to the unified feed compose tab.
+- **Multiple Photo Testimony Uploads**: Added the optional multiple photo upload grid to the Testimony tab on the write/create page. It supports up to a maximum limit of 21 photos, with automatic selection bounds and file slicing.
+- **Dedicated Testimony AI Processor**: Integrated the original Bisaya/English translation and tag analysis AI helper to the Testimony tab.
+
 ## [v2.22.14] — 2026-06-08
 ### Added
 - **AI Account Recovery Chatbot (`/login/ai-help`)**: Re-engineered the account recovery page from a static wizard form into an interactive conversational chatbot (Grace AI Helper). Integrated simulated typing indicators, chat bubble history, context-aware input elements, multiple account selection cards, and OTP verification directly inline.
