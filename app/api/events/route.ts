@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { notifyAllMembers } from "@/lib/notify";
 
 // GET /api/events — list events
 export async function GET(request: NextRequest) {
@@ -79,8 +80,18 @@ export async function POST(request: NextRequest) {
           visibility: "MEMBERS_ONLY",
         },
       });
+
+      // Broadcast database notification to all active members
+      const authorName = `${session.user.firstName ?? ""} ${session.user.lastName ?? ""}`.trim();
+      void notifyAllMembers({
+        actorId: parseInt(session.user.id),
+        type: "new_post",
+        title: `${authorName} shared an event`,
+        body: `⛪ New Event: ${title}`,
+        link: "/church",
+      });
     } catch (postError) {
-      console.error("Auto-post creation failed:", postError);
+      console.error("Auto-post creation / notification failed:", postError);
       // We don't fail the whole request if only the social post fails
     }
 

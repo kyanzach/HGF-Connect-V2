@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { createNotification } from "@/lib/notify";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +54,17 @@ export async function PATCH(request: Request) {
         data: { isVerified: Boolean(isVerified) },
       });
 
+      await createNotification({
+        memberId: Number(sellerId),
+        type: "general",
+        title: "Verification Status Updated",
+        body: isVerified 
+          ? "Congratulations! You have been granted a verified seller badge."
+          : "Your seller verification badge has been removed by a moderator.",
+        link: "/stewardshop",
+        actorId: parseInt(session.user.id),
+      });
+
       await db.appLog.create({
         data: {
           appSection: "admin",
@@ -72,6 +84,11 @@ export async function PATCH(request: Request) {
 
     // Toggle listing privacy / set moderation explanation
     if (listingId !== undefined && isPrivate !== undefined) {
+      const listing = await db.marketplaceListing.findUnique({
+        where: { id: Number(listingId) },
+        select: { memberId: true, title: true }
+      });
+
       await db.marketplaceListing.update({
         where: { id: Number(listingId) },
         data: {
@@ -79,6 +96,21 @@ export async function PATCH(request: Request) {
           moderationReason: moderationReason || null,
         },
       });
+
+      if (listing) {
+        await createNotification({
+          memberId: listing.memberId,
+          type: "general",
+          title: isPrivate 
+            ? `Listing Flagged: ${listing.title}`
+            : `Listing Approved: ${listing.title}`,
+          body: isPrivate
+            ? `Your listing has been set to Private. Reason: ${moderationReason || "Violates community guidelines."}`
+            : `Your listing is now visible to the community.`,
+          link: "/stewardshop/my-listings",
+          actorId: parseInt(session.user.id),
+        });
+      }
 
       await db.appLog.create({
         data: {

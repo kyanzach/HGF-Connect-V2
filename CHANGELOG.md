@@ -5,6 +5,17 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.14] — 2026-06-08
+### Added
+- **AI Account Recovery Chatbot (`/login/ai-help`)**: Re-engineered the account recovery page from a static wizard form into an interactive conversational chatbot (Grace AI Helper). Integrated simulated typing indicators, chat bubble history, context-aware input elements, multiple account selection cards, and OTP verification directly inline.
+- **Forgot Password Link Centering**: Center-aligned the "Forgot password? Ask AI for help..." recovery link on the login page (`app/(public)/login/page.tsx`) to ensure wrapped lines center correctly.
+
+## [v2.22.13] — 2026-06-08
+### Added
+- **StewardShop Private/Moderated Dashboard Indicators (s4)**: Added visual `PRIVATE` status badges and warning boxes showing the exact moderation reason on the seller's "My Listings" dashboard (`/stewardshop/my-listings`), ensuring users can easily identify flagged/private listings and take action.
+- **StewardShop Moderation Notifications (s1-s2)**: Integrated database notification dispatching when a listing is moderated (flagged private or restored to public) or a seller's verification badge status is toggled, sending alert messages directly to the member's notification bell.
+- **Event Creation Broadcast Notifications (s3)**: Added event broadcast logic to the event creation API endpoint (`/api/events`), sending a system-wide notification to all active church members' bells when a new official event is scheduled.
+
 ## [v2.22.12] — 2026-06-08
 ### Added
 - **AI Account Recovery (`/login/ai-help`)**: Implemented step-by-step account recovery flow using first name, last name, birthdate, and optional mobile number. Generates high-priority SMS OTP, resets password to `"Godisgood"`, and transactionally merges duplicate accounts (moving posts, likes, comments, group memberships, and other data) without deleting user contributions.

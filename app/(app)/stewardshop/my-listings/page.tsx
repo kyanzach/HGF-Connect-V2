@@ -27,6 +27,7 @@ interface Listing {
   loveGiftAmount: number; status: string; viewCount: number;
   createdAt: string; photo: string | null;
   prospectCount: number; shareCount: number;
+  isPrivate: boolean; moderationReason: string | null;
   // Sold-state fields:
   buyerName?: string | null; sharerName?: string | null;
   loveGiftCredited?: boolean; claimStatus?: string | null;
@@ -303,9 +304,16 @@ export default function MyListingsPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.5rem" }}>
                       <p style={{ fontWeight: 700, fontSize: "0.875rem", color: isSold ? "#94a3b8" : "#1e293b", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{listing.title}</p>
-                      <span style={{ background: STATUS_COLORS[listing.status] + "20", color: STATUS_COLORS[listing.status], fontSize: "0.65rem", fontWeight: 700, padding: "0.15rem 0.5rem", borderRadius: "4px", flexShrink: 0 }}>
-                        {listing.status.toUpperCase()}
-                      </span>
+                      <div style={{ display: "flex", gap: "0.375rem", alignItems: "center", flexShrink: 0 }}>
+                        {listing.isPrivate && (
+                          <span style={{ background: "#fee2e2", color: "#ef4444", fontSize: "0.65rem", fontWeight: 700, padding: "0.15rem 0.5rem", borderRadius: "4px" }}>
+                            PRIVATE
+                          </span>
+                        )}
+                        <span style={{ background: STATUS_COLORS[listing.status] + "20", color: STATUS_COLORS[listing.status], fontSize: "0.65rem", fontWeight: 700, padding: "0.15rem 0.5rem", borderRadius: "4px" }}>
+                          {listing.status.toUpperCase()}
+                        </span>
+                      </div>
                     </div>
                     <div style={{ fontSize: "0.85rem", fontWeight: 800, color: isSold ? "#94a3b8" : PRIMARY, margin: "0.25rem 0", textDecoration: isSold ? "line-through" : "none" }}>
                       {displayPrice ? `₱${displayPrice.toLocaleString()}` : listing.priceLabel ?? "Free"}
@@ -318,6 +326,18 @@ export default function MyListingsPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* Moderation warning banner */}
+                {listing.isPrivate && (
+                  <div style={{ background: "#fff5f5", borderLeft: "4px solid #ef4444", padding: "0.625rem 0.875rem", margin: "0 0.875rem 0.875rem", borderRadius: "6px" }}>
+                    <p style={{ margin: 0, fontSize: "0.75rem", fontWeight: 700, color: "#991b1b", display: "flex", alignItems: "center", gap: "0.375rem" }}>
+                      ⚠️ Listing Flagged & Private
+                    </p>
+                    <p style={{ margin: "0.25rem 0 0", fontSize: "0.72rem", color: "#b91c1c", lineHeight: 1.4 }}>
+                      <strong>Reason:</strong> {listing.moderationReason || "Violates community guidelines. Please edit your listing to resolve."}
+                    </p>
+                  </div>
+                )}
 
                 {/* Action row */}
                 <div style={{ borderTop: "1px solid #f1f5f9" }}>

@@ -35,6 +35,8 @@ export async function GET(_req: NextRequest) {
       photo: l.photos[0]?.photoPath ?? null,
       prospectCount: l._count.prospects,
       shareCount: l._count.shares,
+      isPrivate: l.isPrivate,
+      moderationReason: l.moderationReason,
     })),
   });
 }

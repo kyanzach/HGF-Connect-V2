@@ -256,10 +256,21 @@ export default function LoginPage() {
             />
           </div>
 
-          <div style={{ textAlign: "right", marginTop: "-0.5rem", marginBottom: "0.25rem" }}>
+          <div style={{ display: "flex", justifyContent: "center", marginTop: "-0.25rem", marginBottom: "0.25rem" }}>
             <Link
               href="/login/ai-help"
-              style={{ color: "#4eb1cb", fontSize: "0.8rem", textDecoration: "none", fontWeight: 600 }}
+              style={{
+                display: "block",
+                textAlign: "center",
+                color: "#4eb1cb",
+                fontSize: "0.825rem",
+                textDecoration: "none",
+                fontWeight: 600,
+                transition: "color 0.15s",
+                maxWidth: "340px",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "#3a95ad")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "#4eb1cb")}
             >
               Forgot password? Ask AI for help to retrieve your account.
             </Link>
