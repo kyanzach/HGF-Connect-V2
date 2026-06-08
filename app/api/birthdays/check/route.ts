@@ -161,6 +161,8 @@ export async function POST(request: Request) {
           message,
           verseRef: verse.ref,
           verseText: verse.text,
+          birthMonth: celebrant.birthdate ? new Date(celebrant.birthdate).getUTCMonth() + 1 : null,
+          birthDay: celebrant.birthdate ? new Date(celebrant.birthdate).getUTCDate() : null,
         };
 
         await db.post.create({

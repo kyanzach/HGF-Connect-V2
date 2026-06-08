@@ -12,6 +12,11 @@ import BirthdayCircle from "@/components/feed/BirthdayCircle";
 
 const PRIMARY = "#4EB1CB";
 
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
+
 function getYoutubeId(url: string | null | undefined): string | null {
   if (!url) return null;
   const match = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
@@ -337,6 +342,8 @@ export default function PostCard({ post }: PostCardProps) {
     message: string;
     verseRef: string;
     verseText: string;
+    birthMonth?: number;
+    birthDay?: number;
   } | null = null;
   if (post.type === "BIRTHDAY_DAILY" && post.content) {
     try {
@@ -344,6 +351,14 @@ export default function PostCard({ post }: PostCardProps) {
     } catch (e) {
       console.error("Failed to parse BIRTHDAY_DAILY content", e);
     }
+  }
+
+  let dailyBirthMonth = dailyData?.birthMonth;
+  let dailyBirthDay = dailyData?.birthDay;
+  if (post.type === "BIRTHDAY_DAILY" && !dailyBirthMonth && post.createdAt) {
+    const postDate = new Date(post.createdAt);
+    dailyBirthMonth = postDate.getMonth() + 1;
+    dailyBirthDay = postDate.getDate();
   }
 
   async function toggleLike() {
@@ -407,12 +422,20 @@ export default function PostCard({ post }: PostCardProps) {
             <button onClick={() => router.push(isQuizPost ? "/quiz/hub" : isBirthdayPost ? "/birthdays" : `/member/${post.author.id}`)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left" }}>
               <span style={{ fontWeight: 700, fontSize: "0.9rem", color: "#1e293b" }}>{authorName}</span>
             </button>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.375rem" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", flexWrap: "wrap" }}>
               <span style={{ fontSize: "0.7rem", color: "#94a3b8" }}>{timeAgo(post.createdAt)}</span>
               <span style={{ fontSize: "0.6rem", color: "#94a3b8" }}>·</span>
               <span style={{ fontSize: "0.6875rem", color: typeInfo.color, fontWeight: 600 }}>
                 {typeInfo.icon} {typeInfo.label}
               </span>
+              {post.type === "BIRTHDAY_DAILY" && dailyBirthMonth && (
+                <>
+                  <span style={{ fontSize: "0.6rem", color: "#94a3b8" }}>·</span>
+                  <span style={{ fontSize: "0.6875rem", color: "#f59e0b", fontWeight: 700 }}>
+                    🎂 {MONTH_NAMES[dailyBirthMonth - 1]} {dailyBirthDay}
+                  </span>
+                </>
+              )}
             </div>
           </div>
 

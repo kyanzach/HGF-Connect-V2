@@ -5,6 +5,14 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.7] — 2026-06-08
+### Added
+- **Birthdate on Daily Birthday Posts (s1)**: Configured the sub-header metadata for daily birthday posts to show the celebrant's birthdate next to "Happy Birthday" accompanied by a birthday cake emoji (e.g. `· 🎂 June 30`). Deployed backward-compatible fallback parsing the post creation date for older legacy posts.
+
+### Changed
+- **StewardShop Branding and Icons (s2)**: Replaced the outdated "Market" label and `🛍️` icon on the Feed page shortcuts list with "StewardShop" and the handshake `🤝` icon to align with the app's bottom navigation bar theme. Renamed "Marketplace" to "StewardShop" with `🤝` icon on public navigation links and the user dashboard page.
+- **Shortcuts Layout Order (s3)**: Reordered the scrollable shortcuts bar on the Feed page to place `Events`, `StewardShop`, `Directory`, and `Pray` next to `Write` in that exact sequence, keeping less-frequent shortcuts (`Grace Blog`, `Devo`, and `AI Helper`) at the end.
+
 ## [v2.22.6] — 2026-06-08
 ### Fixed
 - **Post Deletion Handler**: Created the backend API endpoint `app/api/posts/[id]/route.ts` to process `DELETE` requests for posts, fixing the issue where clicking "Delete Post" on feed items failed to delete them.
