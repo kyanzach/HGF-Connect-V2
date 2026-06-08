@@ -392,8 +392,8 @@ export default function PostCard({ post }: PostCardProps) {
         <div style={{ display: "flex", alignItems: "center", padding: "0.875rem 1rem 0.5rem", gap: "0.625rem" }}>
           {/* Avatar */}
           <button
-            onClick={() => router.push(isQuizPost ? "/quiz/hub" : `/member/${post.author.id}`)}
-            aria-label={isQuizPost ? "View Quiz Brand Hub" : `View ${authorName}'s profile`}
+            onClick={() => router.push(isQuizPost ? "/quiz/hub" : isBirthdayPost ? "/birthdays" : `/member/${post.author.id}`)}
+            aria-label={isQuizPost ? "View Quiz Brand Hub" : isBirthdayPost ? "View Birthdays Directory" : `View ${authorName}'s profile`}
             style={{ width: 40, height: 40, borderRadius: "50%", overflow: "hidden", flexShrink: 0, border: "none", padding: 0, cursor: "pointer", background: PRIMARY, display: "flex", alignItems: "center", justifyContent: "center" }}
           >
             {profilePic ? (
@@ -404,7 +404,7 @@ export default function PostCard({ post }: PostCardProps) {
           </button>
 
           <div style={{ flex: 1, minWidth: 0 }}>
-            <button onClick={() => router.push(isQuizPost ? "/quiz/hub" : `/member/${post.author.id}`)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left" }}>
+            <button onClick={() => router.push(isQuizPost ? "/quiz/hub" : isBirthdayPost ? "/birthdays" : `/member/${post.author.id}`)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left" }}>
               <span style={{ fontWeight: 700, fontSize: "0.9rem", color: "#1e293b" }}>{authorName}</span>
             </button>
             <div style={{ display: "flex", alignItems: "center", gap: "0.375rem" }}>
@@ -430,7 +430,7 @@ export default function PostCard({ post }: PostCardProps) {
             )}
             {menuOpen && (
               <div style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", background: "white", borderRadius: "12px", boxShadow: "0 4px 20px rgba(0,0,0,0.15)", minWidth: 160, zIndex: 11, overflow: "hidden" }}>
-                <button onClick={() => { setMenuOpen(false); router.push(isQuizPost ? "/quiz/hub" : `/member/${post.author.id}`); }} style={menuItemStyle}>👤 {isQuizPost ? "View Brand Hub" : "View Profile"}</button>
+                <button onClick={() => { setMenuOpen(false); router.push(isQuizPost ? "/quiz/hub" : isBirthdayPost ? "/birthdays" : `/member/${post.author.id}`); }} style={menuItemStyle}>👤 {isQuizPost ? "View Brand Hub" : isBirthdayPost ? "View Birthdays Page" : "View Profile"}</button>
                 <button onClick={() => { setMenuOpen(false); setCommentsOpen(true); }} style={menuItemStyle}>💬 View Comments</button>
                 {isOwnPost && post.type !== "EVENT" && !isQuizPost && <button onClick={handleDelete} style={{ ...menuItemStyle, color: "#ef4444" }}>🗑️ Delete Post</button>}
                 <button onClick={() => { setMenuOpen(false); handleShare(); }} style={menuItemStyle}>📤 Share Post</button>
@@ -565,15 +565,71 @@ export default function PostCard({ post }: PostCardProps) {
                     🎂 {monthlyData.month} Celebrants:
                   </h4>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "10px" }}>
-                    {monthlyData.celebrants.map((c: any) => (
-                      <div key={c.id} style={{ display: "flex", alignItems: "center", gap: "8px", background: "white", padding: "6px 10px", borderRadius: "8px", border: "1px solid #f1f5f9" }}>
-                        <span style={{ fontSize: "1.1rem" }}>🎂</span>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "#1e293b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</div>
-                          {c.birthDay && <span style={{ fontSize: "0.7rem", color: "#f59e0b", fontWeight: 700 }}>{monthlyData.month} {c.birthDay}</span>}
-                        </div>
-                      </div>
-                    ))}
+                    {monthlyData.celebrants.map((c: any) => {
+                      const initials = c.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
+                      return (
+                        <button
+                          key={c.id}
+                          onClick={() => router.push(`/member/${c.id}`)}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "10px",
+                            background: "white",
+                            padding: "8px 12px",
+                            borderRadius: "10px",
+                            border: "1px solid #f1f5f9",
+                            cursor: "pointer",
+                            textAlign: "left",
+                            boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+                            transition: "all 0.15s ease",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.borderColor = "#4EB1CB";
+                            e.currentTarget.style.transform = "translateY(-1px)";
+                            e.currentTarget.style.boxShadow = "0 4px 12px rgba(78,177,203,0.1)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.borderColor = "#f1f5f9";
+                            e.currentTarget.style.transform = "none";
+                            e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.02)";
+                          }}
+                        >
+                          <div style={{
+                            width: "28px",
+                            height: "28px",
+                            borderRadius: "50%",
+                            overflow: "hidden",
+                            background: PRIMARY,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexShrink: 0,
+                            fontSize: "0.75rem",
+                            fontWeight: 700,
+                            color: "white"
+                          }}>
+                            {c.profilePicture ? (
+                              <img
+                                src={c.profilePicture.startsWith("/") ? c.profilePicture : `/uploads/profile_pictures/${c.profilePicture}`}
+                                alt=""
+                                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                              />
+                            ) : (
+                              initials
+                            )}
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "#1e293b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</div>
+                            {c.birthDay && (
+                              <span style={{ fontSize: "0.7rem", color: "#f59e0b", fontWeight: 700 }}>
+                                {monthlyData.month} {c.birthDay}
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 

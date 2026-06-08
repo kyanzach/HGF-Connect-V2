@@ -33,6 +33,18 @@ export async function POST(request: Request) {
       ];
       const monthName = monthNames[currentMonth - 1];
 
+      // Prevent duplicate monthly posts (24-hour window)
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const existingMonthly = await db.post.findFirst({
+        where: {
+          type: "BIRTHDAY_MONTHLY",
+          createdAt: { gte: oneDayAgo }
+        }
+      });
+      if (existingMonthly) {
+        return NextResponse.json({ error: "A monthly birthday announcement post was already published within the last 24 hours. To avoid flooding the feed, please wait before posting again." }, { status: 400 });
+      }
+
       // Fetch active members
       const activeMembers = await db.member.findMany({
         where: { status: "active" },
@@ -125,6 +137,19 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Active member not found" }, { status: 404 });
       }
 
+      // Prevent duplicate daily posts for this member (24-hour window)
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const existingDaily = await db.post.findFirst({
+        where: {
+          type: "BIRTHDAY_DAILY",
+          createdAt: { gte: oneDayAgo },
+          content: { contains: `"memberId":${member.id}` }
+        }
+      });
+      if (existingDaily) {
+        return NextResponse.json({ error: `A daily birthday greeting for ${member.firstName} ${member.lastName} was already published within the last 24 hours.` }, { status: 400 });
+      }
+
       // Pick a deterministic verse based on the celebrant's ID
       const BIRTHDAY_VERSES = [
         { ref: "Psalm 139:13-14", text: "For you created my inmost being; you knit me together in my mother's womb. I praise you because I am fearfully and wonderfully made." },
@@ -139,7 +164,7 @@ export async function POST(request: Request) {
 
       const verse = BIRTHDAY_VERSES[member.id % BIRTHDAY_VERSES.length];
 
-      const message = `🎉 Happy Birthday to our beloved brother/sister in Christ, ${member.firstName} ${member.lastName}! 🎂🎈\n\nOn this special day, we praise God for the gift of your life and the unique blessing you are to our church community. May the Lord guide your steps, keep you in His perfect peace, and shower you with His abundant grace in this new year of your life.\n\nWe celebrate you today on behalf of your family here at House of Grace Fellowship! ❤️`;
+      const message = `🎉 Wishing a very Happy and Blessed Birthday to our dear ${member.firstName}! 🎂🎈\n\nOn this special day, we praise God for the gift of your life and the unique blessing you are to our church family. May the Lord guide your steps, keep you in His perfect peace, and shower you with His abundant grace in this new year of your life!\n\nWe celebrate you today on behalf of your family here at House of Grace Fellowship! ❤️`;
 
       let imagePath = null;
       if (member.profilePicture) {

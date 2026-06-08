@@ -95,8 +95,10 @@ export default function BirthdayAdminClient({ initialMembers }: { initialMembers
         type: "success",
         text: `🎉 Post created successfully! (Post ID: ${data.postId}). It is now live on the community feed.`
       });
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err: any) {
       setNotif({ type: "error", text: err.message || "An unexpected error occurred." });
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } finally {
       setLoading(null);
     }

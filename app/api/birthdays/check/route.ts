@@ -145,7 +145,7 @@ export async function POST(request: Request) {
         // Pick a deterministic verse based on the celebrant's ID
         const verse = BIRTHDAY_VERSES[celebrant.id % BIRTHDAY_VERSES.length];
 
-        const message = `🎉 Happy Birthday to our beloved brother/sister in Christ, ${celebrant.firstName} ${celebrant.lastName}! 🎂🎈\n\nOn this special day, we praise God for the gift of your life and the unique blessing you are to our church community. May the Lord guide your steps, keep you in His perfect peace, and shower you with His abundant grace in this new year of your life.\n\nWe celebrate you today on behalf of your family here at House of Grace Fellowship! ❤️`;
+        const message = `🎉 Wishing a very Happy and Blessed Birthday to our dear ${celebrant.firstName}! 🎂🎈\n\nOn this special day, we praise God for the gift of your life and the unique blessing you are to our church family. May the Lord guide your steps, keep you in His perfect peace, and shower you with His abundant grace in this new year of your life!\n\nWe celebrate you today on behalf of your family here at House of Grace Fellowship! ❤️`;
 
         let imagePath = null;
         if (celebrant.profilePicture) {

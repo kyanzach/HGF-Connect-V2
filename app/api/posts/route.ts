@@ -26,6 +26,8 @@ export async function GET(request: Request) {
     PostType.QUIZ_DAILY,
     PostType.QUIZ_ANNOUNCEMENT,
     PostType.EVENT,
+    PostType.BIRTHDAY_MONTHLY,
+    PostType.BIRTHDAY_DAILY,
   ];
 
   const where: any = {

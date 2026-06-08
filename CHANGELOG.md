@@ -5,6 +5,17 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.5] — 2026-06-08
+### Added
+- **Dedicated Public Birthdays Directory**: Created a public `/birthdays` page showing the animated rotating centerpiece and a structured monthly celebrants list.
+- **Clickable Feed Grid & Mini Avatars**: Redesigned the monthly birthday post celebrants grid so each member is clickable (navigating to their profile wall), and displays their customized mini avatar (with coverPhoto fallback) and birth date.
+- **Double Posting Prevention**: Implemented a 24-hour database cooldown check for both monthly and daily birthday demo posts to prevent accidental spamming from the control board.
+
+### Changed
+- **System Post Attribution**: Added birthday post types to `SYSTEM_POST_TYPES` to prevent them from showing up on the admin's personal profile wall.
+- **System Redirect**: Configured system post headers ("House of Grace Fellowship") to redirect clicks to `/birthdays` instead of the administrator's personal profile.
+- **Warm Greeting Wordings**: Updated birthday greeting templates to remove the clunky "brother/sister in Christ" phrasing, replacing it with a warmer "our dear [Name]" format.
+
 ## [v2.22.4] — 2026-06-08
 ### Added
 - **Premium Monthly Celebrants Feed Layout**: Redesigned the monthly feed post to display a warm celebration caption, an HGF monthly encouragement verse, the rotating CSS-animated orbit circle, a structured list grid of celebrants displaying their names and specific birth dates, and a signature sign-off.
