@@ -32,9 +32,9 @@ interface Post {
 const SHORTCUTS = [
   { icon: "✍️", label: "Write", href: "/feed/create", color: "#e0f2fe", iconBg: "#0ea5e9" },
   { icon: "📅", label: "Events", href: "/events", color: "#fef3c7", iconBg: "#f59e0b" },
+  { icon: "🙏", label: "Ask for Prayer", href: "/feed/create?tab=prayer", color: "#faf5ff", iconBg: "#a855f7" },
   { icon: "🤝", label: "StewardShop", href: "/stewardshop", color: "#f0f9ff", iconBg: PRIMARY },
   { icon: "👥", label: "Directory", href: "/directory", color: "#fce7f3", iconBg: "#ec4899" },
-  { icon: "🙏", label: "Pray", href: "/feed/create?tab=prayer", color: "#faf5ff", iconBg: "#a855f7" },
   { icon: "📝", label: "Grace Blog", href: "/grace-blog", color: "#e6fffa", iconBg: "#14b8a6" },
   { icon: "📖", label: "Devo", href: "/devo/new", color: "#e0fdf4", iconBg: "#10b981" },
   { icon: "💡", label: "AI Helper", href: "/ai", color: "#fff7ed", iconBg: "#f97316" },

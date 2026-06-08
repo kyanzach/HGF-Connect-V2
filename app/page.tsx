@@ -27,9 +27,9 @@ const DAILY_VERSES = [
 
 const APP_FEATURES = [
   { icon: "📅", label: "Events", desc: "RSVP & get reminders" },
+  { icon: "🙏", label: "Ask for Prayer", desc: "Pray for one another" },
   { icon: "🤝", label: "StewardShop", desc: "Livelihood & L.O.V.E." },
   { icon: "👥", label: "Directory", desc: "Find church members" },
-  { icon: "🙏", label: "Pray", desc: "Pray for one another" },
   { icon: "📝", label: "Grace Blog", desc: "Read HGF articles" },
   { icon: "📖", label: "Devo", desc: "Devotional guides" },
   { icon: "💡", label: "AI Helper", desc: "Church AI assistant" },

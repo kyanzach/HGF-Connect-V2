@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.19] — 2026-06-09
+### Changed
+- **Ask for Prayer Shortcut**: Renamed the "Pray" shortcut to "Ask for Prayer" on the feed page and public landing page, and moved it right next to "Events".
+- **Prayer Wall Dock Navigation**: Renamed the bottom navigation dock label from "Prayer" to "Prayer Wall".
+
 ## [v2.22.18] — 2026-06-09
 ### Added
 - **Multiple Photos in Prayer Requests**: Enabled up to 21 photo attachments for Prayer Requests (aligning with the Testimony tab). Attached photos are uploaded to the post uploads endpoint (`/api/posts/upload`), persisted via the new `PostPhoto` relation schema, and rendered in a clean horizontal scroll list on their card inside the community feed.
