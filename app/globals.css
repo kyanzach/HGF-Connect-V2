@@ -164,3 +164,9 @@ body {
   scrollbar-width: none;
 }
 
+/* Hide Bottom Dock when any modal is open to avoid overlays on mobile/PWA */
+body.hgf-modal-open .hgf-bottom-dock {
+  display: none !important;
+}
+
+

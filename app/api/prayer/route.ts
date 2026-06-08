@@ -3,14 +3,24 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 
 export async function GET(request: Request) {
+  const session = await auth();
   const { searchParams } = new URL(request.url);
   const tab = searchParams.get("tab") ?? "active"; // "active" | "answered"
+  const mine = searchParams.get("mine") === "true";
   const page = parseInt(searchParams.get("page") ?? "1");
   const limit = 20;
   const skip = (page - 1) * limit;
 
   try {
-    const where = { isAnswered: tab === "answered" };
+    const where: any = { isAnswered: tab === "answered" };
+    
+    if (mine) {
+      if (!session) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      where.authorId = parseInt(session.user.id);
+    }
+
     const [requests, total] = await Promise.all([
       db.prayerRequest.findMany({
         where,

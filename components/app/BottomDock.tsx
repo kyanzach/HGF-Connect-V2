@@ -30,6 +30,7 @@ export default function BottomDock() {
 
   return (
     <nav
+      className="hgf-bottom-dock"
       style={{
         position: "fixed",
         bottom: 0,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 
 interface PrayCommitModalProps {
   open: boolean;
@@ -19,6 +19,16 @@ export default function PrayCommitModal({
   authorName,
   requestText,
 }: PrayCommitModalProps) {
+  useEffect(() => {
+    if (open) {
+      document.body.classList.add("hgf-modal-open");
+    } else {
+      document.body.classList.remove("hgf-modal-open");
+    }
+    return () => {
+      document.body.classList.remove("hgf-modal-open");
+    };
+  }, [open]);
   const [recording, setRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);

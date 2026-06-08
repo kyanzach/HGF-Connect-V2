@@ -78,7 +78,7 @@ export default function HeroCarousel({ firstName }: HeroCarouselProps) {
             📖 Share Devo
           </Link>
           <Link
-            href="/prayer/new"
+            href="/prayer"
             style={{
               background: "rgba(255,255,255,0.18)", color: "white", padding: "0.45rem 1rem",
               borderRadius: "999px", fontSize: "0.8rem", fontWeight: 600, textDecoration: "none",

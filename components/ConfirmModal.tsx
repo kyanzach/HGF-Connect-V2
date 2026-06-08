@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useEffect } from "react";
 
 const P = "#4EB1CB";
 
@@ -26,6 +26,17 @@ export default function ConfirmModal({
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
+  useEffect(() => {
+    if (open) {
+      document.body.classList.add("hgf-modal-open");
+    } else {
+      document.body.classList.remove("hgf-modal-open");
+    }
+    return () => {
+      document.body.classList.remove("hgf-modal-open");
+    };
+  }, [open]);
+
   if (!open) return null;
 
   return (

@@ -5,6 +5,14 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.20] — 2026-06-09
+### Added
+- **My Prayer Requests View**: Created a private personal prayer requests tab (`/prayer?mine=true`) accessible via the Avatar dropdown menu. Enabled inline text editing and request deletion (using custom `ConfirmModal`). Added status toggle to mark personal requests as active or answered.
+- **Avoid Bottom Dock Obscurity**: Implemented the global body-class rule `body.hgf-modal-open .hgf-bottom-dock { display: none !important; }` to hide the bottom navigation dock when any modal (`PrayCommitModal` or `ConfirmModal`) is open, preventing navigation controls from overlapping on mobile screens.
+
+### Changed
+- **Pray Hero Button Redirect**: Redirected the "🙏 Pray" spotlight action button inside the home `HeroCarousel` directly to the `/prayer` wall page.
+
 ## [v2.22.19] — 2026-06-09
 ### Changed
 - **Ask for Prayer Shortcut**: Renamed the "Pray" shortcut to "Ask for Prayer" on the feed page and public landing page, and moved it right next to "Events".

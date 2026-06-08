@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import PrayCommitModal from "@/components/prayer/PrayCommitModal";
+import ConfirmModal from "@/components/ConfirmModal";
 
 const PRIMARY = "#4EB1CB";
 
@@ -24,29 +26,114 @@ function timeAgo(d: string) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-export default function PrayerWallPage() {
+function PrayerWallContent() {
   const { data: session } = useSession();
   const currentUserId = session?.user?.id ? parseInt(session.user.id) : null;
+  const searchParams = useSearchParams();
+  const mine = searchParams.get("mine") === "true";
+
   const [tab, setTab] = useState<"active" | "answered">("active");
   const [requests, setRequests] = useState<PrayerRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Modal state
+  // Edit State
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingText, setEditingText] = useState("");
+  const [savingId, setSavingId] = useState<number | null>(null);
+
+  // Deletion Modal State
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [requestToDelete, setRequestToDelete] = useState<PrayerRequest | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  // Pray Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<PrayerRequest | null>(null);
 
   const load = useCallback(async (t: "active" | "answered") => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/prayer?tab=${t}`);
+      const res = await fetch(`/api/prayer?tab=${t}${mine ? "&mine=true" : ""}`);
       const data = await res.json();
       setRequests(data.requests ?? []);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [mine]);
 
-  useEffect(() => { load(tab); }, [tab, load]);
+  useEffect(() => {
+    load(tab);
+  }, [tab, load]);
+
+  // Handle marking request as answered / active toggle
+  async function handleToggleAnswered(req: PrayerRequest) {
+    try {
+      const newStatus = !req.isAnswered;
+      const res = await fetch(`/api/prayer/${req.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isAnswered: newStatus }),
+      });
+      if (res.ok) {
+        // Remove from list since the tab switched
+        setRequests((prev) => prev.filter((r) => r.id !== req.id));
+      } else {
+        alert("Failed to update status.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred.");
+    }
+  }
+
+  // Handle saving the updated request text
+  async function handleSaveEdit(id: number) {
+    if (!editingText.trim()) return;
+    setSavingId(id);
+    try {
+      const res = await fetch(`/api/prayer/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ request: editingText }),
+      });
+      if (res.ok) {
+        setRequests((prev) =>
+          prev.map((r) => (r.id === id ? { ...r, request: editingText } : r))
+        );
+        setEditingId(null);
+      } else {
+        alert("Failed to save changes.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred.");
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  // Handle deleting the request
+  async function handleDeleteConfirm() {
+    if (!requestToDelete) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/prayer/${requestToDelete.id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setRequests((prev) => prev.filter((r) => r.id !== requestToDelete.id));
+        setDeleteConfirmOpen(false);
+        setRequestToDelete(null);
+      } else {
+        alert("Failed to delete request.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred.");
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   function openPrayModal(req: PrayerRequest) {
     setSelectedRequest(req);
@@ -77,9 +164,11 @@ export default function PrayerWallPage() {
         }}
       >
         <div style={{ fontSize: "2.5rem", marginBottom: "0.25rem" }}>🙏</div>
-        <h1 style={{ fontSize: "1.125rem", fontWeight: 800, margin: "0 0 0.25rem" }}>Prayer Wall</h1>
+        <h1 style={{ fontSize: "1.125rem", fontWeight: 800, margin: "0 0 0.25rem" }}>
+          {mine ? "My Prayer Requests" : "Prayer Wall"}
+        </h1>
         <p style={{ fontSize: "0.8rem", opacity: 0.85, margin: 0 }}>
-          Stand together in prayer for one another
+          {mine ? "Manage your personal active and answered prayer requests" : "Stand together in prayer for one another"}
         </p>
         <Link
           href="/prayer/new"
@@ -152,90 +241,191 @@ export default function PrayerWallPage() {
           <div style={{ textAlign: "center", padding: "3rem 1rem", color: "#94a3b8" }}>
             <div style={{ fontSize: "3rem", marginBottom: "0.5rem" }}>🙏</div>
             <p style={{ fontSize: "0.9rem" }}>
-              {tab === "active" ? "No active prayer requests. Be the first to share!" : "No answered prayers yet. Keep praying!"}
+              {mine
+                ? (tab === "active" ? "You have no active prayer requests." : "You have no answered prayer requests yet.")
+                : (tab === "active" ? "No active prayer requests. Be the first to share!" : "No answered prayers yet. Keep praying!")
+              }
             </p>
           </div>
         ) : (
-          requests.map((req) => (
-            <div
-              key={req.id}
-              style={{
-                background: "white",
-                borderRadius: "16px",
-                marginBottom: "0.75rem",
-                padding: "1rem",
-                boxShadow: "0 1px 4px rgba(0,0,0,0.07)",
-              }}
-            >
-              {/* Author + time */}
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.625rem" }}>
-                {req.author.profilePicture ? (
-                  <img
-                    src={`/uploads/profile_pictures/${req.author.profilePicture}`}
-                    alt=""
-                    style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
-                  />
+          requests.map((req) => {
+            const isMine = currentUserId !== null && req.author.id === currentUserId;
+            const isEditing = editingId === req.id;
+
+            return (
+              <div
+                key={req.id}
+                style={{
+                  background: "white",
+                  borderRadius: "16px",
+                  marginBottom: "0.75rem",
+                  padding: "1rem",
+                  boxShadow: "0 1px 4px rgba(0,0,0,0.07)",
+                }}
+              >
+                {/* Author + time */}
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.625rem" }}>
+                  {req.author.profilePicture ? (
+                    <img
+                      src={`/uploads/profile_pictures/${req.author.profilePicture}`}
+                      alt=""
+                      style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
+                    />
+                  ) : (
+                    <div
+                      style={{
+                        width: 32, height: 32, borderRadius: "50%", background: "#a855f7",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        color: "white", fontSize: "0.8rem", fontWeight: 700, flexShrink: 0,
+                      }}
+                    >
+                      {req.author.firstName[0]}{req.author.lastName[0]}
+                    </div>
+                  )}
+                  <div>
+                    <span style={{ fontWeight: 700, fontSize: "0.875rem", color: "#1e293b" }}>
+                      {req.author.firstName} {req.author.lastName}
+                    </span>
+                    <span style={{ fontSize: "0.7rem", color: "#94a3b8", marginLeft: "0.5rem" }}>
+                      {timeAgo(req.createdAt)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Prayer request text or editor */}
+                {isEditing ? (
+                  <div style={{ marginBottom: "0.75rem" }}>
+                    <textarea
+                      value={editingText}
+                      onChange={(e) => setEditingText(e.target.value)}
+                      rows={3}
+                      style={{
+                        width: "100%",
+                        border: "1.5px solid #a855f7",
+                        borderRadius: "10px",
+                        padding: "0.625rem",
+                        fontSize: "0.9rem",
+                        fontFamily: "inherit",
+                        resize: "none",
+                        boxSizing: "border-box",
+                        outline: "none",
+                      }}
+                    />
+                    <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
+                      <button
+                        onClick={() => handleSaveEdit(req.id)}
+                        disabled={savingId === req.id}
+                        style={{
+                          padding: "0.45rem 1rem",
+                          background: PRIMARY,
+                          color: "white",
+                          border: "none",
+                          borderRadius: "8px",
+                          fontSize: "0.8rem",
+                          fontWeight: 700,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {savingId === req.id ? "Saving..." : "💾 Save"}
+                      </button>
+                      <button
+                        onClick={() => setEditingId(null)}
+                        disabled={savingId === req.id}
+                        style={{
+                          padding: "0.45rem 1rem",
+                          background: "#f1f5f9",
+                          color: "#475569",
+                          border: "1px solid #e2e8f0",
+                          borderRadius: "8px",
+                          fontSize: "0.8rem",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
                 ) : (
-                  <div
+                  <p style={{ fontSize: "0.9rem", color: "#334155", lineHeight: 1.65, margin: "0 0 0.75rem", whiteSpace: "pre-line" }}>
+                    {req.request}
+                  </p>
+                )}
+
+                {/* Actions */}
+                <div style={{ display: "flex", gap: "0.625rem", alignItems: "center", flexWrap: "wrap" }}>
+                  {isMine ? (
+                    <>
+                      {/* Flag as Answered/Active Toggle */}
+                      <button
+                        onClick={() => handleToggleAnswered(req)}
+                        style={{
+                          display: "flex", alignItems: "center", gap: "0.375rem",
+                          padding: "0.45rem 0.875rem", background: req.isAnswered ? "#f1f5f9" : "#f0fdf4",
+                          border: `1px solid ${req.isAnswered ? "#cbd5e1" : "#bbf7d0"}`, borderRadius: "999px",
+                          fontSize: "0.8125rem", color: req.isAnswered ? "#475569" : "#16a34a",
+                          fontWeight: 600, cursor: "pointer",
+                        }}
+                      >
+                        {req.isAnswered ? "🔴 Active" : "🎉 Mark Answered"}
+                      </button>
+
+                      {/* Edit Button */}
+                      {!isEditing && (
+                        <button
+                          onClick={() => { setEditingId(req.id); setEditingText(req.request); }}
+                          style={{
+                            display: "flex", alignItems: "center", gap: "0.375rem",
+                            padding: "0.45rem 0.875rem", background: "#fef8e7",
+                            border: "1px solid #fde68a", borderRadius: "999px",
+                            fontSize: "0.8125rem", color: "#d97706",
+                            fontWeight: 600, cursor: "pointer",
+                          }}
+                        >
+                          ✏️ Edit
+                        </button>
+                      )}
+
+                      {/* Delete Button */}
+                      <button
+                        onClick={() => { setRequestToDelete(req); setDeleteConfirmOpen(true); }}
+                        style={{
+                          display: "flex", alignItems: "center", gap: "0.375rem",
+                          padding: "0.45rem 0.875rem", background: "#fef2f2",
+                          border: "1px solid #fecaca", borderRadius: "999px",
+                          fontSize: "0.8125rem", color: "#dc2626",
+                          fontWeight: 600, cursor: "pointer",
+                        }}
+                      >
+                        🗑️ Delete
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => openPrayModal(req)}
+                      style={{
+                        display: "flex", alignItems: "center", gap: "0.375rem",
+                        padding: "0.45rem 0.875rem", background: "#f5f3ff",
+                        border: "1px solid #e9d5ff", borderRadius: "999px",
+                        fontSize: "0.8125rem", color: "#7c3aed", fontWeight: 600, cursor: "pointer",
+                      }}
+                    >
+                      🙏 Pray {req.prayerCount > 0 && `· ${req.prayerCount}`}
+                    </button>
+                  )}
+                  <Link
+                    href={`/prayer/${req.id}`}
                     style={{
-                      width: 32, height: 32, borderRadius: "50%", background: "#a855f7",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      color: "white", fontSize: "0.8rem", fontWeight: 700, flexShrink: 0,
+                      fontSize: "0.75rem", color: "#7c3aed",
+                      textDecoration: "none", fontWeight: 500,
                     }}
                   >
-                    {req.author.firstName[0]}{req.author.lastName[0]}
-                  </div>
-                )}
-                <div>
-                  <span style={{ fontWeight: 700, fontSize: "0.875rem", color: "#1e293b" }}>
-                    {req.author.firstName} {req.author.lastName}
-                  </span>
-                  <span style={{ fontSize: "0.7rem", color: "#94a3b8", marginLeft: "0.5rem" }}>
-                    {timeAgo(req.createdAt)}
-                  </span>
+                    💬 {req._count.responses} responses →
+                  </Link>
                 </div>
               </div>
-
-              {/* Prayer request text */}
-              <p style={{ fontSize: "0.9rem", color: "#334155", lineHeight: 1.65, margin: "0 0 0.75rem", whiteSpace: "pre-line" }}>
-                {req.request}
-              </p>
-
-              {/* Actions */}
-              <div style={{ display: "flex", gap: "0.625rem", alignItems: "center" }}>
-                {currentUserId !== null && req.author.id === currentUserId ? (
-                  <span style={{
-                    display: "flex", alignItems: "center", gap: "0.375rem",
-                    padding: "0.45rem 0.875rem", background: "#f1f5f9",
-                    borderRadius: "999px", fontSize: "0.8125rem", color: "#94a3b8", fontWeight: 600,
-                  }}>
-                    ✏️ Your Request
-                  </span>
-                ) : (
-                  <button
-                    onClick={() => openPrayModal(req)}
-                    style={{
-                      display: "flex", alignItems: "center", gap: "0.375rem",
-                      padding: "0.45rem 0.875rem", background: "#f5f3ff",
-                      border: "1px solid #e9d5ff", borderRadius: "999px",
-                      fontSize: "0.8125rem", color: "#7c3aed", fontWeight: 600, cursor: "pointer",
-                    }}
-                  >
-                    🙏 Pray {req.prayerCount > 0 && `· ${req.prayerCount}`}
-                  </button>
-                )}
-                <Link
-                  href={`/prayer/${req.id}`}
-                  style={{
-                    fontSize: "0.75rem", color: "#7c3aed",
-                    textDecoration: "none", fontWeight: 500,
-                  }}
-                >
-                  💬 {req._count.responses} responses →
-                </Link>
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
@@ -251,9 +441,31 @@ export default function PrayerWallPage() {
         />
       )}
 
+      {/* Delete Confirmation Modal */}
+      {requestToDelete && (
+        <ConfirmModal
+          open={deleteConfirmOpen}
+          title="Delete Prayer Request"
+          message="Are you sure you want to permanently delete this prayer request? This action cannot be undone."
+          confirmLabel="Delete"
+          confirmColor="#ef4444"
+          loading={deleting}
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => { setDeleteConfirmOpen(false); setRequestToDelete(null); }}
+        />
+      )}
+
       <style>{`
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
       `}</style>
     </div>
+  );
+}
+
+export default function PrayerWallPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: "2rem", textAlign: "center" }}>Loading page...</div>}>
+      <PrayerWallContent />
+    </Suspense>
   );
 }

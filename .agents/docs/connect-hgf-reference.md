@@ -213,3 +213,15 @@ When a page crashes or shows errors:
   - Deployed database schema updates on the remote server using `npx prisma db push --accept-data-loss` loading production configuration from `.env.production`.
   - Configured standalone daily quiz publisher cron task (`scripts/quiz-cron.mjs`) on server crontab (6:00 AM Manila time).
 
+### 2026-06-09
+- **Avoid Modal Obscurity by Bottom Dock on Mobile/PWA (v2.22.20)**:
+  - **Issue**: Any bottom-aligned modal or modal sheet rendered inside page content (`children` of `<main>`) can be overlayed or obscured by the fixed `BottomDock` navigation on mobile devices due to the `<main>` container introducing a separate local stacking context (e.g. via `overflowY: auto`).
+  - **Strict Rule**: Always toggle the `hgf-modal-open` class on `document.body` when a modal or dialog mounts/opens and clean it up on unmount/close.
+  - **Global Stylesheet Integration**: The global stylesheet (`app/globals.css`) defines:
+    ```css
+    body.hgf-modal-open .hgf-bottom-dock {
+      display: none !important;
+    }
+    ```
+    This instantly hides the bottom dock whenever a modal is active, ensuring perfect UX on mobile screens.
+
