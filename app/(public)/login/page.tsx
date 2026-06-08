@@ -256,6 +256,15 @@ export default function LoginPage() {
             />
           </div>
 
+          <div style={{ textAlign: "right", marginTop: "-0.5rem", marginBottom: "0.25rem" }}>
+            <Link
+              href="/login/ai-help"
+              style={{ color: "#4eb1cb", fontSize: "0.8rem", textDecoration: "none", fontWeight: 600 }}
+            >
+              Forgot password? Ask AI for help to retrieve your account.
+            </Link>
+          </div>
+
           <button
             type="submit"
             disabled={loading}

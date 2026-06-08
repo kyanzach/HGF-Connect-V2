@@ -19,10 +19,12 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     where: { id: parseInt(id) },
     select: {
       title: true, description: true, ogPrice: true, discountedPrice: true,
+      isPrivate: true,
       photos: { take: 1, select: { photoPath: true } },
     },
   });
   if (!listing) return { title: "Listing Not Found" };
+  if (listing.isPrivate) return { title: "Private Listing | StewardShop" };
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://connect.houseofgrace.ph";
   const imageUrl = listing.photos[0]
@@ -81,6 +83,16 @@ export default async function ListingDetailPage({ params, searchParams }: Props)
   });
 
   if (!listing || (listing.status !== "active" && listing.status !== "sold")) notFound();
+
+  // Authorization check for private listings
+  const session = await auth();
+  const isOwner = session?.user?.id ? parseInt(session.user.id) === listing.seller.id : false;
+  const isModerator = ["admin", "moderator"].includes(session?.user?.role ?? "");
+
+  if (listing.isPrivate && !isOwner && !isModerator) {
+    notFound();
+  }
+
   const isSold = listing.status === "sold";
 
   // ── Unique view count (IP-based, 24h window) ─────────────────────────────
@@ -120,8 +132,6 @@ export default async function ListingDetailPage({ params, searchParams }: Props)
   }
 
   // Check if current user is the seller (to hide share button for own listings)
-  const session = await auth();
-  const isOwner = session?.user?.id ? parseInt(session.user.id) === listing.seller.id : false;
   const isLoggedIn = !!session?.user;
 
   // ── Self-referral guard: strip ref if sharer === current user ──────────────
@@ -154,6 +164,8 @@ export default async function ListingDetailPage({ params, searchParams }: Props)
     loveGiftAmount: Number(listing.loveGiftAmount ?? 0),
     viewCount: listing.viewCount,
     createdAt: listing.createdAt.toISOString(),
+    isPrivate: listing.isPrivate,
+    moderationReason: listing.moderationReason,
     photos: listing.photos.map((p) => ({ photoPath: p.photoPath })),
     seller: {
       id: listing.seller.id,

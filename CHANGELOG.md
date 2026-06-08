@@ -5,6 +5,12 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.12] — 2026-06-08
+### Added
+- **AI Account Recovery (`/login/ai-help`)**: Implemented step-by-step account recovery flow using first name, last name, birthdate, and optional mobile number. Generates high-priority SMS OTP, resets password to `"Godisgood"`, and transactionally merges duplicate accounts (moving posts, likes, comments, group memberships, and other data) without deleting user contributions.
+- **StewardShop Admin Moderation**: Created a listing moderation dashboard at `/admin/stewardshop` allowing admins/pastors to flag inappropriate listings, toggle private mode, add custom moderation reason tags, and manage member verification badges directly.
+- **Sermon Quiz Date Corrections & Backfill**: Database backfill shifting the weekly sermon quiz dates and system posts from May 31, 2026, to May 17, 2026.
+
 ## [v2.22.11] — 2026-06-08
 ### Changed
 - **Landing Page Features (s1-s3)**: Aligned the "What's in the App" list items (icons, labels, and order) on the public landing page (`app/page.tsx`) with the updated `/feed` shortcuts. Added `StewardShop` with the handshake (`🤝`) icon and ordered sections correctly.

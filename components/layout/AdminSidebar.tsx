@@ -15,6 +15,7 @@ const NAV = [
   { label: "Custom SMS", href: "/admin/send-sms", icon: "📱" },
   { label: "SMS Logs", href: "/admin/sms", icon: "📋" },
   { label: "Review", href: "/admin/review", icon: "✅" },
+  { label: "StewardShop", href: "/admin/stewardshop", icon: "🤝" },
   { label: "AI Settings", href: "/admin/church-settings", icon: "⚙️" },
   { label: "Users", href: "/admin/users", icon: "🔑", adminOnly: true },
   { label: "Birthdays", href: "/admin/birthdays", icon: "🎂", usherAllowed: true },

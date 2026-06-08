@@ -17,8 +17,35 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: "Password", type: "password" },
         memberId: { label: "Member ID", type: "text" },
         biometricVerified: { label: "Biometric Verified", type: "text" },
+        otpVerified: { label: "OTP Verified", type: "text" },
       },
       async authorize(credentials) {
+        // ── OTP Verified path ──────────────────────────────────────────────────
+        // Triggered after successful account recovery / OTP verification.
+        if (credentials?.otpVerified === "true" && credentials?.memberId) {
+          const member = await db.member.findUnique({
+            where: { id: Number(credentials.memberId) },
+          });
+          if (!member) return null;
+
+          await db.member.update({
+            where: { id: member.id },
+            data: { lastLogin: new Date() },
+          });
+
+          return {
+            id: String(member.id),
+            name: `${member.firstName} ${member.lastName}`,
+            email: member.email,
+            role: member.role,
+            status: member.status,
+            firstName: member.firstName,
+            lastName: member.lastName,
+            username: member.username,
+            profilePicture: member.profilePicture,
+          };
+        }
+
         // ── Biometric (WebAuthn) path ─────────────────────────────────────────
         // The login page sends biometricVerified:"true" + memberId after a
         // successful WebAuthn assertion. We trust it because the API route

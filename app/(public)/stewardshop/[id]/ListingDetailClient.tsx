@@ -134,6 +134,7 @@ interface ListingData {
   priceLabel: string | null; conditionType: string | null;
   locationArea: string | null; loveGiftAmount: number;
   viewCount: number; createdAt: string;
+  isPrivate?: boolean; moderationReason?: string | null;
   photos: { photoPath: string }[];
   seller: { id: number; firstName: string; lastName: string; profilePicture: string | null; isVerified: boolean; mobileNumber: string | null };
   isOwner: boolean; isLoggedIn: boolean; isSold?: boolean; shareToken: string | null;
@@ -446,6 +447,25 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
         ref={containerRef}
         style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 9999, overflow: "hidden" }}
       />
+
+      {listing.isPrivate && (
+        <div style={{ background: "#fef2f2", borderBottom: "1.5px solid #fca5a5", padding: "1rem", color: "#b91c1c", fontSize: "0.85rem", lineHeight: 1.5 }}>
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "flex-start" }}>
+            <span style={{ fontSize: "1.1rem" }}>⚠️</span>
+            <div>
+              <div style={{ fontWeight: 800 }}>This listing has been set to Private by church administrators.</div>
+              <p style={{ marginTop: "0.25rem", opacity: 0.9 }}>
+                Only you can see this listing now. Please edit and correct any issues.
+              </p>
+              {listing.moderationReason && (
+                <div style={{ marginTop: "0.5rem", padding: "0.5rem", background: "white", borderRadius: "6px", border: "1px solid #fee2e2", fontSize: "0.8rem", color: "#ef4444", fontWeight: 600 }}>
+                  Reason: {listing.moderationReason}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Back nav */}
       <div style={{ padding: "0.75rem 1rem", background: "white", borderBottom: "1px solid #f1f5f9" }}>

@@ -119,6 +119,7 @@ model Member {
   quizCreated           SermonQuiz[]         @relation("QuizCreator")
   quizSubmissions       QuizSubmission[]     @relation("QuizSubmissions")
   quizRewards           QuizReward[]         @relation("QuizRewards")
+  recoveryCodes         AccountRecoveryCode[]
 
   @@index([invitedBy], name: "idx_referred_by")
   @@index([ageGroup], name: "idx_age_group")
@@ -404,6 +405,8 @@ model MarketplaceListing {
   expiresAt       DateTime?              @map("expires_at") @db.Date
   soldAt          DateTime?              @map("sold_at")
   soldProspectId  Int?                   @unique @map("sold_prospect_id")
+  isPrivate       Boolean                @default(false) @map("is_private")
+  moderationReason String?               @map("moderation_reason") @db.Text
   createdAt       DateTime               @default(now()) @map("created_at")
   updatedAt       DateTime               @updatedAt @map("updated_at")
 
@@ -1189,5 +1192,20 @@ model ChurchSetting {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("church_settings")
+}
+
+model AccountRecoveryCode {
+  id        Int      @id @default(autoincrement())
+  memberId  Int      @map("member_id")
+  code      String   @db.VarChar(10)
+  phone     String   @db.VarChar(20)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId], name: "idx_member_id")
+  @@index([code], name: "idx_code")
+  @@map("account_recovery_codes")
 }
 

@@ -49,7 +49,7 @@ export default async function MarketplaceSSRPage({
   const maxPrice = sp.maxPrice ? parseFloat(sp.maxPrice) : undefined;
 
   // Build the where clause
-  const where: any = { status: "active" };
+  const where: any = { status: "active", isPrivate: false };
   if (listingType) where.listingType = listingType;
 
   // Search: title, description, category, area
