@@ -127,6 +127,7 @@ export default function PostCard({ post }: PostCardProps) {
     title: string;
     message: string | React.ReactNode;
   }>({ open: false, title: "", message: "" });
+  const [celebrantsExpanded, setCelebrantsExpanded] = useState(false);
 
   function extractYoutubeIdFromThumbnail(url: string | null | undefined): string | null {
     if (!url) return null;
@@ -335,6 +336,9 @@ export default function PostCard({ post }: PostCardProps) {
   if (post.type === "BIRTHDAY_MONTHLY" && post.content) {
     try {
       monthlyData = JSON.parse(post.content);
+      if (monthlyData && Array.isArray(monthlyData.celebrants)) {
+        monthlyData.celebrants = [...monthlyData.celebrants].sort((a, b) => (a.birthDay || 0) - (b.birthDay || 0));
+      }
     } catch (e) {
       console.error("Failed to parse BIRTHDAY_MONTHLY content", e);
     }
@@ -587,78 +591,150 @@ export default function PostCard({ post }: PostCardProps) {
                   border: "1px solid #e2e8f0",
                   borderRadius: "12px",
                   padding: "1rem",
-                  boxSizing: "border-box"
+                  boxSizing: "border-box",
+                  position: "relative",
                 }}>
                   <h4 style={{ margin: "0 0 10px 0", fontSize: "0.82rem", fontWeight: 800, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                     🎂 {monthlyData.month} Celebrants:
                   </h4>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "10px" }}>
-                    {monthlyData.celebrants.map((c: any) => {
-                      const initials = c.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
-                      return (
+                  <div style={{
+                    position: "relative",
+                    overflow: "hidden",
+                    paddingBottom: (monthlyData.celebrants.length > 7 && !celebrantsExpanded) ? "20px" : "0",
+                  }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "10px" }}>
+                      {(celebrantsExpanded ? monthlyData.celebrants : monthlyData.celebrants.slice(0, 10)).map((c: any) => {
+                        const initials = c.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
+                        return (
+                          <button
+                            key={c.id}
+                            onClick={() => router.push(`/member/${c.id}`)}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "10px",
+                              background: "white",
+                              padding: "8px 12px",
+                              borderRadius: "10px",
+                              border: "1px solid #f1f5f9",
+                              cursor: "pointer",
+                              textAlign: "left",
+                              boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+                              transition: "all 0.15s ease",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.borderColor = "#4EB1CB";
+                              e.currentTarget.style.transform = "translateY(-1px)";
+                              e.currentTarget.style.boxShadow = "0 4px 12px rgba(78,177,203,0.1)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.borderColor = "#f1f5f9";
+                              e.currentTarget.style.transform = "none";
+                              e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.02)";
+                            }}
+                          >
+                            <div style={{
+                              width: "28px",
+                              height: "28px",
+                              borderRadius: "50%",
+                              overflow: "hidden",
+                              background: PRIMARY,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              flexShrink: 0,
+                              fontSize: "0.75rem",
+                              fontWeight: 700,
+                              color: "white"
+                            }}>
+                              {c.profilePicture ? (
+                                <img
+                                  src={c.profilePicture.startsWith("/") ? c.profilePicture : `/uploads/profile_pictures/${c.profilePicture}`}
+                                  alt=""
+                                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                />
+                              ) : (
+                                initials
+                              )}
+                            </div>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "#1e293b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</div>
+                              {c.birthDay && (
+                                <span style={{ fontSize: "0.7rem", color: "#f59e0b", fontWeight: 700 }}>
+                                  {monthlyData.month} {c.birthDay}
+                                </span>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Gradient solid white/grey overlay for View More */}
+                    {(monthlyData.celebrants.length > 7 && !celebrantsExpanded) && (
+                      <div style={{
+                        position: "absolute",
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        height: "100px",
+                        background: "linear-gradient(to bottom, rgba(248, 250, 252, 0) 0%, rgba(248, 250, 252, 0.7) 40%, rgba(248, 250, 252, 1) 90%)",
+                        display: "flex",
+                        alignItems: "flex-end",
+                        justifyContent: "center",
+                        paddingBottom: "4px",
+                        pointerEvents: "none",
+                      }}>
                         <button
-                          key={c.id}
-                          onClick={() => router.push(`/member/${c.id}`)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCelebrantsExpanded(true);
+                          }}
                           style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "10px",
                             background: "white",
-                            padding: "8px 12px",
-                            borderRadius: "10px",
-                            border: "1px solid #f1f5f9",
+                            border: "1px solid #e2e8f0",
+                            borderRadius: "999px",
+                            padding: "6px 16px",
+                            fontSize: "0.75rem",
+                            fontWeight: 800,
+                            color: "#475569",
+                            boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
                             cursor: "pointer",
-                            textAlign: "left",
-                            boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
-                            transition: "all 0.15s ease",
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.borderColor = "#4EB1CB";
-                            e.currentTarget.style.transform = "translateY(-1px)";
-                            e.currentTarget.style.boxShadow = "0 4px 12px rgba(78,177,203,0.1)";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.borderColor = "#f1f5f9";
-                            e.currentTarget.style.transform = "none";
-                            e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.02)";
+                            pointerEvents: "auto",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px",
+                            fontFamily: "inherit",
                           }}
                         >
-                          <div style={{
-                            width: "28px",
-                            height: "28px",
-                            borderRadius: "50%",
-                            overflow: "hidden",
-                            background: PRIMARY,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            flexShrink: 0,
-                            fontSize: "0.75rem",
-                            fontWeight: 700,
-                            color: "white"
-                          }}>
-                            {c.profilePicture ? (
-                              <img
-                                src={c.profilePicture.startsWith("/") ? c.profilePicture : `/uploads/profile_pictures/${c.profilePicture}`}
-                                alt=""
-                                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                              />
-                            ) : (
-                              initials
-                            )}
-                          </div>
-                          <div style={{ minWidth: 0 }}>
-                            <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "#1e293b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</div>
-                            {c.birthDay && (
-                              <span style={{ fontSize: "0.7rem", color: "#f59e0b", fontWeight: 700 }}>
-                                {monthlyData.month} {c.birthDay}
-                              </span>
-                            )}
-                          </div>
+                          View More ({monthlyData.celebrants.length - 7} more) ▾
                         </button>
-                      );
-                    })}
+                      </div>
+                    )}
                   </div>
+
+                  {celebrantsExpanded && monthlyData.celebrants.length > 7 && (
+                    <div style={{ display: "flex", justifyContent: "center", marginTop: "12px" }}>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCelebrantsExpanded(false);
+                        }}
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          fontSize: "0.75rem",
+                          fontWeight: 700,
+                          color: "#94a3b8",
+                          cursor: "pointer",
+                          padding: "4px 12px",
+                          fontFamily: "inherit",
+                        }}
+                      >
+                        Show Less ▴
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Closing caption */}

@@ -1,6 +1,5 @@
 "use client";
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface Celebrant {
   id: number;
@@ -17,6 +16,76 @@ const PRIMARY = "#4EB1CB";
 
 export default function BirthdayCircle({ month, celebrants }: BirthdayCircleProps) {
   const [activeCelebrant, setActiveCelebrant] = useState<Celebrant | null>(null);
+  const [particles, setParticles] = useState<{ id: number; style: React.CSSProperties; content: string }[]>([]);
+
+  useEffect(() => {
+    const newParticles = [];
+    const emojis = ["🎈", "🥳", "🎉", "🎁", "✨", "🍰"];
+    const colors = ["#4EB1CB", "#FFD700", "#FF6B6B", "#48BB78", "#9F7AEA", "#F687B3", "#ef4444", "#3b82f6"];
+
+    // Confetti falling
+    for (let i = 0; i < 20; i++) {
+      const left = Math.random() * 100;
+      const delay = Math.random() * 5;
+      const duration = 3 + Math.random() * 3;
+      const size = 5 + Math.random() * 5;
+      const isRound = Math.random() > 0.5;
+      const color = colors[Math.floor(Math.random() * colors.length)];
+
+      newParticles.push({
+        id: i,
+        content: "",
+        style: {
+          position: "absolute" as const,
+          left: `${left}%`,
+          top: -20,
+          width: `${size}px`,
+          height: isRound ? `${size}px` : `${size * 1.5}px`,
+          borderRadius: isRound ? "50%" : "2px",
+          background: color,
+          animationName: "hgf-confetti-fall",
+          animationDuration: `${duration}s`,
+          animationDelay: `${delay}s`,
+          animationIterationCount: "infinite",
+          animationTimingFunction: "linear",
+          opacity: 0,
+          zIndex: 1,
+          pointerEvents: "none" as const,
+        }
+      });
+    }
+
+    // Emojis floating
+    for (let i = 0; i < 8; i++) {
+      const left = 5 + Math.random() * 90;
+      const delay = Math.random() * 6;
+      const duration = 5 + Math.random() * 5;
+      const emoji = emojis[Math.floor(Math.random() * emojis.length)];
+      const fontSize = 14 + Math.random() * 10;
+
+      newParticles.push({
+        id: 100 + i,
+        content: emoji,
+        style: {
+          position: "absolute" as const,
+          left: `${left}%`,
+          bottom: -30,
+          fontSize: `${fontSize}px`,
+          animationName: "hgf-emoji-float",
+          animationDuration: `${duration}s`,
+          animationDelay: `${delay}s`,
+          animationIterationCount: "infinite",
+          animationTimingFunction: "ease-in-out",
+          opacity: 0,
+          pointerEvents: "none" as const,
+          userSelect: "none" as const,
+          zIndex: 1,
+        }
+      });
+    }
+
+    setParticles(newParticles);
+  }, []);
 
   if (celebrants.length === 0) return null;
 
@@ -38,6 +107,13 @@ export default function BirthdayCircle({ month, celebrants }: BirthdayCircleProp
       border: "1px solid #ccfbf1",
       marginTop: "12px",
     }}>
+      {/* Animating celebration particles background */}
+      {particles.map((p) => (
+        <div key={p.id} style={p.style}>
+          {p.content}
+        </div>
+      ))}
+
       <style>{`
         .hgf-orbit-container {
           position: absolute;
@@ -47,6 +123,7 @@ export default function BirthdayCircle({ month, celebrants }: BirthdayCircleProp
           alignItems: center;
           justifyContent: center;
           animation: hgf-orbit 25s linear infinite;
+          z-index: 2;
         }
         .hgf-orbit-container:hover {
           animation-play-state: paused;
@@ -81,6 +158,38 @@ export default function BirthdayCircle({ month, celebrants }: BirthdayCircleProp
         @keyframes hgf-counter-orbit {
           from { transform: rotate(0deg); }
           to { transform: rotate(-360deg); }
+        }
+        @keyframes hgf-confetti-fall {
+          0% {
+            transform: translateY(-20px) rotate(0deg);
+            opacity: 0;
+          }
+          10% {
+            opacity: 0.8;
+          }
+          90% {
+            opacity: 0.8;
+          }
+          100% {
+            transform: translateY(260px) rotate(360deg);
+            opacity: 0;
+          }
+        }
+        @keyframes hgf-emoji-float {
+          0% {
+            transform: translateY(260px) scale(0.5) rotate(0deg);
+            opacity: 0;
+          }
+          15% {
+            opacity: 0.7;
+          }
+          85% {
+            opacity: 0.7;
+          }
+          100% {
+            transform: translateY(-40px) scale(1.1) rotate(15deg);
+            opacity: 0;
+          }
         }
       `}</style>
 

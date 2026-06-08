@@ -81,6 +81,9 @@ export async function POST(request: Request) {
       });
 
       if (monthlyCelebrants.length > 0) {
+        // Sort chronologically by birthDay
+        monthlyCelebrants.sort((a, b) => (a.birthDay || 0) - (b.birthDay || 0));
+
         // Prevent duplicate monthly posts
         const startOfDay = new Date(manilaDate);
         startOfDay.setHours(0, 0, 0, 0);

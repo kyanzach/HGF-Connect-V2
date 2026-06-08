@@ -28,6 +28,73 @@ export default function LoveGiftsPage() {
 
       <div style={{ padding: "1.25rem" }}>
 
+        {/* L.O.V.E. Explanation Block */}
+        <div style={{
+          background: "white",
+          borderRadius: "20px",
+          padding: "1.5rem",
+          boxShadow: "0 2px 16px rgba(0,0,0,0.07)",
+          marginBottom: "1.25rem",
+          border: "1px solid #ffe4e6",
+        }}>
+          <h2 style={{ fontSize: "1rem", fontWeight: 900, color: "#be123c", margin: "0 0 0.5rem", display: "flex", alignItems: "center", gap: "6px" }}>
+            ❤️ What L.O.V.E. Stands For
+          </h2>
+          <p style={{ margin: "0 0 1.25rem", fontSize: "0.85rem", color: "#475569", lineHeight: 1.6 }}>
+            In the House of Grace Fellowship (HGF) StewardShop, the acronym <strong>L.O.V.E.</strong> stands for:
+          </p>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginBottom: "1.25rem" }}>
+            {[
+              { letter: "L", word: "Livelihood", desc: "Supporting members' local businesses, services, and products to foster economic growth within the congregation." },
+              { letter: "O", word: "Opportunity", desc: "Creating shared financial opportunities for everyone to bless and be blessed through the \"Share & Bless\" referral program." },
+              { letter: "V", word: "Value", desc: "Encouraging fair, honest, and high-value transactions rooted in Christian integrity and mutual respect." },
+              { letter: "E", word: "Empowerment", desc: "Empowering the community to lift one another up, strengthening church ties and shared prosperity." }
+            ].map(({ letter, word, desc }) => (
+              <div key={letter} style={{ display: "flex", gap: "0.875rem", alignItems: "flex-start" }}>
+                <div style={{
+                  width: "36px",
+                  height: "36px",
+                  borderRadius: "10px",
+                  background: "linear-gradient(135deg, #f43f5e, #be123c)",
+                  color: "white",
+                  fontWeight: 900,
+                  fontSize: "1.1rem",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                  boxShadow: "0 3px 8px rgba(190,18,60,0.15)"
+                }}>
+                  {letter}
+                </div>
+                <div>
+                  <h3 style={{ margin: "0 0 0.25rem", fontSize: "0.875rem", fontWeight: 800, color: "#1e293b" }}>
+                    {word}
+                  </h3>
+                  <p style={{ margin: 0, fontSize: "0.8rem", color: "#64748b", lineHeight: 1.5 }}>
+                    {desc}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <p style={{
+            margin: 0,
+            fontSize: "0.8rem",
+            color: "#475569",
+            lineHeight: 1.6,
+            background: "#fff1f2",
+            padding: "0.875rem",
+            borderRadius: "12px",
+            borderLeft: "4px solid #f43f5e",
+            fontWeight: 500
+          }}>
+            This highlights the church&apos;s community-centric philosophy: the marketplace is designed not for commercial advertising or affiliate marketing, but rather to foster <strong>Livelihood</strong> support, create shared financial <strong>Opportunities</strong> through the &ldquo;Share &amp; Bless&rdquo; program, encourage fair and honest <strong>Value</strong>, and promote mutual <strong>Empowerment</strong> across the congregation.
+          </p>
+        </div>
+
         {/* How it works */}
         <div style={{ background: "white", borderRadius: "20px", padding: "1.5rem", boxShadow: "0 2px 16px rgba(0,0,0,0.07)", marginBottom: "1.25rem" }}>
           <h2 style={{ fontSize: "1rem", fontWeight: 800, color: "#1e293b", margin: "0 0 1.25rem", textAlign: "center" }}>

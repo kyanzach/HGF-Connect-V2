@@ -88,7 +88,7 @@ export default function QuizHubPage() {
   }
 
   return (
-    <div style={{ background: "#f8fafc", minHeight: "100vh", padding: "0 0 100px", paddingTop: "calc(env(safe-area-inset-top) + 0px)" }}>
+    <div style={{ background: "#f8fafc", minHeight: "100vh", padding: "0 0 100px", paddingTop: 0 }}>
       {/* Brand Cover Banner */}
       <div style={{
         backgroundImage: "url('/quiz-cover-banner.png')",
@@ -102,7 +102,7 @@ export default function QuizHubPage() {
           onClick={() => router.push("/quiz")}
           style={{
             position: "absolute",
-            top: "calc(env(safe-area-inset-top, 0px) + 16px)",
+            top: "16px",
             left: "16px",
             background: "rgba(0,0,0,0.4)",
             border: "none",

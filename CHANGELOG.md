@@ -5,6 +5,16 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.16] — 2026-06-09
+### Added
+- **StewardShop L.O.V.E. Acronym Details Card**: Inserted a premium L.O.V.E. definition card explaining Livelihood, Opportunity, Value, and Empowerment on the "Share & Bless" page.
+- **Birthday Celebrants Orbit Confetti & Emoji Background**: Integrated CSS falling confetti and floating birthday emojis animating dynamically inside the Orbit circle component (`BirthdayCircle`).
+- **Birthday Celebrants Show-More Limiter**: Implemented a responsive collapsable view on the monthly celebrants feed card list. Limits initial display to 7, applying a smooth white/grey gradient overlay down to 10 items, complete with clean "View More" and "Show Less" toggle controls.
+- **Chronological Birthday Sorting**: Modified feed parsing (`PostCard.tsx`) and cron triggers to sort the monthly celebrants list chronologically by birthDay (from day 1 to last of birthdays) instead of sorting by member database ID.
+
+### Fixed
+- **Quiz Hub Mobile Space Gap**: Resolved the layout bug causing a large white space above the cover photo and incorrect back button displacement on `/quiz/hub` on mobile devices.
+
 ## [v2.22.15] — 2026-06-08
 ### Added
 - **Testimonies Submission Consolidation**: Consolidated the dedicated `/testimonies/create` page into the main community write page (`/feed/create?tab=testimony`). Changed the original route `/testimonies/create` to perform a server-side redirect to the unified feed compose tab.

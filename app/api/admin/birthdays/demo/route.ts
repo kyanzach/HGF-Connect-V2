@@ -74,6 +74,9 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: `No active members celebrate birthdays in ${monthName}.` }, { status: 400 });
       }
 
+      // Sort chronologically by birthDay
+      monthlyCelebrants.sort((a, b) => (a.birthDay || 0) - (b.birthDay || 0));
+
       const payload = {
         month: monthName,
         celebrants: monthlyCelebrants,
