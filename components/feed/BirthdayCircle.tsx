@@ -106,7 +106,7 @@ export default function BirthdayCircle({ month, celebrants }: BirthdayCircleProp
             >
               {c.profilePicture ? (
                 <img
-                  src={`/uploads/profile_pictures/${c.profilePicture}`}
+                  src={c.profilePicture.startsWith("/") ? c.profilePicture : `/uploads/profile_pictures/${c.profilePicture}`}
                   alt=""
                   style={{ width: "100%", height: "100%", objectFit: "cover" }}
                 />

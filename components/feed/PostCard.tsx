@@ -518,16 +518,76 @@ export default function PostCard({ post }: PostCardProps) {
             {/* Birthday Monthly Layout */}
             {post.type === "BIRTHDAY_MONTHLY" && monthlyData && (
               <div style={{ padding: "0 1rem 0.75rem" }}>
+                {/* Words of Celebration & Encouragement */}
                 <div style={{
                   fontSize: "0.9375rem",
                   color: "#334155",
-                  lineHeight: 1.6,
+                  lineHeight: 1.65,
                   marginBottom: "12px",
                   fontWeight: 500
                 }}>
-                  🎉 We celebrate our brothers and sisters in Christ who are celebrating their birthdays this month of <strong>{monthlyData.month}</strong>! Let's shower them with love, prayers, and blessings! 🎂🎈
+                  🎉 Welcome to the month of <strong>{monthlyData.month}</strong>! As one HGF family, we praise God for the gift of life and celebrate the birthdays of our beloved brothers and sisters born in this special month. May the Lord guide your steps, surround you with His favor, and shower you with His abundant grace in this new season of your lives! 🎂🎈
                 </div>
+
+                {/* Encouragement Verse Block */}
+                <div style={{
+                  background: "linear-gradient(135deg, #2d8fa6 0%, #4EB1CB 100%)",
+                  borderRadius: "12px",
+                  padding: "1rem",
+                  color: "white",
+                  margin: "12px 0",
+                  boxShadow: "0 2px 8px rgba(78, 177, 203, 0.12)",
+                }}>
+                  <div style={{ fontSize: "1.25rem", opacity: 0.5, lineHeight: 1, marginBottom: "0.25rem" }}>❝</div>
+                  <p style={{ fontSize: "0.85rem", lineHeight: 1.6, margin: "0 0 0.5rem", fontStyle: "italic" }}>
+                    &ldquo;For I know the plans I have for you, declares the Lord, plans to prosper you and not to harm you, plans to give you hope and a future.&rdquo;
+                  </p>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ display: "inline-block", background: "rgba(255,255,255,0.2)", padding: "0.2rem 0.625rem", borderRadius: "999px", fontSize: "0.7rem", fontWeight: 600 }}>
+                      — Jeremiah 29:11
+                    </span>
+                  </div>
+                </div>
+
+                {/* Rotating Showcase Circle */}
                 <BirthdayCircle month={monthlyData.month} celebrants={monthlyData.celebrants} />
+
+                {/* List of Celebrants with Birthdates */}
+                <div style={{
+                  marginTop: "16px",
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "12px",
+                  padding: "1rem",
+                  boxSizing: "border-box"
+                }}>
+                  <h4 style={{ margin: "0 0 10px 0", fontSize: "0.82rem", fontWeight: 800, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    🎂 {monthlyData.month} Celebrants:
+                  </h4>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "10px" }}>
+                    {monthlyData.celebrants.map((c: any) => (
+                      <div key={c.id} style={{ display: "flex", alignItems: "center", gap: "8px", background: "white", padding: "6px 10px", borderRadius: "8px", border: "1px solid #f1f5f9" }}>
+                        <span style={{ fontSize: "1.1rem" }}>🎂</span>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "#1e293b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</div>
+                          {c.birthDay && <span style={{ fontSize: "0.7rem", color: "#f59e0b", fontWeight: 700 }}>{monthlyData.month} {c.birthDay}</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Closing caption */}
+                <div style={{
+                  fontSize: "0.875rem",
+                  color: "#64748b",
+                  lineHeight: 1.5,
+                  marginTop: "12px",
+                  textAlign: "center",
+                  fontStyle: "italic",
+                }}>
+                  We celebrate you today on behalf of your family here at House of Grace Fellowship! ❤️
+                </div>
               </div>
             )}
 
@@ -571,7 +631,7 @@ export default function PostCard({ post }: PostCardProps) {
                     }}>
                       {dailyData.profilePicture ? (
                         <img
-                          src={`/uploads/profile_pictures/${dailyData.profilePicture}`}
+                          src={dailyData.profilePicture.startsWith("/") ? dailyData.profilePicture : `/uploads/profile_pictures/${dailyData.profilePicture}`}
                           alt={dailyData.name}
                           style={{ width: "100%", height: "100%", objectFit: "cover" }}
                         />

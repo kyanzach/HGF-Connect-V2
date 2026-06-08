@@ -8,6 +8,7 @@ interface Member {
   firstName: string;
   lastName: string;
   profilePicture: string | null;
+  coverPhoto: string | null;
   birthdate: string;
   birthMonth: number;
   birthDay: number;
@@ -39,15 +40,24 @@ export default function BirthdayAdminClient({ initialMembers }: { initialMembers
     "July", "August", "September", "October", "November", "December"
   ];
 
-  // Parse dates into UTC month/day values
+  // Parse dates into UTC month/day values and resolve image path prioritizing profilePicture over coverPhoto
   const parsedMembers: Member[] = initialMembers.map((m) => {
     const birth = new Date(m.birthdate);
     const month = birth.getUTCMonth() + 1;
     const day = birth.getUTCDate();
+
+    let resolvedPic = null;
+    if (m.profilePicture) {
+      resolvedPic = `/uploads/profile_pictures/${m.profilePicture}`;
+    } else if (m.coverPhoto) {
+      resolvedPic = `/uploads/cover_photos/${m.coverPhoto}`;
+    }
+
     return {
       ...m,
       birthMonth: month,
       birthDay: day,
+      profilePicture: resolvedPic,
     };
   });
 
@@ -293,7 +303,7 @@ export default function BirthdayAdminClient({ initialMembers }: { initialMembers
                       }}>
                         {c.profilePicture ? (
                           <img
-                            src={`/uploads/profile_pictures/${c.profilePicture}`}
+                            src={c.profilePicture}
                             alt=""
                             style={{ width: "100%", height: "100%", objectFit: "cover" }}
                           />

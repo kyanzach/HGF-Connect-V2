@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.4] — 2026-06-08
+### Added
+- **Premium Monthly Celebrants Feed Layout**: Redesigned the monthly feed post to display a warm celebration caption, an HGF monthly encouragement verse, the rotating CSS-animated orbit circle, a structured list grid of celebrants displaying their names and specific birth dates, and a signature sign-off.
+- **Image Fallback Strategy**: Configured the birthday layout to fall back to `coverPhoto` if a member has no `profilePicture` set, resolving the placeholder issue for members with missing profile photos.
+
 ## [v2.22.3] — 2026-06-08
 ### Added
 - **Birthday Preview Dashboard**: Created `/admin/birthdays` page for admins, moderators, and ushers to preview upcoming daily and monthly birthday posts in advance.

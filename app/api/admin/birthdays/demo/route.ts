@@ -41,6 +41,7 @@ export async function POST(request: Request) {
           firstName: true,
           lastName: true,
           profilePicture: true,
+          coverPhoto: true,
           birthdate: true,
         }
       });
@@ -50,11 +51,24 @@ export async function POST(request: Request) {
         const birth = new Date(m.birthdate);
         const mMonth = birth.getUTCMonth() + 1;
         return mMonth === currentMonth;
-      }).map((m) => ({
-        id: m.id,
-        name: `${m.firstName} ${m.lastName}`,
-        profilePicture: m.profilePicture,
-      }));
+      }).map((m) => {
+        let imagePath = null;
+        if (m.profilePicture) {
+          imagePath = `/uploads/profile_pictures/${m.profilePicture}`;
+        } else if (m.coverPhoto) {
+          imagePath = `/uploads/cover_photos/${m.coverPhoto}`;
+        }
+
+        const birthDateObj = new Date(m.birthdate!);
+        const day = birthDateObj.getUTCDate();
+
+        return {
+          id: m.id,
+          name: `${m.firstName} ${m.lastName}`,
+          profilePicture: imagePath,
+          birthDay: day,
+        };
+      });
 
       if (monthlyCelebrants.length === 0) {
         return NextResponse.json({ error: `No active members celebrate birthdays in ${monthName}.` }, { status: 400 });
@@ -101,6 +115,7 @@ export async function POST(request: Request) {
           firstName: true,
           lastName: true,
           profilePicture: true,
+          coverPhoto: true,
           birthdate: true,
           status: true,
         }
@@ -126,10 +141,17 @@ export async function POST(request: Request) {
 
       const message = `🎉 Happy Birthday to our beloved brother/sister in Christ, ${member.firstName} ${member.lastName}! 🎂🎈\n\nOn this special day, we praise God for the gift of your life and the unique blessing you are to our church community. May the Lord guide your steps, keep you in His perfect peace, and shower you with His abundant grace in this new year of your life.\n\nWe celebrate you today on behalf of your family here at House of Grace Fellowship! ❤️`;
 
+      let imagePath = null;
+      if (member.profilePicture) {
+        imagePath = `/uploads/profile_pictures/${member.profilePicture}`;
+      } else if (member.coverPhoto) {
+        imagePath = `/uploads/cover_photos/${member.coverPhoto}`;
+      }
+
       const payload = {
         memberId: member.id,
         name: `${member.firstName} ${member.lastName}`,
-        profilePicture: member.profilePicture,
+        profilePicture: imagePath,
         message,
         verseRef: verse.ref,
         verseText: verse.text,

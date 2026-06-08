@@ -21,6 +21,7 @@ export default async function BirthdayAdminPage() {
       firstName: true,
       lastName: true,
       profilePicture: true,
+      coverPhoto: true,
       birthdate: true,
     },
     orderBy: { firstName: "asc" },
