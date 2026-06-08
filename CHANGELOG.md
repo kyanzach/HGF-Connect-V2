@@ -5,6 +5,12 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.3] — 2026-06-08
+### Added
+- **Birthday Preview Dashboard**: Created `/admin/birthdays` page for admins, moderators, and ushers to preview upcoming daily and monthly birthday posts in advance.
+- **Usher Access Control**: Restricted `usher` role users in `/admin` to only access the Birthdays preview page (automatically hiding other tabs and redirecting from the dashboard index).
+- **Manual Demo Post Actions**: Added "Post Monthly Celebrants Now" and "Post Daily Greeting Now (Demo)" triggers, integrated with `/api/admin/birthdays/demo` to publish live birthday posts to the feed immediately.
+
 ## [v2.22.2] — 2026-06-08
 ### Added
 - **Automated Birthday System**: Implemented automated monthly birthday circle announcements featuring rotating animated profile pictures, and daily personalized birthday greeting feed posts with Encouraging Scripture cards and warm greetings.

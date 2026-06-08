@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import Link from "next/link";
 import { formatDate } from "@/lib/utils";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = { title: "Admin Dashboard" };
 
@@ -35,6 +36,10 @@ async function getDashboardStats() {
 
 export default async function AdminDashboardPage() {
   const [session, stats] = await Promise.all([auth(), getDashboardStats()]);
+
+  if (session?.user?.role === "usher") {
+    redirect("/admin/birthdays");
+  }
 
   return (
     <div style={{ padding: "2rem 2.5rem" }}>

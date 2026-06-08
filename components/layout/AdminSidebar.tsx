@@ -17,6 +17,7 @@ const NAV = [
   { label: "Review", href: "/admin/review", icon: "✅" },
   { label: "AI Settings", href: "/admin/church-settings", icon: "⚙️" },
   { label: "Users", href: "/admin/users", icon: "🔑", adminOnly: true },
+  { label: "Birthdays", href: "/admin/birthdays", icon: "🎂", usherAllowed: true },
 ];
 
 export default function AdminSidebar({ session }: { session: Session }) {
@@ -109,7 +110,13 @@ export default function AdminSidebar({ session }: { session: Session }) {
 
       {/* Navigation */}
       <nav style={{ flex: 1, padding: "0.75rem 0", overflowY: "auto" }}>
-        {NAV.filter((item) => !item.adminOnly || isAdmin).map((item) => {
+        {NAV.filter((item) => {
+          const isUsher = session.user.role === "usher";
+          if (isUsher) {
+            return (item as any).usherAllowed;
+          }
+          return !item.adminOnly || isAdmin;
+        }).map((item) => {
           const isActive =
             item.href === "/admin"
               ? pathname === "/admin"
