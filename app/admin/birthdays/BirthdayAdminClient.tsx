@@ -357,7 +357,7 @@ export default function BirthdayAdminClient({ initialMembers }: { initialMembers
                             opacity: loading === String(c.id) ? 0.7 : 1,
                           }}
                         >
-                          {loading === String(c.id) ? "⏳ Posting..." : "🚀 Post Demo"}
+                          {loading === String(c.id) ? "⏳ Posting..." : "🚀 Post to Feed"}
                         </button>
                       </div>
                     </div>

@@ -26,14 +26,13 @@ const DAILY_VERSES = [
 ];
 
 const APP_FEATURES = [
-  { icon: "📖", label: "Daily Devo", desc: "Share & read devotionals" },
-  { icon: "🙏", label: "Prayer Wall", desc: "Pray for one another" },
-  { icon: "💡", label: "AI Helper", desc: "Church AI assistant" },
-  { icon: "📔", label: "Journal", desc: "Private spiritual diary" },
   { icon: "📅", label: "Events", desc: "RSVP & get reminders" },
-  { icon: "🛍️", label: "Marketplace", desc: "Member listings" },
+  { icon: "🤝", label: "StewardShop", desc: "Livelihood & L.O.V.E." },
   { icon: "👥", label: "Directory", desc: "Find church members" },
-  { icon: "📚", label: "Resources", desc: "Sunday Word & media" },
+  { icon: "🙏", label: "Pray", desc: "Pray for one another" },
+  { icon: "📝", label: "Grace Blog", desc: "Read HGF articles" },
+  { icon: "📖", label: "Devo", desc: "Devotional guides" },
+  { icon: "💡", label: "AI Helper", desc: "Church AI assistant" },
 ];
 
 async function getData() {

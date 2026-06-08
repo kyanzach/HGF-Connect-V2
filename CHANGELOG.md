@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.11] — 2026-06-08
+### Changed
+- **Landing Page Features (s1-s3)**: Aligned the "What's in the App" list items (icons, labels, and order) on the public landing page (`app/page.tsx`) with the updated `/feed` shortcuts. Added `StewardShop` with the handshake (`🤝`) icon and ordered sections correctly.
+- **Birthday Control Button Label (s5)**: Renamed the manual trigger buttons in the Birthday Control Board (`BirthdayAdminClient.tsx`) from "Post Demo" to "Post to Feed" to make it clearer for administrators publishing greetings.
+
 ## [v2.22.10] — 2026-06-08
 ### Added
 - **Official Church Page (/church)**: Created a Facebook Business-style organization hub for "House of Grace Fellowship" under `/church` featuring three tabs:
