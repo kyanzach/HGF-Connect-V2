@@ -11,6 +11,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import Confetti from "./Confetti";
 
 interface QuizQuestion {
@@ -139,6 +140,11 @@ export default function QuizPlayer({ question, onComplete, onClose }: QuizPlayer
   const [result, setResult] = useState<QuizResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [showHint, setShowHint] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const dayLabels: Record<number, string> = {
     1: "🎈 Day 1 — Balloon Pop",
@@ -199,122 +205,128 @@ export default function QuizPlayer({ question, onComplete, onClose }: QuizPlayer
     }
   }
 
-  // ── Result screen ──
-  if (result) {
-    return (
-      <div style={S.overlay}>
-        <Confetti trigger={showConfetti} onDone={() => setShowConfetti(false)} />
-        <div style={S.header}>
-          <span style={S.dayBadge}>{dayLabels[question.dayNumber]}</span>
-          <button style={S.closeBtn} onClick={() => onComplete(result)}>Done</button>
-        </div>
-        <div style={S.body}>
-          <div style={{ fontSize: "4rem", marginTop: "40px" }}>
-            {result.isCorrect ? "🎉" : "😅"}
-          </div>
-          <h2 style={{ color: result.isCorrect ? "#48BB78" : "#FC8181", fontSize: "1.5rem", marginTop: "16px" }}>
-            {result.isCorrect ? "Correct!" : "Not quite!"}
-          </h2>
-          <div style={S.resultCard}>
-            <p style={{ color: "#e2e8f0", fontSize: "1rem", lineHeight: 1.6 }}>
-              {result.feedback}
-            </p>
-            {result.explanation && (
-              <p style={{ color: "#a0aec0", fontSize: "0.9rem", marginTop: "16px", lineHeight: 1.5 }}>
-                💡 {result.explanation}
-              </p>
-            )}
-          </div>
-          {result.reward && (
-            <div style={{ ...S.resultCard, borderColor: "rgba(78,177,203,0.5)", border: "2px solid rgba(78,177,203,0.5)" }}>
-              <p style={{ color: "#4EB1CB", fontSize: "1.1rem", fontWeight: 700 }}>
-                🏆 Week Complete! Score: {result.reward.totalScore}/7
-              </p>
-              <p style={{ color: "#e2e8f0", fontSize: "0.9rem", marginTop: "8px" }}>
-                {result.reward.tier === "PERFECT"
-                  ? "PERFECT SCORE! Claim your Christian statement t-shirt! 🎽"
-                  : result.reward.tier === "PARTICIPANT"
-                    ? "Keep growing in the Word! Every quiz makes you stronger. 🙏"
-                    : "🎁 Prize: TBA — to be announced this Sunday!"}
-              </p>
-            </div>
-          )}
-          <button
-            style={{ ...S.submitBtn, marginTop: "32px" }}
-            onClick={() => onComplete(result)}
-          >
-            Continue →
-          </button>
-        </div>
-      </div>
-    );
-  }
+  if (!mounted) return null;
 
-  // ── Quiz type renderers ──
-  switch (question.type) {
-    case "MULTIPLE_CHOICE":
+  const renderContent = () => {
+    // ── Result screen ──
+    if (result) {
       return (
-        <BalloonPop
-          question={question}
-          onSubmit={submitAnswer}
-          submitting={submitting}
-          dayLabel={dayLabels[question.dayNumber]}
-          showHint={showHint}
-          setShowHint={setShowHint}
-          onClose={onClose}
-        />
+        <div style={S.overlay}>
+          <Confetti trigger={showConfetti} onDone={() => setShowConfetti(false)} />
+          <div style={S.header}>
+            <span style={S.dayBadge}>{dayLabels[question.dayNumber]}</span>
+            <button style={S.closeBtn} onClick={() => onComplete(result)}>Done</button>
+          </div>
+          <div style={S.body}>
+            <div style={{ fontSize: "4rem", marginTop: "40px" }}>
+              {result.isCorrect ? "🎉" : "😅"}
+            </div>
+            <h2 style={{ color: result.isCorrect ? "#48BB78" : "#FC8181", fontSize: "1.5rem", marginTop: "16px" }}>
+              {result.isCorrect ? "Correct!" : "Not quite!"}
+            </h2>
+            <div style={S.resultCard}>
+              <p style={{ color: "#e2e8f0", fontSize: "1rem", lineHeight: 1.6 }}>
+                {result.feedback}
+              </p>
+              {result.explanation && (
+                <p style={{ color: "#a0aec0", fontSize: "0.9rem", marginTop: "16px", lineHeight: 1.5 }}>
+                  💡 {result.explanation}
+                </p>
+              )}
+            </div>
+            {result.reward && (
+              <div style={{ ...S.resultCard, borderColor: "rgba(78,177,203,0.5)", border: "2px solid rgba(78,177,203,0.5)" }}>
+                <p style={{ color: "#4EB1CB", fontSize: "1.1rem", fontWeight: 700 }}>
+                  🏆 Week Complete! Score: {result.reward.totalScore}/7
+                </p>
+                <p style={{ color: "#e2e8f0", fontSize: "0.9rem", marginTop: "8px" }}>
+                  {result.reward.tier === "PERFECT"
+                    ? "PERFECT SCORE! Claim your Christian statement t-shirt! 🎽"
+                    : result.reward.tier === "PARTICIPANT"
+                      ? "Keep growing in the Word! Every quiz makes you stronger. 🙏"
+                      : "🎁 Prize: TBA — to be announced this Sunday!"}
+                </p>
+              </div>
+            )}
+            <button
+              style={{ ...S.submitBtn, marginTop: "32px" }}
+              onClick={() => onComplete(result)}
+            >
+              Continue →
+            </button>
+          </div>
+        </div>
       );
-    case "FILL_IN_BLANKS":
-      return (
-        <FillBlanks
-          question={question}
-          onSubmit={submitAnswer}
-          submitting={submitting}
-          dayLabel={dayLabels[question.dayNumber]}
-          showHint={showHint}
-          setShowHint={setShowHint}
-          onClose={onClose}
-        />
-      );
-    case "SHORT_ANSWER":
-      return (
-        <ShortAnswer
-          question={question}
-          onSubmit={submitAnswer}
-          submitting={submitting}
-          dayLabel={dayLabels[question.dayNumber]}
-          showHint={showHint}
-          setShowHint={setShowHint}
-          onClose={onClose}
-        />
-      );
-    case "SCRIPTURE_ORDERING":
-      return (
-        <ScriptureOrder
-          question={question}
-          onSubmit={submitAnswer}
-          submitting={submitting}
-          dayLabel={dayLabels[question.dayNumber]}
-          showHint={showHint}
-          setShowHint={setShowHint}
-          onClose={onClose}
-        />
-      );
-    case "TRUE_FALSE_EXPLAIN":
-      return (
-        <TrueFalseExplain
-          question={question}
-          onSubmit={submitAnswer}
-          submitting={submitting}
-          dayLabel={dayLabels[question.dayNumber]}
-          showHint={showHint}
-          setShowHint={setShowHint}
-          onClose={onClose}
-        />
-      );
-    default:
-      return <div>Unknown quiz type</div>;
-  }
+    }
+
+    // ── Quiz type renderers ──
+    switch (question.type) {
+      case "MULTIPLE_CHOICE":
+        return (
+          <BalloonPop
+            question={question}
+            onSubmit={submitAnswer}
+            submitting={submitting}
+            dayLabel={dayLabels[question.dayNumber]}
+            showHint={showHint}
+            setShowHint={setShowHint}
+            onClose={onClose}
+          />
+        );
+      case "FILL_IN_BLANKS":
+        return (
+          <FillBlanks
+            question={question}
+            onSubmit={submitAnswer}
+            submitting={submitting}
+            dayLabel={dayLabels[question.dayNumber]}
+            showHint={showHint}
+            setShowHint={setShowHint}
+            onClose={onClose}
+          />
+        );
+      case "SHORT_ANSWER":
+        return (
+          <ShortAnswer
+            question={question}
+            onSubmit={submitAnswer}
+            submitting={submitting}
+            dayLabel={dayLabels[question.dayNumber]}
+            showHint={showHint}
+            setShowHint={setShowHint}
+            onClose={onClose}
+          />
+        );
+      case "SCRIPTURE_ORDERING":
+        return (
+          <ScriptureOrder
+            question={question}
+            onSubmit={submitAnswer}
+            submitting={submitting}
+            dayLabel={dayLabels[question.dayNumber]}
+            showHint={showHint}
+            setShowHint={setShowHint}
+            onClose={onClose}
+          />
+        );
+      case "TRUE_FALSE_EXPLAIN":
+        return (
+          <TrueFalseExplain
+            question={question}
+            onSubmit={submitAnswer}
+            submitting={submitting}
+            dayLabel={dayLabels[question.dayNumber]}
+            showHint={showHint}
+            setShowHint={setShowHint}
+            onClose={onClose}
+          />
+        );
+      default:
+        return <div>Unknown quiz type</div>;
+    }
+  };
+
+  return createPortal(renderContent(), document.body);
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 
 interface Props {
   src: string;
@@ -24,8 +25,11 @@ export default function ImageLightbox({ src, alt = "Enlarged view", onClose }: P
   const isDragging = useRef(false);
   const startDrag = useRef({ x: 0, y: 0 });
 
+  const [mounted, setMounted] = useState(false);
+
   // Prevent background scrolling while open
   useEffect(() => {
+    setMounted(true);
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = "";
@@ -124,7 +128,9 @@ export default function ImageLightbox({ src, alt = "Enlarged view", onClose }: P
     });
   };
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div
       ref={containerRef}
       style={{
@@ -148,8 +154,8 @@ export default function ImageLightbox({ src, alt = "Enlarged view", onClose }: P
       <div
         style={{
           position: "absolute",
-          top: "calc(16px + env(safe-area-inset-top, 0px))",
-          right: "16px",
+          top: "calc(24px + env(safe-area-inset-top, 0px))",
+          right: "20px",
           display: "flex",
           gap: "12px",
           zIndex: 20001,
@@ -173,6 +179,7 @@ export default function ImageLightbox({ src, alt = "Enlarged view", onClose }: P
             justifyContent: "center",
             transition: "background 0.2s",
             outline: "none",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
           }}
           title="Zoom Out"
         >
@@ -195,6 +202,7 @@ export default function ImageLightbox({ src, alt = "Enlarged view", onClose }: P
             justifyContent: "center",
             transition: "background 0.2s",
             outline: "none",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
           }}
           title="Zoom In"
         >
@@ -207,7 +215,7 @@ export default function ImageLightbox({ src, alt = "Enlarged view", onClose }: P
             height: "40px",
             borderRadius: "50%",
             border: "none",
-            background: "rgba(255, 255, 255, 0.2)",
+            background: "rgba(255, 255, 255, 0.25)",
             color: "white",
             fontSize: "1.2rem",
             fontWeight: "bold",
@@ -217,6 +225,7 @@ export default function ImageLightbox({ src, alt = "Enlarged view", onClose }: P
             justifyContent: "center",
             transition: "background 0.2s",
             outline: "none",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
           }}
           title="Close"
         >
@@ -288,6 +297,7 @@ export default function ImageLightbox({ src, alt = "Enlarged view", onClose }: P
           Tap to reset zoom
         </button>
       )}
-    </div>
+    </div>,
+    document.body
   );
 }

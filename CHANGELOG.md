@@ -5,13 +5,18 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v2.22.36] — 2026-06-09
+## [v2.22.38] — 2026-06-09
 ### Fixed
-- **Bloated Share URL**: Removed `text: post.content` from the `navigator.share()` call in `PostCard.tsx`. Passing the full post body as the `text` field caused iOS/Android share sheets to concatenate the entire post content with the URL, resulting in an extremely long share string. Now only the `title` and `url` are passed, producing a clean, short shareable link.
+- **Image Lightbox Notch & Safe Area Clipping (s1)**: Wrapped the `ImageLightbox` rendering in a React Portal (`createPortal`) targeting `document.body` to prevent the fullscreen container from being clipped/rendered incorrectly inside nested parent lists and containers. Increased top safety margin to `calc(24px + env(safe-area-inset-top, 0px))` to ensure the close button (`✕`) does not overlap or hide behind the mobile PWA/Safari status bar.
+- **Quiz Player Overlay Layout Z-Index & Stacking Context (s2)**: Swapped the local container rendering of `QuizPlayer` to a React Portal targeting `document.body`. This forces WebKit/Blink layout engines to draw the game player at the absolute document root, correctly bypassing parent scrolling container stacking contexts (like `-webkit-overflow-scrolling: touch`) and rendering the daily quiz screens entirely on top of the sticky top navigation header and bottom tab nav docks.
+
+## [v2.22.37] — 2026-06-09
+### Fixed
+- **SSO Attendance App — "SSO initialization failed" Error**: The `sso_tokens` database table was missing from the production server (`hog_fellowship`), causing every click on the "Attendance App" or "Attendance Kiosk" menu links to return a 500 error. Ran a production MySQL migration to create the `sso_tokens` table with the correct schema (`token VARCHAR(255) PK`, `member_id INT`, `expires_at DATETIME`, `created_at DATETIME`), matching the Prisma schema. The SSO bridge (`/api/auth/sso/attendance`) can now generate and store short-lived tokens, and the legacy PHP bridge (`sso.php`) can validate them and start the `ATTENDANCE_SESSION`.
 
 ## [v2.22.36] — 2026-06-09
 ### Fixed
-- **SSO Attendance App — "SSO initialization failed" Error**: The `sso_tokens` database table was missing from the production server (`hog_fellowship`), causing every click on the "Attendance App" or "Attendance Kiosk" menu links to return a 500 error. Ran a production MySQL migration to create the `sso_tokens` table with the correct schema (`token VARCHAR(255) PK`, `member_id INT`, `expires_at DATETIME`, `created_at DATETIME`), matching the Prisma schema. The SSO bridge (`/api/auth/sso/attendance`) can now generate and store short-lived tokens, and the legacy PHP bridge (`sso.php`) can validate them and start the `ATTENDANCE_SESSION`.
+- **Bloated Share URL**: Removed `text: post.content` from the `navigator.share()` call in `PostCard.tsx`. Passing the full post body as the `text` field caused iOS/Android share sheets to concatenate the entire post content with the URL, resulting in an extremely long share string. Now only the `title` and `url` are passed, producing a clean, short shareable link.
 
 ## [v2.22.35] — 2026-06-09
 
