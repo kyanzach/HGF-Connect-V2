@@ -5,6 +5,12 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.33] — 2026-06-09
+### Changed
+- **Sermon Quiz Generation Date Formatting**: Formatted the sermon date to a human-readable format (e.g., "June 7, 2026") in the AI quiz generator prompts so that generated captions are properly formatted.
+### Fixed
+- **Quiz Player Mobile Safe Area**: Added top padding of `calc(1rem + env(safe-area-inset-top, 0px))` to the QuizPlayer overlay to prevent status bar or notch overlaps in game pages.
+
 ## [v2.22.32] — 2026-06-09
 ### Added
 - **SSO for Attendance App / Kiosk**:

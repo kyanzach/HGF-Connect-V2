@@ -48,7 +48,7 @@ const S = {
     zIndex: 9000,
     display: "flex",
     flexDirection: "column" as const,
-    paddingTop: "env(safe-area-inset-top)",
+    paddingTop: "calc(1rem + env(safe-area-inset-top, 0px))",
     overflowY: "auto" as const,
   },
   header: {
