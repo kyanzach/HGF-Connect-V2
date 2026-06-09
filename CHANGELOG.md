@@ -5,6 +5,12 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.23.0] — 2026-06-10
+### Added
+- **Facebook-like Reactions**: Implemented gesture-triggered reactions (`Heart` ❤️, `Pray` 🙏, `Hugs` 🤗) across all community posts, thoughts, prayers, and member profile photos/cover photos. Hover on desktop or long-press on mobile on the like button will display a floating panel to choose a reaction type. Single click toggles `HEART`.
+- **Reaction Summary & Analytics**: Added a Facebook-style overlapping bubble counts summary showing the active types of reactions and total reactors. Tapping the counts bubble opens the Reactions Analytics modal sheet listing the reactor names, filterable by reaction type.
+- **PhotoPostViewer Reactions**: Extended the fullscreen photo viewer dialog (`PhotoPostViewer.tsx`) to include the exact same reactions summary bubble, hover/long-press reaction menu, and reactions analytics modal.
+
 ## [v2.22.48] — 2026-06-10
 ### Added
 - **Interactive Profile Cover Photo**: Updated the member profile page (`ProfileClient.tsx`) to make cover photos clickable. When tapped, it displays the cover photo history (previous uploads, comments, likes) via `PhotoPostViewer`, similar to profile picture functionality. For own profile, it triggers a bottom sheet option to view or choose a new cover photo.

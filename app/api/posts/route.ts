@@ -62,14 +62,20 @@ export async function GET(request: Request) {
           photos: {
             orderBy: { sortOrder: "asc" },
           },
-          ...(session
-            ? {
-                likes: {
-                  where: { memberId: parseInt(session.user.id) },
-                  select: { memberId: true },
-                },
+          likes: {
+            select: {
+              memberId: true,
+              type: true,
+              member: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  profilePicture: true,
+                }
               }
-            : {}),
+            }
+          },
         },
         orderBy: { createdAt: "desc" },
         skip,
@@ -78,11 +84,14 @@ export async function GET(request: Request) {
       db.post.count({ where }),
     ]);
 
-    const postsWithLiked = posts.map((p: any) => ({
-      ...p,
-      isLiked: session ? (p.likes?.length ?? 0) > 0 : false,
-      likes: undefined,
-    }));
+    const postsWithLiked = posts.map((p: any) => {
+      const myLike = session ? p.likes.find((l: any) => l.memberId === parseInt(session.user.id)) : null;
+      return {
+        ...p,
+        isLiked: !!myLike,
+        likedType: myLike ? myLike.type : null,
+      };
+    });
 
     return NextResponse.json({
       posts: postsWithLiked,

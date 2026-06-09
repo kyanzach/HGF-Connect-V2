@@ -738,6 +738,7 @@ model PostLike {
   post      Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
   member    Member @relation("PostLikeMember", fields: [memberId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now()) @map("created_at")
+  type      String   @default("HEART") @db.VarChar(20)
 
   @@id([postId, memberId])
   @@map("post_likes")

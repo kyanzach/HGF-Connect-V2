@@ -1,6 +1,7 @@
-"use client";
-
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+
 
 export interface PhotoEntry {
   id: number;
@@ -43,11 +44,31 @@ const PRIMARY = "#4EB1CB";
 export default function PhotoPostViewer({
   photos, startIndex = 0, memberId, memberName, memberAvatar, isOwn, onClose, onChoosePhoto,
 }: Props) {
+  const { data: session } = useSession();
+  const router = useRouter();
   const [idx, setIdx]                   = useState(Math.max(0, Math.min(startIndex, photos.length - 1)));
   const [imgErr, setImgErr]             = useState(false);
-  const [likeCount, setLikeCount]       = useState(0);
-  const [liked, setLiked]               = useState(false);
+  const [reactions, setReactions]       = useState<any[]>([]);
   const [likeLoading, setLikeLoading]   = useState(false);
+  const [activeReactionTab, setActiveReactionTab] = useState<string>("ALL");
+  const [showReactions, setShowReactions] = useState(false);
+  const [showReactionsModal, setShowReactionsModal] = useState(false);
+
+  const hoverTimer = useRef<NodeJS.Timeout | null>(null);
+  const touchTimer = useRef<NodeJS.Timeout | null>(null);
+  const touchHappened = useRef(false);
+
+  const myReaction = session ? reactions.find((r: any) => r.memberId === parseInt(session.user.id)) : null;
+  const liked = !!myReaction;
+  const likedType = myReaction ? myReaction.type : null;
+  const likeCount = reactions.length;
+
+  const REACTION_EMOJIS: Record<string, string> = {
+    HEART: "❤️",
+    PRAY: "🙏",
+    HUG: "🤗",
+  };
+
   const [comments, setComments]         = useState<Comment[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentText, setCommentText]   = useState("");
@@ -82,8 +103,7 @@ export default function PhotoPostViewer({
   // Reset all state on photo change
   useEffect(() => {
     setImgErr(false);
-    setLikeCount(0);
-    setLiked(false);
+    setReactions([]);
     setComments([]);
     setCaptionDraft(idx in savedCaptions ? (savedCaptions[idx] ?? "") : (photo?.caption ?? ""));
     setEditingCaption(false);
@@ -92,9 +112,9 @@ export default function PhotoPostViewer({
 
     if (!postId) return;
 
-    fetch(`/api/posts/${postId}/count`)
-      .then(r => r.json())
-      .then(d => { setLikeCount(d.likes ?? 0); setLiked(d.isLiked ?? false); })
+    fetch(`/api/posts/${postId}/reactions`)
+      .then(r => r.ok ? r.json() : [])
+      .then(list => setReactions(list))
       .catch(() => {});
 
     setCommentsLoading(true);
@@ -122,16 +142,102 @@ export default function PhotoPostViewer({
     return () => { document.body.style.overflow = ""; };
   }, []);
 
-  async function handleLike() {
-    if (!postId || likeLoading) return;
+  async function handleReactionSelect(type: string) {
+    if (!postId || !session || likeLoading) return;
     setLikeLoading(true);
+
+    const memberId = parseInt(session.user.id);
+    const existing = reactions.find((r: any) => r.memberId === memberId);
+
+    // Optimistic UI update
+    let newReactions = [...reactions];
+    if (existing) {
+      if (existing.type === type) {
+        newReactions = newReactions.filter((r: any) => r.memberId !== memberId);
+      } else {
+        newReactions = newReactions.map((r: any) =>
+          r.memberId === memberId ? { ...r, type } : r
+        );
+      }
+    } else {
+      newReactions.push({
+        memberId,
+        type,
+        member: {
+          id: memberId,
+          firstName: (session.user as any).firstName || "",
+          lastName: (session.user as any).lastName || "",
+          profilePicture: (session.user as any).profilePicture || null,
+        }
+      });
+    }
+
+    const prevReactions = reactions;
+    setReactions(newReactions);
+    setShowReactions(false);
+
     try {
-      const res = await fetch(`/api/posts/${postId}/like`, { method: "POST" });
-      const d   = await res.json();
-      setLiked(d.liked ?? !liked);
-      setLikeCount(c => d.liked ? c + 1 : c - 1);
-    } catch { /* silent */ } finally { setLikeLoading(false); }
+      const res = await fetch(`/api/posts/${postId}/like`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type }),
+      });
+      if (!res.ok) {
+        setReactions(prevReactions);
+      }
+    } catch {
+      setReactions(prevReactions);
+    } finally {
+      setLikeLoading(false);
+    }
   }
+
+  const toggleLike = () => {
+    if (liked) {
+      handleReactionSelect(likedType || "HEART");
+    } else {
+      handleReactionSelect("HEART");
+    }
+  };
+
+  const handleMouseEnter = () => {
+    if (touchHappened.current) return;
+    if (hoverTimer.current) clearTimeout(hoverTimer.current);
+    hoverTimer.current = setTimeout(() => {
+      setShowReactions(true);
+    }, 450);
+  };
+
+  const handleMouseLeave = () => {
+    if (hoverTimer.current) clearTimeout(hoverTimer.current);
+    hoverTimer.current = setTimeout(() => {
+      setShowReactions(false);
+    }, 300);
+  };
+
+  const handleTouchStart = () => {
+    touchHappened.current = true;
+    if (touchTimer.current) clearTimeout(touchTimer.current);
+    touchTimer.current = setTimeout(() => {
+      setShowReactions(true);
+      if (navigator.vibrate) navigator.vibrate(12);
+    }, 500);
+  };
+
+  const handleTouchEnd = () => {
+    if (touchTimer.current) {
+      clearTimeout(touchTimer.current);
+      touchTimer.current = null;
+      if (!showReactions) {
+        toggleLike();
+      }
+    }
+  };
+
+  const handleLikeClick = () => {
+    if (touchHappened.current) return;
+    toggleLike();
+  };
 
   async function handleComment() {
     if (!postId || !commentText.trim() || sending) return;
@@ -397,17 +503,125 @@ export default function PhotoPostViewer({
         {/* Social: likes + comments */}
         {showSocial ? (
           <div>
+            {/* Reactions Summary row */}
+            {likeCount > 0 && (() => {
+              const distinctTypes = Array.from(new Set(reactions.map((r: any) => r.type || "HEART")));
+              return (
+                <div 
+                  onClick={() => setShowReactionsModal(true)}
+                  style={{ 
+                    display: "flex", 
+                    alignItems: "center", 
+                    gap: "8px", 
+                    padding: "0.5rem 1rem 0.25rem", 
+                    cursor: "pointer",
+                    userSelect: "none"
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center" }}>
+                    {distinctTypes.map((type: any, i) => (
+                      <div 
+                        key={type} 
+                        style={{
+                          width: "20px",
+                          height: "20px",
+                          borderRadius: "50%",
+                          background: "white",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "0.85rem",
+                          marginLeft: i > 0 ? "-6px" : "0",
+                          zIndex: 3 - i,
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+                          border: "1px solid #f1f5f9"
+                        }}
+                      >
+                        {REACTION_EMOJIS[type] || "❤️"}
+                      </div>
+                    ))}
+                  </div>
+                  <span style={{ fontSize: "0.78rem", color: "#64748b", fontWeight: 600 }}>
+                    {likeCount}
+                  </span>
+                </div>
+              );
+            })()}
+
             {/* Like row */}
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.5rem 1rem", borderTop: "1px solid #f1f5f9" }}>
-              <button onClick={handleLike} disabled={likeLoading} style={{
-                display: "flex", alignItems: "center", gap: "0.4rem", padding: "0.4rem 1rem",
-                border: `1.5px solid ${liked ? "#ef4444" : "#e2e8f0"}`,
-                borderRadius: "999px", background: liked ? "#fff1f2" : "white",
-                color: liked ? "#ef4444" : "#64748b", fontWeight: 700, fontSize: "0.82rem",
-                cursor: likeLoading ? "wait" : "pointer",
-              }}>
-                {liked ? "❤️" : "🤍"} {likeCount > 0 && likeCount}
-              </button>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.5rem 1rem", borderTop: "1px solid #f1f5f9", position: "relative" }}>
+              <div style={{ position: "relative", display: "inline-block" }}>
+                {showReactions && (
+                  <div
+                    onMouseEnter={() => {
+                      if (hoverTimer.current) clearTimeout(hoverTimer.current);
+                    }}
+                    onMouseLeave={handleMouseLeave}
+                    style={{
+                      position: "absolute",
+                      bottom: "100%",
+                      left: "0",
+                      background: "rgba(255, 255, 255, 0.95)",
+                      backdropFilter: "blur(12px)",
+                      WebkitBackdropFilter: "blur(12px)",
+                      borderRadius: "24px",
+                      padding: "4px 8px",
+                      display: "flex",
+                      gap: "10px",
+                      boxShadow: "0 10px 25px rgba(0, 0, 0, 0.15)",
+                      border: "1px solid rgba(0, 0, 0, 0.05)",
+                      zIndex: 31000,
+                      transform: "translateY(-4px)",
+                      animation: "popReactions 0.2s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards",
+                    }}
+                  >
+                    {Object.entries(REACTION_EMOJIS).map(([key, emoji]) => (
+                      <button
+                        key={key}
+                        onClick={() => handleReactionSelect(key)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          fontSize: "1.45rem",
+                          cursor: "pointer",
+                          padding: "4px",
+                          transition: "transform 0.1s ease",
+                          borderRadius: "50%",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = "scale(1.35)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = "scale(1)";
+                        }}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <button 
+                  onClick={handleLikeClick}
+                  onMouseEnter={handleMouseEnter}
+                  onMouseLeave={handleMouseLeave}
+                  onTouchStart={handleTouchStart}
+                  onTouchEnd={handleTouchEnd}
+                  disabled={likeLoading}
+                  style={{
+                    display: "flex", alignItems: "center", gap: "0.4rem", padding: "0.4rem 1rem",
+                    border: `1.5px solid ${liked ? (likedType === "HEART" ? "#ef4444" : likedType === "PRAY" ? "#7c3aed" : "#f59e0b") : "#e2e8f0"}`,
+                    borderRadius: "999px",
+                    background: liked ? (likedType === "HEART" ? "#fff1f2" : likedType === "PRAY" ? "#f5f3ff" : "#fffbeb") : "white",
+                    color: likedType === "HEART" ? "#ef4444" : likedType === "PRAY" ? "#7c3aed" : likedType === "HUG" ? "#f59e0b" : "#64748b",
+                    fontWeight: 700, fontSize: "0.82rem",
+                    cursor: likeLoading ? "wait" : "pointer",
+                  }}
+                >
+                  {likedType === "HEART" ? "❤️" : likedType === "PRAY" ? "🙏" : likedType === "HUG" ? "🤗" : "🤍"} {liked ? (likedType === "HEART" ? "Heart" : likedType === "PRAY" ? "Pray" : "Hug") : "Like"}
+                </button>
+              </div>
+
               <button onClick={() => commentInputRef.current?.focus()}
                 style={{ display: "flex", alignItems: "center", gap: "0.4rem", padding: "0.4rem 1rem", border: "1.5px solid #e2e8f0", borderRadius: "999px", background: "white", color: "#64748b", fontWeight: 700, fontSize: "0.82rem", cursor: "pointer" }}>
                 💬 {comments.length > 0 && comments.length}
@@ -457,6 +671,134 @@ export default function PhotoPostViewer({
           </p>
         )}
       </div>
+      {/* Reactions Analytics Modal */}
+      {showReactionsModal && (
+        <>
+          {/* Backdrop */}
+          <div 
+            onClick={() => setShowReactionsModal(false)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 30000,
+              background: "rgba(0,0,0,0.5)",
+              backdropFilter: "blur(4px)",
+              WebkitBackdropFilter: "blur(4px)"
+            }}
+          />
+          {/* Modal Container */}
+          <div
+            style={{
+              position: "fixed",
+              bottom: 0,
+              left: "50%",
+              transform: "translateX(-50%)",
+              width: "100%",
+              maxWidth: "480px",
+              background: "white",
+              borderRadius: "24px 24px 0 0",
+              boxShadow: "0 -8px 30px rgba(0,0,0,0.2)",
+              zIndex: 30001,
+              padding: "1rem 0 calc(1.5rem + env(safe-area-inset-bottom, 0px))",
+              maxHeight: "75vh",
+              display: "flex",
+              flexDirection: "column"
+            }}
+          >
+            {/* Handle bar */}
+            <div style={{ width: 40, height: 4, background: "#e2e8f0", borderRadius: 999, margin: "0 auto 12px" }} />
+            
+            {/* Title / Header */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 1.25rem 0.5rem" }}>
+              <span style={{ fontSize: "1rem", fontWeight: 800, color: "#0f172a" }}>Reactions</span>
+              <button 
+                onClick={() => setShowReactionsModal(false)}
+                style={{ background: "#f1f5f9", border: "none", borderRadius: "50%", width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: "0.85rem", fontWeight: 700, color: "#64748b" }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Reactions Tabs */}
+            <div style={{ display: "flex", gap: "8px", padding: "0.5rem 1.25rem", borderBottom: "1px solid #f1f5f9", overflowX: "auto" }}>
+              {["ALL", "HEART", "PRAY", "HUG"].map((tab) => {
+                const count = tab === "ALL" ? reactions.length : reactions.filter(r => r.type === tab).length;
+                if (count === 0 && tab !== "ALL") return null;
+                const isActive = activeReactionTab === tab;
+                const emoji = tab === "ALL" ? "👍" : REACTION_EMOJIS[tab];
+                return (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveReactionTab(tab)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      background: isActive ? `${PRIMARY}15` : "none",
+                      border: "none",
+                      borderRadius: "16px",
+                      padding: "6px 12px",
+                      fontSize: "0.82rem",
+                      fontWeight: 700,
+                      color: isActive ? PRIMARY : "#64748b",
+                      cursor: "pointer",
+                      whiteSpace: "nowrap"
+                    }}
+                  >
+                    <span>{emoji}</span>
+                    <span>{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Reactors list */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "0.5rem 1.25rem" }}>
+              {reactions
+                .filter(r => activeReactionTab === "ALL" || r.type === activeReactionTab)
+                .map((r: any) => {
+                  const initials = `${r.member?.firstName?.[0] ?? ""}${r.member?.lastName?.[0] ?? ""}`.toUpperCase();
+                  const fullName = `${r.member?.firstName ?? ""} ${r.member?.lastName ?? ""}`;
+                  return (
+                    <div 
+                      key={r.memberId} 
+                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #f8fafc" }}
+                      onClick={() => {
+                        setShowReactionsModal(false);
+                        router.push(`/member/${r.memberId}`);
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}>
+                        <div style={{ width: 36, height: 36, borderRadius: "50%", background: `${PRIMARY}20`, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+                          {r.member?.profilePicture ? (
+                            <img src={`/uploads/profile_pictures/${r.member.profilePicture}`} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          ) : (
+                            <span style={{ color: PRIMARY, fontSize: "0.8rem", fontWeight: 700 }}>
+                              {initials}
+                            </span>
+                          )}
+                          <div style={{ position: "absolute", bottom: -2, right: -2, background: "white", borderRadius: "50%", width: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.65rem", boxShadow: "0 1px 2px rgba(0,0,0,0.15)" }}>
+                            {REACTION_EMOJIS[r.type] || "❤️"}
+                          </div>
+                        </div>
+                        <span style={{ fontSize: "0.88rem", fontWeight: 600, color: "#1e293b" }}>
+                          {fullName}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        </>
+      )}
+
+      <style>{`
+        @keyframes popReactions {
+          0% { opacity: 0; transform: translateY(8px) scale(0.9); }
+          100% { opacity: 1; transform: translateY(-4px) scale(1); }
+        }
+      `}</style>
     </div>
   );
 }
