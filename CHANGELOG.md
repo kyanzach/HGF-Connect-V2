@@ -5,6 +5,15 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.29] — 2026-06-09
+### Added
+- **Prayer Request Integration & Deep Linking**:
+  - Automatically create a matching database `PrayerRequest` record when submitting a post of type `PRAYER` via the feed creation page.
+  - Added a distinct, rounded "🙏 Pray Now" CTA button on the feed `PostCard` for prayer posts, styled in light purple (`#f5f3ff`) to match the prayer wall design guidelines.
+  - Clicking "Pray Now" deep-links the user directly to the Prayer Wall (`/prayer?pray=[prayerRequestId]`), which automatically fires the prayer commit form dialog.
+  - Added a `GET` endpoint for individual prayer requests (`/api/prayer/[id]`) to dynamically fetch details if a deep-linked prayer request is not present on the first page.
+  - Cascaded deletion between prayer posts on the community feed and prayer requests on the wall so deleting either deletes both.
+
 ## [v2.22.28] — 2026-06-09
 ### Fixed
 - **AI Rewriter Quote Removal**: Added robust backend and frontend quote stripping filters to remove any surrounding double quotes, single quotes, or curly quote marks from the improved response. Appended formatting instructions to the editor system prompt to explicitly prevent wrapping responses in quotation marks, ensuring clean output across thoughts, testimonies, and prayer requests.

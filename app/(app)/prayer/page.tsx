@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -64,6 +64,48 @@ function PrayerWallContent() {
   useEffect(() => {
     load(tab);
   }, [tab, load]);
+
+  const prayId = searchParams.get("pray");
+  const hasAutoOpened = useRef(false);
+
+  useEffect(() => {
+    if (prayId && !hasAutoOpened.current) {
+      const id = parseInt(prayId);
+      if (!isNaN(id)) {
+        const found = requests.find((r) => r.id === id);
+        if (found) {
+          hasAutoOpened.current = true;
+          setSelectedRequest(found);
+          setModalOpen(true);
+          const url = new URL(window.location.href);
+          url.searchParams.delete("pray");
+          window.history.replaceState({}, "", url.toString());
+        } else if (!loading) {
+          hasAutoOpened.current = true;
+          fetch(`/api/prayer/${id}`)
+            .then((res) => {
+              if (!res.ok) throw new Error();
+              return res.json();
+            })
+            .then((data) => {
+              if (data.prayer) {
+                setSelectedRequest(data.prayer);
+                setModalOpen(true);
+              }
+              const url = new URL(window.location.href);
+              url.searchParams.delete("pray");
+              window.history.replaceState({}, "", url.toString());
+            })
+            .catch((err) => {
+              console.error("Failed to load deep-linked prayer request", err);
+              const url = new URL(window.location.href);
+              url.searchParams.delete("pray");
+              window.history.replaceState({}, "", url.toString());
+            });
+        }
+      }
+    }
+  }, [prayId, requests, loading]);
 
   // Handle marking request as answered / active toggle
   async function handleToggleAnswered(req: PrayerRequest) {

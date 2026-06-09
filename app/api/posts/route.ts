@@ -110,13 +110,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Post must have content, image, photos, verse, or link" }, { status: 400 });
     }
 
+    let prayerRequestVal = null;
+    if (type === "PRAYER") {
+      prayerRequestVal = await db.prayerRequest.create({
+        data: {
+          authorId: parseInt(session.user.id),
+          request: content?.trim() || "",
+          visibility: visibility ?? "MEMBERS_ONLY",
+        }
+      });
+    }
+
     const post = await db.post.create({
       data: {
         authorId: parseInt(session.user.id),
         type: type ?? "TEXT",
         content: content ?? null,
         imageUrl: imageUrl ?? null,
-        aiCaption: aiCaption ?? null,
+        aiCaption: prayerRequestVal ? String(prayerRequestVal.id) : (aiCaption ?? null),
         verseRef: verseRef ?? null,
         verseText: verseText ?? null,
         visibility: visibility ?? "MEMBERS_ONLY",

@@ -2,6 +2,43 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const resolvedParams = await params;
+  const id = parseInt(resolvedParams.id);
+  if (isNaN(id)) {
+    return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
+  }
+
+  try {
+    const prayer = await db.prayerRequest.findUnique({
+      where: { id },
+      include: {
+        author: {
+          select: { id: true, firstName: true, lastName: true, profilePicture: true },
+        },
+        _count: { select: { responses: true } },
+      },
+    });
+
+    if (!prayer) {
+      return NextResponse.json({ error: "Prayer request not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ prayer });
+  } catch (error) {
+    console.error("[api/prayer/[id] GET]", error);
+    return NextResponse.json({ error: "Failed to fetch prayer request" }, { status: 500 });
+  }
+}
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -84,6 +121,13 @@ export async function DELETE(
 
     await db.prayerRequest.delete({
       where: { id },
+    });
+
+    await db.post.deleteMany({
+      where: {
+        type: "PRAYER",
+        aiCaption: String(id),
+      },
     });
 
     return NextResponse.json({ success: true });

@@ -21,7 +21,7 @@ export async function DELETE(
   try {
     const post = await db.post.findUnique({
       where: { id },
-      select: { authorId: true },
+      select: { authorId: true, type: true, aiCaption: true },
     });
 
     if (!post) {
@@ -39,6 +39,15 @@ export async function DELETE(
     await db.post.delete({
       where: { id },
     });
+
+    if (post.type === "PRAYER" && post.aiCaption) {
+      const prId = parseInt(post.aiCaption);
+      if (!isNaN(prId)) {
+        await db.prayerRequest.deleteMany({
+          where: { id: prId },
+        });
+      }
+    }
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

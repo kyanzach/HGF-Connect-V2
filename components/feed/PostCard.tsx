@@ -1112,6 +1112,23 @@ export default function PostCard({ post }: PostCardProps) {
 
         {/* Actions */}
         <div style={{ display: "flex", borderTop: "1px solid #f1f5f9", padding: "0.1rem 0" }}>
+          {post.type === "PRAYER" && post.aiCaption && (
+            <button
+              onClick={() => {
+                router.push(`/prayer?pray=${post.aiCaption}`);
+              }}
+              style={{
+                ...actionBtnStyle,
+                color: "#7c3aed",
+                fontWeight: 800,
+                background: "#f5f3ff",
+                borderRadius: "8px",
+                margin: "4px",
+              }}
+            >
+              🙏 Pray Now
+            </button>
+          )}
           <button onClick={toggleLike} style={{ ...actionBtnStyle, color: liked ? "#ef4444" : "#64748b", fontWeight: liked ? 700 : 400 }}>
             {liked ? "❤️" : "🤍"} {likeCount > 0 && likeCount}
           </button>
