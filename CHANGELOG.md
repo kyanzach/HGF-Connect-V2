@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.24] — 2026-06-09
+### Fixed
+- **Birthday Cron Job**: Registered the daily birthday auto-announcer script (`scripts/birthday-cron.mjs`) in the server's crontab to run daily at 11:00 PM UTC (7:00 AM Manila Time), resolving the issue where daily birthday greeting posts were not being published to the community feed.
+
 ## [v2.22.23] — 2026-06-09
 ### Fixed
 - **Mobile Safe Area Header Notch Overlap**: Added `paddingTop: "calc(1rem + env(safe-area-inset-top, 0px))"` to the `/grace-blog/[id]` details page header style to prevent status bar cutoffs and ensure the back button is fully clickable.
