@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { type Session } from "next-auth";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const NAV = [
   { label: "Dashboard", href: "/admin", icon: "📊" },
@@ -25,6 +25,21 @@ export default function AdminSidebar({ session }: { session: Session }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const isAdmin = session.user.role === "admin";
+
+  useEffect(() => {
+    // Collapse on mount if screen width is mobile
+    if (window.innerWidth < 768) {
+      setCollapsed(true);
+    }
+
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setCollapsed(true);
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   return (
     <aside

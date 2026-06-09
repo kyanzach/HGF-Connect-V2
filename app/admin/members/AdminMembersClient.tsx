@@ -120,14 +120,17 @@ export default function AdminMembersClient({
   }
 
   // Pre-formatted credentials template
-  const shareText = `⛪ HGF Connect Account Credentials
+  const shareText = `⛪ HGF Connect — Account Password Reset
 
-Here are your login credentials for HGF Fellowship:
+Hi! Your account password has been reset successfully. Here are your temporary login credentials:
+
 🔗 Login URL: https://connect.houseofgrace.ph/login
 👤 Username: ${resetDetails.username}
-🔑 Password: ${resetDetails.password}
+🔑 Temporary Password: ${resetDetails.password}
 
-Please log in and update your password under your Profile settings.`;
+Please log in at your earliest convenience. Once logged in, we highly encourage you to update your profile details and change your temporary password under your Account Profile settings.
+
+Thank you and God bless!`;
 
   async function copyToClipboard() {
     try {
