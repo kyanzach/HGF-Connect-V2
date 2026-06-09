@@ -135,16 +135,30 @@ export default function ImageLightbox({ src, alt = "Enlarged view", onClose }: P
       ref={containerRef}
       style={{
         position: "fixed",
-        inset: 0,
+        top: 0,
+        left: 0,
+        width: "100vw",
+        height: "100dvh",
         zIndex: 20000,
         background: "rgba(0, 0, 0, 0.95)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
         backdropFilter: "blur(12px)",
         WebkitBackdropFilter: "blur(12px)",
         transition: "opacity 0.2s ease-in-out",
+        touchAction: "none",
       }}
       onClick={(e) => {
         if (e.target === containerRef.current) onClose();
       }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
     >
       {/* Top Controls */}
       <div
@@ -156,6 +170,8 @@ export default function ImageLightbox({ src, alt = "Enlarged view", onClose }: P
           gap: "12px",
           zIndex: 20001,
         }}
+        onMouseDown={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
       >
         {/* Zoom Controls */}
         <button
@@ -229,45 +245,27 @@ export default function ImageLightbox({ src, alt = "Enlarged view", onClose }: P
         </button>
       </div>
 
-      {/* Image Area */}
-      <div
+      <img
+        ref={imgRef}
+        src={src}
+        alt={alt}
+        draggable={false}
         style={{
-          position: "absolute",
-          inset: 0,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          overflow: "hidden",
-          touchAction: "none",
+          maxWidth: "96%",
+          maxHeight: "86%",
+          objectFit: "contain",
+          userSelect: "none",
+          WebkitUserSelect: "none",
+          cursor: scale > 1 ? "grab" : "zoom-in",
+          transform: `translate(${panX}px, ${panY}px) scale(${scale})`,
+          transition: pinchDist.current !== null || isDragging.current ? "none" : "transform 0.15s ease-out",
+          display: "block",
+          margin: "0 auto",
         }}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-      >
-        <img
-          ref={imgRef}
-          src={src}
-          alt={alt}
-          draggable={false}
-          style={{
-            maxWidth: "96%",
-            maxHeight: "86%",
-            objectFit: "contain",
-            userSelect: "none",
-            WebkitUserSelect: "none",
-            cursor: scale > 1 ? "grab" : "zoom-in",
-            transform: `translate(${panX}px, ${panY}px) scale(${scale})`,
-            transition: pinchDist.current !== null || isDragging.current ? "none" : "transform 0.15s ease-out",
-          }}
-          onClick={(e) => {
-            e.stopPropagation(); // prevent closing when clicking the image
-          }}
-        />
-      </div>
+        onClick={(e) => {
+          e.stopPropagation(); // prevent closing when clicking the image
+        }}
+      />
 
       {/* Bottom Zoom Hint / Reset */}
       {scale > 1 && (
@@ -289,6 +287,8 @@ export default function ImageLightbox({ src, alt = "Enlarged view", onClose }: P
             WebkitBackdropFilter: "blur(4px)",
             zIndex: 20002,
           }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
         >
           Tap to reset zoom
         </button>
