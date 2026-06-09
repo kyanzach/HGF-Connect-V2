@@ -117,7 +117,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user, trigger }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id as string;
         token.role = (user as any).role;
@@ -127,8 +127,63 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.username = (user as any).username;
         token.profilePicture = (user as any).profilePicture;
       }
-      // Re-fetch profile picture from DB when session.update() is called
-      if (trigger === "update" && token.id) {
+
+      // Handle Impersonation
+      if (trigger === "update" && session) {
+        const currentRole = token.impersonator ? (token.impersonator as any).role : token.role;
+
+        // ONLY administrators are allowed to trigger or modify impersonation
+        if (currentRole === "admin") {
+          if (session.impersonateId) {
+            const targetId = parseInt(String(session.impersonateId), 10);
+            if (!Number.isNaN(targetId)) {
+              const targetMember = await db.member.findUnique({
+                where: { id: targetId },
+              });
+
+              if (targetMember) {
+                // If not already impersonating, save original admin details
+                if (!token.impersonator) {
+                  token.impersonator = {
+                    id: token.id,
+                    role: token.role,
+                    status: token.status as any,
+                    firstName: token.firstName,
+                    lastName: token.lastName,
+                    username: token.username,
+                    profilePicture: token.profilePicture,
+                  };
+                }
+
+                // Switch identity to target member
+                token.id = String(targetMember.id);
+                token.role = targetMember.role as any;
+                token.status = targetMember.status as any;
+                token.firstName = targetMember.firstName;
+                token.lastName = targetMember.lastName;
+                token.username = targetMember.username;
+                token.profilePicture = targetMember.profilePicture;
+              }
+            }
+          } else if (session.stopImpersonating) {
+            // Restore original admin identity
+            if (token.impersonator) {
+              const imp = token.impersonator as any;
+              token.id = imp.id;
+              token.role = imp.role;
+              token.status = imp.status;
+              token.firstName = imp.firstName;
+              token.lastName = imp.lastName;
+              token.username = imp.username;
+              token.profilePicture = imp.profilePicture;
+              delete token.impersonator;
+            }
+          }
+        }
+      }
+
+      // Re-fetch profile picture from DB when session.update() is called (unless we are impersonating and just did the update above)
+      if (trigger === "update" && token.id && (!session || (!session.impersonateId && !session.stopImpersonating))) {
         const numericId = parseInt(String(token.id), 10);
         if (!Number.isNaN(numericId)) {
           const fresh = await db.member.findUnique({
@@ -149,6 +204,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         (session.user as any).lastName = token.lastName;
         (session.user as any).username = token.username;
         (session.user as any).profilePicture = token.profilePicture;
+        if (token.impersonator) {
+          (session as any).impersonator = token.impersonator;
+        } else {
+          delete (session as any).impersonator;
+        }
       }
       return session;
     },

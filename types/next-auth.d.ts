@@ -13,6 +13,15 @@ declare module "next-auth" {
 
   interface Session {
     user: User;
+    impersonator?: {
+      id: string;
+      role: "admin" | "moderator" | "usher" | "user" | "multimedia";
+      status: "active" | "inactive" | "pending";
+      firstName: string;
+      lastName: string;
+      username: string | null;
+      profilePicture: string | null;
+    };
   }
 }
 
@@ -25,5 +34,15 @@ declare module "next-auth/jwt" {
     lastName: string;
     username: string | null;
     profilePicture: string | null;
+    impersonator?: {
+      id: string;
+      role: "admin" | "moderator" | "usher" | "user" | "multimedia";
+      status: "active" | "inactive" | "pending";
+      firstName: string;
+      lastName: string;
+      username: string | null;
+      profilePicture: string | null;
+    };
   }
 }
+

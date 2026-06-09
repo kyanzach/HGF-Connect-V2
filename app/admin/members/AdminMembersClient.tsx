@@ -1,6 +1,8 @@
 "use client";
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import ConfirmModal from "@/components/ConfirmModal";
 
 const P = "#4EB1CB";
@@ -28,6 +30,10 @@ const ROLE_COLOR: Record<string, string> = { admin: "#ef4444", moderator: "#f59e
 export default function AdminMembersClient({
   members: initial, ministries, isAdmin,
 }: { members: Member[]; ministries: { id: number; name: string }[]; isAdmin: boolean }) {
+  const { data: session, update } = useSession();
+  const router = useRouter();
+  const isStrictAdmin = session?.user?.role === "admin";
+
   const [members, setMembers] = useState(initial);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -91,6 +97,35 @@ export default function AdminMembersClient({
     const res = await fetch(`/api/members/${id}`, { method: "DELETE" });
     if (res.ok) setMembers(prev => prev.filter(m => m.id !== id));
     setConfirmModal(prev => ({ ...prev, open: false, loading: false }));
+  }
+
+  async function handleImpersonate(id: number, name: string) {
+    setConfirmModal({
+      open: true,
+      title: "Login As Member",
+      message: `Are you sure you want to temporarily login as "${name}"?`,
+      confirmLabel: "Login As",
+      confirmColor: P,
+      loading: false,
+      onConfirm: () => executeImpersonate(id, name),
+    });
+  }
+
+  async function executeImpersonate(id: number, name: string) {
+    setConfirmModal(prev => ({ ...prev, loading: true }));
+    try {
+      const res = await update({ impersonateId: id });
+      if (res) {
+        setConfirmModal(prev => ({ ...prev, open: false, loading: false }));
+        router.push("/feed");
+        router.refresh();
+      } else {
+        setConfirmModal(prev => ({ ...prev, open: false, loading: false }));
+      }
+    } catch (err) {
+      console.error(err);
+      setConfirmModal(prev => ({ ...prev, open: false, loading: false }));
+    }
   }
 
   async function handleResetPassword(id: number, name: string) {
@@ -268,6 +303,14 @@ Thank you and God bless!`;
                       <button onClick={() => handleResetPassword(m.id, `${m.firstName} ${m.lastName}`)} style={{ fontSize: "0.75rem", color: "#4f46e5", background: "none", border: "none", cursor: "pointer", fontWeight: 700, padding: 0 }}>
                         Reset Pass
                       </button>
+                      {isStrictAdmin && (
+                        <>
+                          <span style={{ color: "#e2e8f0" }}>|</span>
+                          <button onClick={() => handleImpersonate(m.id, `${m.firstName} ${m.lastName}`)} style={{ fontSize: "0.75rem", color: P, background: "none", border: "none", cursor: "pointer", fontWeight: 700, padding: 0 }}>
+                            Login As
+                          </button>
+                        </>
+                      )}
                       {isAdmin && <><span style={{ color: "#e2e8f0" }}>|</span>
                         <button onClick={() => promptDeleteMember(m.id, `${m.firstName} ${m.lastName}`)} style={{ fontSize: "0.75rem", color: "#ef4444", background: "none", border: "none", cursor: "pointer", fontWeight: 700, padding: 0 }}>Delete</button></>}
                     </div>
@@ -349,6 +392,11 @@ Thank you and God bless!`;
               <button onClick={() => handleResetPassword(m.id, `${m.firstName} ${m.lastName}`)} style={{ flex: 1.5, fontSize: "0.75rem", color: "#4f46e5", background: "#e0e7ff", border: "none", borderRadius: "6px", padding: "0.5rem 0", fontWeight: 700, cursor: "pointer" }}>
                 Reset Pass
               </button>
+              {isStrictAdmin && (
+                <button onClick={() => handleImpersonate(m.id, `${m.firstName} ${m.lastName}`)} style={{ flex: 1.5, fontSize: "0.75rem", color: "white", background: P, border: "none", borderRadius: "6px", padding: "0.5rem 0", fontWeight: 700, cursor: "pointer" }}>
+                  Login As
+                </button>
+              )}
               {isAdmin && (
                 <button onClick={() => promptDeleteMember(m.id, `${m.firstName} ${m.lastName}`)} style={{ flex: 1, fontSize: "0.75rem", color: "#dc2626", background: "#fee2e2", border: "none", borderRadius: "6px", padding: "0.5rem 0", fontWeight: 700, cursor: "pointer" }}>
                   Delete

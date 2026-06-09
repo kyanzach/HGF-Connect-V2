@@ -5,6 +5,13 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.24.11] — 2026-06-10
+### Added
+- **Username Editing**: Added username configuration in the Security tab of the Edit Profile page.
+- **Debounced Live Validation**: Implemented a 1.5-second debounced JS check to verify if a username is available with format and length constraints.
+- **Security Check API**: Added `/api/members/check-username` to verify username uniqueness on the fly.
+- **Impersonation Support**: Restored admin impersonation capabilities and the top banner allowing admins to log in as other members.
+
 ## [v2.24.10] — 2026-06-10
 ### Added
 - **All Active Members Loaded**: Removed email requirements from the User Roles page to display all active members (including those without an email).

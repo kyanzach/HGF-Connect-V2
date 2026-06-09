@@ -85,6 +85,29 @@ export async function PATCH(
     if (body.sms1dayReminder !== undefined) updateData.sms1dayReminder = body.sms1dayReminder;
     if (body.smsSameDayReminder !== undefined) updateData.smsSameDayReminder = body.smsSameDayReminder;
 
+    if (body.username !== undefined) {
+      const u = body.username?.trim().toLowerCase();
+      if (!u) {
+        return NextResponse.json({ error: "Username is required." }, { status: 400 });
+      }
+      if (u.length < 4) {
+        return NextResponse.json({ error: "Username must be at least 4 characters long." }, { status: 400 });
+      }
+      if (!/^[a-zA-Z0-9_-]+$/.test(u)) {
+        return NextResponse.json({ error: "Username can only contain letters, numbers, underscores, and hyphens." }, { status: 400 });
+      }
+      const existing = await db.member.findFirst({
+        where: {
+          username: u,
+          id: { not: id },
+        },
+      });
+      if (existing) {
+        return NextResponse.json({ error: "Username is already taken." }, { status: 400 });
+      }
+      updateData.username = u;
+    }
+
     if (body.newPassword) {
       if (body.newPassword.length < 8) {
         return NextResponse.json({ error: "Password must be at least 8 characters." }, { status: 400 });

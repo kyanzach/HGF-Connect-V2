@@ -48,7 +48,49 @@ export default function EditProfilePage() {
     showEmail: true, showPhone: true, showAddress: true,
     sms5dayReminder: true, sms3dayReminder: true,
     sms1dayReminder: true, smsSameDayReminder: true,
+    username: "",
   });
+  const [originalUsername, setOriginalUsername] = useState("");
+  const [usernameStatus, setUsernameStatus] = useState<{
+    loading: boolean;
+    available: boolean | null;
+    error: string | null;
+  }>({ loading: false, available: null, error: null });
+
+  useEffect(() => {
+    const username = form.username.trim().toLowerCase();
+    if (!username || username === originalUsername.toLowerCase()) {
+      setUsernameStatus({ loading: false, available: null, error: null });
+      return;
+    }
+
+    setUsernameStatus({ loading: true, available: null, error: null });
+
+    const delayDebounce = setTimeout(async () => {
+      if (username.length < 4) {
+        setUsernameStatus({ loading: false, available: false, error: "Username must be at least 4 letters." });
+        return;
+      }
+      if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
+        setUsernameStatus({ loading: false, available: false, error: "Username can only contain letters, numbers, underscores, and hyphens." });
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/members/check-username?username=${encodeURIComponent(username)}`);
+        const data = await res.json();
+        if (data.available) {
+          setUsernameStatus({ loading: false, available: true, error: null });
+        } else {
+          setUsernameStatus({ loading: false, available: false, error: data.error || "Username is already taken." });
+        }
+      } catch {
+        setUsernameStatus({ loading: false, available: null, error: "Failed to verify username." });
+      }
+    }, 1500);
+
+    return () => clearTimeout(delayDebounce);
+  }, [form.username, originalUsername]);
   const [profilePic, setProfilePic] = useState<string | null>(null);
   const [coverPic, setCoverPic] = useState<string | null>(null);
 
@@ -76,7 +118,9 @@ export default function EditProfilePage() {
           sms3dayReminder: data.sms3dayReminder ?? true,
           sms1dayReminder: data.sms1dayReminder ?? true,
           smsSameDayReminder: data.smsSameDayReminder ?? true,
+          username: data.username ?? "",
         });
+        setOriginalUsername(data.username ?? "");
         if (data.profilePicture) setProfilePic(`/uploads/profile_pictures/${data.profilePicture}`);
         if (data.coverPhoto) setCoverPic(`/uploads/cover_photos/${data.coverPhoto}`);
         setLoading(false);
@@ -115,6 +159,7 @@ export default function EditProfilePage() {
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Failed to save");
       setSaved(true);
+      setOriginalUsername(form.username);
       setTimeout(() => setSaved(false), 2500);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to save");
@@ -377,6 +422,38 @@ export default function EditProfilePage() {
 
             {activeTab === "security" && (
               <div>
+                {/* Username Input with Debounced Live Verification */}
+                <div style={{ marginBottom: "1.25rem", paddingBottom: "1.25rem", borderBottom: "1.5px dashed #f1f5f9" }}>
+                  <label style={{ fontSize: "0.7rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", display: "block", marginBottom: "0.3rem" }}>Username</label>
+                  <input
+                    type="text"
+                    value={form.username}
+                    onChange={e => set("username", e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""))}
+                    placeholder="Enter unique username"
+                    style={{ width: "100%", padding: "0.75rem", borderRadius: "10px", border: "1.5px solid #e2e8f0", fontSize: "0.95rem", outline: "none", boxSizing: "border-box" }}
+                  />
+                  {usernameStatus.loading && (
+                    <p style={{ fontSize: "0.8rem", color: "#64748b", marginTop: "0.35rem", display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                      <span>🔄</span> Checking username availability...
+                    </p>
+                  )}
+                  {!usernameStatus.loading && usernameStatus.error && (
+                    <p style={{ fontSize: "0.8rem", color: "#ef4444", marginTop: "0.35rem", display: "flex", alignItems: "center", gap: "0.25rem", fontWeight: 600 }}>
+                      <span>❌</span> {usernameStatus.error}
+                    </p>
+                  )}
+                  {!usernameStatus.loading && usernameStatus.available && (
+                    <p style={{ fontSize: "0.8rem", color: "#10b981", marginTop: "0.35rem", display: "flex", alignItems: "center", gap: "0.25rem", fontWeight: 600 }}>
+                      <span>✅</span> Username is available!
+                    </p>
+                  )}
+                  {!usernameStatus.loading && usernameStatus.available === false && !usernameStatus.error && (
+                    <p style={{ fontSize: "0.8rem", color: "#ef4444", marginTop: "0.35rem", display: "flex", alignItems: "center", gap: "0.25rem", fontWeight: 600 }}>
+                      <span>❌</span> Username is already taken.
+                    </p>
+                  )}
+                </div>
+
                 <p style={{ fontSize: "0.825rem", color: "#64748b", marginBottom: "1rem", lineHeight: 1.5 }}>
                   Set or update your login password. If your account does not have a password yet, leave the current password field blank.
                 </p>
@@ -447,8 +524,8 @@ export default function EditProfilePage() {
           </button>
           <button
             onClick={handleSave}
-            disabled={saving || loading}
-            style={{ flex: 2, padding: "0.875rem", background: saving ? "#94a3b8" : PRIMARY, border: "none", borderRadius: "12px", color: "white", fontSize: "0.9rem", fontWeight: 800, cursor: saving ? "not-allowed" : "pointer" }}
+            disabled={saving || loading || usernameStatus.loading || usernameStatus.available === false || !!usernameStatus.error}
+            style={{ flex: 2, padding: "0.875rem", background: (saving || usernameStatus.loading || usernameStatus.available === false || !!usernameStatus.error) ? "#94a3b8" : PRIMARY, border: "none", borderRadius: "12px", color: "white", fontSize: "0.9rem", fontWeight: 800, cursor: (saving || usernameStatus.loading || usernameStatus.available === false || !!usernameStatus.error) ? "not-allowed" : "pointer" }}
           >
             {saving ? "Saving…" : "💾 Save Changes"}
           </button>

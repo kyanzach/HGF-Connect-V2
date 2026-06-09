@@ -7,6 +7,7 @@ import UpdateToast from "@/components/UpdateToast";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import VersionGuard from "@/components/VersionGuard";
 import { UploadProvider } from "@/context/UploadContext";
+import ImpersonationBanner from "@/components/layout/ImpersonationBanner";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -85,6 +86,7 @@ export default async function RootLayout({
         <SessionProvider session={session}>
           <UploadProvider>
             {children}
+            <ImpersonationBanner />
             <UpdateToast />
             <ServiceWorkerRegistration />
             <VersionGuard />
