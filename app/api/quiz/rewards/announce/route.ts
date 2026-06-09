@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 async function isPastorOrAdmin(session: any): Promise<boolean> {
   const role = session?.user?.role;
-  if (role === "admin") return true;
+  if (role === "admin" || role === "moderator") return true;
   const memberId = parseInt(session?.user?.id, 10);
   if (isNaN(memberId)) return false;
   const pm = await db.memberMinistry.findFirst({
@@ -48,26 +48,15 @@ export async function POST(request: Request) {
 
     const memberId = parseInt(session.user.id, 10);
 
-    // ── Create or update QuizRewardItem ──
-    const item = await db.quizRewardItem.upsert({
+    // ── Check if reward item already exists ──
+    const existingItem = await db.quizRewardItem.findUnique({
       where: {
         quizId_rewardTier: {
           quizId: quiz.id,
           rewardTier,
         },
       },
-      update: {
-        title,
-        description: description || null,
-        imageUrl: imageUrl || null,
-      },
-      create: {
-        quizId: quiz.id,
-        rewardTier,
-        title,
-        description: description || null,
-        imageUrl: imageUrl || null,
-      },
+      select: { id: true, postId: true },
     });
 
     // ── Generate exciting feed post content ──
@@ -89,45 +78,107 @@ export async function POST(request: Request) {
       `Let's study the Word and review Sunday's sermon together. Play the daily challenges, climb the leaderboard, and unlock this week's reward! 🧠✨`,
     ].filter(Boolean).join("\n");
 
-    // Create the QUIZ_REWARD feed post
-    const post = await db.post.create({
-      data: {
-        authorId: memberId,
-        type: "QUIZ_REWARD",
-        content: postContent,
-        imageUrl: imageUrl || null,
-        visibility: "MEMBERS_ONLY",
-      },
-    });
+    let item;
+    let finalPostId: number | null = null;
 
-    // Update QuizRewardItem with link to the created feed post
-    await db.quizRewardItem.update({
-      where: { id: item.id },
-      data: { postId: post.id },
-    });
-
-    // ── Notify members ──
-    const activeMembers = await db.member.findMany({
-      where: { status: "active" },
-      select: { id: true },
-    });
-
-    if (activeMembers.length > 0) {
-      await db.notification.createMany({
-        data: activeMembers.map((m) => ({
-          memberId: m.id,
-          type: "quiz_announcement" as const,
-          title: "🎁 New Quiz Reward Announced!",
-          body: `We are giving away "${title}" for achieving a ${rewardTier.toLowerCase()} score this week. Play now!`,
-          link: "/quiz",
-          actorId: memberId,
-        })),
+    if (existingItem) {
+      // 1. Update existing reward item
+      item = await db.quizRewardItem.update({
+        where: { id: existingItem.id },
+        data: {
+          title,
+          description: description || null,
+          imageUrl: imageUrl || null,
+        },
       });
+
+      if (existingItem.postId) {
+        // 2. Update existing feed post
+        await db.post.update({
+          where: { id: existingItem.postId },
+          data: {
+            content: postContent,
+            imageUrl: imageUrl || null,
+          },
+        });
+        finalPostId = existingItem.postId;
+      } else {
+        // If postId is missing for some reason, create one
+        const post = await db.post.create({
+          data: {
+            authorId: memberId,
+            type: "QUIZ_REWARD",
+            content: postContent,
+            imageUrl: imageUrl || null,
+            visibility: "MEMBERS_ONLY",
+          },
+        });
+        await db.quizRewardItem.update({
+          where: { id: item.id },
+          data: { postId: post.id },
+        });
+        finalPostId = post.id;
+        
+        // Notify members (since it's a new post)
+        await notifyMembers(title, rewardTier, memberId);
+      }
+    } else {
+      // 1. Create new reward item
+      item = await db.quizRewardItem.create({
+        data: {
+          quizId: quiz.id,
+          rewardTier,
+          title,
+          description: description || null,
+          imageUrl: imageUrl || null,
+        },
+      });
+
+      // 2. Create the feed post
+      const post = await db.post.create({
+        data: {
+          authorId: memberId,
+          type: "QUIZ_REWARD",
+          content: postContent,
+          imageUrl: imageUrl || null,
+          visibility: "MEMBERS_ONLY",
+        },
+      });
+
+      // 3. Link post to reward item
+      await db.quizRewardItem.update({
+        where: { id: item.id },
+        data: { postId: post.id },
+      });
+      finalPostId = post.id;
+
+      // 4. Notify members
+      await notifyMembers(title, rewardTier, memberId);
     }
 
-    return NextResponse.json({ success: true, rewardItemId: item.id, postId: post.id });
+    return NextResponse.json({ success: true, rewardItemId: item.id, postId: finalPostId });
   } catch (error: any) {
     console.error("[api/quiz/rewards/announce]", error?.message);
     return NextResponse.json({ error: "Failed to publish reward announcement" }, { status: 500 });
+  }
+}
+
+async function notifyMembers(title: string, rewardTier: string, actorId: number) {
+  const activeMembers = await db.member.findMany({
+    where: { status: "active" },
+    select: { id: true },
+  });
+
+  if (activeMembers.length > 0) {
+    await db.notification.createMany({
+      data: activeMembers.map((m) => ({
+        memberId: m.id,
+        type: "quiz_announcement" as const,
+        title: "🎁 New Quiz Reward Announced!",
+        body: `We are giving away "${title}" for achieving a ${rewardTier.toLowerCase()} score this week. Play now!`,
+        link: "/quiz",
+        actorId,
+      })),
+    });
   }
 }

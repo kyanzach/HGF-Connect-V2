@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.43] — 2026-06-09
+### Added
+- **Editable Quiz Rewards (s1)**: Modified the Quiz Admin reward management system so administrators/moderators can edit and update existing reward parameters (tier requirement, title, description, and preview image). The backend updates the existing `QuizRewardItem` record and synchronizes changes to the associated community feed announcement post in real-time, eliminating redundant duplicate posts.
+- **Moderator Quiz Gating & Access Fix (s2-s3)**: Expanded permission helper `isPastorOrAdmin` across all quiz administration API endpoints (`save`, `generate`, `publish`, `rewards`, `list`, `backfill`, and `latest-sunday`) to explicitly authorize users with the `"moderator"` role. This resolves the issue where moderators like Karen could not load, manage, or view the active quizzes and data.
+
 ## [v2.22.42] — 2026-06-09
 ### Added
 - **Sermon Player Double Click/Tap Toggles Fullscreen**: Implemented double-click (desktop) and double-tap (mobile) detection on the custom sermon video player overlay interceptor. Tapping or clicking twice in quick succession (<300ms) will toggle fullscreen mode (or pseudo-fullscreen mode on PWAs/iOS Safari), whilst instantly reverting the asynchronous play/pause toggle event from the first tap to keep playback state uninterrupted.

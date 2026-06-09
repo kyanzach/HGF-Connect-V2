@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 
 async function isPastorOrAdmin(session: any): Promise<boolean> {
   const role = session?.user?.role;
-  if (role === "admin") return true;
+  if (role === "admin" || role === "moderator") return true;
 
   // Check Pastoral Ministry membership (ID 11)
   const memberId = parseInt(session?.user?.id, 10);

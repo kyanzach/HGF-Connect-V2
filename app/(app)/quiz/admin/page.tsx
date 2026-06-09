@@ -118,6 +118,29 @@ export default function QuizAdminPage() {
   const [announcingReward, setAnnouncingReward] = useState<boolean>(false);
   const rewardFileInputRef = useRef<HTMLInputElement | null>(null);
 
+  const activeQuiz = existingQuizzes.find((q) => q.status === "published");
+  const hasExistingReward = !!(activeQuiz?.rewardItems?.some(
+    (item: any) => item.rewardTier === rewardTier
+  ));
+
+  // Effect to automatically fill/clear the reward form based on selection
+  useEffect(() => {
+    if (activeQuiz) {
+      const existingReward = activeQuiz.rewardItems?.find(
+        (item: any) => item.rewardTier === rewardTier
+      );
+      if (existingReward) {
+        setRewardTitle(existingReward.title);
+        setRewardDescription(existingReward.description || "");
+        setRewardImageUrl(existingReward.imageUrl || "");
+      } else {
+        setRewardTitle("");
+        setRewardDescription("");
+        setRewardImageUrl("");
+      }
+    }
+  }, [rewardTier, activeQuiz]);
+
   async function handleRewardImageUpload(file: File) {
     setUploadingRewardImage(true);
     const fd = new FormData();
@@ -156,7 +179,13 @@ export default function QuizAdminPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        showAlert("Success", "🎁 Reward announced successfully and posted to the feed!", "success");
+        showAlert(
+          "Success",
+          hasExistingReward
+            ? "🎁 Reward updated successfully and community feed post updated!"
+            : "🎁 Reward announced successfully and posted to the feed!",
+          "success"
+        );
         setRewardTitle("");
         setRewardDescription("");
         setRewardImageUrl("");
@@ -836,7 +865,7 @@ export default function QuizAdminPage() {
             marginTop: "24px"
           }}
         >
-          {announcingReward ? "📢 Announcing..." : "📢 Announce Reward & Post"}
+          {announcingReward ? "⏳ Saving..." : hasExistingReward ? "✏️ Update Reward & Post" : "📢 Announce Reward & Post"}
         </button>
       </div>
 
