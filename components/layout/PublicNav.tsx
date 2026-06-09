@@ -166,7 +166,7 @@ export default function PublicNav() {
                   {["admin", "moderator", "usher"].includes(session.user.role) && (
                     <>
                       <hr style={{ border: "none", borderTop: "1px solid #f1f5f9", margin: 0 }} />
-                      <DropdownItem href="/attendance" label="✅ Attendance App" />
+                      <DropdownItem href="/api/auth/sso/attendance" label="✅ Attendance App" />
                     </>
                   )}
                   {["admin", "moderator"].includes(session.user.role) && (

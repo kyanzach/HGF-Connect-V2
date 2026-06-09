@@ -1152,7 +1152,7 @@ export default function PostCard({ post }: PostCardProps) {
                 fontWeight: 800,
                 background: "#f5f3ff",
                 borderRadius: "8px",
-                margin: "4px",
+                margin: "4px 2px",
               }}
             >
               🙏 Pray Now
@@ -1222,8 +1222,9 @@ export default function PostCard({ post }: PostCardProps) {
 
 const actionBtnStyle: React.CSSProperties = {
   flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
-  gap: "0.375rem", padding: "0.625rem", background: "none", border: "none",
-  cursor: "pointer", fontSize: "0.875rem", color: "#64748b", transition: "color 0.15s",
+  gap: "0.25rem", padding: "0.625rem 0.25rem", background: "none", border: "none",
+  cursor: "pointer", fontSize: "0.82rem", color: "#64748b", transition: "color 0.15s",
+  whiteSpace: "nowrap",
 };
 
 const menuItemStyle: React.CSSProperties = {

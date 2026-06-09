@@ -5,6 +5,22 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.32] — 2026-06-09
+### Added
+- **SSO for Attendance App / Kiosk**:
+  - Implemented secure single sign-on (SSO) between Next.js (`connect.houseofgrace.ph`) and the legacy PHP system (`app.houseofgrace.ph/attendance/`).
+  - Added an `SsoToken` schema table to the database for registering short-lived, single-use credentials.
+  - Implemented the Next.js API route `/api/auth/sso/attendance` to generate a token and redirect ushers.
+  - Built the `sso.php` bridge script in the legacy PHP codebase to consume the token and start the corresponding `ATTENDANCE_SESSION`.
+  - Updated all menu items, drop links, and dashboard action buttons to route through the SSO bridge.
+### Fixed
+- **Deep Linking for Prayer Notifications**:
+  - Changed `PRAYER` post notification targets to deep link directly to `/prayer?highlight=[id]`.
+  - Added a custom scrolling and glowing highlight pulsation animation on the targeted prayer card.
+- **Mobile Responsive Enhancements**:
+  - Prevented "Pray Now" action buttons from wrapping onto multiple lines on small screen widths.
+  - Fixed hero carousel quiz titles from truncating by splitting the title and date and displaying them cleanly on separate lines.
+
 ## [v2.22.31] — 2026-06-09
 ### Added
 - **Weekly Quiz Reward Announcement System**:

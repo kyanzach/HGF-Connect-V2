@@ -234,9 +234,23 @@ export default function HeroCarousel({ firstName }: HeroCarouselProps) {
               Quiz for Christ is LIVE!
             </span>
           </div>
-          <h2 style={{ fontSize: "1.125rem", fontWeight: 800, color: "white", margin: "0 0 0.375rem", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>
-            {quizProgress.title}
-          </h2>
+          {(() => {
+            const parts = (quizProgress.title || "").split(/ — | - /);
+            const displayTitle = parts[0];
+            const displayDate = parts[1];
+            return (
+              <>
+                <h2 style={{ fontSize: "1.125rem", fontWeight: 800, color: "white", margin: "0 0 0.25rem", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }} title={displayTitle}>
+                  {displayTitle}
+                </h2>
+                {displayDate && (
+                  <div style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.75)", fontWeight: 600, display: "flex", alignItems: "center", gap: "4px", marginBottom: "0.375rem" }}>
+                    📅 {displayDate}
+                  </div>
+                )}
+              </>
+            );
+          })()}
           <p style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.85)", margin: "0 0 0.625rem" }}>
             📊 Progress: {quizProgress.completed}/5 days complete
           </p>

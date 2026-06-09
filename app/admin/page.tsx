@@ -79,7 +79,7 @@ export default async function AdminDashboardPage() {
           <ActionButton href="/admin/events" icon="📅" label="Create Event" color="#8b5cf6" />
           <ActionButton href="/admin/send-sms" icon="📱" label="Send SMS" color="#10b981" />
           <ActionButton href="/admin/review" icon="✅" label="Review Pending" color="#f59e0b" />
-          <ActionButton href="/attendance" icon="📟" label="Attendance Kiosk" color="#3b82f6" />
+          <ActionButton href="/api/auth/sso/attendance" icon="📟" label="Attendance Kiosk" color="#3b82f6" />
           <ActionButton href="/admin/stewardshop/love-gifts" icon="❤️" label="Love Gifts" color="#ef4444" />
         </div>
       </div>

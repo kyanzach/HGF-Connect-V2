@@ -331,7 +331,7 @@ export default function UnifiedHeader() {
                     {canAttend && (
                       <>
                         <HR />
-                        <DropItem href="/attendance" label="✅ Attendance App" onClick={() => setDropOpen(false)} />
+                        <DropItem href="/api/auth/sso/attendance" label="✅ Attendance App" onClick={() => setDropOpen(false)} />
                       </>
                     )}
 

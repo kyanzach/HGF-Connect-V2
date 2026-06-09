@@ -168,12 +168,16 @@ export async function POST(request: Request) {
     const label = TYPE_LABEL[type ?? "TEXT"] ?? "something";
     const authorName = `${post.author.firstName} ${post.author.lastName}`;
     const preview = (content ?? verseText ?? "")?.slice(0, 80);
+    const link = (type === "PRAYER" && prayerRequestVal)
+      ? `/prayer?highlight=${prayerRequestVal.id}`
+      : `/feed?post=${post.id}`;
+
     void notifyAllMembers({
       actorId: parseInt(session.user.id),
       type: "new_post",
       title: `${authorName} shared ${label}`,
       body: preview || "(No preview)",
-      link: `/feed?post=${post.id}`,
+      link,
     });
     // --------------------------------------------------
 

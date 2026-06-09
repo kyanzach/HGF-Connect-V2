@@ -51,6 +51,9 @@ function PrayerWallContent() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<PrayerRequest | null>(null);
 
+  const highlightParam = searchParams.get("highlight");
+  const [highlightedId, setHighlightedId] = useState<number | null>(null);
+
   const load = useCallback(async (t: "active" | "answered") => {
     setLoading(true);
     try {
@@ -107,6 +110,31 @@ function PrayerWallContent() {
       }
     }
   }, [prayId, requests, loading]);
+
+  useEffect(() => {
+    if (highlightParam) {
+      const id = parseInt(highlightParam, 10);
+      if (!isNaN(id)) {
+        setHighlightedId(id);
+        const url = new URL(window.location.href);
+        url.searchParams.delete("highlight");
+        window.history.replaceState({}, "", url.toString());
+
+        // Attempt scrolling
+        setTimeout(() => {
+          const element = document.getElementById(`prayer-req-${id}`);
+          if (element) {
+            element.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        }, 300);
+
+        const timer = setTimeout(() => {
+          setHighlightedId(null);
+        }, 5000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [highlightParam]);
 
   // Handle marking request as answered / active toggle
   async function handleToggleAnswered(req: PrayerRequest) {
@@ -197,6 +225,27 @@ function PrayerWallContent() {
 
   return (
     <div style={{ paddingBottom: "1rem" }}>
+      <style>{`
+        @keyframes glow-pulsate {
+          0% {
+            box-shadow: 0 0 5px rgba(168, 85, 247, 0.4), 0 1px 4px rgba(0,0,0,0.07);
+            border-color: rgba(168, 85, 247, 0.4);
+          }
+          50% {
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.8), 0 1px 4px rgba(0,0,0,0.07);
+            border-color: rgba(168, 85, 247, 0.8);
+            background-color: rgba(168, 85, 247, 0.05);
+          }
+          100% {
+            box-shadow: 0 0 5px rgba(168, 85, 247, 0.4), 0 1px 4px rgba(0,0,0,0.07);
+            border-color: rgba(168, 85, 247, 0.4);
+          }
+        }
+        .prayer-highlighted {
+          animation: glow-pulsate 1.5s infinite ease-in-out;
+          border: 2px solid #a855f7 !important;
+        }
+      `}</style>
       {/* Hero */}
       <div
         style={{
@@ -295,15 +344,21 @@ function PrayerWallContent() {
             const isMine = currentUserId !== null && req.author.id === currentUserId;
             const isEditing = editingId === req.id;
 
+            const isHighlighted = highlightedId === req.id;
+
             return (
               <div
                 key={req.id}
+                id={`prayer-req-${req.id}`}
+                className={isHighlighted ? "prayer-highlighted" : ""}
                 style={{
                   background: "white",
                   borderRadius: "16px",
                   marginBottom: "0.75rem",
                   padding: "1rem",
-                  boxShadow: "0 1px 4px rgba(0,0,0,0.07)",
+                  boxShadow: isHighlighted ? "0 0 20px rgba(168, 85, 247, 0.8), 0 1px 4px rgba(0,0,0,0.07)" : "0 1px 4px rgba(0,0,0,0.07)",
+                  border: isHighlighted ? "2px solid #a855f7" : "2px solid transparent",
+                  transition: "all 0.3s ease-in-out",
                 }}
               >
                 {/* Author + time */}

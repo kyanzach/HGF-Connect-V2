@@ -1244,3 +1244,13 @@ model QuizRewardItem {
   @@map("quiz_reward_items")
 }
 
+model SsoToken {
+  token      String   @id @db.VarChar(255)
+  memberId   Int      @map("member_id")
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([memberId])
+  @@map("sso_tokens")
+}
+

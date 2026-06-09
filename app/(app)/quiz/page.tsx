@@ -357,7 +357,7 @@ export default function MemberQuizPage() {
           {quizStatus?.isExpired ? "COMPLETED WEEK" : "ACTIVE QUIZ WEEK"}
         </span>
         <h2 style={{ fontSize: "1.2rem", fontWeight: 800, marginTop: "8px", marginBottom: "6px", lineHeight: 1.4 }}>
-          {quiz?.title}
+          {quiz?.title ? quiz.title.split(/ — | - /)[0] : ""}
         </h2>
         <p style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.7)", margin: 0 }}>
           Sermon Date: {quiz?.sermonDate ? new Date(quiz.sermonDate).toLocaleDateString("en-PH", { weekday: "long", year: "numeric", month: "long", day: "numeric" }) : ""}

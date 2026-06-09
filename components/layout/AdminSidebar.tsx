@@ -175,7 +175,7 @@ export default function AdminSidebar({ session }: { session: Session }) {
         }}
       >
         <Link
-          href="/attendance"
+          href="/api/auth/sso/attendance"
           style={{
             display: "flex",
             alignItems: "center",
