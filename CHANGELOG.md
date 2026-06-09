@@ -5,7 +5,16 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.36] — 2026-06-09
+### Fixed
+- **Bloated Share URL**: Removed `text: post.content` from the `navigator.share()` call in `PostCard.tsx`. Passing the full post body as the `text` field caused iOS/Android share sheets to concatenate the entire post content with the URL, resulting in an extremely long share string. Now only the `title` and `url` are passed, producing a clean, short shareable link.
+
+## [v2.22.36] — 2026-06-09
+### Fixed
+- **SSO Attendance App — "SSO initialization failed" Error**: The `sso_tokens` database table was missing from the production server (`hog_fellowship`), causing every click on the "Attendance App" or "Attendance Kiosk" menu links to return a 500 error. Ran a production MySQL migration to create the `sso_tokens` table with the correct schema (`token VARCHAR(255) PK`, `member_id INT`, `expires_at DATETIME`, `created_at DATETIME`), matching the Prisma schema. The SSO bridge (`/api/auth/sso/attendance`) can now generate and store short-lived tokens, and the legacy PHP bridge (`sso.php`) can validate them and start the `ATTENDANCE_SESSION`.
+
 ## [v2.22.35] — 2026-06-09
+
 ### Fixed
 - **Quiz Player Overlay Stack Order**: Changed the quiz player overlay `zIndex` from `9000` to `11000` so that it renders completely on top of the main app navigation header (which floats at `zIndex` 9999), preventing status bar cutoff issues.
 

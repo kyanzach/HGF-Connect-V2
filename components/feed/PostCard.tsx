@@ -397,7 +397,7 @@ export default function PostCard({ post }: PostCardProps) {
   function handleShare() {
     const url = `${window.location.origin}/feed?post=${post.id}`;
     if (navigator.share) {
-      navigator.share({ title: `${authorName} on HGF Connect`, text: post.content ?? "", url });
+      navigator.share({ title: `${authorName} on HGF Connect`, url });
     } else {
       navigator.clipboard.writeText(url).then(() => {
         setInfoModal({
