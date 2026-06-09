@@ -5,6 +5,15 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.25] — 2026-06-09
+### Added
+- **Username Column**: Added a "Username" column in the Admin Members table directory, rendering user usernames in clean code-style badges.
+- **Admin Password Reset**: Implemented a "Reset Pass" action under the Actions column allowing authorized ushers/moderators/admins to trigger secure password resets. The generated temporary credentials follow the format `Grace` + 5 random digits (e.g. `Grace12345`) and automatically generate usernames for members lacking one.
+- **Temporary Credentials Sharing Modal**: Designed a glassmorphism credentials details dialog featuring single-click clipboard copy with animated success feedback.
+- **Mobile Responsive Card Views**:
+  - Refactored the Admin Members management view to switch dynamically to a self-contained card stack layout on mobile devices (`max-width: 767px`), packing status/role badges, join date, contact parameters, ministries, username, and all action buttons in a neat, phone-friendly block.
+  - Added responsive CSS wrappers to the Pending Registrations review page (`/admin/review`), preventing action buttons from overflowing or squishing on narrower mobile displays.
+
 ## [v2.22.24] — 2026-06-09
 ### Fixed
 - **Birthday Cron Job**: Registered the daily birthday auto-announcer script (`scripts/birthday-cron.mjs`) in the server's crontab to run daily at 11:00 PM UTC (7:00 AM Manila Time), resolving the issue where daily birthday greeting posts were not being published to the community feed.

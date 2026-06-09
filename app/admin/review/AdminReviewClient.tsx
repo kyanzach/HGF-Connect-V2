@@ -63,7 +63,7 @@ export default function AdminReviewClient({ pending: init }: { pending: PendingM
       <div style={{ display: "grid", gap: "1rem" }}>
         {pending.map(m => (
           <div key={m.id} style={{ background: "white", borderRadius: "12px", border: "1px solid #fed7aa", padding: "1.25rem", borderLeft: "4px solid #f59e0b" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem" }}>
+            <div className="registration-card-inner" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem" }}>
               <div style={{ flex: 1 }}>
                 <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", marginBottom: "0.5rem", flexWrap: "wrap" }}>
                   <h3 style={{ fontSize: "1.0625rem", fontWeight: 800, color: "#0f172a", margin: 0 }}>{m.firstName} {m.lastName}</h3>
@@ -84,8 +84,8 @@ export default function AdminReviewClient({ pending: init }: { pending: PendingM
                   </div>
                 )}
               </div>
-              <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
-                <Link href={`/member/${m.id}`} style={{ padding: "0.5rem 0.875rem", border: "1.5px solid #e2e8f0", borderRadius: "8px", color: "#475569", textDecoration: "none", fontSize: "0.8rem", fontWeight: 700 }}>View</Link>
+              <div className="registration-actions" style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
+                <Link href={`/member/${m.id}`} style={{ padding: "0.5rem 0.875rem", border: "1.5px solid #e2e8f0", borderRadius: "8px", color: "#475569", textDecoration: "none", fontSize: "0.8rem", fontWeight: 700, display: "inline-block", textAlign: "center" }}>View</Link>
                 <button
                   onClick={() => approve(m.id)} disabled={processing === m.id}
                   style={{ padding: "0.5rem 0.875rem", border: "none", borderRadius: "8px", background: "#10b981", color: "white", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer", opacity: processing === m.id ? 0.6 : 1 }}>
@@ -102,6 +102,21 @@ export default function AdminReviewClient({ pending: init }: { pending: PendingM
         ))}
       </div>
       <ConfirmModal open={confirmModal.open} title={confirmModal.title} message={confirmModal.message} confirmLabel={confirmModal.confirmLabel} confirmColor={confirmModal.confirmColor} loading={confirmModal.loading} onConfirm={confirmModal.onConfirm} onCancel={() => setConfirmModal(prev => ({ ...prev, open: false }))} />
+      <style>{`
+        @media (max-width: 767px) {
+          .registration-card-inner {
+            flex-direction: column !important;
+            align-items: stretch !important;
+          }
+          .registration-actions {
+            margin-top: 1rem !important;
+            width: 100% !important;
+          }
+          .registration-actions > * {
+            flex: 1 !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

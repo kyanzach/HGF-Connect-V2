@@ -15,8 +15,8 @@ export default async function AdminMembersPage() {
       orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
       select: {
         id: true, firstName: true, lastName: true, email: true, phone: true,
-        status: true, role: true, type: true, ageGroup: true, joinDate: true,
-        createdAt: true, invitedBy: true,
+        username: true, status: true, role: true, type: true, ageGroup: true,
+        joinDate: true, createdAt: true, invitedBy: true,
         ministries: { where: { status: "active" }, include: { ministry: { select: { name: true } } }, take: 3 },
       },
     }),
