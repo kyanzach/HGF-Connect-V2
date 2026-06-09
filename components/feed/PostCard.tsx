@@ -1506,7 +1506,7 @@ export default function PostCard({ post }: PostCardProps) {
                 const count = tab === "ALL" ? reactions.length : reactions.filter(r => r.type === tab).length;
                 if (count === 0 && tab !== "ALL") return null;
                 const isActive = activeReactionTab === tab;
-                const emoji = tab === "ALL" ? "👍" : REACTION_EMOJIS[tab];
+                const label = tab === "ALL" ? "All" : REACTION_EMOJIS[tab];
                 return (
                   <button
                     key={tab}
@@ -1526,7 +1526,7 @@ export default function PostCard({ post }: PostCardProps) {
                       whiteSpace: "nowrap"
                     }}
                   >
-                    <span>{emoji}</span>
+                    <span>{label}</span>
                     <span>{count}</span>
                   </button>
                 );

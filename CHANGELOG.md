@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.24.4] — 2026-06-10
+### Fixed
+- **Reactions Modal Summary Icon**: Replaced the hardcoded thumbs-up emoji (`👍`) in the "ALL" reactions summary tab with the clean label `"All"` in both `PostCard` and `PhotoPostViewer` to match the global removal of the like reaction.
+
 ## [v2.24.3] — 2026-06-10
 ### Added
 - **Event Uploads Drag & Drop**: Implemented HTML5 Drag & Drop file upload support with visual state overlays in `AdminEventsClient` and `AddEventModal`. Administrators can now drag-and-drop cover photos (images) and sermon presentations (PDF/PPTX) directly onto the upload buttons to initiate processing.
