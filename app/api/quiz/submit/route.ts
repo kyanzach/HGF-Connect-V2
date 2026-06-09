@@ -9,7 +9,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { getDayNumber, canAccessDay, getRewardTier, gradeEssay } from "@/lib/quiz-helpers";
+import { getQuizDayForDate, isQuizWeekExpired, canAccessDay, getRewardTier, gradeEssay } from "@/lib/quiz-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +37,12 @@ export async function POST(request: Request) {
     }
 
     // Check day access
-    const currentDay = getDayNumber();
+    if (isQuizWeekExpired(question.quiz.sermonDate)) {
+      return NextResponse.json({ error: "This quiz week has ended" }, { status: 403 });
+    }
+
+    const quizRelativeDay = getQuizDayForDate(question.quiz.sermonDate);
+    const currentDay = Math.min(Math.max(quizRelativeDay, 0), 7);
     if (!canAccessDay(question.dayNumber, currentDay)) {
       return NextResponse.json({ error: "This day's quiz is not available yet" }, { status: 403 });
     }

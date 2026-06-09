@@ -5,6 +5,14 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.30] — 2026-06-09
+### Added
+- **Sermon Quiz Late Publication Auto-Backfill**:
+  - Automatically backfills daily challenge feed posts (`QUIZ_DAILY`) and member notifications when a quiz week is published late (e.g., on a Tuesday or Wednesday).
+  - Backfills all elapsed days from Day 2 (Tuesday) up to the current Manila quiz-relative weekday, while keeping future days locked.
+  - Linked the Day 1 (Monday) question's `feedPostId` directly to the main `QUIZ_ANNOUNCEMENT` feed post.
+  - Updated the day access check in `/api/quiz/question` and `/api/quiz/submit` to use Manila timezone quiz-relative weekday calculation and check for quiz week expiration, preventing early locking/unlocking discrepancies.
+
 ## [v2.22.29] — 2026-06-09
 ### Added
 - **Prayer Request Integration & Deep Linking**:
