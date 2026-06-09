@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.35] — 2026-06-09
+### Fixed
+- **Quiz Player Overlay Stack Order**: Changed the quiz player overlay `zIndex` from `9000` to `11000` so that it renders completely on top of the main app navigation header (which floats at `zIndex` 9999), preventing status bar cutoff issues.
+
 ## [v2.22.34] — 2026-06-09
 ### Added
 - **Post Image Lightbox Viewer**: Integrated a highly interactive zoomable image lightbox component (`ImageLightbox`) allowing users to tap on single post images, quiz rewards, and image arrays in the feed to zoom and pan.

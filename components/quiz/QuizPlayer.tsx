@@ -45,7 +45,7 @@ const S = {
     right: 0,
     bottom: 0,
     background: "linear-gradient(135deg, #0a2a3a 0%, #134e5e 50%, #1a3a4a 100%)",
-    zIndex: 9000,
+    zIndex: 11000,
     display: "flex",
     flexDirection: "column" as const,
     paddingTop: "calc(1rem + env(safe-area-inset-top, 0px))",
