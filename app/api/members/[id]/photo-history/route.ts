@@ -15,12 +15,82 @@ export async function GET(req: NextRequest, { params }: Params) {
 
   const type = req.nextUrl.searchParams.get("type") === "cover" ? "cover" : "profile";
 
-  const history = await (db as any).memberPhotoHistory.findMany({
+  let history = await (db as any).memberPhotoHistory.findMany({
     where: { memberId: id, type },
     orderBy: { createdAt: "desc" },
     take: 30,
     select: { id: true, fileName: true, thumbName: true, createdAt: true, type: true, postId: true, caption: true },
   });
+
+  // If no history exists, check if user currently has a photo and auto-create history + post
+  if (history.length === 0) {
+    const member = await (db as any).member.findUnique({
+      where: { id },
+      select: { profilePicture: true, profilePictureThumbnail: true, coverPhoto: true, joinDate: true },
+    });
+    const currentFileName = type === "cover" ? member?.coverPhoto : member?.profilePicture;
+    if (currentFileName) {
+      const sub = type === "cover" ? "cover_photos" : "profile_pictures";
+      const postType = type === "cover" ? "COVER_PHOTO" : "PROFILE_PHOTO";
+      const newPost = await (db as any).post.create({
+        data: {
+          authorId: id,
+          type: postType,
+          imageUrl: `/uploads/${sub}/${currentFileName}`,
+          content: null,
+          visibility: "MEMBERS_ONLY",
+          createdAt: member.joinDate ?? new Date(),
+        },
+      });
+      const newHistory = await (db as any).memberPhotoHistory.create({
+        data: {
+          memberId: id,
+          type,
+          fileName: currentFileName,
+          thumbName: type === "profile" ? (member.profilePictureThumbnail ?? null) : null,
+          postId: newPost.id,
+          caption: null,
+          createdAt: member.joinDate ?? new Date(),
+        },
+      });
+      history = [{
+        id: newHistory.id,
+        fileName: newHistory.fileName,
+        thumbName: newHistory.thumbName,
+        createdAt: newHistory.createdAt,
+        type: newHistory.type,
+        postId: newPost.id,
+        caption: null,
+      }];
+    }
+  } else {
+    // Check if any history entry has postId as null and auto-backfill the Post
+    for (const item of history) {
+      if (!item.postId) {
+        const sub = item.type === "cover" ? "cover_photos" : "profile_pictures";
+        const postType = item.type === "cover" ? "COVER_PHOTO" : "PROFILE_PHOTO";
+        try {
+          const newPost = await (db as any).post.create({
+            data: {
+              authorId: id,
+              type: postType,
+              imageUrl: `/uploads/${sub}/${item.fileName}`,
+              content: item.caption || null,
+              visibility: "MEMBERS_ONLY",
+              createdAt: item.createdAt,
+            },
+          });
+          await (db as any).memberPhotoHistory.update({
+            where: { id: item.id },
+            data: { postId: newPost.id },
+          });
+          item.postId = newPost.id;
+        } catch (err) {
+          console.error("Failed to backfill post for history item:", err);
+        }
+      }
+    }
+  }
 
   return NextResponse.json(
     history.map((h: any) => ({
