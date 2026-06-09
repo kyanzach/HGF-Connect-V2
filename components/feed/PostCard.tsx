@@ -604,7 +604,7 @@ export default function PostCard({ post }: PostCardProps) {
                   : "linear-gradient(135deg, #0f2d3d 0%, #1a5276 50%, #2980b9 100%)",
                 backgroundSize: "cover", backgroundPosition: "center",
                 padding: "1.5rem 1.125rem 1.25rem", position: "relative",
-                minHeight: "210px", display: "flex", flexDirection: "column", justifyContent: "space-between",
+                minHeight: "290px", display: "flex", flexDirection: "column", justifyContent: "space-between",
               }}>
                 {/* Dark overlay for readability */}
                 <div style={{ position: "absolute", inset: 0, background: post.imageUrl ? "rgba(0,0,0,0.55)" : "rgba(0,0,0,0.15)", borderRadius: "14px" }} />

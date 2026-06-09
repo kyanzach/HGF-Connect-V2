@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.24.9] — 2026-06-10
+### Changed
+- **Increased Event Feed Card Height**: Heightened the event cards minimum height inside `PostCard.tsx` to `290px` to successfully expand the background cover image visibility on the feed.
+
 ## [v2.24.8] — 2026-06-10
 ### Changed
 - **Taller Event Feed Cards**: Increased the minimum height of the event link cards in `PostCard` to `210px` and applied flexbox spacing to improve cover photo background visibility.
