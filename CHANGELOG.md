@@ -5,6 +5,12 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.24.2] — 2026-06-10
+### Changed
+- **Reactions Styling and Labels Layout**: Shifted the overlapping reactions summary bubble to the right-hand side. Removed the text word labels ("Heart", "Pray", "Hug", "Like") from the reactions toggle buttons, displaying only the emoji icon.
+### Fixed
+- **Clean Member Profile Redirections**: Configured member profile links (on author names, avatars, reactions lists, and birthday cards) to use a normal redirect (`window.location.href`) instead of client-side `router.push`. This ensures any active deep-link query parameters (like `?post=ID`) are completely discarded when transitioning to a member's profile page.
+
 ## [v2.24.1] — 2026-06-10
 ### Fixed
 - **Comments Auto-Open Deep-link Fix**: Prevented the comments drawer/popup from automatically opening when clicking deep links (like notifications or Messenger shares). Clicking deep links will scroll the post card smoothly into view but keep the comment drawer closed until manually opened.

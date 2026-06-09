@@ -512,6 +512,7 @@ export default function PhotoPostViewer({
                   style={{ 
                     display: "flex", 
                     alignItems: "center", 
+                    justifyContent: "flex-end",
                     gap: "8px", 
                     padding: "0.5rem 1rem 0.25rem", 
                     cursor: "pointer",
@@ -618,7 +619,7 @@ export default function PhotoPostViewer({
                     cursor: likeLoading ? "wait" : "pointer",
                   }}
                 >
-                  {likedType === "HEART" ? "❤️" : likedType === "PRAY" ? "🙏" : likedType === "HUG" ? "🤗" : "🤍"} {liked ? (likedType === "HEART" ? "Heart" : likedType === "PRAY" ? "Pray" : "Hug") : "Like"}
+                  {likedType === "HEART" ? "❤️" : likedType === "PRAY" ? "🙏" : likedType === "HUG" ? "🤗" : "🤍"}
                 </button>
               </div>
 
@@ -765,7 +766,7 @@ export default function PhotoPostViewer({
                       style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #f8fafc" }}
                       onClick={() => {
                         setShowReactionsModal(false);
-                        router.push(`/member/${r.memberId}`);
+                        window.location.href = `/member/${r.memberId}`;
                       }}
                     >
                       <div style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}>

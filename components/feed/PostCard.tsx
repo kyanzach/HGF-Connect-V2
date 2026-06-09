@@ -528,7 +528,7 @@ export default function PostCard({ post }: PostCardProps) {
         <div style={{ display: "flex", alignItems: "center", padding: "0.875rem 1rem 0.5rem", gap: "0.625rem" }}>
           {/* Avatar */}
           <button
-            onClick={() => router.push(isQuizPost ? "/quiz/hub" : isChurchPost ? "/church" : `/member/${post.author.id}`)}
+            onClick={() => { window.location.href = isQuizPost ? "/quiz/hub" : isChurchPost ? "/church" : `/member/${post.author.id}`; }}
             aria-label={isQuizPost ? "View Quiz Brand Hub" : isChurchPost ? "View Church Page" : `View ${authorName}'s profile`}
             style={{ width: 40, height: 40, borderRadius: "50%", overflow: "hidden", flexShrink: 0, border: "none", padding: 0, cursor: "pointer", background: PRIMARY, display: "flex", alignItems: "center", justifyContent: "center" }}
           >
@@ -540,7 +540,7 @@ export default function PostCard({ post }: PostCardProps) {
           </button>
 
           <div style={{ flex: 1, minWidth: 0 }}>
-            <button onClick={() => router.push(isQuizPost ? "/quiz/hub" : isChurchPost ? "/church" : `/member/${post.author.id}`)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left" }}>
+            <button onClick={() => { window.location.href = isQuizPost ? "/quiz/hub" : isChurchPost ? "/church" : `/member/${post.author.id}`; }} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left" }}>
               <span style={{ fontWeight: 700, fontSize: "0.9rem", color: "#1e293b" }}>{authorName}</span>
             </button>
             <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", flexWrap: "wrap" }}>
@@ -578,7 +578,7 @@ export default function PostCard({ post }: PostCardProps) {
             )}
             {menuOpen && (
               <div style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", background: "white", borderRadius: "12px", boxShadow: "0 4px 20px rgba(0,0,0,0.15)", minWidth: 160, zIndex: 11, overflow: "hidden" }}>
-                <button onClick={() => { setMenuOpen(false); router.push(isQuizPost ? "/quiz/hub" : isChurchPost ? "/church" : `/member/${post.author.id}`); }} style={menuItemStyle}>👤 {isQuizPost ? "View Brand Hub" : isChurchPost ? "View Church Page" : "View Profile"}</button>
+                <button onClick={() => { setMenuOpen(false); window.location.href = isQuizPost ? "/quiz/hub" : isChurchPost ? "/church" : `/member/${post.author.id}`; }} style={menuItemStyle}>👤 {isQuizPost ? "View Brand Hub" : isChurchPost ? "View Church Page" : "View Profile"}</button>
                 <button onClick={() => { setMenuOpen(false); setCommentsOpen(true); }} style={menuItemStyle}>💬 View Comments</button>
                 {canDelete && <button onClick={handleDelete} style={{ ...menuItemStyle, color: "#ef4444" }}>🗑️ Delete Post</button>}
                 <button onClick={() => { setMenuOpen(false); handleShare(); }} style={menuItemStyle}>📤 Share Post</button>
@@ -724,7 +724,7 @@ export default function PostCard({ post }: PostCardProps) {
                         return (
                           <button
                             key={c.id}
-                            onClick={() => router.push(`/member/${c.id}`)}
+                            onClick={() => { window.location.href = `/member/${c.id}`; }}
                             style={{
                               display: "flex",
                               alignItems: "center",
@@ -893,7 +893,7 @@ export default function PostCard({ post }: PostCardProps) {
                     marginBottom: "12px",
                     cursor: "pointer",
                   }}
-                  onClick={() => router.push(`/member/${dailyData.memberId}`)}
+                  onClick={() => { window.location.href = `/member/${dailyData.memberId}`; }}
                   >
                     <div style={{
                       width: "100%",
@@ -1263,6 +1263,7 @@ export default function PostCard({ post }: PostCardProps) {
               style={{ 
                 display: "flex", 
                 alignItems: "center", 
+                justifyContent: "flex-end",
                 gap: "8px", 
                 padding: "0.5rem 1rem", 
                 cursor: "pointer",
@@ -1383,7 +1384,7 @@ export default function PostCard({ post }: PostCardProps) {
                 width: "100%"
               }}
             >
-              {likedType === "HEART" ? "❤️" : likedType === "PRAY" ? "🙏" : likedType === "HUG" ? "🤗" : "🤍"} {liked ? (likedType === "HEART" ? "Heart" : likedType === "PRAY" ? "Pray" : "Hug") : "Like"}
+              {likedType === "HEART" ? "❤️" : likedType === "PRAY" ? "🙏" : likedType === "HUG" ? "🤗" : "🤍"}
             </button>
           </div>
 
@@ -1545,7 +1546,7 @@ export default function PostCard({ post }: PostCardProps) {
                       style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #f8fafc" }}
                       onClick={() => {
                         setShowReactionsModal(false);
-                        router.push(`/member/${r.memberId}`);
+                        window.location.href = `/member/${r.memberId}`;
                       }}
                     >
                       <div style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}>

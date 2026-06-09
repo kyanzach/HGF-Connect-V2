@@ -40,7 +40,7 @@ function Avatar({ author, size = 36 }: { author: CommentAuthor; size?: number })
   const pic = author.profilePicture ? `/uploads/profile_pictures/${author.profilePicture}` : null;
   return (
     <button
-      onClick={() => router.push(`/member/${author.id}`)}
+      onClick={() => { window.location.href = `/member/${author.id}`; }}
       style={{ width: size, height: size, borderRadius: "50%", overflow: "hidden", flexShrink: 0, background: `${PRIMARY}20`, display: "flex", alignItems: "center", justifyContent: "center", padding: 0, border: "none", cursor: "pointer", WebkitTapHighlightColor: "transparent" }}
     >
       {pic
@@ -157,7 +157,7 @@ function CommentBubble({
         <div style={{ background: isPinned ? `${PRIMARY}10` : "#f1f5f9", borderRadius: "0 14px 14px 14px", padding: "0.5rem 0.75rem", border: isPinned ? `1px solid ${PRIMARY}30` : "none", display: "inline-block", maxWidth: "100%" }}>
           {/* Clickable author name */}
           <button
-            onClick={() => router.push(`/member/${comment.author.id}`)}
+            onClick={() => { window.location.href = `/member/${comment.author.id}`; }}
             style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "0.78rem", fontWeight: 700, color: PRIMARY, display: "block", marginBottom: "0.15rem", textAlign: "left" }}
           >
             {comment.author.firstName} {comment.author.lastName}
