@@ -88,6 +88,7 @@ export default async function GraceNoteDetailPage({ params }: GraceNoteDetailPro
         style={{
           background: "#f8fafc",
           padding: "1rem",
+          paddingTop: "calc(1rem + env(safe-area-inset-top, 0px))",
           display: "flex",
           alignItems: "center",
           gap: "0.5rem",

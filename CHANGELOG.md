@@ -5,6 +5,15 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.23] — 2026-06-09
+### Fixed
+- **Mobile Safe Area Header Notch Overlap**: Added `paddingTop: "calc(1rem + env(safe-area-inset-top, 0px))"` to the `/grace-blog/[id]` details page header style to prevent status bar cutoffs and ensure the back button is fully clickable.
+
+## [v2.22.22] — 2026-06-09
+### Changed
+- **Thoughts Notification Rename**: Renamed the notification category label from "a reflection" to "a thought" for standard text posts, aligning with the "Thoughts" tab name.
+- **Smart Deep Link Redirections**: Configured active post notifications to include a dynamic query parameter link (`/feed?post=ID`), which automatically scrolls the post into view and opens the comments drawer on click.
+
 ## [v2.22.21] — 2026-06-09
 ### Changed
 - **Redirect Submit Prayer Request**: Changed the "+ Submit Prayer Request" button on the Prayer Wall (`/prayer`) to redirect to the new unified compose page (`/feed/create?tab=prayer`).

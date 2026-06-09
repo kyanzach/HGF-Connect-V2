@@ -150,7 +150,7 @@ export async function POST(request: Request) {
 
     // ------ Notify all members (fire-and-forget) ------
     const TYPE_LABEL: Record<string, string> = {
-      TEXT: "a reflection", DEVO: "a devotional", VERSE_CARD: "a Bible verse",
+      TEXT: "a thought", DEVO: "a devotional", VERSE_CARD: "a Bible verse",
       PRAYER: "a prayer", PRAISE: "a testimony", EVENT: "an event",
     };
     const label = TYPE_LABEL[type ?? "TEXT"] ?? "something";
@@ -161,7 +161,7 @@ export async function POST(request: Request) {
       type: "new_post",
       title: `${authorName} shared ${label}`,
       body: preview || "(No preview)",
-      link: "/feed",
+      link: `/feed?post=${post.id}`,
     });
     // --------------------------------------------------
 
