@@ -25,6 +25,7 @@ type EventRow = {
   presentationOriginalName: string | null;
   presentationSlides: string[] | any | null;
   creator: { firstName: string; lastName: string } | null;
+  speaker: string | null;
 };
 
 const fmtDate = (d: string) => {
@@ -64,15 +65,62 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
   const [typeFilter, setTypeFilter] = useState("all");
   const [form, setForm] = useState({
     title: "", description: "", eventDate: "", startTime: "", endTime: "", location: "", eventType: "sunday_service", status: "scheduled", coverPhoto: "",
-    presentationFile: "", presentationOriginalName: "", presentationSlides: [] as string[],
+    presentationFile: "", presentationOriginalName: "", presentationSlides: [] as string[], speaker: "",
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const presInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [presUploading, setPresUploading] = useState(false);
   const [presProgress, setPresProgress] = useState(0);
+  const [dragCover, setDragCover] = useState(false);
+  const [dragPres, setDragPres] = useState(false);
 
   const { startUpload } = useUpload();
+
+  const onDragOverCover = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!uploading) setDragCover(true);
+  };
+  const onDragLeaveCover = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragCover(false);
+  };
+  const onDropCover = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragCover(false);
+    if (uploading) return;
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith("image/")) {
+      handleCoverUpload(file);
+    }
+  };
+
+  const onDragOverPres = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!presUploading) setDragPres(true);
+  };
+  const onDragLeavePres = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragPres(false);
+  };
+  const onDropPres = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragPres(false);
+    if (presUploading) return;
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      const ext = file.name.split(".").pop()?.toLowerCase();
+      if (ext === "pdf" || ext === "pptx" || file.type === "application/pdf" || file.type === "application/vnd.openxmlformats-officedocument.presentationml.presentation") {
+        handlePresentationUpload(file);
+      }
+    }
+  };
 
   // ── Confirm modal state ──
   const [confirmModal, setConfirmModal] = useState<{
@@ -85,7 +133,7 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
   function openAdd() { 
     setEditing(null); 
     setErr("");
-    setForm({ title: "", description: "", eventDate: "", startTime: "", endTime: "", location: "", eventType: "sunday_service", status: "scheduled", coverPhoto: "", presentationFile: "", presentationOriginalName: "", presentationSlides: [] }); 
+    setForm({ title: "", description: "", eventDate: "", startTime: "", endTime: "", location: "", eventType: "sunday_service", status: "scheduled", coverPhoto: "", presentationFile: "", presentationOriginalName: "", presentationSlides: [], speaker: "" }); 
     setShowModal(true); 
   }
   
@@ -105,6 +153,7 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
       presentationFile: ev.presentationFile ?? "",
       presentationOriginalName: ev.presentationOriginalName ?? "",
       presentationSlides: (ev.presentationSlides as string[]) ?? [],
+      speaker: ev.speaker ?? "",
     });
     setShowModal(true);
   }
@@ -183,6 +232,7 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
         presentationFile: form.presentationFile || null,
         presentationOriginalName: form.presentationOriginalName || null,
         presentationSlides: form.presentationSlides.length > 0 ? form.presentationSlides : null,
+        speaker: form.speaker || null,
       };
       
       const res = await fetch(url, { 
@@ -298,6 +348,10 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
                     <option value="scheduled">Scheduled</option><option value="cancelled">Cancelled</option><option value="completed">Completed</option>
                   </select></div>
               </div>
+              <div style={{ marginTop: "0.75rem" }}>
+                <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b" }}>Speaker</label>
+                <input style={inp} value={form.speaker} onChange={e => setForm(f => ({ ...f, speaker: e.target.value }))} placeholder="Guest or Pastor name" />
+              </div>
               {/* Cover Photo */}
               <div style={{ marginTop: "0.75rem" }}>
                 <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b" }}>Cover Photo</label>
@@ -307,8 +361,26 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
                     <button type="button" onClick={() => setForm(f => ({ ...f, coverPhoto: "" }))} style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.6)", color: "white", border: "none", borderRadius: "50%", width: 24, height: 24, cursor: "pointer", fontSize: "0.75rem", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
                   </div>
                 ) : (
-                  <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading} style={{ ...inp, marginTop: "0.375rem", cursor: "pointer", color: "#64748b", textAlign: "center" as const, background: "#f8fafc" }}>
-                    {uploading ? "Uploading…" : "📷 Click to upload cover photo"}
+                  <button 
+                    type="button" 
+                    onClick={() => fileInputRef.current?.click()} 
+                    disabled={uploading} 
+                    onDragOver={onDragOverCover}
+                    onDragLeave={onDragLeaveCover}
+                    onDrop={onDropCover}
+                    style={{ 
+                      ...inp, 
+                      marginTop: "0.375rem", 
+                      cursor: "pointer", 
+                      color: "#64748b", 
+                      textAlign: "center" as const, 
+                      background: dragCover ? "#e0f2fe" : "#f8fafc",
+                      border: dragCover ? `2px dashed ${P}` : "1.5px dashed #cbd5e1",
+                      padding: "1.25rem 0.75rem",
+                      transition: "all 0.2s ease"
+                    }}
+                  >
+                    {uploading ? "Uploading…" : dragCover ? "💧 Drop image here" : "📷 Click or Drag & Drop cover photo"}
                   </button>
                 )}
                 <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={e => { if (e.target.files?.[0]) handleCoverUpload(e.target.files[0]); e.target.value = ""; }} />
@@ -334,8 +406,26 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
                   </div>
                 ) : (
                   <div>
-                    <button type="button" onClick={() => presInputRef.current?.click()} disabled={presUploading} style={{ ...inp, marginTop: "0.375rem", cursor: "pointer", color: "#64748b", textAlign: "center" as const, background: "#f8fafc" }}>
-                      {presUploading ? `⚡ Optimizing slides... (${presProgress}%)` : "📁 Click to upload PDF/PPTX presentation"}
+                    <button 
+                      type="button" 
+                      onClick={() => presInputRef.current?.click()} 
+                      disabled={presUploading} 
+                      onDragOver={onDragOverPres}
+                      onDragLeave={onDragLeavePres}
+                      onDrop={onDropPres}
+                      style={{ 
+                        ...inp, 
+                        marginTop: "0.375rem", 
+                        cursor: "pointer", 
+                        color: "#64748b", 
+                        textAlign: "center" as const, 
+                        background: dragPres ? "#e0f2fe" : "#f8fafc",
+                        border: dragPres ? `2px dashed ${P}` : "1.5px dashed #cbd5e1",
+                        padding: "1.25rem 0.75rem",
+                        transition: "all 0.2s ease"
+                      }}
+                    >
+                      {presUploading ? `⚡ Optimizing slides... (${presProgress}%)` : dragPres ? "💧 Drop PDF/PPTX here" : "📁 Click or Drag & Drop PDF/PPTX presentation"}
                     </button>
                     <input ref={presInputRef} type="file" accept=".pdf,.pptx" hidden onChange={e => { if (e.target.files?.[0]) handlePresentationUpload(e.target.files[0]); e.target.value = ""; }} />
                   </div>

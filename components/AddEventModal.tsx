@@ -22,10 +22,32 @@ export default function AddEventModal({ open, onClose }: Props) {
   const [err, setErr] = useState("");
   const [form, setForm] = useState({
     title: "", description: "", eventDate: "", startTime: "", endTime: "",
-    location: "", eventType: "sunday_service", coverPhoto: "",
+    location: "", eventType: "sunday_service", coverPhoto: "", speaker: "",
   });
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [dragCover, setDragCover] = useState(false);
+
+  const onDragOverCover = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!uploading) setDragCover(true);
+  };
+  const onDragLeaveCover = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragCover(false);
+  };
+  const onDropCover = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragCover(false);
+    if (uploading) return;
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith("image/")) {
+      handleCoverUpload(file);
+    }
+  };
 
   if (!open) return null;
 
@@ -44,7 +66,7 @@ export default function AddEventModal({ open, onClose }: Props) {
     e.preventDefault();
     setSaving(true);
     setErr("");
-    const body = { ...form, endTime: form.endTime || null, coverPhoto: form.coverPhoto || null };
+    const body = { ...form, endTime: form.endTime || null, coverPhoto: form.coverPhoto || null, speaker: form.speaker || null };
     try {
       const res = await fetch("/api/events", {
         method: "POST",
@@ -94,6 +116,8 @@ export default function AddEventModal({ open, onClose }: Props) {
           </div>
           <div style={{ marginTop: "0.75rem" }}><label style={lbl}>Location</label>
             <input style={inp} value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} placeholder="Venue name" /></div>
+          <div style={{ marginTop: "0.75rem" }}><label style={lbl}>Speaker</label>
+            <input style={inp} value={form.speaker} onChange={e => setForm(f => ({ ...f, speaker: e.target.value }))} placeholder="Guest or Pastor name" /></div>
 
           {/* Cover Photo */}
           <div style={{ marginTop: "0.75rem" }}>
@@ -104,8 +128,26 @@ export default function AddEventModal({ open, onClose }: Props) {
                 <button type="button" onClick={() => setForm(f => ({ ...f, coverPhoto: "" }))} style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.6)", color: "white", border: "none", borderRadius: "50%", width: 24, height: 24, cursor: "pointer", fontSize: "0.75rem", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
               </div>
             ) : (
-              <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading} style={{ ...inp, marginTop: "0.375rem", cursor: "pointer", color: "#64748b", textAlign: "center" as const, background: "#f8fafc" }}>
-                {uploading ? "Uploading…" : "📷 Click to upload cover photo"}
+              <button 
+                type="button" 
+                onClick={() => fileRef.current?.click()} 
+                disabled={uploading} 
+                onDragOver={onDragOverCover}
+                onDragLeave={onDragLeaveCover}
+                onDrop={onDropCover}
+                style={{ 
+                  ...inp, 
+                  marginTop: "0.375rem", 
+                  cursor: "pointer", 
+                  color: "#64748b", 
+                  textAlign: "center" as const, 
+                  background: dragCover ? "#e0f2fe" : "#f8fafc",
+                  border: dragCover ? `2px dashed ${P}` : "1.5px dashed #cbd5e1",
+                  padding: "1.25rem 0.75rem",
+                  transition: "all 0.2s ease"
+                }}
+              >
+                {uploading ? "Uploading…" : dragCover ? "💧 Drop image here" : "📷 Click or Drag & Drop cover photo"}
               </button>
             )}
             <input ref={fileRef} type="file" accept="image/*" hidden onChange={e => { if (e.target.files?.[0]) handleCoverUpload(e.target.files[0]); e.target.value = ""; }} />

@@ -5,6 +5,16 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.24.3] — 2026-06-10
+### Added
+- **Event Uploads Drag & Drop**: Implemented HTML5 Drag & Drop file upload support with visual state overlays in `AdminEventsClient` and `AddEventModal`. Administrators can now drag-and-drop cover photos (images) and sermon presentations (PDF/PPTX) directly onto the upload buttons to initiate processing.
+- **Event Speaker Input**: Added a new `speaker` field to the `Event` schema and forms. Administrators can now input a speaker's name when creating or editing events.
+- **Event Details Speaker Display**: Replaced the "Organized by" label with "Speaker" (with a fallback to the event creator's name) on the public event details page.
+### Fixed
+- **Dynamic Service Status Display**: Replaced the hardcoded "ACTIVE SERVICE" card badge with dynamic status rendering: "🟢 Active Service (Today)", "📅 Upcoming Service", or "📅 Past Service" based on actual event dates.
+- **Robust Manila Timezone Boundaries**: Adjusted server-side date comparison in the multimedia dashboard to use the Asia/Manila timezone midnight boundary, preventing server UTC offsets from causing incorrect "Active" labels on Monday morning.
+- **Replaced Native Dialogs with ConfirmModal**: Swapped out native browser `confirm()` and `alert()` popups inside `MultimediaDashboardClient` with the custom `ConfirmModal` component to guarantee layout compatibility on mobile/PWA interfaces.
+
 ## [v2.24.2] — 2026-06-10
 ### Changed
 - **Reactions Styling and Labels Layout**: Shifted the overlapping reactions summary bubble to the right-hand side. Removed the text word labels ("Heart", "Pray", "Hug", "Like") from the reactions toggle buttons, displaying only the emoji icon.

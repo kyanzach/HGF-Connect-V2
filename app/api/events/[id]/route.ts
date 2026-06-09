@@ -43,6 +43,7 @@ export async function PATCH(
     presentationFile,
     presentationOriginalName,
     presentationSlides,
+    speaker,
   } = body;
 
   const updated = await db.event.update({
@@ -60,6 +61,7 @@ export async function PATCH(
       ...(presentationFile !== undefined && { presentationFile }),
       ...(presentationOriginalName !== undefined && { presentationOriginalName }),
       ...(presentationSlides !== undefined && { presentationSlides }),
+      ...(speaker !== undefined && { speaker: speaker || null }),
     },
   });
   return NextResponse.json({ success: true, event: updated });

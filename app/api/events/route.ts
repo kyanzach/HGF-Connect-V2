@@ -45,6 +45,7 @@ export async function POST(request: NextRequest) {
       presentationFile,
       presentationOriginalName,
       presentationSlides,
+      speaker,
     } = body;
 
     if (!title || !eventDate || !startTime || !eventType) {
@@ -68,12 +69,13 @@ export async function POST(request: NextRequest) {
         presentationFile: presentationFile ?? null,
         presentationOriginalName: presentationOriginalName ?? null,
         presentationSlides: presentationSlides ?? null,
+        speaker: speaker || null,
       },
     });
 
-    // Automatically create 8 default pre-service SOP tasks if event type is Sunday Service
+    // Automatically create default pre-service SOP tasks if event type is Sunday Service
     if (eventType === "sunday_service") {
-      const defaultTasks = [
+      let defaultTasks = [
         "Turn on Projector & Check Screen Alignment",
         "Initialize ProPresenter & Load Sermon Slide Deck",
         "Test Wireless Microphones & Check Battery Levels",
@@ -83,6 +85,19 @@ export async function POST(request: NextRequest) {
         "Synchronize Lyrics with the Praise & Worship Team",
         "Run Technical Rehearsal with Speakers & Pastors",
       ];
+      try {
+        const setting = await db.churchSetting.findUnique({
+          where: { key: "multimedia_sop_defaults" },
+        });
+        if (setting?.value) {
+          const parsed = JSON.parse(setting.value);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            defaultTasks = parsed;
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch custom SOP defaults:", err);
+      }
       await db.multimediaSopTask.createMany({
         data: defaultTasks.map((name) => ({
           eventId: event.id,

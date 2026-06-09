@@ -146,6 +146,7 @@ model Event {
   presentationFile         String?   @map("presentation_file") @db.VarChar(255)
   presentationOriginalName String?   @map("presentation_original_name") @db.VarChar(255)
   presentationSlides       Json?     @map("presentation_slides")
+  speaker                  String?   @db.VarChar(255)
 
   creator         Member             @relation("EventCreatedBy", fields: [createdBy], references: [id], onDelete: Cascade, onUpdate: Cascade)
   attendance      AttendanceRecord[]
