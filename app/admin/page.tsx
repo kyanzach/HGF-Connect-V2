@@ -41,6 +41,10 @@ export default async function AdminDashboardPage() {
     redirect("/admin/members");
   }
 
+  if (session?.user?.role === "multimedia") {
+    redirect("/admin/multimedia");
+  }
+
   return (
     <div style={{ padding: "2rem 2.5rem" }}>
       {/* Header */}

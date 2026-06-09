@@ -6,6 +6,7 @@ import { auth } from "@/lib/auth";
 import UpdateToast from "@/components/UpdateToast";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import VersionGuard from "@/components/VersionGuard";
+import { UploadProvider } from "@/context/UploadContext";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -82,10 +83,12 @@ export default async function RootLayout({
     <html lang="en" className={inter.variable} suppressHydrationWarning>
       <body className="antialiased">
         <SessionProvider session={session}>
-          {children}
-          <UpdateToast />
-          <ServiceWorkerRegistration />
-          <VersionGuard />
+          <UploadProvider>
+            {children}
+            <UpdateToast />
+            <ServiceWorkerRegistration />
+            <VersionGuard />
+          </UploadProvider>
         </SessionProvider>
       </body>
     </html>

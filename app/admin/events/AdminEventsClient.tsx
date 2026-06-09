@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useMemo, useRef } from "react";
 import ConfirmModal from "@/components/ConfirmModal";
+import { useUpload } from "@/context/UploadContext";
 
 const P = "#4EB1CB";
 
@@ -20,6 +21,9 @@ type EventRow = {
   startTime: string; endTime: string | null; location: string | null;
   eventType: string; status: string; createdBy: number;
   coverPhoto: string | null;
+  presentationFile: string | null;
+  presentationOriginalName: string | null;
+  presentationSlides: string[] | any | null;
   creator: { firstName: string; lastName: string } | null;
 };
 
@@ -60,9 +64,15 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
   const [typeFilter, setTypeFilter] = useState("all");
   const [form, setForm] = useState({
     title: "", description: "", eventDate: "", startTime: "", endTime: "", location: "", eventType: "sunday_service", status: "scheduled", coverPhoto: "",
+    presentationFile: "", presentationOriginalName: "", presentationSlides: [] as string[],
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const presInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [presUploading, setPresUploading] = useState(false);
+  const [presProgress, setPresProgress] = useState(0);
+
+  const { startUpload } = useUpload();
 
   // ── Confirm modal state ──
   const [confirmModal, setConfirmModal] = useState<{
@@ -75,7 +85,7 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
   function openAdd() { 
     setEditing(null); 
     setErr("");
-    setForm({ title: "", description: "", eventDate: "", startTime: "", endTime: "", location: "", eventType: "sunday_service", status: "scheduled", coverPhoto: "" }); 
+    setForm({ title: "", description: "", eventDate: "", startTime: "", endTime: "", location: "", eventType: "sunday_service", status: "scheduled", coverPhoto: "", presentationFile: "", presentationOriginalName: "", presentationSlides: [] }); 
     setShowModal(true); 
   }
   
@@ -91,9 +101,51 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
       location: ev.location ?? "", 
       eventType: ev.eventType, 
       status: ev.status, 
-      coverPhoto: ev.coverPhoto ?? "" 
+      coverPhoto: ev.coverPhoto ?? "",
+      presentationFile: ev.presentationFile ?? "",
+      presentationOriginalName: ev.presentationOriginalName ?? "",
+      presentationSlides: (ev.presentationSlides as string[]) ?? [],
     });
     setShowModal(true);
+  }
+
+  async function handlePresentationUpload(file: File) {
+    setPresUploading(true);
+    setPresProgress(5);
+    setErr("");
+    try {
+      const jobId = await startUpload(file);
+      
+      // Poll background status inline to bind form parameters on completion
+      let complete = false;
+      while (!complete) {
+        await new Promise((r) => setTimeout(r, 1500));
+        const res = await fetch(`/api/events/presentation/upload?jobId=${jobId}`);
+        if (!res.ok) {
+          throw new Error("Polling error");
+        }
+        const job = await res.json();
+        
+        setPresProgress(job.progress);
+        
+        if (job.status === "completed") {
+          setForm((f) => ({
+            ...f,
+            presentationFile: job.result.presentationFile,
+            presentationOriginalName: job.result.presentationOriginalName,
+            presentationSlides: job.result.presentationSlides,
+          }));
+          complete = true;
+        } else if (job.status === "failed") {
+          throw new Error(job.error || "Optimization failed");
+        }
+      }
+    } catch (errErr: any) {
+      setErr(errErr.message || "Failed to process presentation slides");
+    } finally {
+      setPresUploading(false);
+      setPresProgress(0);
+    }
   }
 
   async function handleCoverUpload(file: File) {
@@ -124,7 +176,14 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
     try {
       const url = editing ? `/api/events/${editing.id}` : "/api/events";
       const method = editing ? "PATCH" : "POST";
-      const body = { ...form, endTime: form.endTime || null, coverPhoto: form.coverPhoto || null };
+      const body = { 
+        ...form, 
+        endTime: form.endTime || null, 
+        coverPhoto: form.coverPhoto || null,
+        presentationFile: form.presentationFile || null,
+        presentationOriginalName: form.presentationOriginalName || null,
+        presentationSlides: form.presentationSlides.length > 0 ? form.presentationSlides : null,
+      };
       
       const res = await fetch(url, { 
         method, 
@@ -253,6 +312,34 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
                   </button>
                 )}
                 <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={e => { if (e.target.files?.[0]) handleCoverUpload(e.target.files[0]); e.target.value = ""; }} />
+              </div>
+
+              {/* Sermon Presentation (PDF/PPTX) */}
+              <div style={{ marginTop: "0.75rem" }}>
+                <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b" }}>Sermon Presentation (PDF or PPTX)</label>
+                {form.presentationFile ? (
+                  <div style={{ marginTop: "0.375rem", padding: "0.75rem", borderRadius: "8px", border: "1.5px solid #10b981", background: "#f0fdf4", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", minWidth: 0 }}>
+                      <span style={{ fontSize: "1.25rem" }}>📽️</span>
+                      <div style={{ minWidth: 0, textAlign: "left" }}>
+                        <p style={{ fontSize: "0.8125rem", fontWeight: 700, color: "#166534", margin: 0, textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
+                          {form.presentationOriginalName}
+                        </p>
+                        <p style={{ fontSize: "0.75rem", color: "#15803d", margin: 0 }}>
+                          ✅ Optimized & Compressed ({form.presentationSlides.length} slides)
+                        </p>
+                      </div>
+                    </div>
+                    <button type="button" onClick={() => setForm(f => ({ ...f, presentationFile: "", presentationOriginalName: "", presentationSlides: [] }))} style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 700 }}>✕ Remove</button>
+                  </div>
+                ) : (
+                  <div>
+                    <button type="button" onClick={() => presInputRef.current?.click()} disabled={presUploading} style={{ ...inp, marginTop: "0.375rem", cursor: "pointer", color: "#64748b", textAlign: "center" as const, background: "#f8fafc" }}>
+                      {presUploading ? `⚡ Optimizing slides... (${presProgress}%)` : "📁 Click to upload PDF/PPTX presentation"}
+                    </button>
+                    <input ref={presInputRef} type="file" accept=".pdf,.pptx" hidden onChange={e => { if (e.target.files?.[0]) handlePresentationUpload(e.target.files[0]); e.target.value = ""; }} />
+                  </div>
+                )}
               </div>
               {err && <p style={{ color: "#ef4444", fontSize: "0.8rem", marginTop: "0.5rem" }}>{err}</p>}
               <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.25rem" }}>

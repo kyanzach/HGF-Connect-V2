@@ -29,13 +29,17 @@ export default auth((request) => {
     "bingbot",
   ].some((bot) => userAgent.includes(bot));
 
-  // Admin routes: admin and moderator only
+  // Admin routes: admin, moderator, usher, and multimedia
   if (pathname.startsWith("/admin")) {
     if (!isLoggedIn) {
       return NextResponse.redirect(new URL("/login", request.url));
     }
-    if (!ADMIN_ROLES.includes(role)) {
+    const ALLOWED_ADMIN_CONSOLE_ROLES = ["admin", "moderator", "usher", "multimedia"];
+    if (!ALLOWED_ADMIN_CONSOLE_ROLES.includes(role)) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+    if (role === "multimedia" && !pathname.startsWith("/admin/multimedia")) {
+      return NextResponse.redirect(new URL("/admin/multimedia", request.url));
     }
     return NextResponse.next();
   }
@@ -77,6 +81,9 @@ export default auth((request) => {
     if (isLoggedIn) {
       if (ADMIN_ROLES.includes(role)) {
         return NextResponse.redirect(new URL("/admin", request.url));
+      }
+      if (role === "multimedia") {
+        return NextResponse.redirect(new URL("/admin/multimedia", request.url));
       }
       if (role === "usher") {
         return NextResponse.redirect(new URL("/attendance", request.url));

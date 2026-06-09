@@ -120,6 +120,7 @@ model Member {
   quizSubmissions       QuizSubmission[]     @relation("QuizSubmissions")
   quizRewards           QuizReward[]         @relation("QuizRewards")
   recoveryCodes         AccountRecoveryCode[]
+  completedSopTasks     MultimediaSopTask[]
 
   @@index([invitedBy], name: "idx_referred_by")
   @@index([ageGroup], name: "idx_age_group")
@@ -142,11 +143,15 @@ model Event {
   createdAt   DateTime   @default(now()) @map("created_at")
   updatedAt   DateTime   @updatedAt @map("updated_at")
   status      EventStatus @default(scheduled)
+  presentationFile         String?   @map("presentation_file") @db.VarChar(255)
+  presentationOriginalName String?   @map("presentation_original_name") @db.VarChar(255)
+  presentationSlides       Json?     @map("presentation_slides")
 
   creator         Member             @relation("EventCreatedBy", fields: [createdBy], references: [id], onDelete: Cascade, onUpdate: Cascade)
   attendance      AttendanceRecord[]
   smsReminders    SmsReminder[]
   sermonQuizzes   SermonQuiz[]
+  sopTasks        MultimediaSopTask[]
 
   @@index([eventDate], name: "idx_event_date")
   @@index([eventType], name: "idx_event_type")
@@ -522,6 +527,7 @@ enum Role {
   admin
   moderator
   usher
+  multimedia
 }
 
 enum EventType {
@@ -1253,5 +1259,22 @@ model SsoToken {
 
   @@index([memberId])
   @@map("sso_tokens")
+}
+
+model MultimediaSopTask {
+  id           Int       @id @default(autoincrement())
+  eventId      Int       @map("event_id")
+  taskName     String    @map("task_name") @db.VarChar(255)
+  isCompleted  Boolean   @default(false) @map("is_completed")
+  completedAt  DateTime? @map("completed_at")
+  completedById Int?     @map("completed_by_id")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  event        Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  completedBy  Member?   @relation(fields: [completedById], references: [id], onDelete: SetNull)
+
+  @@index([eventId])
+  @@map("multimedia_sop_tasks")
 }
 

@@ -33,7 +33,19 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { title, description, eventDate, startTime, endTime, location, eventType, coverPhoto } = body;
+    const {
+      title,
+      description,
+      eventDate,
+      startTime,
+      endTime,
+      location,
+      eventType,
+      coverPhoto,
+      presentationFile,
+      presentationOriginalName,
+      presentationSlides,
+    } = body;
 
     if (!title || !eventDate || !startTime || !eventType) {
       return NextResponse.json(
@@ -53,8 +65,32 @@ export async function POST(request: NextRequest) {
         coverPhoto: coverPhoto ?? null,
         eventType: eventType as any,
         createdBy: parseInt(session.user.id),
+        presentationFile: presentationFile ?? null,
+        presentationOriginalName: presentationOriginalName ?? null,
+        presentationSlides: presentationSlides ?? null,
       },
     });
+
+    // Automatically create 8 default pre-service SOP tasks if event type is Sunday Service
+    if (eventType === "sunday_service") {
+      const defaultTasks = [
+        "Turn on Projector & Check Screen Alignment",
+        "Initialize ProPresenter & Load Sermon Slide Deck",
+        "Test Wireless Microphones & Check Battery Levels",
+        "Verify Stage Monitor Mix & Audio Signal Paths",
+        "Start Live Stream Encoder & Check Video Input Feed",
+        "Play Pre-Service Countdown Video & Background Music",
+        "Synchronize Lyrics with the Praise & Worship Team",
+        "Run Technical Rehearsal with Speakers & Pastors",
+      ];
+      await db.multimediaSopTask.createMany({
+        data: defaultTasks.map((name) => ({
+          eventId: event.id,
+          taskName: name,
+          isCompleted: false,
+        })),
+      });
+    }
 
     // ── Auto-post to Community Feed so members see the new event ──────────
     try {
