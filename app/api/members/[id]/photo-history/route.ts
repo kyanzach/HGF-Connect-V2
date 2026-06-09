@@ -12,8 +12,6 @@ export async function GET(req: NextRequest, { params }: Params) {
 
   const { id: idStr } = await params;
   const id = parseInt(idStr);
-  if (session.user.id !== String(id))
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const type = req.nextUrl.searchParams.get("type") === "cover" ? "cover" : "profile";
 

@@ -5,6 +5,12 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.48] — 2026-06-10
+### Added
+- **Interactive Profile Cover Photo**: Updated the member profile page (`ProfileClient.tsx`) to make cover photos clickable. When tapped, it displays the cover photo history (previous uploads, comments, likes) via `PhotoPostViewer`, similar to profile picture functionality. For own profile, it triggers a bottom sheet option to view or choose a new cover photo.
+- **Quiz Hub Cover Alignment & Lightbox**: Shifted the Quiz Hub cover photo `backgroundPosition` to `center 85%` to center the visible portion on the bottom action where people play the quiz on mobile phones. Implemented the standard click-to-enlarge `ImageLightbox` on this banner with propagation overrides for child controls.
+- **Photo History API Open Access**: Modified the `GET` handler in `/api/members/[id]/photo-history` to allow any authenticated user to retrieve other members' profile or cover photo history while preserving edit and restoration restriction rules for owners.
+
 ## [v2.22.47] — 2026-06-10
 ### Fixed
 - **Homepage Open Graph Image**: Updated the custom `metadata` configuration in `app/page.tsx` to explicitly define Open Graph (`og:image`, `og:url`, `og:site_name`) and Twitter Card tags. This ensures that sharing the root domain (`https://connect.houseofgrace.ph/`) resolves complete previews with the custom branded fallback image (`og-default.png`) rather than overriding and stripping it.

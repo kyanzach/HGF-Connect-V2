@@ -13,6 +13,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import ImageLightbox from "@/components/ImageLightbox";
 
 const PRIMARY = "#4EB1CB";
 
@@ -42,6 +43,7 @@ export default function QuizHubPage() {
 
   const [activeTab, setActiveTab] = useState<"leaderboard" | "archive">("leaderboard");
   const [loading, setLoading] = useState(true);
+  const [activeLightboxImg, setActiveLightboxImg] = useState<string | null>(null);
 
   // Leaderboard data
   const [weeklyLeaders, setWeeklyLeaders] = useState<LeaderboardEntry[]>([]);
@@ -90,16 +92,23 @@ export default function QuizHubPage() {
   return (
     <div style={{ background: "#f8fafc", minHeight: "100vh", padding: "0 0 100px", paddingTop: 0 }}>
       {/* Brand Cover Banner */}
-      <div style={{
-        backgroundImage: "url('/quiz-cover-banner.png')",
-        backgroundSize: "cover",
-        backgroundPosition: "center 30%",
-        height: "180px",
-        position: "relative",
-      }}>
+      <div 
+        onClick={() => setActiveLightboxImg('/quiz-cover-banner.png')}
+        style={{
+          backgroundImage: "url('/quiz-cover-banner.png')",
+          backgroundSize: "cover",
+          backgroundPosition: "center 85%",
+          height: "180px",
+          position: "relative",
+          cursor: "pointer",
+        }}
+      >
         {/* Back Button */}
         <button
-          onClick={() => router.push("/quiz")}
+          onClick={(e) => {
+            e.stopPropagation();
+            router.push("/quiz");
+          }}
           style={{
             position: "absolute",
             top: "16px",
@@ -353,7 +362,7 @@ export default function QuizHubPage() {
                         {week.title}
                       </strong>
                       <span style={{ fontSize: "0.78rem", color: "#94a3b8", display: "block", marginTop: "2px" }}>
-                        {new Date(week.sermonDate).toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" })}
+                        {new Date(week.sermonDate).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
                       </span>
                     </div>
 
@@ -382,6 +391,13 @@ export default function QuizHubPage() {
           </div>
         )}
       </div>
+
+      {activeLightboxImg && (
+        <ImageLightbox
+          src={activeLightboxImg}
+          onClose={() => setActiveLightboxImg(null)}
+        />
+      )}
     </div>
   );
 }

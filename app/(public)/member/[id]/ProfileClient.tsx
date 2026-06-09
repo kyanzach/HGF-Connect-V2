@@ -240,7 +240,8 @@ export default function ProfileClient({ member }: { member: ProfileData }) {
   // Photo viewer
   const [viewerPhotos, setViewerPhotos] = useState<PhotoEntry[]>([]);
   const [viewerOpen, setViewerOpen] = useState(false);
-  const [sheetOpen, setSheetOpen] = useState(false); // own-profile bottom sheet
+  const [sheetType, setSheetType] = useState<"profile" | "cover" | null>(null);
+  const [activeUploadType, setActiveUploadType] = useState<"profile" | "cover">("profile");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const tabBarRef = useRef<HTMLDivElement>(null);
 
@@ -250,31 +251,35 @@ export default function ProfileClient({ member }: { member: ProfileData }) {
   const initials  = `${member.firstName?.[0] ?? ""}${member.lastName?.[0] ?? ""}`;
   const dur = duration(member.joinDate);
 
-  // Load profile history for viewer
-  function openViewer() {
-    fetch(`/api/members/${member.id}/photo-history?type=profile`)
+  // Load profile or cover history for viewer
+  function openViewer(type: "profile" | "cover") {
+    fetch(`/api/members/${member.id}/photo-history?type=${type}`)
       .then(r => r.json())
       .then((data: PhotoEntry[]) => {
         const history = Array.isArray(data) ? data : [];
-        // Use history directly — index 0 is the current photo (most recent upload)
-        // The DB bootstrap seeded history rows for all existing members, so this works.
         if (history.length > 0) {
           setViewerPhotos(history);
-        } else if (avatarSrc) {
-          // Fallback for accounts with no history rows at all
-          setViewerPhotos([{
-            id: -1, type: "profile", fileName: member.profilePicture ?? "", thumbName: null,
-            url: avatarSrc, thumbUrl: avatarSrc, postId: null, caption: null,
-            createdAt: member.joinDate ?? new Date().toISOString(),
-          }]);
+        } else {
+          // Fallback if no history exists yet
+          const src = type === "cover" ? coverSrc : avatarSrc;
+          const fileName = type === "cover" ? member.coverPhoto : member.profilePicture;
+          if (src && fileName) {
+            setViewerPhotos([{
+              id: -1, type: type, fileName: fileName, thumbName: null,
+              url: src, thumbUrl: src, postId: null, caption: null,
+              createdAt: member.joinDate ?? new Date().toISOString(),
+            }]);
+          }
         }
         setViewerOpen(true);
       })
       .catch(() => {
-        if (avatarSrc) {
+        const src = type === "cover" ? coverSrc : avatarSrc;
+        const fileName = type === "cover" ? member.coverPhoto : member.profilePicture;
+        if (src && fileName) {
           setViewerPhotos([{
-            id: -1, type: "profile", fileName: member.profilePicture ?? "", thumbName: null,
-            url: avatarSrc, thumbUrl: avatarSrc, postId: null, caption: null,
+            id: -1, type: type, fileName: fileName, thumbName: null,
+            url: src, thumbUrl: src, postId: null, caption: null,
             createdAt: member.joinDate ?? new Date().toISOString(),
           }]);
           setViewerOpen(true);
@@ -284,19 +289,27 @@ export default function ProfileClient({ member }: { member: ProfileData }) {
 
   function handleAvatarTap() {
     if (member.isOwn) {
-      setSheetOpen(true);
+      setSheetType("profile");
     } else {
-      openViewer();
+      openViewer("profile");
     }
   }
 
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleCoverTap() {
+    if (member.isOwn) {
+      setSheetType("cover");
+    } else {
+      openViewer("cover");
+    }
+  }
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>, uploadType: "profile" | "cover") {
     const file = e.target.files?.[0];
     if (!file) return;
-    setSheetOpen(false);
+    setSheetType(null);
     const fd = new FormData();
     fd.append("file", file);
-    fd.append("type", "profile");
+    fd.append("type", uploadType);
     try {
       const res = await fetch(`/api/members/${member.id}/photo`, { method: "POST", body: fd });
       if (res.ok) {
@@ -313,7 +326,10 @@ export default function ProfileClient({ member }: { member: ProfileData }) {
     <div style={{ minHeight: "100vh", background: "#f1f5f9", maxWidth: 480, margin: "0 auto", position: "relative" }}>
 
       {/* ── Cover photo ──────────────────────────────────────────────────── */}
-      <div style={{ position: "relative", height: 220, background: `linear-gradient(160deg, #0f2d3d 0%, ${PRIMARY} 100%)`, overflow: "hidden" }}>
+      <div 
+        onClick={handleCoverTap}
+        style={{ position: "relative", height: 220, background: `linear-gradient(160deg, #0f2d3d 0%, ${PRIMARY} 100%)`, overflow: "hidden", cursor: "pointer" }}
+      >
         {coverSrc && (
           <img
             src={coverSrc}
@@ -325,10 +341,12 @@ export default function ProfileClient({ member }: { member: ProfileData }) {
         <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 80, background: "linear-gradient(to bottom, rgba(0,0,0,0.4), transparent)", pointerEvents: "none" }} />
 
         <Link href="/directory"
+          onClick={(e) => e.stopPropagation()}
           style={{ position: "absolute", top: "0.875rem", left: "0.875rem", width: 36, height: 36, borderRadius: "50%", background: "rgba(0,0,0,0.38)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.25)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", textDecoration: "none", fontSize: "1rem", fontWeight: 700 }}>←</Link>
 
         {member.isOwn && (
           <Link href="/profile/edit"
+            onClick={(e) => e.stopPropagation()}
             style={{ position: "absolute", top: "0.875rem", right: "0.875rem", width: 36, height: 36, borderRadius: "50%", background: PRIMARY, border: "1px solid rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", textDecoration: "none", fontSize: "1rem" }}>✏️</Link>
         )}
       </div>
@@ -413,24 +431,39 @@ export default function ProfileClient({ member }: { member: ProfileData }) {
     </div>
 
     {/* ── Own-profile bottom sheet ─────────────────────────────────────── */}
-    {sheetOpen && (
+    {sheetType && (
       <>
         {/* Backdrop */}
-        <div onClick={() => setSheetOpen(false)}
+        <div onClick={() => setSheetType(null)}
           style={{ position: "fixed", inset: 0, zIndex: 9998, background: "rgba(0,0,0,0.45)" }} />
         {/* Sheet */}
         <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, zIndex: 9999,
           background: "white", borderRadius: "20px 20px 0 0", padding: "0.75rem 0 calc(1.5rem + env(safe-area-inset-bottom, 0px))", boxShadow: "0 -4px 32px rgba(0,0,0,0.18)" }}>
           {/* Handle */}
           <div style={{ width: 40, height: 4, background: "#e2e8f0", borderRadius: 999, margin: "0 auto 1rem" }} />
-          <button onClick={() => { setSheetOpen(false); openViewer(); }}
-            style={{ width: "100%", display: "flex", alignItems: "center", gap: "1rem", padding: "0.875rem 1.5rem", background: "none", border: "none", cursor: "pointer", fontSize: "0.95rem", fontWeight: 600, color: "#1e293b" }}>
-            <span style={{ fontSize: "1.3rem" }}>👁</span> See profile picture
-          </button>
-          <button onClick={() => { fileInputRef.current?.click(); }}
-            style={{ width: "100%", display: "flex", alignItems: "center", gap: "1rem", padding: "0.875rem 1.5rem", background: "none", border: "none", cursor: "pointer", fontSize: "0.95rem", fontWeight: 600, color: "#1e293b" }}>
-            <span style={{ fontSize: "1.3rem" }}>📷</span> Choose profile picture
-          </button>
+          {sheetType === "profile" ? (
+            <>
+              <button onClick={() => { setSheetType(null); openViewer("profile"); }}
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: "1rem", padding: "0.875rem 1.5rem", background: "none", border: "none", cursor: "pointer", fontSize: "0.95rem", fontWeight: 600, color: "#1e293b" }}>
+                <span style={{ fontSize: "1.3rem" }}>👁</span> See profile picture
+              </button>
+              <button onClick={() => { setActiveUploadType("profile"); setSheetType(null); setTimeout(() => fileInputRef.current?.click(), 100); }}
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: "1rem", padding: "0.875rem 1.5rem", background: "none", border: "none", cursor: "pointer", fontSize: "0.95rem", fontWeight: 600, color: "#1e293b" }}>
+                <span style={{ fontSize: "1.3rem" }}>📷</span> Choose profile picture
+              </button>
+            </>
+          ) : (
+            <>
+              <button onClick={() => { setSheetType(null); openViewer("cover"); }}
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: "1rem", padding: "0.875rem 1.5rem", background: "none", border: "none", cursor: "pointer", fontSize: "0.95rem", fontWeight: 600, color: "#1e293b" }}>
+                <span style={{ fontSize: "1.3rem" }}>👁</span> See cover photo
+              </button>
+              <button onClick={() => { setActiveUploadType("cover"); setSheetType(null); setTimeout(() => fileInputRef.current?.click(), 100); }}
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: "1rem", padding: "0.875rem 1.5rem", background: "none", border: "none", cursor: "pointer", fontSize: "0.95rem", fontWeight: 600, color: "#1e293b" }}>
+                <span style={{ fontSize: "1.3rem" }}>📷</span> Choose cover photo
+              </button>
+            </>
+          )}
         </div>
       </>
     )}
@@ -441,7 +474,7 @@ export default function ProfileClient({ member }: { member: ProfileData }) {
       type="file"
       accept="image/png,image/jpeg,image/webp,image/heic,image/heif"
       style={{ display: "none" }}
-      onChange={handleFileChange}
+      onChange={(e) => handleFileChange(e, activeUploadType)}
     />
 
     {/* ── Photo post viewer ────────────────────────────────────────────── */}
@@ -454,7 +487,12 @@ export default function ProfileClient({ member }: { member: ProfileData }) {
         memberAvatar={avatarSrc}
         isOwn={member.isOwn}
         onClose={() => setViewerOpen(false)}
-        onChoosePhoto={member.isOwn ? () => { setViewerOpen(false); fileInputRef.current?.click(); } : undefined}
+        onChoosePhoto={member.isOwn ? () => {
+          const type = viewerPhotos[0]?.type === "cover" ? "cover" : "profile";
+          setActiveUploadType(type);
+          setViewerOpen(false);
+          fileInputRef.current?.click();
+        } : undefined}
       />
     )}
     </>
