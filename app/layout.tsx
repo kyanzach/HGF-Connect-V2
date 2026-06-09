@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     template: "%s | HGF Connect",
   },
   description:
-    "House of Grace Fellowship — Church management portal for members, events, and community.",
+    "House of Grace Fellowship — Church community app for members, events, devotionals, and more.",
   keywords: ["church", "HGF", "House of Grace Fellowship", "Davao", "Philippines"],
   manifest: "/manifest.json",
   icons: {
@@ -46,8 +46,24 @@ export const metadata: Metadata = {
     locale: "en_PH",
     url: "https://connect.houseofgrace.ph",
     siteName: "HGF Connect",
-    title: "HGF Connect",
-    description: "House of Grace Fellowship member portal — events, directory, ministries.",
+    title: "HGF Connect — House of Grace Fellowship",
+    description:
+      "The official community app of House of Grace Fellowship. Connect with the church, join devotionals, explore events, and grow in faith.",
+    images: [
+      {
+        url: "https://connect.houseofgrace.ph/og-default.png",
+        width: 1200,
+        height: 630,
+        alt: "HGF Connect — House of Grace Fellowship",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "HGF Connect — House of Grace Fellowship",
+    description:
+      "The official community app of House of Grace Fellowship. Connect with the church, join devotionals, explore events, and grow in faith.",
+    images: ["https://connect.houseofgrace.ph/og-default.png"],
   },
   robots: {
     index: true,

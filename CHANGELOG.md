@@ -5,7 +5,23 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v2.22.38] — 2026-06-09
+## [v2.22.41] — 2026-06-09
+### Changed
+- **OG Default Image**: Replaced generated placeholder logo with a properly branded `og-default.png` (1200×630) using the real HGF cursive logo (`HGF-icon-v1.0.png`) on a navy blue gradient background.
+- **Homepage Open Graph Tags**: Updated `app/layout.tsx` to include `og:image`, `og:title`, `og:description`, and `twitter:card` on the site root (`https://connect.houseofgrace.ph`) so sharing the homepage produces a complete, rich link preview card.
+
+## [v2.22.40] — 2026-06-09
+
+### Added
+- **Public Post Share Page (`/p/[id]`)**: Created a dedicated public share route that bypasses authentication entirely, serving full Open Graph meta tags (title, description, image, URL, type) to social media crawlers (Facebook, Messenger, Twitter, WhatsApp, etc.). Human users hitting `/p/[id]` are immediately redirected to `/feed?post=ID`. This replaces the unreliable middleware crawler-bypass approach on `/feed?post=ID`.
+- **Default OG Image (`/og-default.png`)**: Added a branded 1200×630px Open Graph fallback image used when a post has no attached photo.
+### Changed
+- **Share URL updated to `/p/[id]`**: The "Share" button on `PostCard` now copies/shares `https://connect.houseofgrace.ph/p/54` instead of `/feed?post=54`, ensuring proper link preview cards with image, title, and description on all platforms.
+- **Middleware exclusion**: Added `p/` to the middleware matcher exclusion list so the share page is never intercepted by auth.
+### Fixed
+- **OG image missing on share cards**: The `/feed?post=ID` URL was being 307-redirected to `/login` for crawlers due to a race condition with the `auth()` wrapper, causing Facebook/Messenger to scrape only the generic site-level OG tags. The new `/p/[id]` route is fully public and crawler-accessible.
+
+## [v2.22.39] — 2026-06-09
 ### Fixed
 - **Image Lightbox Notch & Safe Area Clipping (s1)**: Wrapped the `ImageLightbox` rendering in a React Portal (`createPortal`) targeting `document.body` to prevent the fullscreen container from being clipped/rendered incorrectly inside nested parent lists and containers. Increased top safety margin to `calc(24px + env(safe-area-inset-top, 0px))` to ensure the close button (`✕`) does not overlap or hide behind the mobile PWA/Safari status bar.
 - **Quiz Player Overlay Layout Z-Index & Stacking Context (s2)**: Swapped the local container rendering of `QuizPlayer` to a React Portal targeting `document.body`. This forces WebKit/Blink layout engines to draw the game player at the absolute document root, correctly bypassing parent scrolling container stacking contexts (like `-webkit-overflow-scrolling: touch`) and rendering the daily quiz screens entirely on top of the sticky top navigation header and bottom tab nav docks.

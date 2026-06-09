@@ -395,7 +395,7 @@ export default function PostCard({ post }: PostCardProps) {
   }
 
   function handleShare() {
-    const url = `${window.location.origin}/feed?post=${post.id}`;
+    const url = `${window.location.origin}/p/${post.id}`;
     if (navigator.share) {
       const shareText = (post.content ? post.content + "\n" : "") + url;
       navigator.share({ title: `${authorName} on HGF Connect`, text: shareText });
