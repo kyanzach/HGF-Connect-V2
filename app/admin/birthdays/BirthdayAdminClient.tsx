@@ -105,9 +105,9 @@ export default function BirthdayAdminClient({ initialMembers }: { initialMembers
   }
 
   return (
-    <div style={{ padding: "2rem 2.5rem" }}>
+    <div className="birthday-board-container" style={{ padding: "2rem 2.5rem" }}>
       {/* Header */}
-      <div style={{ marginBottom: "2rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div className="birthday-board-header" style={{ marginBottom: "2rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <h1 style={{ fontSize: "1.75rem", fontWeight: 800, color: "#0f172a", letterSpacing: "-0.02em" }}>
             🎂 Birthday Control Board
@@ -289,7 +289,7 @@ export default function BirthdayAdminClient({ initialMembers }: { initialMembers
                       background: "#fcfcfc",
                     }}
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+                    <div className="celebrant-row-item" style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
                       {/* Avatar */}
                       <div style={{
                         width: 44,
@@ -325,7 +325,7 @@ export default function BirthdayAdminClient({ initialMembers }: { initialMembers
                       </div>
 
                       {/* Action buttons */}
-                      <div style={{ display: "flex", gap: "0.5rem" }}>
+                      <div className="celebrant-actions" style={{ display: "flex", gap: "0.5rem" }}>
                         <button
                           onClick={() => setExpandedPreview(isExpanded ? null : c.id)}
                           style={{
@@ -415,6 +415,25 @@ export default function BirthdayAdminClient({ initialMembers }: { initialMembers
       </div>
 
       <style>{`
+        @media (max-width: 767px) {
+          .birthday-board-container {
+            padding: 1rem !important;
+          }
+          .birthday-board-header {
+            flex-direction: column;
+            align-items: stretch !important;
+            gap: 1rem;
+          }
+          .celebrant-row-item {
+            flex-direction: column;
+            align-items: stretch !important;
+            gap: 1rem !important;
+          }
+          .celebrant-actions {
+            width: 100%;
+            justify-content: flex-end;
+          }
+        }
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(-4px); }
           to { opacity: 1; transform: translateY(0); }

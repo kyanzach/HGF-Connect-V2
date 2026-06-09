@@ -63,13 +63,13 @@ export default function AdminSendSmsClient() {
   }
 
   return (
-    <div style={{ padding: "1.5rem 2rem" }}>
+    <div className="sendsms-container" style={{ padding: "1.5rem 2rem" }}>
       <div style={{ marginBottom: "1.5rem" }}>
         <h1 style={{ fontSize: "1.5rem", fontWeight: 800, color: "#0f172a", margin: 0 }}>📱 Send Custom SMS</h1>
         <p style={{ color: "#64748b", fontSize: "0.875rem", margin: "0.25rem 0 0" }}>Send a message to selected active members</p>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: "1.5rem", alignItems: "flex-start" }}>
+      <div className="sendsms-grid" style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: "1.5rem", alignItems: "flex-start" }}>
         {/* Recipient picker */}
         <div style={{ background: "white", borderRadius: "12px", border: "1px solid #e2e8f0", overflow: "hidden" }}>
           <div style={{ padding: "1rem", borderBottom: "1px solid #f1f5f9", display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
@@ -131,6 +131,18 @@ export default function AdminSendSmsClient() {
         </div>
       </div>
       <ConfirmModal open={confirmModal.open} title={confirmModal.title} message={confirmModal.message} confirmLabel={confirmModal.confirmLabel} confirmColor={confirmModal.confirmColor} loading={confirmModal.loading} onConfirm={confirmModal.onConfirm} onCancel={() => setConfirmModal(prev => ({ ...prev, open: false }))} />
+
+      <style>{`
+        @media (max-width: 767px) {
+          .sendsms-container {
+            padding: 1rem !important;
+          }
+          .sendsms-grid {
+            grid-template-columns: 1fr !important;
+            gap: 1.5rem !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

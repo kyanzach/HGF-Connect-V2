@@ -40,8 +40,8 @@ export default function AdminMinistriesClient({ ministries: init }: { ministries
   const inp: React.CSSProperties = { width: "100%", border: "1.5px solid #e2e8f0", borderRadius: "8px", padding: "0.5rem 0.75rem", fontSize: "0.875rem", outline: "none", boxSizing: "border-box" };
 
   return (
-    <div style={{ padding: "1.5rem 2rem" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+    <div className="ministries-container" style={{ padding: "1.5rem 2rem" }}>
+      <div className="ministries-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
         <div>
           <h1 style={{ fontSize: "1.5rem", fontWeight: 800, color: "#0f172a", margin: 0 }}>🙌 Ministries</h1>
           <p style={{ color: "#64748b", fontSize: "0.875rem", margin: "0.25rem 0 0" }}>{ministries.length} ministries</p>
@@ -94,6 +94,23 @@ export default function AdminMinistriesClient({ ministries: init }: { ministries
           </div>
         ))}
       </div>
+
+      <style>{`
+        @media (max-width: 767px) {
+          .ministries-container {
+            padding: 1rem !important;
+          }
+          .ministries-header {
+            flex-direction: column;
+            align-items: stretch !important;
+            gap: 1rem;
+          }
+          .ministries-header button {
+            width: 100%;
+            text-align: center;
+          }
+        }
+      `}</style>
     </div>
   );
 }

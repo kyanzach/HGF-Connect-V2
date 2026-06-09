@@ -53,7 +53,7 @@ export default function AdminSettingsClient({ initialSettings }: AdminSettingsCl
   };
 
   return (
-    <div style={{ padding: "2rem", maxWidth: "800px" }}>
+    <div className="settings-container" style={{ padding: "2rem", maxWidth: "800px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
         <div>
           <h1 style={{ fontSize: "1.5rem", fontWeight: 800, color: "#0f172a", margin: 0 }}>
@@ -360,6 +360,7 @@ export default function AdminSettingsClient({ initialSettings }: AdminSettingsCl
         {/* Submit */}
         <button
           type="submit"
+          className="settings-submit-btn"
           disabled={saving}
           style={{
             alignSelf: "flex-end",
@@ -380,6 +381,19 @@ export default function AdminSettingsClient({ initialSettings }: AdminSettingsCl
           {saving ? "⏳ Saving settings..." : "💾 Save Settings"}
         </button>
       </form>
+
+      <style>{`
+        @media (max-width: 767px) {
+          .settings-container {
+            padding: 1rem !important;
+          }
+          .settings-submit-btn {
+            width: 100% !important;
+            align-self: stretch !important;
+            text-align: center;
+          }
+        }
+      `}</style>
     </div>
   );
 }

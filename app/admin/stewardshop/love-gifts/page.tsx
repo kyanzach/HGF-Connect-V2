@@ -60,7 +60,7 @@ export default function AdminLoveGiftsPage() {
   const filtered = filter === "all" ? claims : claims.filter((c) => c.status === filter);
 
   return (
-    <div style={{ padding: "2rem 2.5rem" }}>
+    <div className="lovegifts-container" style={{ padding: "2rem 2.5rem" }}>
       <h1 style={{ fontSize: "1.75rem", fontWeight: 800, color: "#0f172a", letterSpacing: "-0.02em" }}>
         ❤️ Love Gift Claims
       </h1>
@@ -87,7 +87,7 @@ export default function AdminLoveGiftsPage() {
       )}
 
       {/* Filter Tabs */}
-      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem", flexWrap: "wrap" }}>
+      <div className="lovegifts-filters" style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem", flexWrap: "wrap" }}>
         {["all", "pending", "paid", "received", "disputed"].map((f) => (
           <button
             key={f}
@@ -120,7 +120,7 @@ export default function AdminLoveGiftsPage() {
 
       {/* Claims Table */}
       {!loading && filtered.length > 0 && (
-        <div style={{ background: "white", borderRadius: "12px", border: "1px solid #e2e8f0", overflow: "hidden" }}>
+        <div className="lovegifts-desktop-table" style={{ background: "white", borderRadius: "12px", border: "1px solid #e2e8f0", overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
             <thead>
               <tr style={{ background: "#f8fafc" }}>
@@ -155,6 +155,69 @@ export default function AdminLoveGiftsPage() {
           </table>
         </div>
       )}
+
+      {/* Mobile view card listing */}
+      {!loading && filtered.length > 0 && (
+        <div className="lovegifts-mobile-cards" style={{ display: "none", flexDirection: "column", gap: "1rem" }}>
+          {filtered.map((c) => (
+            <div key={c.id} style={{ background: "white", borderRadius: "12px", border: "1px solid #e2e8f0", padding: "1.25rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.75rem", gap: "0.5rem" }}>
+                <div>
+                  <div style={{ fontWeight: 700, color: "#1e293b", fontSize: "0.9rem" }}>{c.listing.title}</div>
+                  <div style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: "0.15rem" }}>
+                    Created {new Date(c.createdAt).toLocaleDateString()}
+                  </div>
+                </div>
+                <span style={{ background: (STATUS_COLORS[c.status] ?? "#cbd5e1") + "20", color: STATUS_COLORS[c.status] ?? "#475569", fontSize: "0.65rem", fontWeight: 700, padding: "0.15rem 0.5rem", borderRadius: "4px", textTransform: "uppercase", whiteSpace: "nowrap" }}>
+                  {c.status}
+                </span>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", fontSize: "0.8rem", borderTop: "1px solid #f1f5f9", padding: "0.75rem 0", marginBottom: "0.75rem" }}>
+                <div>
+                  <div style={{ color: "#94a3b8", fontSize: "0.7rem", textTransform: "uppercase", fontWeight: 600 }}>Sharer & Seller</div>
+                  <div style={{ fontWeight: 600, color: "#374151", marginTop: "0.15rem" }}>🗣️ {c.sharer.name}</div>
+                  <div style={{ fontWeight: 600, color: "#374151", marginTop: "0.15rem" }}>🤝 {c.seller.name}</div>
+                </div>
+                <div>
+                  <div style={{ color: "#94a3b8", fontSize: "0.7rem", textTransform: "uppercase", fontWeight: 600 }}>Amount & Method</div>
+                  <div style={{ fontWeight: 700, color: "#10b981", marginTop: "0.15rem", fontSize: "0.95rem" }}>₱{c.amount.toLocaleString()}</div>
+                  <div style={{ color: "#64748b", fontSize: "0.75rem", marginTop: "0.15rem" }}>
+                    {c.method === "gcash" ? "💳 GCash" : c.method === "contact" ? "📞 Contact" : "—"}
+                  </div>
+                </div>
+              </div>
+
+              {c.gcashMobile && (
+                <div style={{ background: "#f8fafc", borderRadius: "8px", padding: "0.625rem 0.75rem", fontSize: "0.8rem", border: "1px solid #e2e8f0" }}>
+                  <div style={{ color: "#94a3b8", fontSize: "0.65rem", textTransform: "uppercase", fontWeight: 600 }}>GCash Details</div>
+                  <div style={{ color: "#334155", fontWeight: 600, marginTop: "0.15rem" }}>{c.gcashName} · {c.gcashMobile}</div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <style>{`
+        @media (max-width: 767px) {
+          .lovegifts-container {
+            padding: 1rem !important;
+          }
+          .lovegifts-container h1 {
+            font-size: 1.5rem !important;
+          }
+          .lovegifts-filters {
+            gap: 0.375rem !important;
+          }
+          .lovegifts-desktop-table {
+            display: none !important;
+          }
+          .lovegifts-mobile-cards {
+            display: flex !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

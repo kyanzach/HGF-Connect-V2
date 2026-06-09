@@ -18,13 +18,13 @@ export default async function AdminSmsPage() {
   const allLogs = await db.appLog.findMany({ orderBy: { createdAt: "desc" }, take: 100 });
 
   return (
-    <div style={{ padding: "1.5rem 2rem" }}>
+    <div className="smslogs-container" style={{ padding: "1.5rem 2rem" }}>
       <div style={{ marginBottom: "1.5rem" }}>
         <h1 style={{ fontSize: "1.5rem", fontWeight: 800, color: "#0f172a", margin: 0 }}>📋 SMS Logs</h1>
         <p style={{ color: "#64748b", fontSize: "0.875rem", margin: "0.25rem 0 0" }}>Activity and audit history</p>
       </div>
 
-      <div style={{ background: "white", borderRadius: "12px", border: "1px solid #e2e8f0", overflow: "hidden" }}>
+      <div className="smslogs-desktop-table" style={{ background: "white", borderRadius: "12px", border: "1px solid #e2e8f0", overflow: "hidden" }}>
         {allLogs.length === 0 ? (
           <div style={{ padding: "4rem", textAlign: "center", color: "#94a3b8" }}>No log entries yet.</div>
         ) : (
@@ -56,6 +56,45 @@ export default async function AdminSmsPage() {
           </div>
         )}
       </div>
+
+      {/* Mobile view card listing */}
+      {allLogs.length > 0 && (
+        <div className="smslogs-mobile-cards" style={{ display: "none", flexDirection: "column", gap: "1rem" }}>
+          {allLogs.map((log) => (
+            <div key={log.id} style={{ background: "white", borderRadius: "12px", border: "1px solid #e2e8f0", padding: "1rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                <span style={{ fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", padding: "0.2rem 0.5rem", borderRadius: "4px", background: "#f1f5f9", color: "#64748b" }}>
+                  {log.actionType}
+                </span>
+                <span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>
+                  {new Date(log.createdAt).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "Asia/Manila" })}
+                </span>
+              </div>
+              <div style={{ fontSize: "0.875rem", color: "#374151", margin: "0.5rem 0", lineHeight: 1.4 }}>
+                {log.description}
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid #f1f5f9", paddingTop: "0.5rem", marginTop: "0.5rem", fontSize: "0.75rem" }}>
+                <span style={{ color: "#64748b" }}>By: <strong>{log.performedByName ?? "—"}</strong></span>
+                <span style={{ color: "#94a3b8" }}>Target: {log.targetName ?? "—"}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <style>{`
+        @media (max-width: 767px) {
+          .smslogs-container {
+            padding: 1rem !important;
+          }
+          .smslogs-desktop-table {
+            display: none !important;
+          }
+          .smslogs-mobile-cards {
+            display: flex !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

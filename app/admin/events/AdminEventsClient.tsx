@@ -188,8 +188,8 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
   const half: React.CSSProperties = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginTop: "0.75rem" };
 
   return (
-    <div style={{ padding: "1.5rem 2rem" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+    <div className="events-page-container" style={{ padding: "1.5rem 2rem" }}>
+      <div className="events-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
         <div>
           <h1 style={{ fontSize: "1.5rem", fontWeight: 800, color: "#0f172a", margin: 0 }}>📅 Events</h1>
           <p style={{ color: "#64748b", fontSize: "0.875rem", margin: "0.25rem 0 0" }}>{events.length} total events</p>
@@ -281,17 +281,17 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
       {/* Cards */}
       <div style={{ display: "grid", gap: "1rem" }}>
         {filtered.map(ev => (
-          <div key={ev.id} style={{ background: "white", borderRadius: "12px", border: "1px solid #e2e8f0", padding: "1.25rem", display: "flex", gap: "1rem", alignItems: "flex-start" }}>
+          <div key={ev.id} className="event-card" style={{ background: "white", borderRadius: "12px", border: "1px solid #e2e8f0", padding: "1.25rem", display: "flex", gap: "1rem", alignItems: "flex-start" }}>
             {ev.coverPhoto ? (
-              <div style={{ width: 48, height: 48, borderRadius: "10px", overflow: "hidden", flexShrink: 0 }}>
+              <div className="event-card-icon-container" style={{ width: 48, height: 48, borderRadius: "10px", overflow: "hidden", flexShrink: 0 }}>
                 <img src={`/uploads/events/${ev.coverPhoto}`} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
               </div>
             ) : (
-              <div style={{ width: 48, height: 48, borderRadius: "10px", background: `${TYPE_COLORS[ev.eventType] ?? "#94a3b8"}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.375rem", flexShrink: 0 }}>
+              <div className="event-card-icon-container" style={{ width: 48, height: 48, borderRadius: "10px", background: `${TYPE_COLORS[ev.eventType] ?? "#94a3b8"}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.375rem", flexShrink: 0 }}>
                 {ev.eventType === "sunday_service" ? "⛪" : ev.eventType === "prayer_meeting" ? "🙏" : ev.eventType === "bible_study" ? "📖" : ev.eventType === "grace_night" ? "🌙" : "📅"}
               </div>
             )}
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="event-card-details-container" style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "0.5rem" }}>
                 <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "#0f172a", margin: 0 }}>{ev.title}</h3>
                 <span style={{ fontSize: "0.7rem", fontWeight: 700, color: TYPE_COLORS[ev.eventType] ?? "#64748b", background: `${TYPE_COLORS[ev.eventType] ?? "#94a3b8"}18`, padding: "0.2rem 0.5rem", borderRadius: "4px", whiteSpace: "nowrap", flexShrink: 0 }}>
@@ -303,7 +303,7 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
               </p>
               {ev.description && <p style={{ fontSize: "0.8rem", color: "#94a3b8", margin: "0.25rem 0 0" }}>{ev.description}</p>}
             </div>
-            <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
+            <div className="event-actions" style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
               <a href={`/event/${ev.id}`} target="_blank" rel="noopener noreferrer" style={{ padding: "0.375rem 0.75rem", border: "1.5px solid #10b98130", background: "#10b98110", color: "#10b981", borderRadius: "6px", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer", textDecoration: "none" }}>View</a>
               <button onClick={() => openEdit(ev)} style={{ padding: "0.375rem 0.75rem", border: `1.5px solid ${P}30`, background: `${P}10`, color: P, borderRadius: "6px", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer" }}>Edit</button>
               <button onClick={() => promptDelete(ev.id, ev.title)} style={{ padding: "0.375rem 0.75rem", border: "1.5px solid #fee2e2", background: "#fef2f2", color: "#ef4444", borderRadius: "6px", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer" }}>Delete</button>
@@ -314,6 +314,40 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
           <div style={{ textAlign: "center", padding: "4rem", color: "#94a3b8" }}>No events found.</div>
         )}
       </div>
+
+      <style>{`
+        @media (max-width: 767px) {
+          .events-page-container {
+            padding: 1rem !important;
+          }
+          .events-header {
+            flex-direction: column;
+            align-items: stretch !important;
+            gap: 1rem;
+          }
+          .events-header button {
+            width: 100%;
+            text-align: center;
+          }
+          .event-card {
+            flex-direction: column;
+            align-items: stretch !important;
+            gap: 1rem !important;
+          }
+          .event-card-icon-container {
+            align-self: flex-start;
+          }
+          .event-card-details-container {
+            min-width: 100% !important;
+          }
+          .event-actions {
+            width: 100%;
+            justify-content: flex-end;
+            border-top: 1px solid #f1f5f9;
+            padding-top: 0.75rem;
+          }
+        }
+      `}</style>
     </div>
   );
 }

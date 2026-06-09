@@ -79,8 +79,8 @@ export default function AdminTestimoniesDashboard() {
   };
 
   return (
-    <div style={{ padding: "1.5rem" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+    <div className="testimonies-container" style={{ padding: "1.5rem" }}>
+      <div className="testimonies-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
         <h1 style={{ fontSize: "1.5rem", fontWeight: 700, margin: 0, color: "#1e293b" }}>
           Testimonies & Praise Reports
         </h1>
@@ -118,8 +118,8 @@ export default function AdminTestimoniesDashboard() {
           {testimonies.map((testimony) => {
             const parsedTags = testimony.tags ? JSON.parse(testimony.tags) : [];
             return (
-              <div key={testimony.id} style={{ background: "white", borderRadius: "12px", padding: "1.5rem", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1rem" }}>
+              <div key={testimony.id} className="testimony-card" style={{ background: "white", borderRadius: "12px", padding: "1.5rem", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>
+                <div className="testimony-card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1rem" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                     <div style={{ width: "40px", height: "40px", borderRadius: "50%", overflow: "hidden", background: "#f1f5f9" }}>
                       {testimony.member.profilePicture ? (
@@ -134,7 +134,7 @@ export default function AdminTestimoniesDashboard() {
                     </div>
                   </div>
 
-                  <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                  <div className="testimony-actions" style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
                     {testimony.category && (
                       <span style={{ background: "#e0f7fb", color: PRIMARY, padding: "0.25rem 0.75rem", borderRadius: "99px", fontSize: "0.75rem", fontWeight: 700 }}>
                         {testimony.category}
@@ -174,7 +174,7 @@ export default function AdminTestimoniesDashboard() {
                   </div>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }}>
+                <div className="testimony-translation-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }}>
                   <div style={{ background: "#f8fafc", padding: "1rem", borderRadius: "8px", border: "1px solid #f1f5f9" }}>
                     <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: "0.5rem" }}>Original (Bisaya)</div>
                     <div style={{ fontSize: "0.9375rem", color: "#334155", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{testimony.content}</div>
@@ -213,6 +213,39 @@ export default function AdminTestimoniesDashboard() {
           })}
         </div>
       )}
+
+      <style>{`
+        @media (max-width: 767px) {
+          .testimonies-container {
+            padding: 1rem !important;
+          }
+          .testimonies-header {
+            flex-direction: column;
+            align-items: stretch !important;
+            gap: 1rem;
+          }
+          .testimonies-header select {
+            width: 100%;
+          }
+          .testimony-card {
+            padding: 1rem !important;
+          }
+          .testimony-card-header {
+            flex-direction: column;
+            align-items: stretch !important;
+            gap: 1rem;
+          }
+          .testimony-actions {
+            width: 100%;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+          }
+          .testimony-translation-grid {
+            grid-template-columns: 1fr !important;
+            gap: 1rem !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

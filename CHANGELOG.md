@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.27] — 2026-06-09
+### Changed
+- **Admin Dashboard Mobile Responsiveness**: Completed site-wide responsive enhancements across all remaining admin views. Integrated card switcher structures for data tables (StewardShop, Love Gift claims, SMS Logs, User Roles) and flex wrap layouts (Events, Testimonies, Ministries, Send SMS, Birthdays, settings) to ensure optimal usability on mobile displays (< 768px).
+
 ## [v2.22.26] — 2026-06-09
 ### Changed
 - **Credentials Sharing Template Wording**: Updated the copied credentials share message template to clearly notify the user that their password was successfully reset, provide the temporary login credentials, and encourage them to change their temporary password and complete their profile details.

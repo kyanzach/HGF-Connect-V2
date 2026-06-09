@@ -180,8 +180,8 @@ export default function StewardShopModerationPage() {
   });
 
   return (
-    <div style={{ padding: "2rem 2.5rem" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+    <div className="stewardshop-container" style={{ padding: "2rem 2.5rem" }}>
+      <div className="stewardshop-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
         <div>
           <h1 style={{ fontSize: "1.75rem", fontWeight: 800, color: "#0f172a", letterSpacing: "-0.02em" }}>
             🤝 StewardShop Moderation
@@ -207,7 +207,7 @@ export default function StewardShopModerationPage() {
       </div>
 
       {/* Filters & Search Toolbar */}
-      <div style={{ display: "flex", gap: "1rem", marginBottom: "1.25rem", flexWrap: "wrap", alignItems: "center", justifyItems: "center" }}>
+      <div className="stewardshop-filters" style={{ display: "flex", gap: "1rem", marginBottom: "1.25rem", flexWrap: "wrap", alignItems: "center", justifyItems: "center" }}>
         <input
           type="text"
           placeholder="Search listing title or seller name…"
@@ -266,7 +266,7 @@ export default function StewardShopModerationPage() {
 
       {/* Main Listings Table */}
       {!loading && filtered.length > 0 && (
-        <div style={{ background: "white", borderRadius: "12px", border: "1px solid #e2e8f0", overflow: "hidden" }}>
+        <div className="stewardshop-desktop-table" style={{ background: "white", borderRadius: "12px", border: "1px solid #e2e8f0", overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem", textAlign: "left" }}>
             <thead>
               <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
@@ -368,6 +368,135 @@ export default function StewardShopModerationPage() {
           </table>
         </div>
       )}
+
+      {/* Mobile view card listing */}
+      {!loading && filtered.length > 0 && (
+        <div className="stewardshop-mobile-cards" style={{ display: "none", flexDirection: "column", gap: "1rem" }}>
+          {filtered.map((l) => (
+            <div key={l.id} style={{ background: "white", borderRadius: "12px", border: "1px solid #e2e8f0", padding: "1.25rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.75rem", gap: "0.5rem" }}>
+                <div>
+                  <div style={{ fontWeight: 700, color: "#1e293b", fontSize: "0.9rem" }}>{l.title}</div>
+                  <div style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: "0.15rem" }}>
+                    Category: {l.category || "General"} · Listed on {new Date(l.createdAt).toLocaleDateString()}
+                  </div>
+                </div>
+                <span style={{ background: (STATUS_COLORS[l.status] ?? "#cbd5e1") + "20", color: STATUS_COLORS[l.status] ?? "#475569", fontSize: "0.65rem", fontWeight: 700, padding: "0.15rem 0.5rem", borderRadius: "4px", textTransform: "uppercase", whiteSpace: "nowrap" }}>
+                  {l.status}
+                </span>
+              </div>
+
+              {l.isPrivate && l.moderationReason && (
+                <div style={{ fontSize: "0.75rem", color: "#ef4444", background: "#fef2f2", border: "1px solid #fee2e2", padding: "0.4rem 0.6rem", borderRadius: "6px", marginBottom: "0.75rem" }}>
+                  ⚠️ Reason: {l.moderationReason}
+                </div>
+              )}
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", fontSize: "0.8rem", borderTop: "1px solid #f1f5f9", borderBottom: "1px solid #f1f5f9", padding: "0.75rem 0", marginBottom: "0.75rem" }}>
+                <div>
+                  <div style={{ color: "#94a3b8", fontSize: "0.7rem", textTransform: "uppercase", fontWeight: 600 }}>Seller</div>
+                  <div style={{ fontWeight: 600, color: "#374151", marginTop: "0.15rem" }}>{l.seller.firstName} {l.seller.lastName}</div>
+                  {l.seller.isVerified && (
+                    <span style={{ display: "inline-block", fontSize: "0.65rem", color: "#8b5cf6", background: "#f5f3ff", border: "1px solid #ddd6fe", padding: "0.05rem 0.35rem", borderRadius: "4px", fontWeight: 700, marginTop: "0.15rem" }}>
+                      🛡️ VERIFIED
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <div style={{ color: "#94a3b8", fontSize: "0.7rem", textTransform: "uppercase", fontWeight: 600 }}>Price & Gift</div>
+                  <div style={{ fontWeight: 700, color: "#374151", marginTop: "0.15rem" }}>₱{Number(l.ogPrice ?? 0).toLocaleString()}</div>
+                  {Number(l.loveGiftAmount) > 0 && (
+                    <div style={{ color: "#ef4444", fontSize: "0.75rem", fontWeight: 600, marginTop: "0.15rem" }}>
+                      ❤️ ₱{Number(l.loveGiftAmount).toLocaleString()}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.5rem" }}>
+                <div>
+                  {l.isPrivate ? (
+                    <span style={{ color: "#ef4444", background: "#fee2e2", padding: "0.2rem 0.5rem", borderRadius: "4px", fontSize: "0.65rem", fontWeight: 700 }}>
+                      🔒 PRIVATE
+                    </span>
+                  ) : (
+                    <span style={{ color: "#10b981", background: "#d1fae5", padding: "0.2rem 0.5rem", borderRadius: "4px", fontSize: "0.65rem", fontWeight: 700 }}>
+                      🔓 PUBLIC
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ display: "flex", gap: "0.5rem" }}>
+                  <button
+                    onClick={() => toggleSellerVerification(l.seller.id, l.seller.isVerified)}
+                    style={{
+                      padding: "0.375rem 0.625rem",
+                      borderRadius: "6px",
+                      border: "1px solid #cbd5e1",
+                      background: l.seller.isVerified ? "#fee2e2" : "#ecfeff",
+                      color: l.seller.isVerified ? "#b91c1c" : "#0e7490",
+                      fontSize: "0.7rem",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    {l.seller.isVerified ? "Unverify" : "Verify"}
+                  </button>
+                  <button
+                    onClick={() => openModerateModal(l)}
+                    style={{
+                      padding: "0.375rem 0.875rem",
+                      borderRadius: "6px",
+                      border: "none",
+                      background: PRIMARY,
+                      color: "white",
+                      fontSize: "0.7rem",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                    }}
+                  >
+                    Moderate
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <style>{`
+        @media (max-width: 767px) {
+          .stewardshop-container {
+            padding: 1rem !important;
+          }
+          .stewardshop-header {
+            flex-direction: column;
+            align-items: stretch !important;
+            gap: 1rem;
+          }
+          .stewardshop-filters {
+            flex-direction: column;
+            align-items: stretch !important;
+            gap: 1rem;
+          }
+          .stewardshop-filters input {
+            width: 100% !important;
+          }
+          .stewardshop-filters div {
+            width: 100%;
+            overflow-x: auto;
+          }
+          .stewardshop-desktop-table {
+            display: none !important;
+          }
+          .stewardshop-mobile-cards {
+            display: flex !important;
+          }
+        }
+      `}</style>
 
       {/* Moderation Dialog / Modal */}
       {modalingListing && (
