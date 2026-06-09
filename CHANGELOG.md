@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.28] — 2026-06-09
+### Fixed
+- **AI Rewriter Quote Removal**: Added robust backend and frontend quote stripping filters to remove any surrounding double quotes, single quotes, or curly quote marks from the improved response. Appended formatting instructions to the editor system prompt to explicitly prevent wrapping responses in quotation marks, ensuring clean output across thoughts, testimonies, and prayer requests.
+
 ## [v2.22.27] — 2026-06-09
 ### Changed
 - **Admin Dashboard Mobile Responsiveness**: Completed site-wide responsive enhancements across all remaining admin views. Integrated card switcher structures for data tables (StewardShop, Love Gift claims, SMS Logs, User Roles) and flex wrap layouts (Events, Testimonies, Ministries, Send SMS, Birthdays, settings) to ensure optimal usability on mobile displays (< 768px).

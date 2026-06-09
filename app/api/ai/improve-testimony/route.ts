@@ -35,9 +35,10 @@ CRITICAL RULES:
 1. PRESERVE their original voice, heart, emotions, and the key details of their story.
 2. ${langInstruction}
 3. Do NOT change the meaning or add any external narrative details.
-4. Return ONLY the rewritten, polished testimony. Do not include any introductory remarks, warnings, or explanatory notes.`;
+4. Return ONLY the rewritten, polished testimony. Do not include any introductory remarks, warnings, or explanatory notes.
+5. Do NOT wrap the response in quotation marks (such as double or single quotes).`;
 
-    const prompt = `${systemPrompt}\n\nTestimony to improve:\n"${content.trim()}"`;
+    const prompt = `${systemPrompt}\n\nText to improve:\n"${content.trim()}"`;
 
     const response = await axios.post(
       "https://api.straico.com/v1/prompt/completion",
@@ -66,7 +67,17 @@ CRITICAL RULES:
       throw new Error("Empty completion returned");
     }
 
-    return NextResponse.json({ improvedContent: improvedContent.trim() });
+    let cleaned = improvedContent.trim();
+    const quoteChars = ["\"", "'", "“", "”", "‘", "’"];
+    while (
+      cleaned.length >= 2 &&
+      quoteChars.includes(cleaned[0]) &&
+      quoteChars.includes(cleaned[cleaned.length - 1])
+    ) {
+      cleaned = cleaned.slice(1, -1).trim();
+    }
+
+    return NextResponse.json({ improvedContent: cleaned });
   } catch (err: unknown) {
     console.error("[api/ai/improve-testimony]", (err as Error).message);
     return NextResponse.json({ error: "Failed to improve text with AI" }, { status: 500 });

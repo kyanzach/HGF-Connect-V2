@@ -175,7 +175,16 @@ export default function CreatePostPage() {
       if (!res.ok) throw new Error("Improvement failed");
       const data = await res.json();
       if (data.improvedContent) {
-        setContent(data.improvedContent);
+        let cleaned = data.improvedContent.trim();
+        const quoteChars = ["\"", "'", "“", "”", "‘", "’"];
+        while (
+          cleaned.length >= 2 &&
+          quoteChars.includes(cleaned[0]) &&
+          quoteChars.includes(cleaned[cleaned.length - 1])
+        ) {
+          cleaned = cleaned.slice(1, -1).trim();
+        }
+        setContent(cleaned);
       }
     } catch (err) {
       setError("AI was unable to rewrite at this moment. Please try again.");
