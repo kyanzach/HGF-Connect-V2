@@ -5,6 +5,14 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.24.7] — 2026-06-10
+### Changed
+- **Midweek and Special Services Support on Multimedia Board**: Adjusted the pre-service dashboard event search queries to fetch the nearest active/upcoming event of any type (including midweek Grace Night or special services) rather than strictly filtering for Sunday Services.
+- **Service-Wide Default Checklists**: Updated the event creation API to automatically populate default pre-service checklists for all standard service event types (Sunday Service, Grace Night, Special Event, Bible Study, and Prayer Meeting).
+- **Generic Dashboard Terminology**: Modified the add-task and default templates checklist modals on the client dashboard to refer to general "Services" rather than strictly "Sunday Services".
+### Fixed
+- **Grace Night Backfill**: Manually backfilled the default pre-service checklist tasks for the active Grace Night event (ID 66) on the production database.
+
 ## [v2.24.6] — 2026-06-10
 ### Fixed
 - **Mobile Long Press Touch Selection**: Added `userSelect: "none"`, `WebkitUserSelect: "none"`, and `WebkitTouchCallout: "none"` CSS styles to the reactions block container, popup popovers, emoji buttons, and main trigger buttons in both `PostCard` and `PhotoPostViewer` to prevent browsers from triggering text selection handles or the copy magnifier context menu when holding down to react.

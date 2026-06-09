@@ -17,9 +17,9 @@ export default async function MultimediaAdminPage() {
   const manilaDateString = now.toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
   const todayStart = new Date(`${manilaDateString}T00:00:00.000+08:00`);
 
-  // Get the nearest Sunday Service event (upcoming/today first, otherwise most recent past)
+  // Get the nearest event (upcoming/today first, otherwise most recent past)
   let event = await db.event.findFirst({
-    where: { eventType: "sunday_service", eventDate: { gte: todayStart } },
+    where: { eventDate: { gte: todayStart } },
     orderBy: { eventDate: "asc" },
     include: {
       sopTasks: {
@@ -38,7 +38,6 @@ export default async function MultimediaAdminPage() {
 
   if (!event) {
     event = await db.event.findFirst({
-      where: { eventType: "sunday_service" },
       orderBy: { eventDate: "desc" },
       include: {
         sopTasks: {

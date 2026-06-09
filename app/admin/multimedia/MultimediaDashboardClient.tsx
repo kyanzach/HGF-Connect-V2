@@ -1178,7 +1178,7 @@ export default function MultimediaDashboardClient({
             {/* Part A: Add custom task to current event */}
             <div style={{ paddingBottom: "1.25rem", borderBottom: "1px solid #e2e8f0", marginBottom: "1.25rem" }}>
               <h4 style={{ fontSize: "0.875rem", fontWeight: 700, color: "#334155", margin: "0 0 0.5rem" }}>
-                ➕ Add Task for THIS Sunday Service
+                ➕ Add Task for THIS Service
               </h4>
               <p style={{ fontSize: "0.75rem", color: "#64748b", margin: "0 0 0.75rem" }}>
                 This will append a custom checklist item only to the active event.
@@ -1217,7 +1217,7 @@ export default function MultimediaDashboardClient({
                 ⚙️ Template Defaults (Future Services)
               </h4>
               <p style={{ fontSize: "0.75rem", color: "#64748b", margin: "0 0 0.75rem" }}>
-                Edit the checklist template below. One task per line. These tasks are automatically generated when a pastor creates a new Sunday Service event.
+                Edit the checklist template below. One task per line. These tasks are automatically generated when a pastor creates a new service event.
               </p>
               <form onSubmit={handleSaveSopTemplate}>
                 <textarea

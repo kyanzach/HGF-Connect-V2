@@ -73,8 +73,8 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Automatically create default pre-service SOP tasks if event type is Sunday Service
-    if (eventType === "sunday_service") {
+    // Automatically create default pre-service SOP tasks for service event types
+    if (["sunday_service", "grace_night", "special_event", "prayer_meeting", "bible_study"].includes(eventType)) {
       let defaultTasks = [
         "Turn on Projector & Check Screen Alignment",
         "Initialize ProPresenter & Load Sermon Slide Deck",
