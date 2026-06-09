@@ -604,6 +604,7 @@ export default function PostCard({ post }: PostCardProps) {
                   : "linear-gradient(135deg, #0f2d3d 0%, #1a5276 50%, #2980b9 100%)",
                 backgroundSize: "cover", backgroundPosition: "center",
                 padding: "1.5rem 1.125rem 1.25rem", position: "relative",
+                minHeight: "210px", display: "flex", flexDirection: "column", justifyContent: "space-between",
               }}>
                 {/* Dark overlay for readability */}
                 <div style={{ position: "absolute", inset: 0, background: post.imageUrl ? "rgba(0,0,0,0.55)" : "rgba(0,0,0,0.15)", borderRadius: "14px" }} />
@@ -617,7 +618,12 @@ export default function PostCard({ post }: PostCardProps) {
                       lineHeight: 1.4,
                       textShadow: "0 1px 4px rgba(0,0,0,0.3)",
                     }}>
-                      {line}
+                      {line.includes("🕒") ? line.replace(/\b(\d{1,2}):(\d{2})\b/g, (match, hh, mm) => {
+                        const h = parseInt(hh, 10);
+                        const ampm = h >= 12 ? "PM" : "AM";
+                        const displayHours = h % 12 || 12;
+                        return `${displayHours}:${mm} ${ampm}`;
+                      }) : line}
                     </div>
                   ))}
                   <div style={{ marginTop: "0.75rem", fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", opacity: 0.8 }}>

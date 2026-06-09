@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.24.8] — 2026-06-10
+### Changed
+- **Taller Event Feed Cards**: Increased the minimum height of the event link cards in `PostCard` to `210px` and applied flexbox spacing to improve cover photo background visibility.
+- **12-Hour Time Format**: Configured event creation and dynamic client-side rendering in `PostCard` to format and display start and end times in standard 12-hour AM/PM format instead of military/24-hour format.
+
 ## [v2.24.7] — 2026-06-10
 ### Changed
 - **Midweek and Special Services Support on Multimedia Board**: Adjusted the pre-service dashboard event search queries to fetch the nearest active/upcoming event of any type (including midweek Grace Night or special services) rather than strictly filtering for Sunday Services.

@@ -24,6 +24,20 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ events });
 }
 
+const formatTimeTo12Hour = (timeStr: string | null) => {
+  if (!timeStr) return "";
+  try {
+    const parts = timeStr.split(":");
+    const h = parseInt(parts[0], 10);
+    const m = parts[1] || "00";
+    const ampm = h >= 12 ? "PM" : "AM";
+    const displayHours = h % 12 || 12;
+    return `${displayHours}:${m.slice(0, 2)} ${ampm}`;
+  } catch {
+    return timeStr || "";
+  }
+};
+
 // POST /api/events — create event (admin/moderator only)
 export async function POST(request: NextRequest) {
   const session = await auth();
@@ -113,10 +127,13 @@ export async function POST(request: NextRequest) {
         weekday: "long", month: "long", day: "numeric", year: "numeric",
       });
 
+      const timeStartFormatted = formatTimeTo12Hour(startTime);
+      const timeEndFormatted = endTime ? formatTimeTo12Hour(endTime) : "";
+
       const feedContent = [
         `📅 New Event: ${title}`,
         `🗓️ ${eventDateFormatted}`,
-        `🕒 ${startTime}${endTime ? ` – ${endTime}` : ""}`,
+        `🕒 ${timeStartFormatted}${timeEndFormatted ? ` – ${timeEndFormatted}` : ""}`,
         location ? `📍 ${location}` : null,
         description ? `\n${description}` : null,
         `\n[event:${event.id}]`,
