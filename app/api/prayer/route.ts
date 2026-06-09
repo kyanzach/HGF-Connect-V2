@@ -37,7 +37,34 @@ export async function GET(request: Request) {
       db.prayerRequest.count({ where }),
     ]);
 
-    return NextResponse.json({ requests, total, page, totalPages: Math.ceil(total / limit) });
+    const prIds = requests.map((r) => String(r.id));
+    const linkedPosts = await db.post.findMany({
+      where: {
+        type: "PRAYER",
+        aiCaption: { in: prIds },
+      },
+      select: {
+        aiCaption: true,
+        photos: {
+          select: { id: true, photoPath: true, sortOrder: true },
+          orderBy: { sortOrder: "asc" },
+        },
+      },
+    });
+
+    const photosMap: Record<string, any[]> = {};
+    for (const post of linkedPosts) {
+      if (post.aiCaption) {
+        photosMap[post.aiCaption] = post.photos;
+      }
+    }
+
+    const requestsWithPhotos = requests.map((r) => ({
+      ...r,
+      photos: photosMap[String(r.id)] || [],
+    }));
+
+    return NextResponse.json({ requests: requestsWithPhotos, total, page, totalPages: Math.ceil(total / limit) });
   } catch (error) {
     console.error("[api/prayer GET]", error);
     return NextResponse.json({ error: "Failed to load prayer requests" }, { status: 500 });

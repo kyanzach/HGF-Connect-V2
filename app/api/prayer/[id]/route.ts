@@ -32,7 +32,25 @@ export async function GET(
       return NextResponse.json({ error: "Prayer request not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ prayer });
+    const linkedPost = await db.post.findFirst({
+      where: {
+        type: "PRAYER",
+        aiCaption: String(id),
+      },
+      select: {
+        photos: {
+          select: { id: true, photoPath: true, sortOrder: true },
+          orderBy: { sortOrder: "asc" },
+        },
+      },
+    });
+
+    return NextResponse.json({
+      prayer: {
+        ...prayer,
+        photos: linkedPost?.photos || [],
+      },
+    });
   } catch (error) {
     console.error("[api/prayer/[id] GET]", error);
     return NextResponse.json({ error: "Failed to fetch prayer request" }, { status: 500 });

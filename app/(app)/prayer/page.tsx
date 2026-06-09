@@ -17,6 +17,7 @@ interface PrayerRequest {
   createdAt: string;
   author: { id: number; firstName: string; lastName: string; profilePicture?: string | null };
   _count: { responses: number };
+  photos?: { id: number; photoPath: string; sortOrder: number }[];
 }
 
 function timeAgo(d: string) {
@@ -392,6 +393,53 @@ function PrayerWallContent() {
                   <p style={{ fontSize: "0.9rem", color: "#334155", lineHeight: 1.65, margin: "0 0 0.75rem", whiteSpace: "pre-line" }}>
                     {req.request}
                   </p>
+                )}
+
+                {/* Photos */}
+                {req.photos && req.photos.length > 0 && (
+                  <div style={{ marginBottom: "0.75rem" }}>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns:
+                          req.photos.length === 1
+                            ? "1fr"
+                            : req.photos.length === 2
+                            ? "1fr 1fr"
+                            : "repeat(auto-fit, minmax(120px, 1fr))",
+                        gap: "0.5rem",
+                        borderRadius: "12px",
+                        overflow: "hidden",
+                      }}
+                    >
+                      {req.photos.map((photo: any, i: number) => (
+                        <div
+                          key={photo.id}
+                          style={{
+                            aspectRatio: req.photos?.length === 1 ? "16/10" : "1/1",
+                            background: "#f1f5f9",
+                            overflow: "hidden",
+                            position: "relative",
+                          }}
+                        >
+                          <img
+                            src={
+                              photo.photoPath.startsWith("http") || photo.photoPath.startsWith("/")
+                                ? photo.photoPath
+                                : `/uploads/posts/${photo.photoPath}`
+                            }
+                            alt={`Prayer photo ${i + 1}`}
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "cover",
+                            }}
+                            loading="lazy"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 )}
 
                 {/* Actions */}
