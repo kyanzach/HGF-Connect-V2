@@ -5,6 +5,12 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.24.10] — 2026-06-10
+### Added
+- **All Active Members Loaded**: Removed email requirements from the User Roles page to display all active members (including those without an email).
+- **Expanded Search**: Allowed searching user roles by first name, last name, email, username, and phone number.
+- **Database Role Mapping**: Mapped the database role `user` to the display value `Member` and added support for the `multimedia` role.
+
 ## [v2.24.9] — 2026-06-10
 ### Changed
 - **Increased Event Feed Card Height**: Heightened the event cards minimum height inside `PostCard.tsx` to `290px` to successfully expand the background cover image visibility on the feed.

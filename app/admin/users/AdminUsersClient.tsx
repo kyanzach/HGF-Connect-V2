@@ -3,17 +3,19 @@ import { useState } from "react";
 import Link from "next/link";
 
 const P = "#4EB1CB";
-const ROLE_COLOR: Record<string, string> = { admin: "#ef4444", moderator: "#f59e0b", usher: "#8b5cf6", member: "#94a3b8" };
-const ROLES = ["member", "usher", "moderator", "admin"];
+const ROLE_COLOR: Record<string, string> = { admin: "#ef4444", moderator: "#f59e0b", usher: "#8b5cf6", multimedia: "#10b981", user: "#94a3b8" };
+const ROLES = ["user", "usher", "moderator", "admin", "multimedia"];
 
-type User = { id: number; firstName: string; lastName: string; email: string | null; phone: string | null; role: string; status: string; lastLogin: string | null };
+type User = { id: number; firstName: string; lastName: string; email: string | null; phone: string | null; role: string; status: string; lastLogin: string | null; username: string | null };
 
 export default function AdminUsersClient({ users: init }: { users: User[] }) {
   const [users, setUsers] = useState(init);
   const [search, setSearch] = useState("");
   const [updating, setUpdating] = useState<number | null>(null);
 
-  const filtered = search ? users.filter(u => `${u.firstName} ${u.lastName} ${u.email ?? ""}`.toLowerCase().includes(search.toLowerCase())) : users;
+  const filtered = search 
+    ? users.filter(u => `${u.firstName} ${u.lastName} ${u.email ?? ""} ${u.username ?? ""} ${u.phone ?? ""}`.toLowerCase().includes(search.toLowerCase())) 
+    : users;
 
   async function changeRole(id: number, role: string) {
     setUpdating(id);
@@ -51,7 +53,9 @@ export default function AdminUsersClient({ users: init }: { users: User[] }) {
                   {u.lastLogin ? new Date(u.lastLogin).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" }) : "Never"}
                 </td>
                 <td style={{ padding: "0.75rem 1rem" }}>
-                  <span style={{ fontSize: "0.75rem", fontWeight: 700, color: ROLE_COLOR[u.role] ?? "#64748b", background: `${ROLE_COLOR[u.role] ?? "#64748b"}18`, padding: "0.25rem 0.6rem", borderRadius: "4px", textTransform: "capitalize" }}>{u.role}</span>
+                  <span style={{ fontSize: "0.75rem", fontWeight: 700, color: ROLE_COLOR[u.role] ?? "#64748b", background: `${ROLE_COLOR[u.role] ?? "#64748b"}18`, padding: "0.25rem 0.6rem", borderRadius: "4px", textTransform: "capitalize" }}>
+                    {u.role === "user" ? "Member" : u.role}
+                  </span>
                 </td>
                 <td style={{ padding: "0.75rem 1rem" }}>
                   <select
@@ -60,7 +64,7 @@ export default function AdminUsersClient({ users: init }: { users: User[] }) {
                     onChange={e => changeRole(u.id, e.target.value)}
                     style={{ border: "1.5px solid #e2e8f0", borderRadius: "6px", padding: "0.35rem 0.625rem", fontSize: "0.8rem", outline: "none", color: "#374151", opacity: updating === u.id ? 0.5 : 1 }}
                   >
-                    {ROLES.map(r => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
+                    {ROLES.map(r => <option key={r} value={r}>{r === "user" ? "Member" : r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
                   </select>
                 </td>
               </tr>
@@ -82,7 +86,7 @@ export default function AdminUsersClient({ users: init }: { users: User[] }) {
                   {u.firstName} {u.lastName}
                 </Link>
                 <span style={{ fontSize: "0.75rem", fontWeight: 700, color: ROLE_COLOR[u.role] ?? "#64748b", background: `${ROLE_COLOR[u.role] ?? "#64748b"}18`, padding: "0.25rem 0.6rem", borderRadius: "4px", textTransform: "capitalize" }}>
-                  {u.role}
+                  {u.role === "user" ? "Member" : u.role}
                 </span>
               </div>
               <div style={{ fontSize: "0.8rem", color: "#475569", margin: "0.25rem 0" }}>
@@ -99,7 +103,7 @@ export default function AdminUsersClient({ users: init }: { users: User[] }) {
                   onChange={e => changeRole(u.id, e.target.value)}
                   style={{ border: "1.5px solid #e2e8f0", borderRadius: "6px", padding: "0.35rem 0.625rem", fontSize: "0.8rem", outline: "none", color: "#374151", opacity: updating === u.id ? 0.5 : 1 }}
                 >
-                  {ROLES.map(r => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
+                  {ROLES.map(r => <option key={r} value={r}>{r === "user" ? "Member" : r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
                 </select>
               </div>
             </div>

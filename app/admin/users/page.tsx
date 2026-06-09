@@ -10,11 +10,11 @@ export default async function AdminUsersPage() {
   const session = await auth();
   if (!session || session.user.role !== "admin") redirect("/admin");
 
-  // All active members with an email address (i.e., those who can log in)
+  // All active members
   const users = await db.member.findMany({
-    where: { status: "active", email: { not: null } },
+    where: { status: "active" },
     orderBy: [{ role: "asc" }, { firstName: "asc" }],
-    select: { id: true, firstName: true, lastName: true, email: true, phone: true, role: true, status: true, lastLogin: true },
+    select: { id: true, firstName: true, lastName: true, email: true, phone: true, role: true, status: true, lastLogin: true, username: true },
   });
 
   return <AdminUsersClient users={users as any[]} />;
