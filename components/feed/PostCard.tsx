@@ -1320,7 +1320,7 @@ export default function PostCard({ post }: PostCardProps) {
             </button>
           )}
 
-          <div style={{ position: "relative", display: "flex", flex: 1 }}>
+          <div style={{ position: "relative", display: "flex", flex: 1, userSelect: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none" }}>
             {showReactions && (
               <div
                 onMouseEnter={() => {
@@ -1343,6 +1343,9 @@ export default function PostCard({ post }: PostCardProps) {
                   zIndex: 2000,
                   transform: "translateY(-4px)",
                   animation: "popReactions 0.2s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards",
+                  userSelect: "none",
+                  WebkitUserSelect: "none",
+                  WebkitTouchCallout: "none",
                 }}
               >
                 {Object.entries(REACTION_EMOJIS).map(([key, emoji]) => (
@@ -1357,6 +1360,9 @@ export default function PostCard({ post }: PostCardProps) {
                       padding: "4px",
                       transition: "transform 0.1s ease",
                       borderRadius: "50%",
+                      userSelect: "none",
+                      WebkitUserSelect: "none",
+                      WebkitTouchCallout: "none",
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.transform = "scale(1.35)";
@@ -1381,7 +1387,10 @@ export default function PostCard({ post }: PostCardProps) {
                 ...actionBtnStyle,
                 color: likedType === "HEART" ? "#ef4444" : likedType === "PRAY" ? "#7c3aed" : likedType === "HUG" ? "#f59e0b" : "#64748b",
                 fontWeight: liked ? 800 : 400,
-                width: "100%"
+                width: "100%",
+                userSelect: "none",
+                WebkitUserSelect: "none",
+                WebkitTouchCallout: "none",
               }}
             >
               {likedType === "HEART" ? "❤️" : likedType === "PRAY" ? "🙏" : likedType === "HUG" ? "🤗" : "🤍"}

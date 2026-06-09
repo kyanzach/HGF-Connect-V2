@@ -551,7 +551,7 @@ export default function PhotoPostViewer({
 
             {/* Like row */}
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.5rem 1rem", borderTop: "1px solid #f1f5f9", position: "relative" }}>
-              <div style={{ position: "relative", display: "inline-block" }}>
+              <div style={{ position: "relative", display: "inline-block", userSelect: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none" }}>
                 {showReactions && (
                   <div
                     onMouseEnter={() => {
@@ -574,6 +574,9 @@ export default function PhotoPostViewer({
                       zIndex: 31000,
                       transform: "translateY(-4px)",
                       animation: "popReactions 0.2s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards",
+                      userSelect: "none",
+                      WebkitUserSelect: "none",
+                      WebkitTouchCallout: "none",
                     }}
                   >
                     {Object.entries(REACTION_EMOJIS).map(([key, emoji]) => (
@@ -588,6 +591,9 @@ export default function PhotoPostViewer({
                           padding: "4px",
                           transition: "transform 0.1s ease",
                           borderRadius: "50%",
+                          userSelect: "none",
+                          WebkitUserSelect: "none",
+                          WebkitTouchCallout: "none",
                         }}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.transform = "scale(1.35)";
@@ -617,6 +623,9 @@ export default function PhotoPostViewer({
                     color: likedType === "HEART" ? "#ef4444" : likedType === "PRAY" ? "#7c3aed" : likedType === "HUG" ? "#f59e0b" : "#64748b",
                     fontWeight: 700, fontSize: "0.82rem",
                     cursor: likeLoading ? "wait" : "pointer",
+                    userSelect: "none",
+                    WebkitUserSelect: "none",
+                    WebkitTouchCallout: "none",
                   }}
                 >
                   {likedType === "HEART" ? "❤️" : likedType === "PRAY" ? "🙏" : likedType === "HUG" ? "🤗" : "🤍"}

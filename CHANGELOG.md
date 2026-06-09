@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.24.6] — 2026-06-10
+### Fixed
+- **Mobile Long Press Touch Selection**: Added `userSelect: "none"`, `WebkitUserSelect: "none"`, and `WebkitTouchCallout: "none"` CSS styles to the reactions block container, popup popovers, emoji buttons, and main trigger buttons in both `PostCard` and `PhotoPostViewer` to prevent browsers from triggering text selection handles or the copy magnifier context menu when holding down to react.
+
 ## [v2.24.5] — 2026-06-10
 ### Added
 - **Async Sermon Presentations in AddEventModal**: Integrated background async PDF/PPTX upload functionality and file optimization polling to the shortcut `AddEventModal` form, matching the core events admin panel features. Includes drag-and-drop support, progress reporting, and state management.
