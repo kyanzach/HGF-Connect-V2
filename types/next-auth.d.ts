@@ -3,7 +3,7 @@ import NextAuth from "next-auth";
 declare module "next-auth" {
   interface User {
     id: string;
-    role: "admin" | "moderator" | "usher" | "user";
+    role: "admin" | "moderator" | "usher" | "user" | "multimedia";
     status: "active" | "inactive" | "pending";
     firstName: string;
     lastName: string;
@@ -19,7 +19,7 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
   interface JWT {
     id: string;
-    role: "admin" | "moderator" | "usher" | "user";
+    role: "admin" | "moderator" | "usher" | "user" | "multimedia";
     status: "active" | "inactive" | "pending";
     firstName: string;
     lastName: string;

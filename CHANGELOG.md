@@ -5,6 +5,19 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.24.1] — 2026-06-10
+### Fixed
+- **Comments Auto-Open Deep-link Fix**: Prevented the comments drawer/popup from automatically opening when clicking deep links (like notifications or Messenger shares). Clicking deep links will scroll the post card smoothly into view but keep the comment drawer closed until manually opened.
+- **Multimedia Role Type Declaration**: Added `"multimedia"` role type to `User` and `JWT` interface schemas in `types/next-auth.d.ts` to align with the database schema definitions and fix typescript build errors.
+
+## [v2.24.0] — 2026-06-10
+### Added
+- **Multimedia Admin Workflow**: Introduced a dedicated `"multimedia"` volunteer role with scoped access restricted to the new Multimedia Dashboard (`/admin/multimedia`). Added middleware guards and layout redirects to enforce role boundaries.
+- **Pre-Service SOP Checklist**: Implemented a real-time checklist featuring 8 default pre-service tasks (projector setup, wireless mics battery checks, audio signal routing, video input feeds, countdowns, lyrics sync, rehearsals) that records completing volunteer initials and Manila timestamps.
+- **Automated Presentation Compressor**: Integrated background slide processing for uploaded `.pptx` and `.pdf` files. Converts PPTX to PDF via headless LibreOffice, extracts slides as progressive JPEGs via `pdftoppm` at 150 DPI, optimizes dimensions (1920x1080) and quality (80%) using `sharp`, and compiles them into a highly compressed widescreen 16:9 `.pptx` slide deck (slides containing only the compressed JPEGs via `pptxgenjs`), purging massive original uploads immediately.
+- **Device-Detected Background Toast**: Built a global `UploadContext` progress tracker. When a presentation is uploaded, it continues processing asynchronously in the background. A floating glassmorphic toast displays progress status and warns the user based on their detected hardware (e.g., "Please do not turn off your laptop/desktop/mobile phone/tablet").
+- **MXU-Inspired Dashboard Widgets**: Expanded the dashboard to include a live countdown timer to service, visual slide preview carousels, and an input/output patch sheet reference helper for quick volunteer troubleshooting.
+
 ## [v2.23.0] — 2026-06-10
 ### Added
 - **Facebook-like Reactions**: Implemented gesture-triggered reactions (`Heart` ❤️, `Pray` 🙏, `Hugs` 🤗) across all community posts, thoughts, prayers, and member profile photos/cover photos. Hover on desktop or long-press on mobile on the like button will display a floating panel to choose a reaction type. Single click toggles `HEART`.

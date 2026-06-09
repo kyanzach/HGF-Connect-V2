@@ -305,11 +305,10 @@ export default function PostCard({ post }: PostCardProps) {
     }
   }
 
-  // Deep-link: ?post=ID auto-opens this card's comment drawer
+  // Deep-link: ?post=ID scrolls this card into view
   useEffect(() => {
     const targetId = searchParams.get("post");
-    if (targetId && parseInt(targetId) === post.id && !commentsOpen) {
-      setCommentsOpen(true);
+    if (targetId && parseInt(targetId) === post.id) {
       // Scroll card into view smoothly
       setTimeout(() => {
         cardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
