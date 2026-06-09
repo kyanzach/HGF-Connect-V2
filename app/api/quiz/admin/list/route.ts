@@ -33,6 +33,7 @@ export async function GET() {
       orderBy: { sermonDate: "desc" },
       include: {
         creator: { select: { firstName: true, lastName: true } },
+        rewardItems: true,
         _count: { select: { questions: true, submissions: true, rewards: true } },
       },
     });

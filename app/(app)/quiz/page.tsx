@@ -48,13 +48,14 @@ interface QuizStatus {
   currentDay?: number;
   isExpired?: boolean;
   quizWeekStatus?: string;
+  rewardItems?: any[];
   progress?: {
     completed: number;
     total: number;
     totalScore: number;
     isWeekComplete: boolean;
     rewardTier: "PERFECT" | "EXCELLENT" | "GOOD" | "PARTICIPANT" | null;
-    rewardDisplay: { label: string; description: string } | null;
+    rewardDisplay: { label: string; description: string; imageUrl?: string | null } | null;
     rewardClaim: {
       rewardTier: string;
       claimStatus: "unclaimed" | "claimed" | "distributed";
@@ -416,9 +417,19 @@ export default function MemberQuizPage() {
         {/* Reward info */}
         {progress?.isWeekComplete ? (
           <div style={{ background: `${PRIMARY}10`, border: `1px solid ${PRIMARY}30`, borderRadius: "12px", padding: "12px 14px", display: "flex", gap: "10px", alignItems: "center" }}>
-            <div style={{ fontSize: "1.8rem" }}>
-              {progress.rewardTier === "PERFECT" ? "🏆" : "🎁"}
-            </div>
+            {progress.rewardDisplay?.imageUrl ? (
+              <div style={{ width: 44, height: 44, borderRadius: "8px", overflow: "hidden", flexShrink: 0, border: "1px solid #cbd5e1" }}>
+                <img
+                  src={progress.rewardDisplay.imageUrl.startsWith("http") || progress.rewardDisplay.imageUrl.startsWith("/") ? progress.rewardDisplay.imageUrl : `/uploads/${progress.rewardDisplay.imageUrl}`}
+                  alt="Reward"
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              </div>
+            ) : (
+              <div style={{ fontSize: "1.8rem", flexShrink: 0 }}>
+                {progress.rewardTier === "PERFECT" ? "🏆" : "🎁"}
+              </div>
+            )}
             <div style={{ flex: 1 }}>
               <strong style={{ fontSize: "0.88rem", color: "#0f172a", display: "block" }}>
                 {progress.rewardDisplay?.label}
@@ -432,6 +443,55 @@ export default function MemberQuizPage() {
           <p style={{ color: "#64748b", fontSize: "0.8rem", margin: 0, fontStyle: "italic", textAlign: "center" }}>
             Complete all 7 days to unlock your weekly reward tier!
           </p>
+        )}
+
+        {/* Announced Weekly Rewards Preview */}
+        {quizStatus.rewardItems && quizStatus.rewardItems.length > 0 && (
+          <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid #f1f5f9" }}>
+            <h4 style={{ fontSize: "0.78rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "10px" }}>
+              🎁 This Week's Prizes
+            </h4>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {quizStatus.rewardItems.map((item: any) => {
+                const tierLabels: Record<string, string> = {
+                  PERFECT: "🏆 Perfect (7/7)",
+                  EXCELLENT: "🌟 Excellent (6/7)",
+                  GOOD: "👏 Good (5/7 or 4/7)",
+                  PARTICIPANT: "🙏 Participant",
+                };
+                return (
+                  <div key={item.id} style={{ display: "flex", alignItems: "center", gap: "10px", background: "#f8fafc", padding: "8px 10px", borderRadius: "10px" }}>
+                    {item.imageUrl ? (
+                      <div style={{ width: 36, height: 36, borderRadius: "6px", overflow: "hidden", flexShrink: 0, border: "1px solid #e2e8f0" }}>
+                        <img
+                          src={item.imageUrl.startsWith("http") || item.imageUrl.startsWith("/") ? item.imageUrl : `/uploads/${item.imageUrl}`}
+                          alt="Prize"
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        />
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: "1.3rem", width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", background: "#f1f5f9", borderRadius: "6px", flexShrink: 0 }}>
+                        {item.rewardTier === "PERFECT" ? "🏆" : "🎁"}
+                      </div>
+                    )}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "4px" }}>
+                        <strong style={{ fontSize: "0.82rem", color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.title}</strong>
+                        <span style={{ fontSize: "0.68rem", fontWeight: 700, color: item.rewardTier === "PERFECT" ? "#d97706" : "#2563eb", background: item.rewardTier === "PERFECT" ? "#fef3c7" : "#eff6ff", padding: "2px 6px", borderRadius: "4px", flexShrink: 0 }}>
+                          {tierLabels[item.rewardTier] || item.rewardTier}
+                        </span>
+                      </div>
+                      {item.description && (
+                        <p style={{ margin: "2px 0 0", fontSize: "0.75rem", color: "#64748b", overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical" }}>
+                          {item.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         )}
       </div>
 

@@ -650,6 +650,7 @@ enum PostType {
   QUIZ_DAILY
   BIRTHDAY_MONTHLY
   BIRTHDAY_DAILY
+  QUIZ_REWARD
 }
 
 enum PostVisibility {
@@ -678,6 +679,7 @@ model Post {
   createdAt  DateTime       @default(now()) @map("created_at")
   updatedAt  DateTime       @updatedAt @map("updated_at")
   photos     PostPhoto[]
+  rewardItem QuizRewardItem?
 
   @@index([authorId])
   @@index([createdAt])
@@ -1108,6 +1110,7 @@ model SermonQuiz {
   questions             QuizQuestion[]
   submissions           QuizSubmission[]
   rewards               QuizReward[]
+  rewardItems           QuizRewardItem[]
 
   @@index([sermonDate])
   @@index([status])
@@ -1222,5 +1225,22 @@ model AccountRecoveryCode {
   @@index([memberId], name: "idx_member_id")
   @@index([code], name: "idx_code")
   @@map("account_recovery_codes")
+}
+
+model QuizRewardItem {
+  id           Int            @id @default(autoincrement())
+  quizId       Int            @map("quiz_id")
+  rewardTier   QuizRewardTier @map("reward_tier")
+  title        String         @db.VarChar(255)
+  description  String?        @db.Text
+  imageUrl     String?        @map("image_url") @db.VarChar(500)
+  postId       Int?           @unique @map("post_id")
+  createdAt    DateTime       @default(now()) @map("created_at")
+
+  quiz         SermonQuiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  post         Post?          @relation(fields: [postId], references: [id], onDelete: SetNull)
+
+  @@unique([quizId, rewardTier])
+  @@map("quiz_reward_items")
 }
 

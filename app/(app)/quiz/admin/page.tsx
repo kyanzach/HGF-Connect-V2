@@ -9,7 +9,7 @@
  * 3. Manage active/past quizzes with rewards
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
@@ -108,6 +108,68 @@ export default function QuizAdminPage() {
   // ── Rewards ──
   const [rewards, setRewards] = useState<any[]>([]);
   const [selectedQuizForRewards, setSelectedQuizForRewards] = useState<number | null>(null);
+
+  // ── Reward Announcement Form State ──
+  const [rewardTier, setRewardTier] = useState<string>("PERFECT");
+  const [rewardTitle, setRewardTitle] = useState<string>("");
+  const [rewardDescription, setRewardDescription] = useState<string>("");
+  const [rewardImageUrl, setRewardImageUrl] = useState<string>("");
+  const [uploadingRewardImage, setUploadingRewardImage] = useState<boolean>(false);
+  const [announcingReward, setAnnouncingReward] = useState<boolean>(false);
+  const rewardFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  async function handleRewardImageUpload(file: File) {
+    setUploadingRewardImage(true);
+    const fd = new FormData();
+    fd.append("file", file);
+    try {
+      const res = await fetch("/api/quiz/rewards/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (res.ok && data.photoPath) {
+        setRewardImageUrl(data.photoPath);
+      } else {
+        showAlert("Error", data.error || "Upload failed", "error");
+      }
+    } catch {
+      showAlert("Error", "Network error during upload", "error");
+    } finally {
+      setUploadingRewardImage(false);
+    }
+  }
+
+  async function handleAnnounceReward() {
+    if (!rewardTitle.trim()) {
+      showAlert("Error", "Please enter a reward title", "error");
+      return;
+    }
+    setAnnouncingReward(true);
+    try {
+      const res = await fetch("/api/quiz/rewards/announce", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rewardTier,
+          title: rewardTitle,
+          description: rewardDescription,
+          imageUrl: rewardImageUrl || null,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showAlert("Success", "🎁 Reward announced successfully and posted to the feed!", "success");
+        setRewardTitle("");
+        setRewardDescription("");
+        setRewardImageUrl("");
+        loadQuizzes();
+      } else {
+        showAlert("Error", data.error || "Failed to announce reward", "error");
+      }
+    } catch (err: any) {
+      showAlert("Error", "Network error: " + err.message, "error");
+    } finally {
+      setAnnouncingReward(false);
+    }
+  }
 
   // ── Load existing quizzes ──
   const loadQuizzes = useCallback(async () => {
@@ -660,6 +722,124 @@ export default function QuizAdminPage() {
         </div>
       )}
 
+      {/* ═══ Section: Announce Weekly Rewards ═══ */}
+      <div style={S.section}>
+        <div style={S.sectionTitle}>
+          🎁 Announce Weekly Rewards
+        </div>
+        <p style={{ color: "#718096", fontSize: "0.85rem", margin: "-8px 0 16px" }}>
+          Announce prizes for the current active quiz to motivate the church! This will post to the feed and link to the quiz page.
+        </p>
+
+        <label style={S.label}>Score Requirement Tier</label>
+        <select
+          value={rewardTier}
+          onChange={(e) => setRewardTier(e.target.value)}
+          style={S.input}
+        >
+          <option value="PERFECT">🏆 Perfect Score (7/7 Correct)</option>
+          <option value="EXCELLENT">🌟 Excellent Score (6/7 Correct)</option>
+          <option value="GOOD">👏 Good Score (5/7 or 4/7 Correct)</option>
+          <option value="PARTICIPANT">🙏 Sincere Participation</option>
+        </select>
+
+        <label style={S.label}>Reward Title</label>
+        <input
+          type="text"
+          value={rewardTitle}
+          onChange={(e) => setRewardTitle(e.target.value)}
+          placeholder="e.g. HGF Statement T-Shirt"
+          style={S.input}
+        />
+
+        <label style={S.label}>Prize Description (Optional)</label>
+        <textarea
+          value={rewardDescription}
+          onChange={(e) => setRewardDescription(e.target.value)}
+          placeholder="Describe the reward or instructions on how to claim..."
+          rows={3}
+          style={S.textarea}
+        />
+
+        <label style={S.label}>Upload Reward Image (Optional)</label>
+        <div style={{ display: "flex", alignItems: "center", gap: "16px", marginTop: "8px" }}>
+          <button
+            type="button"
+            onClick={() => rewardFileInputRef.current?.click()}
+            disabled={uploadingRewardImage}
+            style={{
+              background: "#edf2f7",
+              color: "#2d3748",
+              border: "1px solid #cbd5e1",
+              borderRadius: "8px",
+              padding: "10px 16px",
+              fontSize: "0.85rem",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            {uploadingRewardImage ? "⏳ Uploading..." : "📷 Choose Image"}
+          </button>
+          <input
+            ref={rewardFileInputRef}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={(e) => {
+              if (e.target.files?.[0]) {
+                handleRewardImageUpload(e.target.files[0]);
+              }
+              e.target.value = "";
+            }}
+          />
+          {rewardImageUrl && (
+            <div style={{ position: "relative", width: 60, height: 60, borderRadius: "8px", overflow: "hidden", border: "1px solid #cbd5e1" }}>
+              <img
+                src={`/uploads/${rewardImageUrl}`}
+                alt="Reward Preview"
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+              <button
+                type="button"
+                onClick={() => setRewardImageUrl("")}
+                style={{
+                  position: "absolute",
+                  top: 2,
+                  right: 2,
+                  background: "rgba(0,0,0,0.6)",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "50%",
+                  width: 16,
+                  height: 16,
+                  fontSize: "9px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={handleAnnounceReward}
+          disabled={announcingReward || uploadingRewardImage}
+          style={{
+            ...S.btn,
+            background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+            boxShadow: "0 4px 15px rgba(245,158,11,0.3)",
+            opacity: (announcingReward || uploadingRewardImage) ? 0.6 : 1,
+            marginTop: "24px"
+          }}
+        >
+          {announcingReward ? "📢 Announcing..." : "📢 Announce Reward & Post"}
+        </button>
+      </div>
+
       {/* ═══ Section 3: Manage Existing Quizzes ═══ */}
       <div style={S.section}>
         <div style={{ ...S.sectionTitle, justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
@@ -709,6 +889,37 @@ export default function QuizAdminPage() {
                 </div>
                 <span style={S.statusBadge(quiz.status)}>{quiz.status}</span>
               </div>
+
+              {quiz.rewardItems && quiz.rewardItems.length > 0 && (
+                <div style={{ marginTop: "12px", padding: "10px 14px", background: "#f8fafc", borderRadius: "10px", border: "1px solid #edf2f7" }}>
+                  <span style={{ fontSize: "0.75rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>🎁 Announced Rewards</span>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                    {quiz.rewardItems.map((item: any) => (
+                      <div key={item.id} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.82rem", color: "#334155" }}>
+                        <span style={{
+                          background: item.rewardTier === "PERFECT" ? "#fef3c7" : "#eff6ff",
+                          color: item.rewardTier === "PERFECT" ? "#d97706" : "#2563eb",
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                          fontWeight: 700,
+                          fontSize: "0.7rem",
+                        }}>{item.rewardTier}</span>
+                        <span style={{ fontWeight: 600 }}>{item.title}</span>
+                        {item.imageUrl && (
+                          <a
+                            href={`/uploads/${item.imageUrl}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ color: "#4EB1CB", fontSize: "0.75rem", textDecoration: "none", fontWeight: 600 }}
+                          >
+                            [View Image]
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {quiz.status !== "draft" && (
                 <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}>

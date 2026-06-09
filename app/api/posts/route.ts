@@ -28,6 +28,7 @@ export async function GET(request: Request) {
     PostType.EVENT,
     PostType.BIRTHDAY_MONTHLY,
     PostType.BIRTHDAY_DAILY,
+    PostType.QUIZ_REWARD,
   ];
 
   const isChurch = searchParams.get("church") === "true";

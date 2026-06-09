@@ -104,6 +104,7 @@ const TYPE_LABELS: Record<string, { icon: string; label: string; color: string }
   COVER_PHOTO:   { icon: "🖼️", label: "Cover Photo",   color: "#8b5cf6" },
   QUIZ_ANNOUNCEMENT: { icon: "🧠", label: "Quiz Week",       color: PRIMARY },
   QUIZ_DAILY:        { icon: "🧠", label: "Daily Challenge", color: PRIMARY },
+  QUIZ_REWARD:       { icon: "🎁", label: "Quiz Reward",     color: "#f59e0b" },
   BIRTHDAY_MONTHLY:  { icon: "🎂",  label: "Monthly Celebrants", color: "#f59e0b" },
   BIRTHDAY_DAILY:    { icon: "🎉",  label: "Happy Birthday", color: "#f59e0b" },
 };
@@ -137,6 +138,10 @@ export default function PostCard({ post }: PostCardProps) {
   }
 
   async function handlePlayQuiz() {
+    if (post.type === "QUIZ_REWARD") {
+      router.push("/quiz");
+      return;
+    }
     if (loadingQuiz) return;
     setLoadingQuiz(true);
     try {
@@ -307,7 +312,7 @@ export default function PostCard({ post }: PostCardProps) {
     return () => clearInterval(id);
   }, [post.id]);
 
-  const isQuizPost = post.type === "QUIZ_ANNOUNCEMENT" || post.type === "QUIZ_DAILY";
+  const isQuizPost = post.type === "QUIZ_ANNOUNCEMENT" || post.type === "QUIZ_DAILY" || post.type === "QUIZ_REWARD";
   const isBirthdayPost = post.type === "BIRTHDAY_MONTHLY" || post.type === "BIRTHDAY_DAILY";
   const isEventPost = post.type === "EVENT";
   const isChurchPost = isBirthdayPost || isEventPost;
@@ -1084,6 +1089,30 @@ export default function PostCard({ post }: PostCardProps) {
                   }}
                 >
                   {loadingQuiz ? "⏳ Loading challenge..." : "🎮 Play Today's Challenge →"}
+                </button>
+              </div>
+            )}
+
+            {post.type === "QUIZ_REWARD" && (
+              <div style={{ padding: "0 1rem 0.75rem", marginTop: "0.5rem" }}>
+                <button
+                  onClick={handlePlayQuiz}
+                  disabled={loadingQuiz}
+                  style={{
+                    width: "100%",
+                    background: `linear-gradient(135deg, ${PRIMARY} 0%, #38a89d 100%)`,
+                    color: "white",
+                    border: "none",
+                    borderRadius: "12px",
+                    padding: "12px 20px",
+                    fontWeight: 700,
+                    fontSize: "0.9rem",
+                    cursor: loadingQuiz ? "not-allowed" : "pointer",
+                    boxShadow: `0 4px 15px ${PRIMARY}30`,
+                    opacity: loadingQuiz ? 0.7 : 1,
+                  }}
+                >
+                  {loadingQuiz ? "⏳ Loading..." : "🧠 Play Weekly Quiz & Win →"}
                 </button>
               </div>
             )}

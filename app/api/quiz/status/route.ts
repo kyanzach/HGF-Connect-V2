@@ -40,6 +40,7 @@ export async function GET(request: Request) {
                 questionText: true,
               },
             },
+            rewardItems: true,
           },
         })
       : await db.sermonQuiz.findFirst({
@@ -55,6 +56,7 @@ export async function GET(request: Request) {
                 questionText: true,
               },
             },
+            rewardItems: true,
           },
         });
 
@@ -156,7 +158,17 @@ export async function GET(request: Request) {
       });
     }
 
-    const rewardDisplay = rewardTier ? REWARD_DISPLAY[rewardTier] : null;
+    let rewardDisplay: any = rewardTier ? { ...REWARD_DISPLAY[rewardTier] } : null;
+    if (rewardTier && quiz.rewardItems) {
+      const matchedItem = quiz.rewardItems.find((item: any) => item.rewardTier === rewardTier);
+      if (matchedItem) {
+        rewardDisplay = {
+          label: rewardDisplay?.label || matchedItem.title,
+          description: matchedItem.description || rewardDisplay?.description || "",
+          imageUrl: matchedItem.imageUrl || null,
+        };
+      }
+    }
 
     // Determine week status label for the client
     const quizWeekStatus = isExpired ? "COMPLETED" : "ACTIVE";
@@ -177,6 +189,7 @@ export async function GET(request: Request) {
       },
       days,
       currentDay,
+      rewardItems: quiz.rewardItems ? JSON.parse(JSON.stringify(quiz.rewardItems)) : [],
       progress: {
         completed: completedCount,
         total: 7,

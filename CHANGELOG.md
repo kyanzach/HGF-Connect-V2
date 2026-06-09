@@ -5,6 +5,14 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.31] — 2026-06-09
+### Added
+- **Weekly Quiz Reward Announcement System**:
+  - Implemented the pastor/admin interface in `app/(app)/quiz/admin/page.tsx` for announcing weekly rewards (e.g. statement t-shirts) linked to the active published quiz.
+  - Added file upload component with visual image preview resolving to `/uploads/rewards/` using the Sharp-to-WebP backend processing pipeline.
+  - Modified the Member Portal (`app/(app)/quiz/page.tsx`) to show "This Week's Prizes" dynamically and display custom unlocked reward details, titles, descriptions, and uploaded images for completed weeks.
+  - Modified `/api/quiz/admin/list` endpoint to include `rewardItems` in the response, rendering announced rewards list under each quiz in the admin table.
+
 ## [v2.22.30] — 2026-06-09
 ### Added
 - **Sermon Quiz Late Publication Auto-Backfill**:
