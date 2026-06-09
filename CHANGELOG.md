@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Dynamic Service Status Display**: Replaced the hardcoded "ACTIVE SERVICE" card badge with dynamic status rendering: "🟢 Active Service (Today)", "📅 Upcoming Service", or "📅 Past Service" based on actual event dates.
 - **Robust Manila Timezone Boundaries**: Adjusted server-side date comparison in the multimedia dashboard to use the Asia/Manila timezone midnight boundary, preventing server UTC offsets from causing incorrect "Active" labels on Monday morning.
 - **Replaced Native Dialogs with ConfirmModal**: Swapped out native browser `confirm()` and `alert()` popups inside `MultimediaDashboardClient` with the custom `ConfirmModal` component to guarantee layout compatibility on mobile/PWA interfaces.
+- **Large File Uploads Support (413 Payload Too Large Fix)**: Configured Nginx proxy limits (`client_max_body_size 500M;`) on the production server to allow uploading large PDF and PPTX sermon presentations (up to 500MB) without triggering entity size rejections.
 
 ## [v2.24.2] — 2026-06-10
 ### Changed
