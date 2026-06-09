@@ -143,18 +143,43 @@ export default function CleanYoutubePlayer({ videoId }: CleanYoutubePlayerProps)
     };
   }, [videoId, duration]);
 
+  const lastTapRef = useRef<number>(0);
+  const commandedPlayStateRef = useRef<boolean>(isPlaying);
+
+  useEffect(() => {
+    commandedPlayStateRef.current = isPlaying;
+  }, [isPlaying]);
+
   const handlePlayToggle = () => {
     const player = playerRef.current;
     if (!player) return;
 
-    if (isPlaying) {
+    if (commandedPlayStateRef.current) {
       player.pauseVideo();
+      commandedPlayStateRef.current = false;
     } else {
       if (hasEnded) {
         player.seekTo(0);
         setHasEnded(false);
       }
       player.playVideo();
+      commandedPlayStateRef.current = true;
+    }
+  };
+
+  const handleOverlayClick = (e: React.MouseEvent) => {
+    const now = Date.now();
+    const DOUBLE_TAP_DELAY = 300; // ms
+    if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
+      // Double click / tap detected -> toggle fullscreen
+      toggleFullscreen();
+      // Revert the play/pause state toggle that the first click triggered
+      handlePlayToggle();
+      lastTapRef.current = 0;
+    } else {
+      // Single click / tap
+      handlePlayToggle();
+      lastTapRef.current = now;
     }
   };
 
@@ -223,7 +248,7 @@ export default function CleanYoutubePlayer({ videoId }: CleanYoutubePlayerProps)
 
       {/* Transparent Click Interceptor & Custom Play State Controls */}
       <div
-        onClick={handlePlayToggle}
+        onClick={handleOverlayClick}
         style={{
           position: "absolute",
           top: 0,

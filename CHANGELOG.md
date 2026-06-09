@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.42] — 2026-06-09
+### Added
+- **Sermon Player Double Click/Tap Toggles Fullscreen**: Implemented double-click (desktop) and double-tap (mobile) detection on the custom sermon video player overlay interceptor. Tapping or clicking twice in quick succession (<300ms) will toggle fullscreen mode (or pseudo-fullscreen mode on PWAs/iOS Safari), whilst instantly reverting the asynchronous play/pause toggle event from the first tap to keep playback state uninterrupted.
+
 ## [v2.22.41] — 2026-06-09
 ### Changed
 - **OG Default Image**: Replaced generated placeholder logo with a properly branded `og-default.png` (1200×630) using the real HGF cursive logo (`HGF-icon-v1.0.png`) on a navy blue gradient background.
