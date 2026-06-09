@@ -7,11 +7,29 @@ import Image from "next/image";
 export const metadata: Metadata = {
   title: "HGF Connect — House of Grace Fellowship",
   description:
-    "The official mobile community app for House of Grace Fellowship members.",
+    "The official mobile community app for House of Grace Fellowship members. Connect with the church, join devotionals, explore events, and grow in faith.",
   openGraph: {
-    title: "HGF Connect",
-    description: "Community app for House of Grace Fellowship.",
+    title: "HGF Connect — House of Grace Fellowship",
+    description:
+      "The official community app of House of Grace Fellowship. Connect with the church, join devotionals, explore events, and grow in faith.",
     type: "website",
+    url: "https://connect.houseofgrace.ph",
+    siteName: "HGF Connect",
+    images: [
+      {
+        url: "https://connect.houseofgrace.ph/og-default.png",
+        width: 1200,
+        height: 630,
+        alt: "HGF Connect — House of Grace Fellowship",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "HGF Connect — House of Grace Fellowship",
+    description:
+      "The official community app of House of Grace Fellowship. Connect with the church, join devotionals, explore events, and grow in faith.",
+    images: ["https://connect.houseofgrace.ph/og-default.png"],
   },
 };
 
