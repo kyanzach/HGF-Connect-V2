@@ -14,6 +14,21 @@ export default auth((request) => {
   const role = session?.user?.role;
   const status = session?.user?.status;
 
+  // Detect social crawlers
+  const userAgent = request.headers.get("user-agent")?.toLowerCase() || "";
+  const isCrawler = [
+    "facebookexternalhit",
+    "facebot",
+    "twitterbot",
+    "slackbot",
+    "linkedinbot",
+    "whatsapp",
+    "telegrambot",
+    "viber",
+    "googlebot",
+    "bingbot",
+  ].some((bot) => userAgent.includes(bot));
+
   // Admin routes: admin and moderator only
   if (pathname.startsWith("/admin")) {
     if (!isLoggedIn) {
@@ -48,6 +63,10 @@ export default auth((request) => {
     pathname.startsWith("/groups")
   ) {
     if (!isLoggedIn) {
+      // Allow bot crawlers to bypass login check for feed post shares
+      if (pathname.startsWith("/feed") && nextUrl.searchParams.has("post") && isCrawler) {
+        return NextResponse.next();
+      }
       return NextResponse.redirect(new URL("/login", request.url));
     }
     return NextResponse.next();

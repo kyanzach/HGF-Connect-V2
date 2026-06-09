@@ -9,6 +9,7 @@ import CleanEmbedPlayer from "@/components/feed/CleanEmbedPlayer";
 import QuizPlayer from "@/components/quiz/QuizPlayer";
 import ConfirmModal from "@/components/ConfirmModal";
 import BirthdayCircle from "@/components/feed/BirthdayCircle";
+import ImageLightbox from "@/components/ImageLightbox";
 
 const PRIMARY = "#4EB1CB";
 
@@ -121,6 +122,7 @@ export default function PostCard({ post }: PostCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [activeLightboxImg, setActiveLightboxImg] = useState<string | null>(null);
 
   const [activeQuestion, setActiveQuestion] = useState<any | null>(null);
   const [loadingQuiz, setLoadingQuiz] = useState(false);
@@ -902,32 +904,38 @@ export default function PostCard({ post }: PostCardProps) {
                   </div>
                 );
               }
-              return post.imageUrl && !post.imageUrl.startsWith("bg:") ? (
-                <div style={{ margin: "0.25rem 0" }}>
-                  <img
-                    src={post.imageUrl.startsWith("http") || post.imageUrl.startsWith("/") ? post.imageUrl : `/uploads/${post.imageUrl}`}
-                    alt="Post image"
-                    style={{ width: "100%", height: "auto", maxHeight: "300px", objectFit: "cover" }}
-                  />
-                </div>
-              ) : null;
-            })() : (
-              <>
-                {post.imageUrl && !post.imageUrl.startsWith("bg:") && (
+              return post.imageUrl && !post.imageUrl.startsWith("bg:") ? (() => {
+                const src = post.imageUrl.startsWith("http") || post.imageUrl.startsWith("/") ? post.imageUrl : `/uploads/${post.imageUrl}`;
+                return (
                   <div style={{ margin: "0.25rem 0" }}>
                     <img
-                      src={
-                        post.imageUrl.startsWith("http") || post.imageUrl.startsWith("/")
-                          ? post.imageUrl
-                          : post.imageUrl.startsWith("uploads/")
-                          ? `/${post.imageUrl}`
-                          : `/uploads/${post.imageUrl}`
-                      }
+                      src={src}
                       alt="Post image"
-                      style={{ width: "100%", height: "auto", maxHeight: "300px", objectFit: "cover" }}
+                      style={{ width: "100%", height: "auto", maxHeight: "300px", objectFit: "cover", cursor: "zoom-in" }}
+                      onClick={() => setActiveLightboxImg(src)}
                     />
                   </div>
-                )}
+                );
+              })() : null;
+            })() : (
+              <>
+                {post.imageUrl && !post.imageUrl.startsWith("bg:") && (() => {
+                  const src = post.imageUrl.startsWith("http") || post.imageUrl.startsWith("/")
+                    ? post.imageUrl
+                    : post.imageUrl.startsWith("uploads/")
+                    ? `/${post.imageUrl}`
+                    : `/uploads/${post.imageUrl}`;
+                  return (
+                    <div style={{ margin: "0.25rem 0" }}>
+                      <img
+                        src={src}
+                        alt="Post image"
+                        style={{ width: "100%", height: "auto", maxHeight: "300px", objectFit: "cover", cursor: "zoom-in" }}
+                        onClick={() => setActiveLightboxImg(src)}
+                      />
+                    </div>
+                  );
+                })()}
 
                 {post.photos && post.photos.length > 0 && (
                   <div style={{ margin: "0.5rem 0", width: "100%" }}>
@@ -942,35 +950,38 @@ export default function PostCard({ post }: PostCardProps) {
                         scrollbarWidth: "none",
                       }}
                     >
-                      {post.photos.map((photo, i) => (
-                        <div
-                          key={photo.id || i}
-                          style={{
-                            flexShrink: 0,
-                            width: post.photos!.length === 1 ? "100%" : "260px",
-                            height: "200px",
-                            borderRadius: "12px",
-                            overflow: "hidden",
-                            border: "1px solid #f1f5f9",
-                            position: "relative",
-                          }}
-                        >
-                          <img
-                            src={
-                              photo.photoPath.startsWith("http") || photo.photoPath.startsWith("/")
-                                ? photo.photoPath
-                                : `/uploads/posts/${photo.photoPath}`
-                            }
-                            alt={`Post photo ${i + 1}`}
+                      {post.photos.map((photo, i) => {
+                        const src = photo.photoPath.startsWith("http") || photo.photoPath.startsWith("/")
+                          ? photo.photoPath
+                          : `/uploads/posts/${photo.photoPath}`;
+                        return (
+                          <div
+                            key={photo.id || i}
                             style={{
-                              width: "100%",
-                              height: "100%",
-                              objectFit: "cover",
+                              flexShrink: 0,
+                              width: post.photos!.length === 1 ? "100%" : "260px",
+                              height: "200px",
+                              borderRadius: "12px",
+                              overflow: "hidden",
+                              border: "1px solid #f1f5f9",
+                              position: "relative",
                             }}
-                            loading="lazy"
-                          />
-                        </div>
-                      ))}
+                          >
+                            <img
+                              src={src}
+                              alt={`Post photo ${i + 1}`}
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "cover",
+                                cursor: "zoom-in",
+                              }}
+                              loading="lazy"
+                              onClick={() => setActiveLightboxImg(src)}
+                            />
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -1216,6 +1227,14 @@ export default function PostCard({ post }: PostCardProps) {
         }}
         onCancel={() => setDeleteConfirmOpen(false)}
       />
+
+      {/* Zoomable Image Lightbox */}
+      {activeLightboxImg && (
+        <ImageLightbox
+          src={activeLightboxImg}
+          onClose={() => setActiveLightboxImg(null)}
+        />
+      )}
     </>
   );
 }

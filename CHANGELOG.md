@@ -5,6 +5,12 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.34] — 2026-06-09
+### Added
+- **Post Image Lightbox Viewer**: Integrated a highly interactive zoomable image lightbox component (`ImageLightbox`) allowing users to tap on single post images, quiz rewards, and image arrays in the feed to zoom and pan.
+- **Dynamic SEO Open Graph Headers**: Converted `/feed` to a Server Component (`FeedClient` wrapper) to generate dynamic Meta Open Graph tags (dynamic titles, descriptions, and absolute image paths) for shared post URLs like `/feed?post=[id]`.
+- **Crawler Redirect Bypass**: Configured `middleware.ts` to allow social media crawler bots (Facebook, Messenger, Google, etc.) to query `/feed?post=[id]` without being redirected to `/login`, enabling link sharing previews.
+
 ## [v2.22.33] — 2026-06-09
 ### Changed
 - **Sermon Quiz Generation Date Formatting**: Formatted the sermon date to a human-readable format (e.g., "June 7, 2026") in the AI quiz generator prompts so that generated captions are properly formatted.
