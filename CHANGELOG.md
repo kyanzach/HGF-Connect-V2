@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.22.46] — 2026-06-09
+### Fixed
+- **Image Lightbox Vertical Centering**: Resolved layout alignment bug on mobile browsers where viewed post images were pushed towards the bottom of the viewport instead of centering vertically. Set the image viewport container to absolute positioning with inset coordinates (`position: "absolute", inset: 0`) to bypass flexbox height rendering quirks on mobile engines.
+
 ## [v2.22.44] — 2026-06-09
 ### Fixed
 - **Public Post Share Redirection**: Replaced server-side redirection (HTTP 307) with client-side redirection for public post share pages (`/p/[id]`). This prevents bot crawlers (like Facebook) from following redirects to login/authentication-guarded routes, allowing them to successfully retrieve post-specific Open Graph metadata (such as the actual post image) directly at HTTP 200.
