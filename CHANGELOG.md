@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.24.16] — 2026-06-10
+### Changed
+- **Dynamic Birthday Posts & Celebrants**: Replaced static JSON payload reading in daily/monthly birthday post feed cards. The system now extracts member IDs from the JSON post content, queries current database values, and updates name and photo paths dynamically on the fly to prevent stale data.
+
 ## [v2.24.15] — 2026-06-10
 ### Changed
 - **Profile Edit Wording**: Removed the placeholder text `"Karen Joan, Kyrah Grace, Kyan Zach"` from the Family Members input field on the profile edit page to prevent prewritten names from displaying as a placeholder.

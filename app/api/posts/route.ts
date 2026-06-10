@@ -84,10 +84,101 @@ export async function GET(request: Request) {
       db.post.count({ where }),
     ]);
 
+    // Fetch dynamic member details for daily/monthly birthday posts
+    const memberIds: number[] = [];
+    posts.forEach((post) => {
+      if (post.type === PostType.BIRTHDAY_DAILY && post.content) {
+        try {
+          const data = JSON.parse(post.content);
+          if (data && typeof data.memberId === "number") {
+            memberIds.push(data.memberId);
+          }
+        } catch {}
+      } else if (post.type === PostType.BIRTHDAY_MONTHLY && post.content) {
+        try {
+          const data = JSON.parse(post.content);
+          if (data && Array.isArray(data.celebrants)) {
+            data.celebrants.forEach((c: any) => {
+              if (c && typeof c.id === "number") {
+                memberIds.push(c.id);
+              }
+            });
+          }
+        } catch {}
+      }
+    });
+
+    let memberMap = new Map<number, any>();
+    if (memberIds.length > 0) {
+      const members = await db.member.findMany({
+        where: { id: { in: [...new Set(memberIds)] } },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          profilePicture: true,
+          coverPhoto: true,
+        },
+      });
+      memberMap = new Map(members.map((m) => [m.id, m]));
+    }
+
     const postsWithLiked = posts.map((p: any) => {
+      let updatedContent = p.content;
+      if (p.type === PostType.BIRTHDAY_DAILY && p.content) {
+        try {
+          const data = JSON.parse(p.content);
+          if (data && typeof data.memberId === "number") {
+            const dbMember = memberMap.get(data.memberId);
+            if (dbMember) {
+              data.name = `${dbMember.firstName} ${dbMember.lastName}`;
+              // Format the message with the updated name
+              if (data.message && data.message.includes("Wishing a very Happy and Blessed Birthday to our dear")) {
+                data.message = `🎉 Wishing a very Happy and Blessed Birthday to our dear ${dbMember.firstName}! 🎂🎈\n\nOn this special day, we praise God for the gift of your life and the unique blessing you are to our church family. May the Lord guide your steps, keep you in His perfect peace, and shower you with His abundant grace in this new year of your life!\n\nWe celebrate you today on behalf of your family here at House of Grace Fellowship! ❤️`;
+              }
+              let imagePath = null;
+              if (dbMember.profilePicture) {
+                imagePath = `/uploads/profile_pictures/${dbMember.profilePicture}`;
+              } else if (dbMember.coverPhoto) {
+                imagePath = `/uploads/cover_photos/${dbMember.coverPhoto}`;
+              }
+              data.profilePicture = imagePath;
+              updatedContent = JSON.stringify(data);
+            }
+          }
+        } catch {}
+      } else if (p.type === PostType.BIRTHDAY_MONTHLY && p.content) {
+        try {
+          const data = JSON.parse(p.content);
+          if (data && Array.isArray(data.celebrants)) {
+            data.celebrants = data.celebrants.map((c: any) => {
+              if (c && typeof c.id === "number") {
+                const dbMember = memberMap.get(c.id);
+                if (dbMember) {
+                  let imagePath = null;
+                  if (dbMember.profilePicture) {
+                    imagePath = `/uploads/profile_pictures/${dbMember.profilePicture}`;
+                  } else if (dbMember.coverPhoto) {
+                    imagePath = `/uploads/cover_photos/${dbMember.coverPhoto}`;
+                  }
+                  return {
+                    ...c,
+                    name: `${dbMember.firstName} ${dbMember.lastName}`,
+                    profilePicture: imagePath,
+                  };
+                }
+              }
+              return c;
+            });
+            updatedContent = JSON.stringify(data);
+          }
+        } catch {}
+      }
+
       const myLike = session ? p.likes.find((l: any) => l.memberId === parseInt(session.user.id)) : null;
       return {
         ...p,
+        content: updatedContent,
         isLiked: !!myLike,
         likedType: myLike ? myLike.type : null,
       };
