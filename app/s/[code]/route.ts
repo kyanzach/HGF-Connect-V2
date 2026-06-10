@@ -16,30 +16,56 @@ export async function GET(
     return NextResponse.redirect("https://houseofgrace.ph", 302);
   }
 
-  // Look up the share code
+  // 1. Try to look up the code as a referral shareCode first
   const share = await db.listingShare.findFirst({
     where: { shareCode: code },
     select: { listingId: true, shareCode: true },
   });
 
-  if (!share) {
-    // Invalid code → redirect to main site
-    return NextResponse.redirect("https://houseofgrace.ph", 302);
+  if (share) {
+    // Record referral impression (fire-and-forget)
+    try {
+      await db.$executeRawUnsafe(
+        `INSERT INTO marketplace_impressions (listing_id, share_code, event, created_at)
+         VALUES (?, ?, 'impression', NOW())`,
+        share.listingId,
+        share.shareCode
+      );
+    } catch {
+      // Non-critical
+    }
+    // Redirect to full listing page with referral code
+    return NextResponse.redirect(`https://connect.houseofgrace.ph/stewardshop/${share.listingId}?ref=${share.shareCode}`, 302);
   }
 
-  // Record an impression (fire-and-forget)
-  try {
-    await db.$executeRawUnsafe(
-      `INSERT INTO marketplace_impressions (listing_id, share_code, event, created_at)
-       VALUES (?, ?, 'impression', NOW())`,
-      share.listingId,
-      share.shareCode
-    );
-  } catch {
-    // Non-critical — don't block redirect
+  // 2. If not a referral shareCode, try to parse it as a listing slug/ID
+  // Matches numeric ID at the end of the slug, e.g. "rockford-mixer-21" or "21"
+  const match = code.match(/-?(\d+)$/);
+  if (match) {
+    const listingId = parseInt(match[1]);
+    if (!Number.isNaN(listingId)) {
+      // Verify listing exists
+      const listing = await db.marketplaceListing.findUnique({
+        where: { id: listingId },
+        select: { id: true },
+      });
+      if (listing) {
+        // Record direct impression (no share_code)
+        try {
+          await db.$executeRawUnsafe(
+            `INSERT INTO marketplace_impressions (listing_id, share_code, event, created_at)
+             VALUES (?, NULL, 'impression', NOW())`,
+            listingId
+          );
+        } catch {
+          // Non-critical
+        }
+        // Redirect directly
+        return NextResponse.redirect(`https://connect.houseofgrace.ph/stewardshop/${listingId}`, 302);
+      }
+    }
   }
 
-  // 302 redirect to the full listing page with referral code
-  const destination = `https://connect.houseofgrace.ph/stewardshop/${share.listingId}?ref=${share.shareCode}`;
-  return NextResponse.redirect(destination, 302);
+  // 3. Fallback/Invalid code → redirect to main site
+  return NextResponse.redirect("https://houseofgrace.ph", 302);
 }

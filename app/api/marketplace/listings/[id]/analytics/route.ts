@@ -66,21 +66,11 @@ export async function GET(
       if (v.viewsCount > 1) repeatViewers++;
     });
 
-    // Helper: Mask IP address
+    // Helper: Return actual IP (unmasked)
     const maskIp = (ip: string | null, hash: string | null): string => {
       if (!ip) {
         if (!hash) return "Unknown IP";
         return `anon-${hash.slice(0, 6)}`;
-      }
-      if (ip.includes(":")) {
-        // IPv6
-        const parts = ip.split(":");
-        return parts.slice(0, Math.min(3, parts.length)).join(":") + ":xxxx:xxxx";
-      }
-      // IPv4
-      const parts = ip.split(".");
-      if (parts.length === 4) {
-        return `${parts[0]}.${parts[1]}.xxx.xxx`;
       }
       return ip;
     };

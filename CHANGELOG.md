@@ -5,6 +5,14 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.24.25] — 2026-06-10
+### Added
+- **StewardShop Pretty Short Links**: Updated the owner's direct listing share link to use the short `hgfapp.link/s/{pretty-slug}-{id}` format instead of the long full URL.
+- **Short link redirection helper**: Refactored the `/s/[code]` redirection route (`app/s/[code]/route.ts`) to parse pretty slugs and numeric listing IDs to redirect users directly to listing detail pages, while preserving referral link coupon checking.
+
+### Changed
+- **StewardShop Analytics IP Display**: Reverted IP masking (removed `xxx` obscuring) in the listing analytics real-time viewer log to display actual, raw IP addresses.
+
 ## [v2.24.24] — 2026-06-10
 ### Added
 - **StewardShop Listing Analytics**: Introduced real-time viewer analytics for listing owners, accessible by clicking on the view count/eye icon on both the listing detail page and my-listings dashboard. Displays total views, unique vs repeat viewers, geographic city/country breakdowns with progress bars, and real-time masked IP logs with device parsing.

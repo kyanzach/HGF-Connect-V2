@@ -142,9 +142,15 @@ function PhotoCarousel({ photos, title, videoUrl }: { photos: { photoPath: strin
 // ── Owner Share Panel (for owner to copy/share listing directly) ──────────────
 function OwnerSharePanel({ listingId, title }: { listingId: number; title: string }) {
   const [copied, setCopied] = useState(false);
-  const shareLink = typeof window !== 'undefined'
-    ? `${window.location.origin}/stewardshop/${listingId}`
-    : `/stewardshop/${listingId}`;
+  const cleanTitle = title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .slice(0, 40)
+    .replace(/-+$/, "");
+  const slug = cleanTitle ? `${cleanTitle}-${listingId}` : String(listingId);
+  const shareLink = `https://hgfapp.link/s/${slug}`;
 
   async function copyLink() {
     try { await navigator.clipboard.writeText(shareLink); }
