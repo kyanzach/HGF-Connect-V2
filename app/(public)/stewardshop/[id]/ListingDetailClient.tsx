@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
+import AnalyticsModal from "@/components/stewardshop/AnalyticsModal";
 
 const PRIMARY = "#4EB1CB";
 
@@ -450,6 +451,7 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [revealed, setRevealed] = useState<RevealedState | null>(null);
+  const [analyticsOpen, setAnalyticsOpen] = useState(false);
 
   // Load persisted reveal from localStorage on mount (non-owners only)
   useEffect(() => {
@@ -602,7 +604,29 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
             {listing.conditionType && listing.conditionType !== "na" && <span style={{ background: "#eff6ff", color: "#1d4ed8", fontSize: "0.72rem", padding: "0.2rem 0.625rem", borderRadius: "999px", fontWeight: 600 }}>{CONDITION_LABELS[listing.conditionType] ?? listing.conditionType}</span>}
             {listing.category && <span style={{ background: "#f5f3ff", color: "#7c3aed", fontSize: "0.72rem", padding: "0.2rem 0.625rem", borderRadius: "999px", fontWeight: 600 }}>{listing.category}</span>}
             {listing.locationArea && <span style={{ fontSize: "0.72rem", color: "#94a3b8" }}>📍 {listing.locationArea}</span>}
-            <span style={{ fontSize: "0.72rem", color: "#94a3b8" }}>👁 {listing.viewCount} views</span>
+            {listing.isOwner ? (
+              <button
+                onClick={() => setAnalyticsOpen(true)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  fontSize: "0.72rem",
+                  color: PRIMARY,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "3px",
+                  textDecoration: "underline",
+                  fontFamily: "inherit"
+                }}
+              >
+                👁 {listing.viewCount} views
+              </button>
+            ) : (
+              <span style={{ fontSize: "0.72rem", color: "#94a3b8" }}>👁 {listing.viewCount} views</span>
+            )}
           </div>
         </div>
 
@@ -770,6 +794,14 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
             </p>
           </div>
         </Modal>
+      )}
+
+      {analyticsOpen && (
+        <AnalyticsModal
+          listingId={listing.id}
+          listingTitle={listing.title}
+          onClose={() => setAnalyticsOpen(false)}
+        />
       )}
     </div>
   );

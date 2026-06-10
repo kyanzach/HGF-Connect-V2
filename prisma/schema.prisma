@@ -964,6 +964,11 @@ model MarketplaceImpression {
   event      MarketplaceImpressionEvent
   ipHash     String?  @map("ip_hash") @db.VarChar(16)
   createdAt  DateTime @default(now()) @map("created_at")
+  ipAddress  String?  @map("ip_address") @db.VarChar(45)
+  country    String?  @db.VarChar(100)
+  region     String?  @db.VarChar(100)
+  city       String?  @db.VarChar(100)
+  userAgent  String?  @map("user_agent") @db.VarChar(500)
 
   listing MarketplaceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
 

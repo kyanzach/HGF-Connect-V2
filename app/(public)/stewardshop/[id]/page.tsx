@@ -102,12 +102,38 @@ export default async function ListingDetailPage({ params, searchParams }: Props)
 
   const isSold = listing.status === "sold";
 
-  // ── Unique view count (IP-based, 24h window) ─────────────────────────────
+  // ── View tracking and Geolocation (IP-based, 24h window for unique) ─────
   const hdrs = await headers();
   const clientIp = hdrs.get("x-forwarded-for")?.split(",")[0]?.trim()
     || hdrs.get("x-real-ip")
     || "unknown";
   const ipHash = crypto.createHash("md5").update(clientIp).digest("hex").slice(0, 16);
+  const userAgent = hdrs.get("user-agent") || null;
+
+  let country = null;
+  let region = null;
+  let city = null;
+  let ipAddress = null;
+
+  if (clientIp !== "unknown" && clientIp !== "127.0.0.1" && clientIp !== "::1" && !clientIp.startsWith("192.168.") && !clientIp.startsWith("10.")) {
+    ipAddress = clientIp;
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
+      const geoRes = await fetch(`http://ip-api.com/json/${clientIp}`, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (geoRes.ok) {
+        const geoData = await geoRes.json();
+        if (geoData.status === "success") {
+          country = geoData.country || null;
+          region = geoData.regionName || null;
+          city = geoData.city || null;
+        }
+      }
+    } catch (err) {
+      console.error("Geo lookup failed in page:", err);
+    }
+  }
 
   // Check if this IP already viewed this listing in the last 24h
   const existingView = await db.marketplaceImpression.findFirst({
@@ -120,21 +146,26 @@ export default async function ListingDetailPage({ params, searchParams }: Props)
     select: { id: true },
   }).catch(() => null);
 
-  // Only count views for active listings
+  // Always log impression event for real-time analytics logs
+  db.marketplaceImpression.create({
+    data: {
+      listingId: listing.id,
+      shareCode: ref ?? null,
+      event: "impression",
+      ipHash,
+      ipAddress,
+      country,
+      region,
+      city,
+      userAgent,
+    },
+  }).catch(() => {});
+
+  // Only increment listing viewCount for active listings if unique in 24h
   if (!isSold && !existingView) {
-    // New unique view — increment count + log impression
     db.marketplaceListing.update({
       where: { id: listing.id },
       data: { viewCount: { increment: 1 } },
-    }).catch(() => {});
-
-    db.marketplaceImpression.create({
-      data: {
-        listingId: listing.id,
-        shareCode: ref ?? null,
-        event: "impression",
-        ipHash,
-      },
     }).catch(() => {});
   }
 

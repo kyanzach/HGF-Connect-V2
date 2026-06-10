@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ConfirmModal from "@/components/ConfirmModal";
+import AnalyticsModal from "@/components/stewardshop/AnalyticsModal";
 
 const PRIMARY = "#4EB1CB";
 
@@ -182,6 +183,7 @@ export default function MyListingsPage() {
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState<number | null>(null);
   const [markSoldId, setMarkSoldId] = useState<number | null>(null);
+  const [analyticsListing, setAnalyticsListing] = useState<{ id: number; title: string } | null>(null);
   const [flashMsg, setFlashMsg] = useState("");
   const [confirmModal, setConfirmModal] = useState<{
     open: boolean; title: string; message: string; confirmLabel: string;
@@ -319,7 +321,25 @@ export default function MyListingsPage() {
                       {displayPrice ? `₱${displayPrice.toLocaleString()}` : listing.priceLabel ?? "Free"}
                     </div>
                     <div style={{ display: "flex", gap: "0.75rem", fontSize: "0.7rem", color: "#94a3b8" }}>
-                      <span>👁 {listing.viewCount}</span>
+                      <button
+                        onClick={() => setAnalyticsListing({ id: listing.id, title: listing.title })}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          padding: 0,
+                          fontSize: "0.7rem",
+                          color: PRIMARY,
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "2px",
+                          textDecoration: "underline",
+                          fontFamily: "inherit"
+                        }}
+                      >
+                        👁 {listing.viewCount}
+                      </button>
                       <span>📋 {listing.prospectCount} prospects</span>
                       <span>🔗 {listing.shareCount} shares</span>
                       {listing.loveGiftAmount > 0 && <span>❤️ ₱{listing.loveGiftAmount.toLocaleString()}</span>}
@@ -401,6 +421,14 @@ export default function MyListingsPage() {
       )}
 
       <ConfirmModal open={confirmModal.open} title={confirmModal.title} message={confirmModal.message} confirmLabel={confirmModal.confirmLabel} confirmColor={confirmModal.confirmColor} loading={confirmModal.loading} onConfirm={confirmModal.onConfirm} onCancel={() => setConfirmModal(prev => ({ ...prev, open: false }))} />
+
+      {analyticsListing && (
+        <AnalyticsModal
+          listingId={analyticsListing.id}
+          listingTitle={analyticsListing.title}
+          onClose={() => setAnalyticsListing(null)}
+        />
+      )}
     </div>
   );
 }
