@@ -31,7 +31,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   if (!listing) return { title: "Listing Not Found" };
   if (listing.isPrivate) return { title: "Private Listing | StewardShop" };
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://connect.houseofgrace.ph";
+  const baseUrl = "https://connect.houseofgrace.ph";
   const imageUrl = listing.photos[0]
     ? `${baseUrl}/uploads/marketplace/${listing.photos[0].photoPath}`
     : `${baseUrl}/stewardshop_default_og.png`;

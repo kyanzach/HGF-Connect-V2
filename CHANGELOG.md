@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.24.23] — 2026-06-10
+### Fixed
+- **StewardShop Link Preview Image**: Hardcoded the production URL as baseUrl in listing details metadata generation (`app/(public)/stewardshop/[id]/page.tsx`) to prevent `NEXT_PUBLIC_APP_URL` from baking `http://localhost:3000` during local builds.
+
 ## [v2.24.22] — 2026-06-10
 ### Changed
 - **Quiz Hub Layout**: Extended the cover banner height to 240px and adjusted background positioning to "center 20%" so faces are visible.
