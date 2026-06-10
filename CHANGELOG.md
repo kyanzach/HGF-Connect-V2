@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.24.22] — 2026-06-10
+### Changed
+- **Quiz Hub Layout**: Extended the cover banner height to 240px and adjusted background positioning to "center 20%" so faces are visible.
+- **Weekly Quiz Visibility**: Added a prominent, highly obvious, and compelling active weekly quiz card above the navigation tabs on the hub page, allowing users to play immediately.
+
 ## [v2.24.21] — 2026-06-10
 ### Added
 - **StewardShop N/A Condition**: Added "N/A" listing condition. Automatically set condition to "N/A" and hide the condition selector/badge for "Services" categories/types.
