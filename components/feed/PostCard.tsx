@@ -320,6 +320,19 @@ export default function PostCard({ post }: PostCardProps) {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
+
+  // Avoid modal obscurity by BottomDock: toggle body class when reactions modal is open
+  useEffect(() => {
+    if (showReactionsModal) {
+      document.body.classList.add("hgf-modal-open");
+    } else {
+      document.body.classList.remove("hgf-modal-open");
+    }
+    return () => {
+      document.body.classList.remove("hgf-modal-open");
+    };
+  }, [showReactionsModal]);
+
   useEffect(() => {
     const poll = async () => {
       try {

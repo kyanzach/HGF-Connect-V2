@@ -225,3 +225,7 @@ When a page crashes or shows errors:
     ```
     This instantly hides the bottom dock whenever a modal is active, ensuring perfect UX on mobile screens.
 
+### 2026-06-10
+- **Reactions Modal Obscurity Fix (v2.24.12)**: Applied the `hgf-modal-open` class toggle rule to the Reactions Analytics modal inside `PostCard.tsx` and `PhotoPostViewer.tsx` to automatically hide the `BottomDock` on mobile viewports when the reactions bottom sheet modal is open.
+
+

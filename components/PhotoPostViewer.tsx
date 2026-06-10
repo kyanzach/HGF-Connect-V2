@@ -142,6 +142,18 @@ export default function PhotoPostViewer({
     return () => { document.body.style.overflow = ""; };
   }, []);
 
+  // Avoid modal obscurity by BottomDock: toggle body class when reactions modal is open
+  useEffect(() => {
+    if (showReactionsModal) {
+      document.body.classList.add("hgf-modal-open");
+    } else {
+      document.body.classList.remove("hgf-modal-open");
+    }
+    return () => {
+      document.body.classList.remove("hgf-modal-open");
+    };
+  }, [showReactionsModal]);
+
   async function handleReactionSelect(type: string) {
     if (!postId || !session || likeLoading) return;
     setLikeLoading(true);
