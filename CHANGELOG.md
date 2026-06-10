@@ -5,6 +5,14 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.24.20] — 2026-06-10
+### Changed
+- **Password Change Requirements**: Removed the current password verification requirement both on the client UI and the API route `/api/profile/password`. Members can now change their passwords directly by entering their new password.
+
+## [v2.24.19] — 2026-06-10
+### Changed
+- **Profile Edit Tabs Order**: Moved the Security tab next to the Bio & Verse tab for a more logical navigation hierarchy.
+
 ## [v2.24.18] — 2026-06-10
 ### Changed
 - **Profile Edit Security Separation**: Separated the username update form and password update form in the profile edit security tab, adding an independent "Update Username" button so they can be changed without password prompt or validation issues.

@@ -13,9 +13,9 @@ const TABS: { key: TabKey; icon: string; label: string }[] = [
   { key: "personal", icon: "👤", label: "Personal" },
   { key: "contact", icon: "📋", label: "Contact" },
   { key: "bio", icon: "✝️", label: "Bio & Verse" },
+  { key: "security", icon: "🔑", label: "Security" },
   { key: "privacy", icon: "🔒", label: "Privacy" },
   { key: "sms", icon: "📲", label: "SMS Alerts" },
-  { key: "security", icon: "🔑", label: "Security" },
 ];
 
 export default function EditProfilePage() {
@@ -27,7 +27,6 @@ export default function EditProfilePage() {
   const [viewerPhotos,   setViewerPhotos]   = useState<HistoryPhoto[]>([]);
   const [viewerStart,    setViewerStart]    = useState(0);
   const [viewerOpen,     setViewerOpen]     = useState(false);
-  const [pwCurrent, setPwCurrent] = useState("");
   const [pwNew, setPwNew]         = useState("");
   const [pwConfirm, setPwConfirm] = useState("");
   const [pwSaving, setPwSaving]   = useState(false);
@@ -507,10 +506,9 @@ export default function EditProfilePage() {
                 </div>
 
                 <p style={{ fontSize: "0.825rem", color: "#64748b", marginBottom: "1rem", lineHeight: 1.5 }}>
-                  Set or update your login password. If your account does not have a password yet, leave the current password field blank.
+                  Set or update your login password.
                 </p>
                 {([
-                  { label: "Current Password", val: pwCurrent, set: setPwCurrent, placeholder: "Leave blank if no password yet" },
                   { label: "New Password", val: pwNew, set: setPwNew, placeholder: "Min. 8 characters" },
                   { label: "Confirm New Password", val: pwConfirm, set: setPwConfirm, placeholder: "Repeat new password" },
                 ] as { label: string; val: string; set: (v: string) => void; placeholder: string }[]).map(({ label, val, set, placeholder }) => (
@@ -542,12 +540,12 @@ export default function EditProfilePage() {
                       const r = await fetch("/api/profile/password", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ currentPassword: pwCurrent || undefined, newPassword: pwNew }),
+                        body: JSON.stringify({ newPassword: pwNew }),
                       });
                       const d = await r.json();
                       if (d.ok) {
                         setPwMsg({ ok: true, text: "Password updated successfully!" });
-                        setPwCurrent(""); setPwNew(""); setPwConfirm("");
+                        setPwNew(""); setPwConfirm("");
                       } else {
                         setPwMsg({ ok: false, text: d.error ?? "Failed to update password." });
                       }
