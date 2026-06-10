@@ -5,6 +5,13 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.24.21] — 2026-06-10
+### Added
+- **StewardShop N/A Condition**: Added "N/A" listing condition. Automatically set condition to "N/A" and hide the condition selector/badge for "Services" categories/types.
+- **StewardShop Facebook Video Integration**: Support pasting Facebook video/reel links and rendering them as the first slide in a Shopee/Lazada-style carousel on the detail view.
+- **StewardShop SEO/OG Metadata**: Created custom Filipino/ASEAN shaking hands fallback OG image (`/stewardshop_default_og.png`) and updated listing details SEO metadata with automatic video-token stripping.
+- **StewardShop Owner Self-Sharing**: Display a generic, clean share panel for listing owners to copy and share their listings without referral codes.
+
 ## [v2.24.20] — 2026-06-10
 ### Changed
 - **Password Change Requirements**: Removed the current password verification requirement both on the client UI and the API route `/api/profile/password`. Members can now change their passwords directly by entering their new password.

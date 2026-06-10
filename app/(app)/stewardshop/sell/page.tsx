@@ -10,9 +10,9 @@ const CATEGORIES = [
   "Electronics", "Clothing", "Furniture", "Books", "Food",
   "Services", "Vehicles", "Home & Garden", "Toys", "Pets", "Other",
 ];
-const CONDITIONS = ["new", "like_new", "good", "fair", "poor"];
+const CONDITIONS = ["new", "like_new", "good", "fair", "na"];
 const CONDITION_LABELS: Record<string, string> = {
-  new: "Brand New", like_new: "Like New", good: "Good", fair: "Fair", poor: "For Parts",
+  new: "Brand New", like_new: "Like New", good: "Good", fair: "Fair", na: "N/A",
 };
 const LISTING_TYPES = [
   { value: "sale",    label: "For Sale",     emoji: "🏷️" },
@@ -44,6 +44,7 @@ export default function SellPage() {
     title: "", description: "", listingType: "sale", category: "Other",
     ogPrice: "", discountedPrice: "", priceLabel: "",
     conditionType: "good", locationArea: "", loveGiftAmount: "0",
+    videoUrl: "",
   });
   const [photoPaths, setPhotoPaths] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -97,18 +98,22 @@ export default function SellPage() {
     if (!form.title.trim()) { setError("Title is required"); return; }
     setSubmitting(true); setError("");
     try {
+      const finalDescription = form.videoUrl.trim()
+        ? `${form.description.trim()}\n\n[video:${form.videoUrl.trim()}]`
+        : form.description.trim();
+
       const res = await fetch("/api/marketplace/listings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: form.title,
-          description: form.description,
+          description: finalDescription || null,
           listingType: form.listingType,
           category: form.category,
           ogPrice: form.ogPrice ? parseFloat(form.ogPrice) : null,
           discountedPrice: form.discountedPrice ? parseFloat(form.discountedPrice) : null,
           priceLabel: form.priceLabel || null,
-          conditionType: form.conditionType,
+          conditionType: form.conditionType === "na" ? null : form.conditionType,
           locationArea: form.locationArea,
           loveGiftAmount: parseInt(form.loveGiftAmount) || 0,
           photoPaths,
@@ -149,7 +154,13 @@ export default function SellPage() {
           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
             {LISTING_TYPES.map(({ value, label, emoji }) => (
               <button
-                key={value} type="button" onClick={() => set("listingType", value)}
+                key={value} type="button" onClick={() => {
+                  setForm(f => ({
+                    ...f,
+                    listingType: value,
+                    ...(value === "service" ? { category: "Services", conditionType: "na" } : {})
+                  }));
+                }}
                 style={{
                   padding: "0.375rem 0.875rem", borderRadius: "999px",
                   border: `2px solid ${form.listingType === value ? PRIMARY : "#e2e8f0"}`,
@@ -213,20 +224,36 @@ export default function SellPage() {
           />
         </Field>
 
+        {/* Video URL */}
+        <Field label="Video URL (optional)">
+          <input
+            value={form.videoUrl} onChange={(e) => set("videoUrl", e.target.value)}
+            placeholder="Copy link from Facebook videos/reels..." style={INPUT_STYLE}
+          />
+          <p style={{ fontSize: "0.7rem", color: "#94a3b8", margin: "0.25rem 0 0" }}>
+            Paste the link to your Facebook video or reel to feature it first in the media carousel
+          </p>
+        </Field>
+
         {/* Category + Condition */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: form.category === "Services" || form.listingType === "service" || form.conditionType === "na" ? "1fr" : "1fr 1fr", gap: "0.75rem" }}>
           <div style={{ background: "white", borderRadius: "14px", padding: "0.875rem", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
             <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b", display: "block", marginBottom: "0.375rem" }}>Category</label>
-            <select value={form.category} onChange={(e) => set("category", e.target.value)} style={{ width: "100%", border: "none", outline: "none", fontSize: "0.875rem", fontFamily: "inherit" }}>
+            <select value={form.category} onChange={(e) => {
+              const cat = e.target.value;
+              setForm(f => ({ ...f, category: cat, ...(cat === "Services" ? { conditionType: "na" } : {}) }));
+            }} style={{ width: "100%", border: "none", outline: "none", fontSize: "0.875rem", fontFamily: "inherit" }}>
               {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
-          <div style={{ background: "white", borderRadius: "14px", padding: "0.875rem", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
-            <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b", display: "block", marginBottom: "0.375rem" }}>Condition</label>
-            <select value={form.conditionType} onChange={(e) => set("conditionType", e.target.value)} style={{ width: "100%", border: "none", outline: "none", fontSize: "0.875rem", fontFamily: "inherit" }}>
-              {CONDITIONS.map((c) => <option key={c} value={c}>{CONDITION_LABELS[c]}</option>)}
-            </select>
-          </div>
+          {form.category !== "Services" && form.listingType !== "service" && form.conditionType !== "na" && (
+            <div style={{ background: "white", borderRadius: "14px", padding: "0.875rem", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+              <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b", display: "block", marginBottom: "0.375rem" }}>Condition</label>
+              <select value={form.conditionType} onChange={(e) => set("conditionType", e.target.value)} style={{ width: "100%", border: "none", outline: "none", fontSize: "0.875rem", fontFamily: "inherit" }}>
+                {CONDITIONS.map((c) => <option key={c} value={c}>{CONDITION_LABELS[c]}</option>)}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* Pricing */}

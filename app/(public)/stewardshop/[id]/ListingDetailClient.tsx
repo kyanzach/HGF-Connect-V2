@@ -6,13 +6,17 @@ import Link from "next/link";
 const PRIMARY = "#4EB1CB";
 
 // ── Photo Carousel ─────────────────────────────────────────────────────────────
-function PhotoCarousel({ photos, title }: { photos: { photoPath: string }[]; title: string }) {
+function PhotoCarousel({ photos, title, videoUrl }: { photos: { photoPath: string }[]; title: string; videoUrl?: string | null }) {
   const [idx, setIdx] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIdx, setLightboxIdx] = useState(0);
   const touchStartX = useRef<number | null>(null);
   const lbTouchStartX = useRef<number | null>(null);
 
-  if (photos.length === 0) {
+  const hasVideo = !!videoUrl;
+  const total = photos.length + (hasVideo ? 1 : 0);
+
+  if (total === 0) {
     return (
       <div style={{ background: "#f1f5f9", width: "100%", height: 260, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "5rem" }}>
         📦
@@ -20,14 +24,22 @@ function PhotoCarousel({ photos, title }: { photos: { photoPath: string }[]; tit
     );
   }
 
-  function prev() { setIdx((i) => (i - 1 + photos.length) % photos.length); }
-  function next() { setIdx((i) => (i + 1) % photos.length); }
+  function prev() { setIdx((i) => (i - 1 + total) % total); }
+  function next() { setIdx((i) => (i + 1) % total); }
+
+  function prevLb() { setLightboxIdx((i) => (i - 1 + photos.length) % photos.length); }
+  function nextLb() { setLightboxIdx((i) => (i + 1) % photos.length); }
 
   return (
     <>
       <div
-        style={{ position: "relative", width: "100%", height: 260, background: "#f1f5f9", overflow: "hidden", userSelect: "none", cursor: "zoom-in" }}
-        onClick={() => setLightboxOpen(true)}
+        style={{ position: "relative", width: "100%", height: 260, background: "#f1f5f9", overflow: "hidden", userSelect: "none", cursor: hasVideo && idx === 0 ? "default" : "zoom-in" }}
+        onClick={() => {
+          if (!(hasVideo && idx === 0)) {
+            setLightboxIdx(hasVideo ? idx - 1 : idx);
+            setLightboxOpen(true);
+          }
+        }}
         onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
         onTouchEnd={(e) => {
           if (touchStartX.current === null) return;
@@ -37,21 +49,32 @@ function PhotoCarousel({ photos, title }: { photos: { photoPath: string }[]; tit
           touchStartX.current = null;
         }}
       >
-        <img
-          src={`/uploads/marketplace/${photos[idx].photoPath}`}
-          alt={`${title} — photo ${idx + 1}`}
-          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", transition: "opacity 0.2s" }}
-        />
-        {photos.length > 1 && (
+        {hasVideo && idx === 0 ? (
+          <iframe
+            src={`https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(videoUrl!)}&show_text=0&t=0`}
+            width="100%"
+            height="100%"
+            style={{ border: "none", overflow: "hidden", position: "absolute", inset: 0 }}
+            allowFullScreen={true}
+            allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+          />
+        ) : (
+          <img
+            src={`/uploads/marketplace/${photos[hasVideo ? idx - 1 : idx].photoPath}`}
+            alt={`${title} — photo ${hasVideo ? idx : idx + 1}`}
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", transition: "opacity 0.2s" }}
+          />
+        )}
+        {total > 1 && (
           <>
             <button onClick={(e) => { e.stopPropagation(); prev(); }} style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.45)", color: "white", border: "none", borderRadius: "50%", width: 32, height: 32, fontSize: "1rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit", WebkitTapHighlightColor: "transparent" }}>‹</button>
             <button onClick={(e) => { e.stopPropagation(); next(); }} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.45)", color: "white", border: "none", borderRadius: "50%", width: 32, height: 32, fontSize: "1rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit", WebkitTapHighlightColor: "transparent" }}>›</button>
             <div style={{ position: "absolute", bottom: 8, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 5 }}>
-              {photos.map((_, i) => (
+              {Array.from({ length: total }).map((_, i) => (
                 <button key={i} onClick={(e) => { e.stopPropagation(); setIdx(i); }} style={{ width: i === idx ? 16 : 8, height: 8, borderRadius: 4, background: i === idx ? "white" : "rgba(255,255,255,0.55)", border: "none", cursor: "pointer", padding: 0, transition: "all 0.2s", WebkitTapHighlightColor: "transparent" }} />
               ))}
             </div>
-            <span style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.5)", color: "white", fontSize: "0.68rem", fontWeight: 700, padding: "0.2rem 0.5rem", borderRadius: 999 }}>{idx + 1} / {photos.length}</span>
+            <span style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.5)", color: "white", fontSize: "0.68rem", fontWeight: 700, padding: "0.2rem 0.5rem", borderRadius: 999 }}>{hasVideo && idx === 0 ? "📹 Video" : `${hasVideo ? idx : idx + 1} / ${photos.length}`}</span>
           </>
         )}
       </div>
@@ -68,7 +91,7 @@ function PhotoCarousel({ photos, title }: { photos: { photoPath: string }[]; tit
           {/* Counter */}
           {photos.length > 1 && (
             <div style={{ position: "absolute", top: 20, left: "50%", transform: "translateX(-50%)", color: "rgba(255,255,255,0.7)", fontSize: "0.8rem", fontWeight: 600 }}>
-              {idx + 1} / {photos.length}
+              {lightboxIdx + 1} / {photos.length}
             </div>
           )}
 
@@ -80,13 +103,13 @@ function PhotoCarousel({ photos, title }: { photos: { photoPath: string }[]; tit
             onTouchEnd={(e) => {
               if (lbTouchStartX.current === null) return;
               const dx = e.changedTouches[0].clientX - lbTouchStartX.current;
-              if (dx > 50) prev(); else if (dx < -50) next();
+              if (dx > 50) prevLb(); else if (dx < -50) nextLb();
               lbTouchStartX.current = null;
             }}
           >
             <img
-              src={`/uploads/marketplace/${photos[idx].photoPath}`}
-              alt={`${title} — photo ${idx + 1}`}
+              src={`/uploads/marketplace/${photos[lightboxIdx].photoPath}`}
+              alt={`${title} — photo ${lightboxIdx + 1}`}
               style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", borderRadius: "4px", transition: "opacity 0.2s" }}
             />
           </div>
@@ -94,8 +117,8 @@ function PhotoCarousel({ photos, title }: { photos: { photoPath: string }[]; tit
           {/* Arrows */}
           {photos.length > 1 && (
             <>
-              <button onClick={(e) => { e.stopPropagation(); prev(); }} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.12)", backdropFilter: "blur(8px)", color: "white", border: "none", borderRadius: "50%", width: 44, height: 44, fontSize: "1.25rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>‹</button>
-              <button onClick={(e) => { e.stopPropagation(); next(); }} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.12)", backdropFilter: "blur(8px)", color: "white", border: "none", borderRadius: "50%", width: 44, height: 44, fontSize: "1.25rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>›</button>
+              <button onClick={(e) => { e.stopPropagation(); prevLb(); }} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.12)", backdropFilter: "blur(8px)", color: "white", border: "none", borderRadius: "50%", width: 44, height: 44, fontSize: "1.25rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>‹</button>
+              <button onClick={(e) => { e.stopPropagation(); nextLb(); }} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.12)", backdropFilter: "blur(8px)", color: "white", border: "none", borderRadius: "50%", width: 44, height: 44, fontSize: "1.25rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>›</button>
             </>
           )}
 
@@ -103,7 +126,7 @@ function PhotoCarousel({ photos, title }: { photos: { photoPath: string }[]; tit
           {photos.length > 1 && (
             <div style={{ display: "flex", gap: 6, padding: "0.75rem", overflowX: "auto", maxWidth: "100%" }} onClick={(e) => e.stopPropagation()}>
               {photos.map((p, i) => (
-                <button key={i} onClick={() => setIdx(i)} style={{ width: 52, height: 52, borderRadius: 8, overflow: "hidden", flexShrink: 0, border: i === idx ? "2px solid white" : "2px solid transparent", opacity: i === idx ? 1 : 0.5, cursor: "pointer", padding: 0, background: "none", transition: "all 0.2s" }}>
+                <button key={i} onClick={() => setLightboxIdx(i)} style={{ width: 52, height: 52, borderRadius: 8, overflow: "hidden", flexShrink: 0, border: i === lightboxIdx ? "2px solid white" : "2px solid transparent", opacity: i === lightboxIdx ? 1 : 0.5, cursor: "pointer", padding: 0, background: "none", transition: "all 0.2s" }}>
                   <img src={`/uploads/marketplace/${p.photoPath}`} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                 </button>
               ))}
@@ -112,6 +135,54 @@ function PhotoCarousel({ photos, title }: { photos: { photoPath: string }[]; tit
         </div>
       )}
     </>
+  );
+}
+
+// ── Owner Share Panel (for owner to copy/share listing directly) ──────────────
+function OwnerSharePanel({ listingId, title }: { listingId: number; title: string }) {
+  const [copied, setCopied] = useState(false);
+  const shareLink = typeof window !== 'undefined'
+    ? `${window.location.origin}/stewardshop/${listingId}`
+    : `/stewardshop/${listingId}`;
+
+  async function copyLink() {
+    try { await navigator.clipboard.writeText(shareLink); }
+    catch {
+      const input = document.createElement("input"); input.value = shareLink;
+      document.body.appendChild(input); input.select(); document.execCommand("copy"); document.body.removeChild(input);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  }
+
+  function shareNative() {
+    if (navigator.share) {
+      navigator.share({ title, text: `Check out my listing on StewardShop! 🎁`, url: shareLink }).catch(() => {});
+    } else { copyLink(); }
+  }
+
+  return (
+    <div style={{ background: "linear-gradient(135deg, #f0fdfa, #ccfbf1)", borderRadius: "16px", padding: "1rem", marginBottom: "0.75rem", border: "1px solid #99f6e4" }}>
+      <h3 style={{ fontSize: "0.875rem", fontWeight: 800, color: "#0f766e", margin: "0 0 0.25rem" }}>
+        📢 Share Your Listing
+      </h3>
+      <p style={{ fontSize: "0.8rem", color: "#115e59", margin: "0 0 0.875rem", lineHeight: 1.6 }}>
+        Promote your listing! Copy and share this link with friends, family, or on social media.
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+        <div style={{ background: "white", border: "1px solid #99f6e4", borderRadius: "8px", padding: "0.5rem 0.75rem", fontSize: "0.68rem", color: "#115e59", wordBreak: "break-all", fontFamily: "monospace" }}>
+          {shareLink}
+        </div>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <button onClick={copyLink} style={{ flex: 1, background: PRIMARY, color: "white", border: "none", borderRadius: "999px", padding: "0.45rem", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+            {copied ? "✅ Copied!" : "📋 Copy Link"}
+          </button>
+          <button onClick={shareNative} style={{ flex: 1, background: "white", color: "#0f766e", border: `1.5px solid ${PRIMARY}`, borderRadius: "999px", padding: "0.45rem", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+            📤 Share
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -138,6 +209,7 @@ interface ListingData {
   photos: { photoPath: string }[];
   seller: { id: number; firstName: string; lastName: string; profilePicture: string | null; isVerified: boolean; mobileNumber: string | null };
   isOwner: boolean; isLoggedIn: boolean; isSold?: boolean; shareToken: string | null;
+  videoUrl?: string | null;
 }
 
 interface RevealedState {
@@ -477,7 +549,7 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
       {/* Photo Carousel — swipeable on mobile, arrows + dot indicators */}
       <div style={{ position: "relative" }}>
         <div style={{ filter: listing.isSold ? "grayscale(100%) brightness(0.7)" : "none", transition: "filter 0.3s" }}>
-          <PhotoCarousel photos={listing.photos} title={listing.title} />
+          <PhotoCarousel photos={listing.photos} title={listing.title} videoUrl={listing.videoUrl} />
         </div>
         {listing.isSold && (
           <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", background: "rgba(99,102,241,0.9)", color: "white", fontSize: "1.2rem", fontWeight: 900, padding: "0.5rem 1.5rem", borderRadius: "10px", letterSpacing: "0.15em" }}>SOLD</div>
@@ -527,7 +599,7 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
           )}
 
           <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "0.75rem" }}>
-            {listing.conditionType && <span style={{ background: "#eff6ff", color: "#1d4ed8", fontSize: "0.72rem", padding: "0.2rem 0.625rem", borderRadius: "999px", fontWeight: 600 }}>{CONDITION_LABELS[listing.conditionType] ?? listing.conditionType}</span>}
+            {listing.conditionType && listing.conditionType !== "na" && <span style={{ background: "#eff6ff", color: "#1d4ed8", fontSize: "0.72rem", padding: "0.2rem 0.625rem", borderRadius: "999px", fontWeight: 600 }}>{CONDITION_LABELS[listing.conditionType] ?? listing.conditionType}</span>}
             {listing.category && <span style={{ background: "#f5f3ff", color: "#7c3aed", fontSize: "0.72rem", padding: "0.2rem 0.625rem", borderRadius: "999px", fontWeight: 600 }}>{listing.category}</span>}
             {listing.locationArea && <span style={{ fontSize: "0.72rem", color: "#94a3b8" }}>📍 {listing.locationArea}</span>}
             <span style={{ fontSize: "0.72rem", color: "#94a3b8" }}>👁 {listing.viewCount} views</span>
@@ -587,6 +659,11 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
             {/* ── Share & Bless Panel */}
             {listing.loveGiftAmount > 0 && listing.isLoggedIn && !listing.isOwner && (
               <SharePanel listingId={listing.id} loveGiftAmount={listing.loveGiftAmount} title={listing.title} />
+            )}
+
+            {/* Owner Share Panel */}
+            {listing.isOwner && (
+              <OwnerSharePanel listingId={listing.id} title={listing.title} />
             )}
           </>
         )}

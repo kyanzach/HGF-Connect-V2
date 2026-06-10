@@ -11,6 +11,11 @@ interface Props {
   searchParams: Promise<{ ref?: string }>;
 }
 
+function cleanDescription(desc: string | null): string {
+  if (!desc) return "";
+  return desc.replace(/\[video:(https?:\/\/[^\]\s]+)\]/g, "").trim();
+}
+
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { id } = await params;
   const { ref } = await searchParams;
@@ -29,7 +34,9 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://connect.houseofgrace.ph";
   const imageUrl = listing.photos[0]
     ? `${baseUrl}/uploads/marketplace/${listing.photos[0].photoPath}`
-    : undefined;
+    : `${baseUrl}/stewardshop_default_og.png`;
+
+  const cleanedDesc = cleanDescription(listing.description).slice(0, 160) || "Listed on HGF Connect Marketplace";
 
   // ── Sharer-specific OG tags (v1.1 §26-31) ─────────────────────────────────
   if (ref) {
@@ -51,7 +58,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
           title: `${sharerName} has shared this discounted ${listing.title}: ${priceStr}`,
           description: `${sharerName} thinks you'll be interested and wanted to share this discount with you.`,
           type: "website",
-          images: imageUrl ? [imageUrl] : [],
+          images: [imageUrl],
         },
       };
     }
@@ -60,12 +67,12 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   // ── Default OG tags (no ref, or ref not found) ─────────────────────────────
   return {
     title: `${listing.title} | HGF Marketplace`,
-    description: listing.description?.slice(0, 160) ?? "Listed on HGF Connect Marketplace",
+    description: cleanedDesc,
     openGraph: {
       title: listing.title,
-      description: listing.description?.slice(0, 160) ?? "",
+      description: cleanedDesc,
       type: "website",
-      images: imageUrl ? [imageUrl] : [],
+      images: [imageUrl],
     },
   };
 }
@@ -148,11 +155,16 @@ export default async function ListingDetailPage({ params, searchParams }: Props)
   // Owner always has no ref
   if (isOwner) effectiveRef = null;
 
+  // Parse video url from raw description
+  const videoMatch = listing.description?.match(/\[video:(https?:\/\/[^\]\s]+)\]/);
+  const videoUrl = videoMatch ? videoMatch[1] : null;
+  const descriptionCleaned = cleanDescription(listing.description);
+
   // Serialize — strip discountedPrice before sending to client (NEVER expose it here)
   const safeListingData = {
     id: listing.id,
     title: listing.title,
-    description: listing.description,
+    description: descriptionCleaned || null,
     listingType: listing.listingType,
     category: listing.category,
     ogPrice: listing.ogPrice ? Number(listing.ogPrice) : null,
@@ -179,6 +191,7 @@ export default async function ListingDetailPage({ params, searchParams }: Props)
     isLoggedIn,
     isSold,
     shareToken: effectiveRef,
+    videoUrl,
   };
 
   return (
