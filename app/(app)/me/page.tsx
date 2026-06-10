@@ -24,7 +24,7 @@ const MENU_ITEMS = [
   { icon: "👤", label: "Edit Profile", href: "/profile/edit" },
   { icon: "🔔", label: "Notifications", href: "/notifications" },
   { icon: "📖", label: "My Grace Blog", href: "/journal" },
-  { icon: "🙏", label: "My Prayers", href: "/prayer" },
+  { icon: "🙏", label: "My Prayer Requests", href: "/prayer?mine=true" },
   { icon: "🤝", label: "My Listings", href: "/stewardshop/my-listings" },
   { icon: "⚙️", label: "Settings", href: "/profile/edit" },
 ];

@@ -320,7 +320,7 @@ export default function UnifiedHeader() {
                     <DropItem href="/quiz"  label="🧠 Quiz for Christ"  onClick={() => setDropOpen(false)} />
                     <DropItem href="/me"    label="👤 My Profile"       onClick={() => setDropOpen(false)} />
                     <HR />
-                    <DropItem href="/journal"          label="📓 My Journal"          onClick={() => setDropOpen(false)} />
+                    <DropItem href="/journal"          label="📝 My Grace Blog"          onClick={() => setDropOpen(false)} />
                     <DropItem href="/prayer?mine=true"  label="🙏 My Prayer Request"   onClick={() => setDropOpen(false)} />
                     <DropItem href="/feed/create?tab=testimony" label="✍️ Share Testimony"     onClick={() => setDropOpen(false)} />
                     <DropItem href="/stewardshop/my-listings" label="🤝 My Listings"  onClick={() => setDropOpen(false)} />
