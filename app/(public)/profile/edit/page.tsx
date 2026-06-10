@@ -370,7 +370,7 @@ export default function EditProfilePage() {
                   {fieldGroup("Baptism Date", <input type="date" style={inputStyle} value={form.baptismDate} onChange={(e) => set("baptismDate", e.target.value)} />)}
                 </div>
                 {fieldGroup("Invited / Referred By", <input style={inputStyle} value={form.invitedBy} onChange={(e) => set("invitedBy", e.target.value)} placeholder="Who invited you?" />)}
-                {fieldGroup("Family Members (comma-separated)", <input style={inputStyle} value={form.familyMembers} onChange={(e) => set("familyMembers", e.target.value)} placeholder="Karen Joan, Kyrah Grace, Kyan Zach" />)}
+                {fieldGroup("Family Members (comma-separated)", <input style={inputStyle} value={form.familyMembers} onChange={(e) => set("familyMembers", e.target.value)} placeholder="" />)}
               </div>
             )}
 

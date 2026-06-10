@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.24.15] — 2026-06-10
+### Changed
+- **Profile Edit Wording**: Removed the placeholder text `"Karen Joan, Kyrah Grace, Kyan Zach"` from the Family Members input field on the profile edit page to prevent prewritten names from displaying as a placeholder.
+
 ## [v2.24.14] — 2026-06-10
 ### Changed
 - **Wording Update**: Changed dropdown menu item "My Journal" to "My Grace Blog" with the `📝` emoji in `UnifiedHeader.tsx`.
