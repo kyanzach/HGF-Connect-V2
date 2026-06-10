@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.24.26] — 2026-06-10
+### Changed
+- **StewardShop Pretty Links**: Removed the numeric listing ID suffix from the direct share links (e.g. `https://hgfapp.link/s/rockford-mixer` instead of `https://hgfapp.link/s/rockford-mixer-21`).
+- **Dynamic Slug Redirection Routing**: Updated the `/s/[code]` redirection route to resolve pretty slugs dynamically by searching active listing titles when no numeric ID or referral coupon matches the code.
+
 ## [v2.24.25] — 2026-06-10
 ### Added
 - **StewardShop Pretty Short Links**: Updated the owner's direct listing share link to use the short `hgfapp.link/s/{pretty-slug}-{id}` format instead of the long full URL.

@@ -149,7 +149,7 @@ function OwnerSharePanel({ listingId, title }: { listingId: number; title: strin
     .replace(/\s+/g, "-")
     .slice(0, 40)
     .replace(/-+$/, "");
-  const slug = cleanTitle ? `${cleanTitle}-${listingId}` : String(listingId);
+  const slug = cleanTitle || String(listingId);
   const shareLink = `https://hgfapp.link/s/${slug}`;
 
   async function copyLink() {

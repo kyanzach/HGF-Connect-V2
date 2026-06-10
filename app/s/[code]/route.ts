@@ -12,7 +12,7 @@ export async function GET(
 ) {
   const { code } = await params;
 
-  if (!code || code.length < 3) {
+  if (!code) {
     return NextResponse.redirect("https://houseofgrace.ph", 302);
   }
 
@@ -38,34 +38,75 @@ export async function GET(
     return NextResponse.redirect(`https://connect.houseofgrace.ph/stewardshop/${share.listingId}?ref=${share.shareCode}`, 302);
   }
 
-  // 2. If not a referral shareCode, try to parse it as a listing slug/ID
-  // Matches numeric ID at the end of the slug, e.g. "rockford-mixer-21" or "21"
+  // 2. If not a referral shareCode, check if the code is numeric (direct listing ID lookup)
+  const isNumeric = /^\d+$/.test(code);
+  if (isNumeric) {
+    const listingId = parseInt(code);
+    const listing = await db.marketplaceListing.findUnique({
+      where: { id: listingId },
+      select: { id: true },
+    });
+    if (listing) {
+      try {
+        await db.$executeRawUnsafe(
+          `INSERT INTO marketplace_impressions (listing_id, share_code, event, created_at)
+           VALUES (?, NULL, 'impression', NOW())`,
+          listingId
+        );
+      } catch {}
+      return NextResponse.redirect(`https://connect.houseofgrace.ph/stewardshop/${listingId}`, 302);
+    }
+  }
+
+  // 3. Check if it is a slug ending in a numeric ID (e.g. "rockford-mixer-21")
   const match = code.match(/-?(\d+)$/);
   if (match) {
     const listingId = parseInt(match[1]);
     if (!Number.isNaN(listingId)) {
-      // Verify listing exists
       const listing = await db.marketplaceListing.findUnique({
         where: { id: listingId },
         select: { id: true },
       });
       if (listing) {
-        // Record direct impression (no share_code)
         try {
           await db.$executeRawUnsafe(
             `INSERT INTO marketplace_impressions (listing_id, share_code, event, created_at)
              VALUES (?, NULL, 'impression', NOW())`,
             listingId
           );
-        } catch {
-          // Non-critical
-        }
-        // Redirect directly
+        } catch {}
         return NextResponse.redirect(`https://connect.houseofgrace.ph/stewardshop/${listingId}`, 302);
       }
     }
   }
 
-  // 3. Fallback/Invalid code → redirect to main site
+  // 4. Try resolving as a pretty slug by matching active listings' title slugs
+  const activeListings = await db.marketplaceListing.findMany({
+    where: { status: "active" },
+    select: { id: true, title: true },
+  });
+
+  const targetSlug = code.toLowerCase().trim();
+  for (const listing of activeListings) {
+    const slug = listing.title
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .trim()
+      .replace(/\s+/g, "-")
+      .slice(0, 40)
+      .replace(/-+$/, "");
+    if (slug === targetSlug || (slug || String(listing.id)) === targetSlug) {
+      try {
+        await db.$executeRawUnsafe(
+          `INSERT INTO marketplace_impressions (listing_id, share_code, event, created_at)
+           VALUES (?, NULL, 'impression', NOW())`,
+          listing.id
+        );
+      } catch {}
+      return NextResponse.redirect(`https://connect.houseofgrace.ph/stewardshop/${listing.id}`, 302);
+    }
+  }
+
+  // 5. Fallback/Invalid code → redirect to main site
   return NextResponse.redirect("https://houseofgrace.ph", 302);
 }
