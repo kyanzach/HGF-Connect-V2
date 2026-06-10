@@ -19,7 +19,7 @@ const TABS: { key: TabKey; icon: string; label: string }[] = [
 ];
 
 export default function EditProfilePage() {
-  const { data: session } = useSession();
+  const { data: session, update } = useSession();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabKey>("personal");
   const [profileHistory, setProfileHistory] = useState<HistoryPhoto[]>([]);
@@ -56,6 +56,8 @@ export default function EditProfilePage() {
     available: boolean | null;
     error: string | null;
   }>({ loading: false, available: null, error: null });
+  const [usernameSaving, setUsernameSaving] = useState(false);
+  const [usernameMsg, setUsernameMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
     const username = form.username.trim().toLowerCase();
@@ -165,6 +167,32 @@ export default function EditProfilePage() {
       setError(e instanceof Error ? e.message : "Failed to save");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleUpdateUsername() {
+    setUsernameSaving(true);
+    setUsernameMsg(null);
+    try {
+      const res = await fetch(`/api/members/${memberId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: form.username }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Failed to update username");
+      
+      setOriginalUsername(form.username);
+      setUsernameMsg({ ok: true, text: "Username updated successfully!" });
+      
+      if (update) {
+        await update();
+      }
+      
+      setTimeout(() => setUsernameMsg(null), 3000);
+    } catch (e: unknown) {
+      setUsernameMsg({ ok: false, text: e instanceof Error ? e.message : "Failed to update username" });
+    } finally {
+      setUsernameSaving(false);
     }
   }
 
@@ -452,6 +480,30 @@ export default function EditProfilePage() {
                       <span>❌</span> Username is already taken.
                     </p>
                   )}
+                  {usernameMsg && (
+                    <p style={{ fontSize: "0.85rem", color: usernameMsg.ok ? "#059669" : "#ef4444", marginTop: "0.75rem", marginBottom: "0.5rem", fontWeight: 600 }}>
+                      {usernameMsg.ok ? "✅" : "⚠️"} {usernameMsg.text}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    disabled={usernameSaving || usernameStatus.loading || usernameStatus.available === false || !!usernameStatus.error || form.username.trim() === "" || form.username.toLowerCase() === originalUsername.toLowerCase()}
+                    onClick={handleUpdateUsername}
+                    style={{
+                      width: "100%",
+                      padding: "0.875rem",
+                      background: (usernameSaving || usernameStatus.loading || usernameStatus.available === false || !!usernameStatus.error || form.username.trim() === "" || form.username.toLowerCase() === originalUsername.toLowerCase()) ? "#94a3b8" : PRIMARY,
+                      border: "none",
+                      borderRadius: "12px",
+                      color: "white",
+                      fontSize: "0.9rem",
+                      fontWeight: 800,
+                      cursor: (usernameSaving || usernameStatus.loading || usernameStatus.available === false || !!usernameStatus.error || form.username.trim() === "" || form.username.toLowerCase() === originalUsername.toLowerCase()) ? "not-allowed" : "pointer",
+                      marginTop: "0.75rem"
+                    }}
+                  >
+                    {usernameSaving ? "Updating Username…" : "💾 Update Username"}
+                  </button>
                 </div>
 
                 <p style={{ fontSize: "0.825rem", color: "#64748b", marginBottom: "1rem", lineHeight: 1.5 }}>

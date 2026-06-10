@@ -182,15 +182,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
       }
 
-      // Re-fetch profile picture from DB when session.update() is called (unless we are impersonating and just did the update above)
+      // Re-fetch profile picture and user info from DB when session.update() is called (unless we are impersonating and just did the update above)
       if (trigger === "update" && token.id && (!session || (!session.impersonateId && !session.stopImpersonating))) {
         const numericId = parseInt(String(token.id), 10);
         if (!Number.isNaN(numericId)) {
           const fresh = await db.member.findUnique({
             where: { id: numericId },
-            select: { profilePicture: true },
+            select: { profilePicture: true, username: true, firstName: true, lastName: true },
           });
-          if (fresh) token.profilePicture = fresh.profilePicture;
+          if (fresh) {
+            token.profilePicture = fresh.profilePicture;
+            token.username = fresh.username;
+            token.firstName = fresh.firstName;
+            token.lastName = fresh.lastName;
+          }
         }
       }
       return token;
