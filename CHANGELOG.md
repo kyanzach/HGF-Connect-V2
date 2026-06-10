@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.24.17] — 2026-06-10
+### Changed
+- **Church/System Notification Authors**: Changed notification titles for system-wide posts (quizzes, events, birthdays) to use "House of Grace Fellowship" or "HGF Quiz For Christ" instead of the administrator's personal name. Backfilled all existing event notifications in the production database.
+
 ## [v2.24.16] — 2026-06-10
 ### Changed
 - **Dynamic Birthday Posts & Celebrants**: Replaced static JSON payload reading in daily/monthly birthday post feed cards. The system now extracts member IDs from the JSON post content, queries current database values, and updates name and photo paths dynamically on the fly to prevent stale data.

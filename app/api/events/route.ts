@@ -150,11 +150,10 @@ export async function POST(request: NextRequest) {
       });
 
       // Broadcast database notification to all active members
-      const authorName = `${session.user.firstName ?? ""} ${session.user.lastName ?? ""}`.trim();
       void notifyAllMembers({
         actorId: parseInt(session.user.id),
         type: "new_post",
-        title: `${authorName} shared an event`,
+        title: `House of Grace Fellowship shared an event`,
         body: `⛪ New Event: ${title}`,
         link: "/church",
       });
