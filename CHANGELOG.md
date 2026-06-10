@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.24.13] — 2026-06-10
+### Added
+- **Thoughts Photo Uploads**: Enabled photo upload capability (up to 21 images) on the Thoughts tab of the feed creation page, making it fully uniform with the Testimony and Prayer tabs.
+- **Mutual Exclusivity logic**: Integrated mutual exclusivity between colored backgrounds and photo uploads (photo upload box is hidden when a colored background is active, and background options button is hidden when photos are present).
+
 ## [v2.24.12] — 2026-06-10
 ### Fixed
 - **Mobile Reactions Modal Obscurity**: Applied the `hgf-modal-open` class toggle rule to the Reactions Analytics modal inside `PostCard.tsx` and `PhotoPostViewer.tsx` to automatically hide the `BottomDock` on mobile viewports while the reactions modal is open, preventing its content from being obscured.

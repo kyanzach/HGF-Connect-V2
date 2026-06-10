@@ -251,9 +251,9 @@ export default function CreatePostPage() {
 
         if (!res.ok) throw new Error("Failed to submit testimony");
       } else {
-        // 1. Upload post/prayer photos if activeTab is prayer
+        // 1. Upload post/prayer/thoughts photos
         const uploadedPhotoPaths: string[] = [];
-        if (activeTab === "prayer") {
+        if (activeTab === "prayer" || activeTab === "thoughts") {
           for (const photo of photos) {
             const formData = new FormData();
             formData.append("file", photo);
@@ -350,9 +350,6 @@ export default function CreatePostPage() {
                 if (t.value !== "thoughts") {
                   setSelectedBg("");
                   setShowBgOptions(false);
-                } else {
-                  setPhotos([]);
-                  setPhotoPreviews([]);
                 }
               }}
               style={{
@@ -644,7 +641,7 @@ export default function CreatePostPage() {
           >
             {/* Left: Aa color toggler and circular buttons */}
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              {activeTab === "thoughts" && (
+              {activeTab === "thoughts" && photos.length === 0 && (
                 <>
                   <button
                     type="button"
@@ -839,8 +836,8 @@ export default function CreatePostPage() {
           </div>
         </div>
 
-        {/* Photo Upload (Testimony and Prayer Tabs) */}
-        {(activeTab === "testimony" || activeTab === "prayer") && (
+        {/* Photo Upload (Thoughts, Testimony and Prayer Tabs) */}
+        {(activeTab === "thoughts" || activeTab === "testimony" || activeTab === "prayer") && !selectedBg && (
           <div style={{ background: "white", borderRadius: "16px", padding: "1rem", marginBottom: "1rem", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", border: "1px solid #e2e8f0" }}>
             <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, color: "#334155", marginBottom: "0.5rem" }}>
               Add Photos (Optional)
