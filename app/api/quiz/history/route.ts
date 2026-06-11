@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { isQuizWeekExpired } from "@/lib/quiz-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,8 @@ export async function GET() {
     const formatted = quizzes.map((q) => {
       const reward = q.rewards[0];
       const played = q.submissions.length > 0;
+      const submissionsCount = q.submissions.length;
+      const isExpired = isQuizWeekExpired(q.sermonDate);
       
       // Compute score: count how many of the user's submissions are correct
       const score = reward ? reward.totalScore : q.submissions.filter((s) => s.isCorrect).length;
@@ -61,6 +64,8 @@ export async function GET() {
         played,
         score,
         tier,
+        submissionsCount,
+        isExpired,
       };
     });
 

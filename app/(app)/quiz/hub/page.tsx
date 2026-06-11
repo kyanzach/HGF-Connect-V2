@@ -35,6 +35,8 @@ interface QuizHistoryEntry {
   played: boolean;
   score: number;
   tier: string | null;
+  submissionsCount: number;
+  isExpired: boolean;
 }
 
 export default function QuizHubPage() {
@@ -97,7 +99,7 @@ export default function QuizHubPage() {
         style={{
           backgroundImage: "url('/quiz-cover-banner.png')",
           backgroundSize: "cover",
-          backgroundPosition: "center 20%",
+          backgroundPosition: "center 60%",
           height: "240px",
           position: "relative",
           cursor: "pointer",
@@ -194,6 +196,9 @@ export default function QuizHubPage() {
         (() => {
           const currentQuiz = quizHistory[0];
           const played = currentQuiz.played;
+          const subCount = currentQuiz.submissionsCount ?? 0;
+          const isExpired = currentQuiz.isExpired ?? false;
+          
           const TIER_LABELS: Record<string, string> = {
             PERFECT: "🏆 Perfect Score!",
             EXCELLENT: "🌟 Excellent!",
@@ -204,10 +209,14 @@ export default function QuizHubPage() {
           return (
             <div style={{ padding: "0 16px 16px" }}>
               <div style={{
-                background: played 
-                  ? "linear-gradient(135deg, #f0fdf4, #dcfce7)" 
-                  : "linear-gradient(135deg, #ecfeff, #cffafe)",
-                border: played ? "1.5px solid #86efac" : `1.5px solid ${PRIMARY}`,
+                background: isExpired
+                  ? "linear-gradient(135deg, #f1f5f9, #e2e8f0)"
+                  : (subCount >= 7 
+                      ? "linear-gradient(135deg, #f0fdf4, #dcfce7)" 
+                      : "linear-gradient(135deg, #ecfeff, #cffafe)"),
+                border: isExpired
+                  ? "1.5px solid #cbd5e1"
+                  : (subCount >= 7 ? "1.5px solid #86efac" : `1.5px solid ${PRIMARY}`),
                 borderRadius: "20px",
                 padding: "1.25rem",
                 boxShadow: "0 4px 15px rgba(0,0,0,0.05)",
@@ -216,7 +225,9 @@ export default function QuizHubPage() {
               }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.75rem" }}>
                   <span style={{
-                    background: played ? "#16a34a" : PRIMARY,
+                    background: isExpired 
+                      ? (played ? "#16a34a" : "#64748b") 
+                      : PRIMARY,
                     color: "white",
                     fontSize: "0.7rem",
                     fontWeight: 800,
@@ -225,7 +236,9 @@ export default function QuizHubPage() {
                     textTransform: "uppercase",
                     letterSpacing: "0.05em"
                   }}>
-                    {played ? "✅ Completed" : "🔥 ACTIVE WEEKLY QUIZ"}
+                    {isExpired 
+                      ? (played ? "✅ Completed Week" : "🔒 Expired Week")
+                      : "🔥 ACTIVE WEEKLY QUIZ"}
                   </span>
                   <span style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: 600 }}>
                     {new Date(currentQuiz.sermonDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
@@ -237,52 +250,68 @@ export default function QuizHubPage() {
                 </h2>
 
                 <p style={{ fontSize: "0.8rem", color: "#475569", margin: "0 0 1rem", lineHeight: 1.4 }}>
-                  {played 
-                    ? `Great job! You scored ${currentQuiz.score}/7. You can check the leaderboard or review past quizzes.` 
-                    : "Test your focus on last Sunday's sermon and claim your weekly reward! Click below to start playing."}
+                  {isExpired 
+                    ? (played 
+                        ? `Great job! You completed the quiz and scored ${currentQuiz.score}/7. Review your performance or check the leaderboard.`
+                        : "This quiz week has ended. You didn't participate in this week's challenges.")
+                    : (played 
+                        ? (subCount >= 7 
+                            ? `Awesome! You completed all 7 days and scored ${currentQuiz.score}/7. View details or check the leaderboard.`
+                            : `You have completed ${subCount}/7 daily challenges. Continue playing to unlock weekly rewards!`)
+                        : "Test your focus on last Sunday's sermon and claim your weekly reward! Click below to start playing.")
+                  }
                 </p>
 
-                {played ? (
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <div style={{
-                      background: "white",
-                      border: "1px solid #bbf7d0",
-                      borderRadius: "12px",
-                      padding: "0.5rem 1rem",
-                      fontSize: "0.88rem",
-                      fontWeight: 700,
-                      color: "#16a34a",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "6px"
-                    }}>
-                      Score: {currentQuiz.score}/7 {currentQuiz.tier && `• ${TIER_LABELS[currentQuiz.tier] || currentQuiz.tier}`}
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  {played && (
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: isExpired ? "0" : "4px" }}>
+                      <div style={{
+                        background: "white",
+                        border: isExpired ? "1px solid #cbd5e1" : "1px solid #bbf7d0",
+                        borderRadius: "12px",
+                        padding: "0.5rem 1rem",
+                        fontSize: "0.88rem",
+                        fontWeight: 700,
+                        color: isExpired ? "#475569" : "#16a34a",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px"
+                      }}>
+                        Score: {currentQuiz.score}/7 {currentQuiz.tier && `• ${TIER_LABELS[currentQuiz.tier] || currentQuiz.tier}`}
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => router.push(`/quiz?quizId=${currentQuiz.id}`)}
-                    style={{
-                      width: "100%",
-                      background: PRIMARY,
-                      color: "white",
-                      border: "none",
-                      borderRadius: "14px",
-                      padding: "0.75rem",
-                      fontSize: "0.95rem",
-                      fontWeight: 700,
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "8px",
-                      boxShadow: `0 4px 10px ${PRIMARY}40`,
-                      transition: "transform 0.2s"
-                    }}
-                  >
-                    📝 Play Weekly Quiz Now
-                  </button>
-                )}
+                  )}
+
+                  {(!isExpired || played) && (
+                    <button
+                      onClick={() => router.push(`/quiz?quizId=${currentQuiz.id}`)}
+                      style={{
+                        width: "100%",
+                        background: isExpired ? "#475569" : PRIMARY,
+                        color: "white",
+                        border: "none",
+                        borderRadius: "14px",
+                        padding: "0.75rem",
+                        fontSize: "0.95rem",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                        boxShadow: isExpired ? "none" : `0 4px 10px ${PRIMARY}40`,
+                        transition: "transform 0.2s"
+                      }}
+                    >
+                      {isExpired 
+                        ? "👁️ Review Quiz Results" 
+                        : (subCount === 0 
+                            ? "📝 Play Weekly Quiz Now" 
+                            : (subCount >= 7 ? "👁️ View Quiz Progress" : "📝 Continue Playing"))
+                      }
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           );

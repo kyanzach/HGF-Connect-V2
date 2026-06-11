@@ -37,6 +37,7 @@ interface QuizStatus {
   active: boolean;
   attended?: boolean;
   message?: string;
+  isActiveQuiz?: boolean;
   quiz?: {
     id: number;
     title: string;
@@ -177,7 +178,7 @@ export default function MemberQuizPage() {
     }
 
     // Block play from past quiz archive view
-    const isPastQuizView = !!(new URLSearchParams(window.location.search).get("quizId"));
+    const isPastQuizView = !!(new URLSearchParams(window.location.search).get("quizId")) && !quizStatus?.isActiveQuiz;
     if (isPastQuizView) {
       setInfoModal({
         open: true,
@@ -588,7 +589,7 @@ export default function MemberQuizPage() {
           const isToday = day.status === "today";
           const isAvailable = day.status === "available";
           const isDayExpired = day.status === "expired";
-          const isPastQuizView = !!(typeof window !== "undefined" && new URLSearchParams(window.location.search).get("quizId"));
+          const isPastQuizView = !!(typeof window !== "undefined" && new URLSearchParams(window.location.search).get("quizId")) && !quizStatus?.isActiveQuiz;
 
           return (
             <button

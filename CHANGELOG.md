@@ -5,6 +5,12 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.24.30] — 2026-06-11
+### Fixed
+- **Quiz Active Week Progression**: Resolved quiz week completion blocking logic. The active weekly quiz card now remains in `"🔥 ACTIVE WEEKLY QUIZ"` state throughout the sermon week (rather than immediately completing on first submission). Enabled `"Continue Playing"` and `"View Quiz Progress"` buttons linking to the active game page, letting users catch up or play new daily drip challenges.
+- **Quiz Play Gating**: Fixed the `isPastQuizView` flag which blocked playing the active quiz when accessed directly via the Brand Hub link (which passes the `quizId` parameter).
+- **Quiz Brand Hub Banner Positioning**: Positioned the cover photo banner background offset to `center 60%` to place the young people and mobile phones vertically centered.
+
 ## [v2.24.29] — 2026-06-11
 ### Fixed
 - **Event Timezone and Offset Shifts**: Standardized event time parsing on the server with UTC indicators (`Z`) and event formatting in clients with `timeZone: "UTC"`, eliminating 8-hour timezone shifts in the Admin Dashboard event creation/editing modal.
