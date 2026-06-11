@@ -48,6 +48,9 @@ export default function FeedClient() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
+  const [hasNewPosts, setHasNewPosts] = useState(false);
+  const [scrolledDown, setScrolledDown] = useState(false);
+
   const firstName = session?.user?.firstName ?? session?.user?.name?.split(" ")[0] ?? "Friend";
 
   const loadPosts = useCallback(async (p = 1) => {
@@ -71,6 +74,47 @@ export default function FeedClient() {
 
   useEffect(() => { loadPosts(1); }, [loadPosts]);
 
+  // Poll for new posts in the background
+  useEffect(() => {
+    if (!posts.length || !session) return;
+    const topPostId = posts[0].id;
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/posts?checkNew=true&latestId=${topPostId}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.newPostsCount > 0) {
+            // If user is already at the top, auto-refresh immediately
+            if (window.scrollY <= 180) {
+              loadPosts(1);
+            } else {
+              setHasNewPosts(true);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("New posts poll failed:", err);
+      }
+    };
+    const interval = setInterval(poll, 20000); // Poll every 20 seconds
+    return () => clearInterval(interval);
+  }, [posts, session, loadPosts]);
+
+  // Handle scroll to show floating pill and auto-refresh when scrolled back to top
+  useEffect(() => {
+    const handleScroll = () => {
+      const isDown = window.scrollY > 180;
+      setScrolledDown(isDown);
+      // Auto refresh if scrolled back to top and new posts are flagged
+      if (!isDown && hasNewPosts && !loading && !loadingMore) {
+        loadPosts(1);
+        setHasNewPosts(false);
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [hasNewPosts, loading, loadingMore, loadPosts]);
+
   useEffect(() => {
     if (loading || page >= totalPages) return;
 
@@ -93,6 +137,47 @@ export default function FeedClient() {
 
   return (
     <div style={{ paddingBottom: "0.5rem" }}>
+      {/* Floating pill for new posts */}
+      {hasNewPosts && scrolledDown && (
+        <button
+          onClick={() => {
+            window.scrollTo({ top: 0, behavior: "smooth" });
+            loadPosts(1);
+            setHasNewPosts(false);
+          }}
+          style={{
+            position: "fixed",
+            top: "calc(68px + env(safe-area-inset-top, 0px))",
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: PRIMARY,
+            color: "white",
+            border: "none",
+            padding: "0.5rem 1rem",
+            borderRadius: "999px",
+            fontWeight: 700,
+            fontSize: "0.8rem",
+            boxShadow: "0 4px 14px rgba(78, 177, 203, 0.45)",
+            zIndex: 99,
+            display: "flex",
+            alignItems: "center",
+            gap: "0.35rem",
+            cursor: "pointer",
+            animation: "slideDown 0.3s ease",
+            fontFamily: "inherit",
+          }}
+        >
+          <span>✨ New Posts Available</span>
+        </button>
+      )}
+
+      {/* CSS animation style */}
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes slideDown {
+          from { transform: translate(-50%, -20px); opacity: 0; }
+          to { transform: translate(-50%, 0); opacity: 1; }
+        }
+      `}} />
 
       {/* ── Hero Carousel ── */}
       <HeroCarousel firstName={firstName} />

@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.24.32] — 2026-06-11
+### Added
+- **Feed Auto-Refresh & Floating Indicator**: Implemented a hybrid auto-refresh system for the community feed. Silent background polling check runs every 20 seconds; if new posts are found, a floating slide-down pill (`"✨ New Posts Available"`) displays if the user is scrolled down ($>180\text{px}$). Clicking the pill scrolls the viewport to the top and reloads the feed. If the user is already near the top ($<180\text{px}$) or manually scrolls back to the top, the feed automatically refreshes cleanly in the background.
+
 ## [v2.24.31] — 2026-06-11
 ### Fixed
 - **Header Display Name Truncation**: Redefined user name extraction to display only the first word of the user's first name in the header button (e.g. showing "Shalom" for "Shalom Love Joy E."). Refined style constraints (`maxWidth: 70`, `flexShrink: 1`) on the display name tag to prevent layout wrapping or overlapping on small viewports.

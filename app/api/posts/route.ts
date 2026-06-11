@@ -37,6 +37,24 @@ export async function GET(request: Request) {
     ],
   };
 
+  const checkNew = searchParams.get("checkNew") === "true";
+  const latestId = searchParams.get("latestId") ? parseInt(searchParams.get("latestId")!) : null;
+
+  if (checkNew && latestId) {
+    try {
+      const count = await db.post.count({
+        where: {
+          id: { gt: latestId },
+          ...visibilityFilter,
+        },
+      });
+      return NextResponse.json({ newPostsCount: count });
+    } catch (error) {
+      console.error("[api/posts checkNew GET]", error);
+      return NextResponse.json({ error: "Failed to check new posts" }, { status: 500 });
+    }
+  }
+
   // System post types that are community-wide, not personal content.
   // Exclude from profile walls so they don't appear as the creator's own posts.
   const SYSTEM_POST_TYPES: PostType[] = [
