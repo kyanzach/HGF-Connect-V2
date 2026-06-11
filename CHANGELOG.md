@@ -5,6 +5,15 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.25.0] — 2026-06-11
+### Added
+- **SMS Centralization & Proxy Integration**: Centralized all SMS sending credentials and broadcast APIs from the legacy PHP app (`app.houseofgrace.ph`) to the Next.js Connect app (`connect.houseofgrace.ph`).
+- **Internal SMS Proxy Endpoint**: Added a secure proxy route `/api/sms/send-internal` protected by `INTERNAL_API_KEY` to accept forwarded SMS requests from the legacy PHP application.
+- **SMS Batch Processing Endpoint**: Added route `/api/sms/batches/process` to query and process pending custom SMS batches using the unified Itexmo helper, updating statistics and logs in the database.
+- **Node.js Cron CLI Triggers**: Created `scripts/send-reminders-cron.mjs` and `scripts/process-sms-batches-cron.mjs` to fetch and execute scheduled reminder events and batch processor actions on the server.
+### Changed
+- **Legacy PHP App Redirection**: Modified legacy PHP helper `utils/sms.php` to proxy all direct SMS requests to the Next.js internal API via cURL, and updated `config/sms.php` to use proxy credentials and disable the legacy `SMS_NOTICE_TEXT` disclaimer footer.
+
 ## [v2.24.33] — 2026-06-11
 ### Fixed
 - **StewardShop Sharing OG Images**: Added an on-the-fly image conversion endpoint (`app/api/marketplace/image/[filename]/route.ts`) to convert WebP upload images to JPEG format for social media crawler requests.
