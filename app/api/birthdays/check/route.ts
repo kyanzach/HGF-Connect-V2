@@ -54,54 +54,59 @@ export async function POST(request: Request) {
 
     const reports: string[] = [];
 
-    // ── 2. Run Monthly Announcement (First day of month) ──
-    if (currentDay === 1) {
-      const monthlyCelebrants = activeMembers.filter((m) => {
-        if (!m.birthdate) return false;
-        const birth = new Date(m.birthdate);
-        const mMonth = birth.getUTCMonth() + 1;
-        return mMonth === currentMonth;
-      }).map((m) => {
-        let imagePath = null;
-        if (m.profilePicture) {
-          imagePath = `/uploads/profile_pictures/${m.profilePicture}`;
-        } else if (m.coverPhoto) {
-          imagePath = `/uploads/cover_photos/${m.coverPhoto}`;
+    // ── 2. Run Monthly Announcement (catch-up: checks every day) ──
+    // Instead of only firing on day 1, we check every day whether a monthly
+    // post exists for the current month. If none exists, we create one.
+    // This ensures the monthly post is never missed due to server downtime.
+    {
+      const monthNames = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+      ];
+      const monthName = monthNames[currentMonth - 1];
+
+      // Check if a monthly post already exists for this entire month
+      const startOfMonth = new Date(manilaDate);
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+      const startOfMonthUTC = new Date(startOfMonth.getTime() - 8 * 60 * 60 * 1000);
+
+      const existingMonthly = await db.post.findFirst({
+        where: {
+          type: "BIRTHDAY_MONTHLY",
+          content: { contains: `"month":"${monthName}"` },
+          createdAt: { gte: startOfMonthUTC },
         }
-
-        const birthDateObj = new Date(m.birthdate!);
-        const day = birthDateObj.getUTCDate();
-
-        return {
-          id: m.id,
-          name: `${m.firstName} ${m.lastName}`,
-          profilePicture: imagePath,
-          birthDay: day,
-        };
       });
 
-      if (monthlyCelebrants.length > 0) {
-        // Sort chronologically by birthDay
-        monthlyCelebrants.sort((a, b) => (a.birthDay || 0) - (b.birthDay || 0));
-
-        // Prevent duplicate monthly posts
-        const startOfDay = new Date(manilaDate);
-        startOfDay.setHours(0, 0, 0, 0);
-        const startOfDayUTC = new Date(startOfDay.getTime() - 8 * 60 * 60 * 1000);
-
-        const existingMonthly = await db.post.findFirst({
-          where: {
-            type: "BIRTHDAY_MONTHLY",
-            createdAt: { gte: startOfDayUTC },
+      if (!existingMonthly) {
+        const monthlyCelebrants = activeMembers.filter((m) => {
+          if (!m.birthdate) return false;
+          const birth = new Date(m.birthdate);
+          const mMonth = birth.getUTCMonth() + 1;
+          return mMonth === currentMonth;
+        }).map((m) => {
+          let imagePath = null;
+          if (m.profilePicture) {
+            imagePath = `/uploads/profile_pictures/${m.profilePicture}`;
+          } else if (m.coverPhoto) {
+            imagePath = `/uploads/cover_photos/${m.coverPhoto}`;
           }
+
+          const birthDateObj = new Date(m.birthdate!);
+          const day = birthDateObj.getUTCDate();
+
+          return {
+            id: m.id,
+            name: `${m.firstName} ${m.lastName}`,
+            profilePicture: imagePath,
+            birthDay: day,
+          };
         });
 
-        if (!existingMonthly) {
-          const monthNames = [
-            "January", "February", "March", "April", "May", "June",
-            "July", "August", "September", "October", "November", "December"
-          ];
-          const monthName = monthNames[currentMonth - 1];
+        if (monthlyCelebrants.length > 0) {
+          // Sort chronologically by birthDay
+          monthlyCelebrants.sort((a, b) => (a.birthDay || 0) - (b.birthDay || 0));
 
           const payload = {
             month: monthName,

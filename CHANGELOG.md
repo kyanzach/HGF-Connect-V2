@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.24.27] — 2026-06-11
+### Fixed
+- **Monthly Birthday Catch-Up Logic**: Replaced the fragile `currentDay === 1` gate on the monthly birthday announcement with a resilient catch-up check. The cron now checks every day whether a `BIRTHDAY_MONTHLY` post exists for the current month (by matching the month name in the JSON content and `createdAt >= start of month`). If none exists, it creates one immediately. This ensures the monthly celebrants post is never missed due to server downtime, reboots, or cron failures on the 1st of the month.
+
 ## [v2.24.26] — 2026-06-10
 ### Changed
 - **StewardShop Pretty Links**: Removed the numeric listing ID suffix from the direct share links (e.g. `https://hgfapp.link/s/rockford-mixer` instead of `https://hgfapp.link/s/rockford-mixer-21`).
