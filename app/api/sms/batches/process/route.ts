@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const logs: string[] = [];
-    const BATCH_SIZE = 10;
+    const BATCH_SIZE = 500;
     const currentTime = new Date();
 
     // Step 0: Reset stuck processing batches (older than 10 minutes)
@@ -124,8 +124,8 @@ export async function POST(request: NextRequest) {
         failCount++;
       }
 
-      // Add a 1 second delay between messages (as in legacy PHP script)
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Small delay to prevent local socket congestion
+      await new Promise((resolve) => setTimeout(resolve, 50));
     }
 
     // Step 4: Check if batch is completely finished (no more pending recipients in the entire database for this batch)
