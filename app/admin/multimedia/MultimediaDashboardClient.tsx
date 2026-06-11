@@ -200,7 +200,7 @@ export default function MultimediaDashboardClient({
     const timeStr = event.startTime.includes("T")
       ? event.startTime.split("T")[1].slice(0, 8)
       : event.startTime;
-    const targetDate = new Date(`${dateStr}T${timeStr}`);
+    const targetDate = new Date(`${dateStr}T${timeStr}+08:00`);
 
     const updateCountdown = () => {
       const difference = targetDate.getTime() - Date.now();
@@ -382,12 +382,13 @@ export default function MultimediaDashboardClient({
 
   const fmtTime = (t: string) => {
     try {
-      const d = t.includes("T") ? new Date(t) : new Date(`1970-01-01T${t}`);
+      const timeWithZ = t.includes("T") ? (t.endsWith("Z") ? t : `${t}Z`) : `1970-01-01T${t}Z`;
+      const d = new Date(timeWithZ);
       return d.toLocaleTimeString("en-PH", {
         hour: "numeric",
         minute: "2-digit",
         hour12: true,
-        timeZone: "Asia/Manila",
+        timeZone: "UTC",
       });
     } catch {
       return t;

@@ -36,24 +36,37 @@ const fmtDate = (d: string) => {
   } catch { return d; }
 };
 
-const fmtTime = (t: string | null) => {
-  if (!t) return "";
+const parseToDate = (t: string | null): Date | null => {
+  if (!t) return null;
   try {
-    const d = t.includes("T") ? new Date(t) : new Date(`1970-01-01T${t}`);
-    if (isNaN(d.getTime())) return t.slice(0, 5);
-    return d.toLocaleTimeString("en-PH", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Manila" });
-  } catch { return t.slice(0, 5); }
+    if (t.includes("T")) {
+      const normalized = t.endsWith("Z") ? t : `${t}Z`;
+      const parsed = new Date(normalized);
+      if (!isNaN(parsed.getTime())) return parsed;
+    }
+    const match = t.match(/^(\d{2}):(\d{2})(?::(\d{2}))?$/);
+    if (match) {
+      const h = match[1];
+      const m = match[2];
+      const s = match[3] || "00";
+      return new Date(`1970-01-01T${h}:${m}:${s}Z`);
+    }
+    const fallback = new Date(t);
+    if (!isNaN(fallback.getTime())) return fallback;
+  } catch {}
+  return null;
+};
+
+const fmtTime = (t: string | null) => {
+  const d = parseToDate(t);
+  if (!d) return "";
+  return d.toLocaleTimeString("en-PH", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "UTC" });
 };
 
 const toHHMM = (t: string | null) => {
-  if (!t) return "";
-  try {
-    const d = t.includes("T") ? new Date(t) : new Date(`1970-01-01T${t}`);
-    if (isNaN(d.getTime())) return t.slice(0, 5);
-    return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Manila" });
-  } catch {
-    return t.slice(0, 5);
-  }
+  const d = parseToDate(t);
+  if (!d) return "";
+  return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "UTC" });
 };
 
 export default function AdminEventsClient({ events: initial }: { events: EventRow[] }) {

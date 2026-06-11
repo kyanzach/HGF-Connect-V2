@@ -60,11 +60,18 @@ export function getManilaTime(): Date {
 
 /** Format time in 12-hour format: "9:30 AM" */
 export function formatTime(time: Date | string): string {
-  const d = typeof time === "string" ? new Date(`1970-01-01T${time}`) : time;
+  let d: Date;
+  if (typeof time === "string") {
+    const timeWithZ = time.includes("T") ? (time.endsWith("Z") ? time : `${time}Z`) : `1970-01-01T${time}Z`;
+    d = new Date(timeWithZ);
+  } else {
+    d = time;
+  }
   return d.toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
+    timeZone: "UTC",
   });
 }
 

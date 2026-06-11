@@ -64,10 +64,16 @@ function fmtDate(d: string | Date) {
 
 function fmtTime(t: string | Date) {
   try {
-    const d = t instanceof Date ? t : new Date(t);
-    if (isNaN(d.getTime())) return String(t).slice(11, 16);
+    let d: Date;
+    if (t instanceof Date) {
+      d = t;
+    } else {
+      const timeWithZ = t.includes("T") ? (t.endsWith("Z") ? t : `${t}Z`) : `1970-01-01T${t}Z`;
+      d = new Date(timeWithZ);
+    }
+    if (isNaN(d.getTime())) return String(t).includes("T") ? String(t).slice(11, 16) : String(t).slice(0, 5);
     return d.toLocaleTimeString("en-PH", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "UTC" });
-  } catch { return String(t).slice(11, 16); }
+  } catch { return String(t).includes("T") ? String(t).slice(11, 16) : String(t).slice(0, 5); }
 }
 
 export default function ChurchClient({

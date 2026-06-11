@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.24.29] — 2026-06-11
+### Fixed
+- **Event Timezone and Offset Shifts**: Standardized event time parsing on the server with UTC indicators (`Z`) and event formatting in clients with `timeZone: "UTC"`, eliminating 8-hour timezone shifts in the Admin Dashboard event creation/editing modal.
+- **Multimedia Dashboard Countdown**: Locked target date countdown evaluations strictly to Manila Time (`+08:00` offset) to prevent clients outside UTC+8 from displaying wrong timer intervals.
+
 ## [v2.24.28] — 2026-06-11
 ### Added
 - **NTC & Itexmo Sender ID Approvals**: Official approval received from NTC and Itexmo for five branded Sender IDs: `HGF Connect`, `HGF Church`, `HGF Care`, `HGFMinistry`, and `HGF Youth`.

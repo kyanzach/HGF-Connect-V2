@@ -36,12 +36,16 @@ function fmtDate(d: string | Date) {
 }
 function fmtTime(t: string | Date) {
   try {
-    // Prisma returns time fields as full Date objects (or ISO strings like 1970-01-01T05:30:00.000Z)
-    // We can pass them directly to Date constructor — no wrapping needed
-    const d = t instanceof Date ? t : new Date(t);
-    if (isNaN(d.getTime())) return String(t).slice(11, 16); // fallback: slice HH:MM
+    let d: Date;
+    if (t instanceof Date) {
+      d = t;
+    } else {
+      const timeWithZ = t.includes("T") ? (t.endsWith("Z") ? t : `${t}Z`) : `1970-01-01T${t}Z`;
+      d = new Date(timeWithZ);
+    }
+    if (isNaN(d.getTime())) return String(t).includes("T") ? String(t).slice(11, 16) : String(t).slice(0, 5);
     return d.toLocaleTimeString("en-PH", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "UTC" });
-  } catch { return String(t).slice(11, 16); }
+  } catch { return String(t).includes("T") ? String(t).slice(11, 16) : String(t).slice(0, 5); }
 }
 
 type EventRow = {
