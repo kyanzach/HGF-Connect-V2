@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.24.31] — 2026-06-11
+### Fixed
+- **Header Display Name Truncation**: Redefined user name extraction to display only the first word of the user's first name in the header button (e.g. showing "Shalom" for "Shalom Love Joy E."). Refined style constraints (`maxWidth: 70`, `flexShrink: 1`) on the display name tag to prevent layout wrapping or overlapping on small viewports.
+- **Dynamic Event Feed Updates**: Implemented dynamic event detail backfilling inside GET `/api/posts`. Intercepts event posts (`EVENT` type) containing `[event:id]`, queries the database for the latest event parameters, and replaces the post title, dates, times, description, and cover photo dynamically, ensuring feed announcements stay in sync with event edits.
+
 ## [v2.24.30] — 2026-06-11
 ### Fixed
 - **Quiz Active Week Progression**: Resolved quiz week completion blocking logic. The active weekly quiz card now remains in `"🔥 ACTIVE WEEKLY QUIZ"` state throughout the sermon week (rather than immediately completing on first submission). Enabled `"Continue Playing"` and `"View Quiz Progress"` buttons linking to the active game page, letting users catch up or play new daily drip challenges.

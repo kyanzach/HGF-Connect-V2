@@ -187,9 +187,10 @@ export default function UnifiedHeader() {
   useNewNotifToast(handleToast);
 
   const user = session?.user as any;
-  const firstName   = user?.firstName || user?.name?.split(" ")[0] || "Guest";
-  const lastName    = user?.lastName  || "";
-  const fullName    = `${firstName} ${lastName}`.trim();
+  const rawFirstName = user?.firstName || user?.name || "Guest";
+  const firstName    = rawFirstName.trim().split(/\s+/)[0];
+  const lastName     = user?.lastName  || "";
+  const fullName     = `${user?.firstName || user?.name || "Guest"} ${lastName}`.trim().replace(/\s+/g, " ");
   const profilePic  = user?.profilePicture
     ? `/uploads/profile_pictures/${user.profilePicture}`
     : null;
@@ -280,7 +281,7 @@ export default function UnifiedHeader() {
                       : <span style={{ fontSize: "0.7rem", fontWeight: 800, color: "white" }}>{initials}</span>
                     }
                   </div>
-                  <span style={{ maxWidth: 80, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <span style={{ maxWidth: 70, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 1 }}>
                     {firstName}
                   </span>
                   <span style={{ fontSize: "0.6rem", opacity: 0.75 }}>▾</span>

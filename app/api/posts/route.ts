@@ -4,6 +4,23 @@ import { db } from "@/lib/db";
 import { PostType, type Prisma } from "@prisma/client";
 import { notifyAllMembers } from "@/lib/notify";
 
+const formatTimeTo12Hour = (time: Date | string | null) => {
+  if (!time) return "";
+  let d: Date;
+  if (typeof time === "string") {
+    const timeWithZ = time.includes("T") ? (time.endsWith("Z") ? time : `${time}Z`) : `1970-01-01T${time}Z`;
+    d = new Date(timeWithZ);
+  } else {
+    d = time;
+  }
+  return d.toLocaleTimeString("en-PH", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "UTC",
+  });
+};
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const page = parseInt(searchParams.get("page") ?? "1");
@@ -84,8 +101,9 @@ export async function GET(request: Request) {
       db.post.count({ where }),
     ]);
 
-    // Fetch dynamic member details for daily/monthly birthday posts
+    // Fetch dynamic member details for daily/monthly birthday posts & event details for event posts
     const memberIds: number[] = [];
+    const eventIds: number[] = [];
     posts.forEach((post) => {
       if (post.type === PostType.BIRTHDAY_DAILY && post.content) {
         try {
@@ -103,6 +121,13 @@ export async function GET(request: Request) {
                 memberIds.push(c.id);
               }
             });
+          }
+        } catch {}
+      } else if (post.type === PostType.EVENT && post.content) {
+        try {
+          const match = post.content.match(/\[event:(\d+)\]/);
+          if (match) {
+            eventIds.push(parseInt(match[1]));
           }
         } catch {}
       }
@@ -123,9 +148,56 @@ export async function GET(request: Request) {
       memberMap = new Map(members.map((m) => [m.id, m]));
     }
 
+    let eventMap = new Map<number, any>();
+    if (eventIds.length > 0) {
+      const events = await db.event.findMany({
+        where: { id: { in: [...new Set(eventIds)] } },
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          eventDate: true,
+          startTime: true,
+          endTime: true,
+          location: true,
+          coverPhoto: true,
+        },
+      });
+      eventMap = new Map(events.map((e) => [e.id, e]));
+    }
+
     const postsWithLiked = posts.map((p: any) => {
       let updatedContent = p.content;
-      if (p.type === PostType.BIRTHDAY_DAILY && p.content) {
+      let updatedImageUrl = p.imageUrl;
+      if (p.type === PostType.EVENT && p.content) {
+        try {
+          const match = p.content.match(/\[event:(\d+)\]/);
+          if (match) {
+            const eventId = parseInt(match[1]);
+            const dbEvent = eventMap.get(eventId);
+            if (dbEvent) {
+              const eventDateFormatted = new Date(dbEvent.eventDate).toLocaleDateString("en-PH", {
+                weekday: "long", month: "long", day: "numeric", year: "numeric",
+                timeZone: "UTC",
+              });
+              const timeStartFormatted = formatTimeTo12Hour(dbEvent.startTime);
+              const timeEndFormatted = dbEvent.endTime ? formatTimeTo12Hour(dbEvent.endTime) : "";
+
+              const feedContent = [
+                `📅 New Event: ${dbEvent.title}`,
+                `🗓️ ${eventDateFormatted}`,
+                `🕒 ${timeStartFormatted}${timeEndFormatted ? ` – ${timeEndFormatted}` : ""}`,
+                dbEvent.location ? `📍 ${dbEvent.location}` : null,
+                dbEvent.description ? `\n${dbEvent.description}` : null,
+                `\n[event:${dbEvent.id}]`,
+              ].filter(Boolean).join("\n");
+
+              updatedContent = feedContent;
+              updatedImageUrl = dbEvent.coverPhoto ? `uploads/events/${dbEvent.coverPhoto}` : null;
+            }
+          }
+        } catch {}
+      } else if (p.type === PostType.BIRTHDAY_DAILY && p.content) {
         try {
           const data = JSON.parse(p.content);
           if (data && typeof data.memberId === "number") {
@@ -179,6 +251,7 @@ export async function GET(request: Request) {
       return {
         ...p,
         content: updatedContent,
+        imageUrl: updatedImageUrl,
         isLiked: !!myLike,
         likedType: myLike ? myLike.type : null,
       };
