@@ -33,8 +33,10 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 
   const baseUrl = "https://connect.houseofgrace.ph";
   const imageUrl = listing.photos[0]
-    ? `${baseUrl}/uploads/marketplace/${listing.photos[0].photoPath}`
+    ? `${baseUrl}/api/marketplace/image/${listing.photos[0].photoPath}`
     : `${baseUrl}/stewardshop_default_og.png`;
+
+  const imageType = listing.photos[0] ? "image/jpeg" : "image/png";
 
   const cleanedDesc = cleanDescription(listing.description).slice(0, 160) || "Listed on HGF Connect Marketplace";
 
@@ -58,7 +60,14 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
           title: `${sharerName} has shared this discounted ${listing.title}: ${priceStr}`,
           description: `${sharerName} thinks you'll be interested and wanted to share this discount with you.`,
           type: "website",
-          images: [imageUrl],
+          images: [
+            {
+              url: imageUrl,
+              width: 1200,
+              type: imageType,
+            }
+          ],
+          url: `${baseUrl}/stewardshop/${id}?ref=${ref}`,
         },
       };
     }
@@ -72,7 +81,14 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
       title: listing.title,
       description: cleanedDesc,
       type: "website",
-      images: [imageUrl],
+      images: [
+        {
+          url: imageUrl,
+          width: 1200,
+          type: imageType,
+        }
+      ],
+      url: `${baseUrl}/stewardshop/${id}`,
     },
   };
 }

@@ -25,6 +25,7 @@ Next.js 16 (App Router) + TypeScript + Prisma (MySQL) + PM2. Server: DO Droplet 
 11. Always update `CHANGELOG.md` and bump `package.json` version before every commit — patch for fixes, minor for features, major for breaking changes
 12. NEVER use native system dialogs** (`alert()`, `confirm()`, `prompt()`) — use modals instead
 13. Avoid mobile bottom-dock overlap: Always toggle the `hgf-modal-open` class on `document.body` when mounting/unmounting or opening/closing bottom sheets (like reactions or comments modals).
+14. Never use protocols (http, https, //) or www in URLs inside SMS messages as telcos restrict them. Use clean prefixes starting with connect.houseofgrace.ph/ (e.g. connect.houseofgrace.ph/login).
 
 ## Schema Gotchas
 - `@db.Time` fields → Prisma returns ISO strings like `1970-01-01T01:05:00.000Z`, use `toHHMM()` / `fmtTime()`

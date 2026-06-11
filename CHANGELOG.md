@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.24.33] — 2026-06-11
+### Fixed
+- **StewardShop Sharing OG Images**: Added an on-the-fly image conversion endpoint (`app/api/marketplace/image/[filename]/route.ts`) to convert WebP upload images to JPEG format for social media crawler requests.
+- **Open Graph Metadata**: Added missing `og:url` property and specified image type/dimensions (`image/jpeg`, `1200` width) in listing details metadata generation (`app/(public)/stewardshop/[id]/page.tsx`) to resolve Meta/Facebook Sharing Debugger warnings and fix missing link preview images.
+
 ## [v2.24.32] — 2026-06-11
 ### Added
 - **Feed Auto-Refresh & Floating Indicator**: Implemented a hybrid auto-refresh system for the community feed. Silent background polling check runs every 20 seconds; if new posts are found, a floating slide-down pill (`"✨ New Posts Available"`) displays if the user is scrolled down ($>180\text{px}$). Clicking the pill scrolls the viewport to the top and reloads the feed. If the user is already near the top ($<180\text{px}$) or manually scrolls back to the top, the feed automatically refreshes cleanly in the background.
