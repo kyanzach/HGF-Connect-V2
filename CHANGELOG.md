@@ -5,9 +5,13 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.27.3] — 2026-06-13
+### Fixed
+- **Restored Branded Sender IDs**: Removed the temporary `MASKPRO` override and restored the default dynamic branded Sender ID routing (e.g. `HGF Connect` for OTPs, `HGF Church` for general alerts), confirming that all five branded masks are fully registered, approved, and delivering successfully.
+
 ## [v2.27.2] — 2026-06-13
 ### Fixed
-- **Approved Sender ID Configuration**: Configured the SMS module to prioritize the `ITEXMO_SENDER_ID` environment variable (configured to `MASKPRO` in the production environment). This prevents carriers and iTexMo from silently discarding recovery OTP SMS messages due to unapproved custom sender masks (e.g. "HGF Connect").
+- **Approved Sender ID Configuration**: Added support for overriding the default Sender ID using the `ITEXMO_SENDER_ID` environment variable for flexible environment overrides.
 
 ## [v2.27.1] — 2026-06-13
 ### Fixed
