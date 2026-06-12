@@ -56,6 +56,7 @@ export default function AdminSidebar({ session }: { session: Session }) {
         position: "sticky",
         top: 0,
         overflow: "hidden",
+        paddingTop: "env(safe-area-inset-top, 0px)",
       }}
     >
       {/* Logo */}
