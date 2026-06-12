@@ -189,6 +189,35 @@ export default function MemberQuizPage() {
               "{day.feedback}"
             </div>
           )}
+
+          {(day as any).correctAnswer && (
+            <div style={{
+              background: "#f0fdf4",
+              borderLeft: "3px solid #16a34a",
+              padding: "10px 12px",
+              borderRadius: "0 8px 8px 0",
+              fontSize: "0.85rem",
+              color: "#166534",
+            }}>
+              <strong style={{ display: "block", fontSize: "0.78rem", textTransform: "uppercase", letterSpacing: "0.05em", color: "#15803d", marginBottom: "6px" }}>
+                🔑 Correct Verse Order (Pastors & Admins Only):
+              </strong>
+              {day.type === "SCRIPTURE_ORDERING" ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  {(day as any).correctAnswer.split(" | ").map((seg: string, sIdx: number) => (
+                    <div key={sIdx} style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                      <span style={{ display: "inline-flex", width: "20px", height: "20px", background: "#dcfce7", color: "#166534", borderRadius: "50%", alignItems: "center", justifyContent: "center", fontSize: "0.75rem", fontWeight: 700, flexShrink: 0 }}>
+                        {sIdx + 1}
+                      </span>
+                      <span style={{ fontWeight: 600 }}>{seg}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <span style={{ fontWeight: 600 }}>{(day as any).correctAnswer}</span>
+              )}
+            </div>
+          )}
         </div>
       );
 

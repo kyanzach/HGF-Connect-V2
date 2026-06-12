@@ -21,6 +21,16 @@ export async function GET(request: Request) {
   const memberId = parseInt(session.user.id, 10);
   if (isNaN(memberId)) return NextResponse.json({ error: "Invalid session" }, { status: 401 });
 
+  // Check if user is admin or pastor (moderator role, admin role, or Pastoral Ministry 11)
+  const role = session.user.role;
+  let isAdminOrPastor = role === "admin" || role === "moderator";
+  if (!isAdminOrPastor) {
+    const pm = await db.memberMinistry.findFirst({
+      where: { memberId, ministryId: 11, status: "active" },
+    });
+    isAdminOrPastor = !!pm;
+  }
+
   const { searchParams } = new URL(request.url);
   const quizIdParam = searchParams.get("quizId");
   const quizId = quizIdParam ? parseInt(quizIdParam, 10) : null;
@@ -38,6 +48,7 @@ export async function GET(request: Request) {
                 dayNumber: true,
                 questionType: true,
                 questionText: true,
+                correctAnswer: true,
               },
             },
             rewardItems: true,
@@ -55,6 +66,7 @@ export async function GET(request: Request) {
                 dayNumber: true,
                 questionType: true,
                 questionText: true,
+                correctAnswer: true,
               },
             },
             rewardItems: true,
@@ -125,6 +137,7 @@ export async function GET(request: Request) {
         score: sub?.score ?? null,
         isCorrect: sub?.isCorrect ?? null,
         feedback: sub?.aiFeedback ?? null,
+        correctAnswer: isAdminOrPastor ? q.correctAnswer : null,
       };
     });
 

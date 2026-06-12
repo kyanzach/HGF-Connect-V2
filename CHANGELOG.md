@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.26.5] — 2026-06-13
+### Added
+- **Pastors & Admins Answer Reveal**: Configured `api/quiz/status` to conditionally fetch and expose correct answers ONLY to administrators and active pastoral staff. Added a secure green panel inside the completed challenge information modal in the frontend that reveals the correct draggable verse sequence for SCRIPTURE_ORDERING (Verse Builder) challenges.
+
 ## [v2.26.4] — 2026-06-13
 ### Added
 - **Local OCR Fallback for Flattened Slide Decks**: Configured `presentationProcessor.ts` to automatically detect flattened slide presentations containing no native text layers (e.g. rasterized PDF/PPTX). Added local OCR processing via Tesseract.js to extract text from slide image frames on the server, ensuring accurate AI spiritual takeaways and commentaries are generated without requiring vision APIs.
