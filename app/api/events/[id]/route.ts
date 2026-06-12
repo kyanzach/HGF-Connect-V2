@@ -44,6 +44,7 @@ export async function PATCH(
     presentationOriginalName,
     presentationSlides,
     speaker,
+    commentary,
   } = body;
 
   const updated = await db.event.update({
@@ -62,6 +63,7 @@ export async function PATCH(
       ...(presentationOriginalName !== undefined && { presentationOriginalName }),
       ...(presentationSlides !== undefined && { presentationSlides }),
       ...(speaker !== undefined && { speaker: speaker || null }),
+      ...(commentary !== undefined && { commentary: commentary || null }),
     },
   });
   return NextResponse.json({ success: true, event: updated });

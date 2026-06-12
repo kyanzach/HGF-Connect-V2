@@ -26,6 +26,7 @@ type EventRow = {
   presentationSlides: string[] | any | null;
   creator: { firstName: string; lastName: string } | null;
   speaker: string | null;
+  commentary: string | null;
 };
 
 const fmtDate = (d: string) => {
@@ -78,7 +79,7 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
   const [typeFilter, setTypeFilter] = useState("all");
   const [form, setForm] = useState({
     title: "", description: "", eventDate: "", startTime: "", endTime: "", location: "", eventType: "sunday_service", status: "scheduled", coverPhoto: "",
-    presentationFile: "", presentationOriginalName: "", presentationSlides: [] as string[], speaker: "",
+    presentationFile: "", presentationOriginalName: "", presentationSlides: [] as string[], speaker: "", commentary: "",
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const presInputRef = useRef<HTMLInputElement>(null);
@@ -146,7 +147,7 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
   function openAdd() { 
     setEditing(null); 
     setErr("");
-    setForm({ title: "", description: "", eventDate: "", startTime: "", endTime: "", location: "", eventType: "sunday_service", status: "scheduled", coverPhoto: "", presentationFile: "", presentationOriginalName: "", presentationSlides: [], speaker: "" }); 
+    setForm({ title: "", description: "", eventDate: "", startTime: "", endTime: "", location: "", eventType: "sunday_service", status: "scheduled", coverPhoto: "", presentationFile: "", presentationOriginalName: "", presentationSlides: [], speaker: "", commentary: "" }); 
     setShowModal(true); 
   }
   
@@ -167,6 +168,7 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
       presentationOriginalName: ev.presentationOriginalName ?? "",
       presentationSlides: (ev.presentationSlides as string[]) ?? [],
       speaker: ev.speaker ?? "",
+      commentary: ev.commentary ?? "",
     });
     setShowModal(true);
   }
@@ -196,6 +198,7 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
             presentationFile: job.result.presentationFile,
             presentationOriginalName: job.result.presentationOriginalName,
             presentationSlides: job.result.presentationSlides,
+            commentary: job.result.commentary || f.commentary,
           }));
           complete = true;
         } else if (job.status === "failed") {
@@ -246,6 +249,7 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
         presentationOriginalName: form.presentationOriginalName || null,
         presentationSlides: form.presentationSlides.length > 0 ? form.presentationSlides : null,
         speaker: form.speaker || null,
+        commentary: form.commentary || null,
       };
       
       const res = await fetch(url, { 
@@ -339,6 +343,8 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
                 <input required style={inp} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></div>
               <div style={{ marginTop: "0.75rem" }}><label style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b" }}>Description</label>
                 <textarea style={{ ...inp, resize: "none" }} rows={2} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} /></div>
+              <div style={{ marginTop: "0.75rem" }}><label style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b" }}>Sermon Commentary & Takeaways (Markdown supported)</label>
+                <textarea style={{ ...inp, resize: "vertical" }} rows={4} value={form.commentary} onChange={e => setForm(f => ({ ...f, commentary: e.target.value }))} placeholder="AI generated summary, takeaways, and reflections will populate here..." /></div>
               <div style={half}>
                 <div><label style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b" }}>Date *</label>
                   <input required type="date" style={inp} value={form.eventDate} onChange={e => setForm(f => ({ ...f, eventDate: e.target.value }))} /></div>

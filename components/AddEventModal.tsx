@@ -25,6 +25,7 @@ export default function AddEventModal({ open, onClose }: Props) {
     title: "", description: "", eventDate: "", startTime: "", endTime: "",
     location: "", eventType: "sunday_service", coverPhoto: "", speaker: "",
     presentationFile: "", presentationOriginalName: "", presentationSlides: [] as string[],
+    commentary: "",
   });
   const fileRef = useRef<HTMLInputElement>(null);
   const presInputRef = useRef<HTMLInputElement>(null);
@@ -111,6 +112,7 @@ export default function AddEventModal({ open, onClose }: Props) {
             presentationFile: job.result.presentationFile,
             presentationOriginalName: job.result.presentationOriginalName,
             presentationSlides: job.result.presentationSlides,
+            commentary: job.result.commentary || f.commentary,
           }));
           complete = true;
         } else if (job.status === "failed") {
@@ -137,6 +139,7 @@ export default function AddEventModal({ open, onClose }: Props) {
       presentationOriginalName: form.presentationOriginalName || null,
       presentationSlides: form.presentationSlides.length > 0 ? form.presentationSlides : null,
       speaker: form.speaker || null,
+      commentary: form.commentary || null,
     };
     try {
       const res = await fetch("/api/events", {
@@ -171,6 +174,8 @@ export default function AddEventModal({ open, onClose }: Props) {
             <input required style={inp} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></div>
           <div style={{ marginTop: "0.75rem" }}><label style={lbl}>Description</label>
             <textarea style={{ ...inp, resize: "none" }} rows={2} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} /></div>
+          <div style={{ marginTop: "0.75rem" }}><label style={lbl}>Sermon Commentary & Takeaways (Markdown supported)</label>
+            <textarea style={{ ...inp, resize: "vertical" }} rows={4} value={form.commentary} onChange={e => setForm(f => ({ ...f, commentary: e.target.value }))} placeholder="AI generated summary, takeaways, and reflections will populate here..." /></div>
           <div style={half}>
             <div><label style={lbl}>Date *</label>
               <input required type="date" style={inp} value={form.eventDate} onChange={e => setForm(f => ({ ...f, eventDate: e.target.value }))} /></div>

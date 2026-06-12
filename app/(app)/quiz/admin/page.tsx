@@ -47,14 +47,20 @@ export default function QuizAdminPage() {
   const [genProgress, setGenProgress] = useState(0);
   const [genFootnote, setGenFootnote] = useState("");
 
+  // Searchable select dropdown state
+  const [allEvents, setAllEvents] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     setLoadingEvent(true);
+    // Fetch latest Sunday for initial default selection
     fetch("/api/quiz/admin/latest-sunday")
       .then((res) => res.json())
       .then((data) => {
         if (data && data.id) {
           setLinkedEvent(data);
-          // Format eventDate (YYYY-MM-DD) for API compatibility
           const d = new Date(data.eventDate);
           const yyyy = d.getFullYear();
           const mm = String(d.getMonth() + 1).padStart(2, "0");
@@ -70,7 +76,42 @@ export default function QuizAdminPage() {
         setSermonDate("");
       })
       .finally(() => setLoadingEvent(false));
+
+    // Fetch all events for the dropdown list
+    fetch("/api/quiz/admin/events")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setAllEvents(data);
+        }
+      })
+      .catch((err) => console.error("Failed to load events list", err));
   }, []);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  function selectEvent(event: any) {
+    setLinkedEvent(event);
+    if (event) {
+      const d = new Date(event.eventDate);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      setSermonDate(`${yyyy}-${mm}-${dd}`);
+    } else {
+      setSermonDate("");
+    }
+    setDropdownOpen(false);
+    setSearchQuery("");
+  }
 
   // ── Alert state ──
   const [alertModal, setAlertModal] = useState<{
@@ -571,22 +612,144 @@ export default function QuizAdminPage() {
           ✨ Create New Quiz Week
         </div>
 
-        <div style={{ marginTop: "16px", padding: "14px", borderRadius: "12px", background: "#f8fafc", border: "1px dashed #cbd5e1" }}>
-          <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>
-            🔗 Automatically Linked Event (Sunday Gating)
+        <div ref={dropdownRef} style={{ marginTop: "16px", position: "relative" }}>
+          <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>
+            🔗 Linked Event (Sunday Gating & Slides)
           </span>
-          {loadingEvent ? (
-            <p style={{ margin: "4px 0 0", fontSize: "0.9rem", color: "#64748b" }}>Loading nearest Sunday Service event...</p>
-          ) : linkedEvent ? (
-            <div style={{ marginTop: "6px" }}>
-              <strong style={{ fontSize: "0.95rem", color: "#0f172a", display: "block" }}>{linkedEvent.title}</strong>
-              <span style={{ fontSize: "0.8rem", color: "#4EB1CB", fontWeight: 700 }}>
-                📅 Event Date: {new Date(linkedEvent.eventDate).toLocaleDateString()}
-              </span>
+          <button
+            type="button"
+            onClick={() => setDropdownOpen(!dropdownOpen)}
+            style={{
+              width: "100%",
+              textAlign: "left",
+              padding: "12px 14px",
+              borderRadius: "10px",
+              border: "1.5px solid #cbd5e1",
+              background: "#fff",
+              fontSize: "0.95rem",
+              fontWeight: 600,
+              color: linkedEvent ? "#0f172a" : "#64748b",
+              cursor: "pointer",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <span>
+              {linkedEvent ? (
+                <>
+                  {linkedEvent.title}{" "}
+                  <span style={{ fontSize: "0.8rem", color: "#4EB1CB", fontWeight: 700, marginLeft: "8px" }}>
+                    ({new Date(linkedEvent.eventDate).toLocaleDateString()})
+                  </span>
+                </>
+              ) : (
+                "Choose an event to link..."
+              )}
+            </span>
+            <span>{dropdownOpen ? "▲" : "▼"}</span>
+          </button>
+
+          {dropdownOpen && (
+            <div
+              style={{
+                position: "absolute",
+                top: "100%",
+                left: 0,
+                right: 0,
+                background: "#fff",
+                border: "1.5px solid #cbd5e1",
+                borderRadius: "10px",
+                marginTop: "4px",
+                zIndex: 100,
+                boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
+                padding: "8px",
+              }}
+            >
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by title, speaker, or date..."
+                style={{
+                  ...S.input,
+                  background: "#fff",
+                  border: "1px solid #cbd5e1",
+                  marginBottom: "8px",
+                  padding: "8px 12px",
+                }}
+                autoFocus
+              />
+              <div style={{ maxHeight: "200px", overflowY: "auto" }}>
+                {allEvents.filter((ev) => {
+                  const query = searchQuery.toLowerCase();
+                  const titleMatch = ev.title.toLowerCase().includes(query);
+                  const dateMatch = new Date(ev.eventDate).toLocaleDateString().toLowerCase().includes(query);
+                  const speakerMatch = ev.speaker ? ev.speaker.toLowerCase().includes(query) : false;
+                  return titleMatch || dateMatch || speakerMatch;
+                }).length === 0 ? (
+                  <div style={{ padding: "8px", color: "#64748b", fontSize: "0.9rem" }}>No events found</div>
+                ) : (
+                  allEvents.filter((ev) => {
+                    const query = searchQuery.toLowerCase();
+                    const titleMatch = ev.title.toLowerCase().includes(query);
+                    const dateMatch = new Date(ev.eventDate).toLocaleDateString().toLowerCase().includes(query);
+                    const speakerMatch = ev.speaker ? ev.speaker.toLowerCase().includes(query) : false;
+                    return titleMatch || dateMatch || speakerMatch;
+                  }).map((ev) => {
+                    const slides = ev.presentationSlides;
+                    const slideCount = slides
+                      ? (Array.isArray(slides)
+                          ? slides.length
+                          : JSON.parse(JSON.stringify(slides)).length || 0)
+                      : 0;
+                    return (
+                      <div
+                        key={ev.id}
+                        onClick={() => selectEvent(ev)}
+                        style={{
+                          padding: "8px 12px",
+                          borderRadius: "6px",
+                          cursor: "pointer",
+                          background: linkedEvent?.id === ev.id ? "#eff6ff" : "transparent",
+                          transition: "background 0.2s",
+                        }}
+                        onMouseEnter={(e) => {
+                          if (linkedEvent?.id !== ev.id) e.currentTarget.style.background = "#f1f5f9";
+                        }}
+                        onMouseLeave={(e) => {
+                          if (linkedEvent?.id !== ev.id) e.currentTarget.style.background = "transparent";
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontWeight: 600, fontSize: "0.9rem", color: "#1e293b" }}>{ev.title}</span>
+                          <span style={{ fontSize: "0.75rem", color: "#64748b" }}>
+                            {new Date(ev.eventDate).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: "0.8rem", color: slideCount > 0 ? "#48BB78" : "#94a3b8", display: "flex", alignItems: "center", gap: "4px", marginTop: "2px" }}>
+                          {slideCount > 0 ? (
+                            <>📽️ Slides: Yes ({slideCount} slides)</>
+                          ) : (
+                            <>📽️ Slides: None</>
+                          )}
+                          {ev.speaker && <span style={{ color: "#64748b" }}>• Speaker: {ev.speaker}</span>}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </div>
-          ) : (
+          )}
+          {linkedEvent && (
+            <div style={{ marginTop: "6px", fontSize: "0.82rem", color: "#64748b" }}>
+              Selected: <strong style={{ color: "#0f172a" }}>{linkedEvent.title}</strong> on {new Date(linkedEvent.eventDate).toLocaleDateString()}
+            </div>
+          )}
+          {!linkedEvent && !loadingEvent && (
             <p style={{ margin: "4px 0 0", fontSize: "0.9rem", color: "#ef4444", fontWeight: 600 }}>
-              ⚠️ No physical Sunday Service event found! Gating will be disabled.
+              ⚠️ No event linked! Please select an event to link slides and enable gating.
             </p>
           )}
         </div>

@@ -5,6 +5,13 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.26.0] — 2026-06-13
+### Added
+- **Sermon Slides & AI Commentary Integration**: Integrated text extraction via `pdf-parse` and automated sermon commentary generation via Straico AI (`gpt-4o-mini`). Slide optimization transforms decks into progressive WebP slides and outputs a Markdown spiritual takeaway summary.
+- **Tabbed Member Quiz Study Guide**: Implemented tabs on the Quiz page (`📺 Livestream Replay` and `📽️ Sermon Slides`) showing the sermon's AI reflection summary, a 16:9 widescreen slide carousel, thumbnail strip, lightbox zoom, and deck downloads.
+- **Searchable Quiz Admin Event Linker**: Replaced the static latest-sunday card with a searchable select dropdown in the Quiz Admin page. Admins can search and select past events showing slide counts to link to the week's quiz.
+- **Sermon Resources Directory**: Created a public `/resources` page listing all past sermons containing presentation slide files, complete with search filtering and carousel previews.
+
 ## [v2.25.0] — 2026-06-11
 ### Added
 - **SMS Centralization & Proxy Integration**: Centralized all SMS sending credentials and broadcast APIs from the legacy PHP app (`app.houseofgrace.ph`) to the Next.js Connect app (`connect.houseofgrace.ph`).

@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
       presentationOriginalName,
       presentationSlides,
       speaker,
+      commentary,
     } = body;
 
     if (!title || !eventDate || !startTime || !eventType) {
@@ -84,6 +85,7 @@ export async function POST(request: NextRequest) {
         presentationOriginalName: presentationOriginalName ?? null,
         presentationSlides: presentationSlides ?? null,
         speaker: speaker || null,
+        commentary: commentary || null,
       },
     });
 

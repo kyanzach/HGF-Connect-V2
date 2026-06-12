@@ -5,6 +5,8 @@ import fs from "fs/promises";
 import sharp from "sharp";
 import pptxgen from "pptxgenjs";
 import { randomUUID } from "crypto";
+import axios from "axios";
+import pdfParse from "pdf-parse";
 
 const execAsync = promisify(exec);
 
@@ -12,6 +14,7 @@ export interface ProcessedPresentation {
   presentationFile: string;
   presentationOriginalName: string;
   presentationSlides: string[];
+  commentary?: string | null;
 }
 
 export async function processPresentation(
@@ -36,7 +39,6 @@ export async function processPresentation(
     // 1. If it's a PPTX file, convert it to PDF first using headless LibreOffice
     if (ext === ".pptx") {
       onProgress?.(15, "Converting presentation to PDF...");
-      const tempPdfName = `converted-${uuid}.pdf`;
       await execAsync(
         `soffice --headless --convert-to pdf --outdir "${tempDir}" "${filePath}"`
       );
@@ -50,8 +52,66 @@ export async function processPresentation(
       pdfPath = path.join(tempDir, convertedPdfFile);
     }
 
+    // 1.5 Extract text from the PDF file using pdf-parse and generate AI commentary
+    let commentary: string | null = null;
+    try {
+      onProgress?.(30, "Extracting sermon text for AI commentary...");
+      const pdfBuffer = await fs.readFile(pdfPath);
+      const pdfData = await pdfParse(pdfBuffer);
+      const extractedText = pdfData.text || "";
+
+      if (extractedText.trim().length > 10) {
+        onProgress?.(35, "Generating AI sermon commentary...");
+        
+        const systemPrompt = `You are HGF Connect AI, a devoted pastoral assistant for House of Grace Fellowship.
+Analyze the following extracted text from the sermon slides.
+Create a beautiful, inspiring, and structured commentary/blog post about this sermon/resources.
+
+Provide:
+1. Title: An engaging, faith-filled title.
+2. Overview: A warm, 2-3 sentence summary of the core message.
+3. Key Takeaway Lessons: 3-4 bullet points highlighting the main spiritual lessons.
+4. Reflection Questions: 2-3 questions for personal reflection or group study.
+
+FORMAT: Respond in clean, standard Markdown (no JSON wrapper, no markdown code fences like \`\`\`markdown, just the raw markdown content directly).
+Keep the tone encouraging, warm, and faith-based (in standard English, but friendly to a Filipino church audience).`;
+
+        const prompt = `${systemPrompt}\n\nExtracted Sermon Content:\n"${extractedText}"`;
+
+        const straicoModel = process.env.STRAICO_MODEL || "openai/gpt-4o-mini";
+        const response = await axios.post(
+          "https://api.straico.com/v1/prompt/completion",
+          {
+            models: [straicoModel],
+            message: prompt,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${process.env.STRAICO_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            timeout: 25000,
+          }
+        );
+
+        const completions = response.data?.data?.completions;
+        const rawReply =
+          completions?.[straicoModel]?.completion?.choices?.[0]?.message?.content ||
+          response.data?.completion?.choices?.[0]?.message?.content ||
+          response.data?.data?.completion?.choices?.[0]?.message?.content ||
+          "";
+
+        if (rawReply) {
+          commentary = rawReply.replace(/```markdown\n?|```html\n?|```\n?/g, "").trim();
+        }
+      }
+    } catch (err) {
+      console.error("Failed to extract text or generate AI commentary:", err);
+      // Fail gracefully so optimization continues
+    }
+
     // 2. Convert PDF pages to JPEGs using pdftoppm
-    onProgress?.(40, "Extracting pages as slide images...");
+    onProgress?.(45, "Extracting pages as slide images...");
     const pagePrefix = path.join(tempDir, "page");
     await execAsync(`pdftoppm -jpeg -r 150 "${pdfPath}" "${pagePrefix}"`);
 
@@ -84,7 +144,7 @@ export async function processPresentation(
     let idx = 0;
     for (const file of jpegFiles) {
       idx++;
-      const percent = Math.floor(40 + (idx / jpegFiles.length) * 45);
+      const percent = Math.floor(45 + (idx / jpegFiles.length) * 45);
       onProgress?.(percent, `Compressing & optimizing slide ${idx} of ${jpegFiles.length}...`);
 
       const slideFilename = `${uuid}-slide-${String(file.pageNum).padStart(3, "0")}.jpg`;
@@ -115,7 +175,7 @@ export async function processPresentation(
     }
 
     // 5. Compile the new optimized PPTX presentation
-    onProgress?.(90, "Compiling final compressed slide deck...");
+    onProgress?.(92, "Compiling final compressed slide deck...");
     const pptxFilename = `${uuid}-compressed.pptx`;
     const pptxDestPath = path.join(uploadDir, pptxFilename);
     await pptx.writeFile({ fileName: pptxDestPath });
@@ -125,6 +185,7 @@ export async function processPresentation(
       presentationFile: `/uploads/presentations/${pptxFilename}`,
       presentationOriginalName: originalName,
       presentationSlides: slidePaths,
+      commentary,
     };
   } finally {
     // 6. Clean up temporary files

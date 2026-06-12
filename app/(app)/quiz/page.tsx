@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation";
 import QuizPlayer from "@/components/quiz/QuizPlayer";
 import ConfirmModal from "@/components/ConfirmModal";
 import CleanYoutubePlayer from "@/components/quiz/CleanYoutubePlayer";
+import ImageLightbox from "@/components/ImageLightbox";
 
 const PRIMARY = "#4EB1CB";
 
@@ -44,6 +45,11 @@ interface QuizStatus {
     sermonDate: string;
     youtubeVideoId: string | null;
     status: string;
+    eventId?: number | null;
+    presentationFile?: string | null;
+    presentationSlides?: any | null;
+    commentary?: string | null;
+    speaker?: string | null;
   };
   days?: QuizDay[];
   currentDay?: number;
@@ -72,6 +78,11 @@ export default function MemberQuizPage() {
 
   const [loading, setLoading] = useState(true);
   const [quizStatus, setQuizStatus] = useState<QuizStatus | null>(null);
+
+  // Tab & Carousel states for Sermon Slides
+  const [activeTab, setActiveTab] = useState<"video" | "slides">("video");
+  const [activeSlide, setActiveSlide] = useState(0);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
   // ── Reward Claiming state ──
   const [claiming, setClaiming] = useState(false);
@@ -113,6 +124,18 @@ export default function MemberQuizPage() {
       loadStatus();
     }
   }, [authStatus, loadStatus]);
+
+  useEffect(() => {
+    if (quizStatus?.quiz) {
+      const slides = quizStatus.quiz.presentationSlides;
+      const hasSlides = slides && (Array.isArray(slides) ? slides.length : JSON.parse(JSON.stringify(slides)).length) > 0;
+      if (hasSlides && !quizStatus.quiz.youtubeVideoId) {
+        setActiveTab("slides");
+      } else {
+        setActiveTab("video");
+      }
+    }
+  }, [quizStatus]);
 
   async function handleStartDay(day: QuizDay) {
     if (day.status === "locked") return;
@@ -392,14 +415,221 @@ export default function MemberQuizPage() {
       )}
 
 
-      {quiz?.youtubeVideoId && (
-        <div style={{ background: "white", borderRadius: "20px", overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", marginBottom: "20px", padding: "12px" }}>
-          <h3 style={{ fontSize: "0.85rem", fontWeight: 800, color: "#475569", marginBottom: "8px", display: "flex", alignItems: "center", gap: "6px" }}>
-            📺 Sermon Study Guide
-          </h3>
-          <CleanYoutubePlayer videoId={quiz.youtubeVideoId} />
-        </div>
-      )}
+      {/* Tabs / Sermon Replay & Slides */}
+      {(() => {
+        const slides = quiz?.presentationSlides;
+        const slidesArray = slides
+          ? (Array.isArray(slides)
+              ? slides
+              : JSON.parse(JSON.stringify(slides)))
+          : [];
+        const hasSlides = slidesArray.length > 0;
+
+        if (!quiz?.youtubeVideoId && !hasSlides) return null;
+
+        return (
+          <div style={{ background: "white", borderRadius: "20px", overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", marginBottom: "20px", padding: "16px" }}>
+            <h3 style={{ fontSize: "0.85rem", fontWeight: 800, color: "#475569", marginBottom: "14px", display: "flex", alignItems: "center", gap: "6px" }}>
+              📖 Sermon Study Guide
+            </h3>
+
+            {hasSlides && quiz?.youtubeVideoId && (
+              <div style={{ display: "flex", gap: "8px", background: "#f1f5f9", borderRadius: "10px", padding: "4px", marginBottom: "16px" }}>
+                <button
+                  onClick={() => setActiveTab("video")}
+                  style={{
+                    flex: 1,
+                    padding: "8px 12px",
+                    borderRadius: "8px",
+                    border: "none",
+                    fontSize: "0.85rem",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    background: activeTab === "video" ? "#fff" : "transparent",
+                    color: activeTab === "video" ? "#0f172a" : "#64748b",
+                    boxShadow: activeTab === "video" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  📺 Livestream Replay
+                </button>
+                <button
+                  onClick={() => setActiveTab("slides")}
+                  style={{
+                    flex: 1,
+                    padding: "8px 12px",
+                    borderRadius: "8px",
+                    border: "none",
+                    fontSize: "0.85rem",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    background: activeTab === "slides" ? "#fff" : "transparent",
+                    color: activeTab === "slides" ? "#0f172a" : "#64748b",
+                    boxShadow: activeTab === "slides" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  📽️ Sermon Slides
+                </button>
+              </div>
+            )}
+
+            {activeTab === "video" && quiz?.youtubeVideoId ? (
+              <CleanYoutubePlayer videoId={quiz.youtubeVideoId} />
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                {/* Commentary Text */}
+                {quiz?.commentary && (
+                  <div style={{ background: "#f8fafc", borderRadius: "12px", padding: "16px", border: "1px solid #edf2f7", fontSize: "0.9rem", color: "#334155", maxHeight: "250px", overflowY: "auto" }}>
+                    <span style={{ fontSize: "0.72rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase", display: "block", marginBottom: "8px", letterSpacing: "0.05em" }}>
+                      📝 Sermon Commentary & Takeaways
+                    </span>
+                    {renderFormattedCommentary(quiz.commentary)}
+                  </div>
+                )}
+
+                {/* Slide Carousel (Below Text) */}
+                {slidesArray.length > 0 && (
+                  <div>
+                    <span style={{ fontSize: "0.72rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase", display: "block", marginBottom: "8px", letterSpacing: "0.05em" }}>
+                      📽️ Sermon Slide Deck ({slidesArray.length} Slides)
+                    </span>
+                    
+                    {/* Aspect Ratio 16:9 Frame */}
+                    <div style={{ position: "relative", width: "100%", paddingBottom: "56.25%", background: "#000", borderRadius: "12px", overflow: "hidden" }}>
+                      <img
+                        src={`/uploads/presentations/slides/${slidesArray[activeSlide]}`}
+                        alt={`Sermon slide ${activeSlide + 1}`}
+                        onClick={() => setLightboxSrc(`/uploads/presentations/slides/${slidesArray[activeSlide]}`)}
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "contain",
+                          cursor: "zoom-in",
+                        }}
+                      />
+
+                      {/* Slide controls overlay */}
+                      {slidesArray.length > 1 && (
+                        <>
+                          <button
+                            onClick={() => setActiveSlide((prev) => (prev > 0 ? prev - 1 : slidesArray.length - 1))}
+                            style={{
+                              position: "absolute",
+                              left: "8px",
+                              top: "50%",
+                              transform: "translateY(-50%)",
+                              background: "rgba(0,0,0,0.6)",
+                              color: "#fff",
+                              border: "none",
+                              width: "36px",
+                              height: "36px",
+                              borderRadius: "50%",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: "1.1rem",
+                              cursor: "pointer",
+                              zIndex: 10,
+                            }}
+                          >
+                            ◀
+                          </button>
+                          <button
+                            onClick={() => setActiveSlide((prev) => (prev < slidesArray.length - 1 ? prev + 1 : 0))}
+                            style={{
+                              position: "absolute",
+                              right: "8px",
+                              top: "50%",
+                              transform: "translateY(-50%)",
+                              background: "rgba(0,0,0,0.6)",
+                              color: "#fff",
+                              border: "none",
+                              width: "36px",
+                              height: "36px",
+                              borderRadius: "50%",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: "1.1rem",
+                              cursor: "pointer",
+                              zIndex: 10,
+                            }}
+                          >
+                            ▶
+                          </button>
+                        </>
+                      )}
+
+                      {/* Page Indicator Overlay */}
+                      <div style={{ position: "absolute", top: "8px", right: "8px", background: "rgba(0,0,0,0.6)", color: "#fff", padding: "4px 8px", borderRadius: "6px", fontSize: "0.72rem", fontWeight: 700 }}>
+                        Slide {activeSlide + 1} of {slidesArray.length}
+                      </div>
+                    </div>
+
+                    {/* Thumbnail Strip */}
+                    {slidesArray.length > 1 && (
+                      <div style={{ display: "flex", gap: "8px", overflowX: "auto", marginTop: "10px", paddingBottom: "6px", scrollBehavior: "smooth" }}>
+                        {slidesArray.map((slideName: string, i: number) => (
+                          <button
+                            key={i}
+                            onClick={() => setActiveSlide(i)}
+                            style={{
+                              flexShrink: 0,
+                              width: "80px",
+                              height: "45px",
+                              borderRadius: "6px",
+                              overflow: "hidden",
+                              border: activeSlide === i ? `2px solid ${PRIMARY}` : "2px solid transparent",
+                              padding: 0,
+                              background: "#000",
+                              cursor: "pointer",
+                            }}
+                          >
+                            <img
+                              src={`/uploads/presentations/slides/${slideName}`}
+                              alt={`Thumb ${i + 1}`}
+                              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Download Button */}
+                {quiz?.presentationFile && (
+                  <a
+                    href={quiz.presentationFile}
+                    download
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "8px",
+                      background: PRIMARY,
+                      color: "white",
+                      padding: "12px",
+                      borderRadius: "10px",
+                      textDecoration: "none",
+                      fontWeight: 700,
+                      fontSize: "0.88rem",
+                      boxShadow: `0 4px 10px ${PRIMARY}30`,
+                      textAlign: "center",
+                    }}
+                  >
+                    📥 Download Sermon Slide Deck (.pptx)
+                  </a>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Weekly Progress & Points */}
       <div style={{ background: "white", borderRadius: "20px", padding: "18px", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", marginBottom: "20px" }}>
@@ -729,6 +959,70 @@ export default function MemberQuizPage() {
         onConfirm={() => setInfoModal({ open: false, title: "", message: "" })}
         onCancel={() => setInfoModal({ open: false, title: "", message: "" })}
       />
+
+      {lightboxSrc && (
+        <ImageLightbox
+          src={lightboxSrc}
+          onClose={() => setLightboxSrc(null)}
+        />
+      )}
     </div>
   );
+}
+
+// ── Commentary Formatter Helpers ──
+function renderFormattedCommentary(text: string) {
+  if (!text) return null;
+  const lines = text.split("\n");
+  return lines.map((line, idx) => {
+    let cleanLine = line.trim();
+    if (!cleanLine) return <div key={idx} style={{ height: "12px" }} />;
+
+    if (cleanLine.startsWith("###")) {
+      return (
+        <h4 key={idx} style={{ fontSize: "0.95rem", fontWeight: 700, color: "#1e293b", marginTop: "14px", marginBottom: "6px" }}>
+          {cleanLine.replace("###", "").trim()}
+        </h4>
+      );
+    }
+    if (cleanLine.startsWith("##")) {
+      return (
+        <h3 key={idx} style={{ fontSize: "1.05rem", fontWeight: 800, color: "#0f172a", marginTop: "18px", marginBottom: "8px" }}>
+          {cleanLine.replace("##", "").trim()}
+        </h3>
+      );
+    }
+    if (cleanLine.startsWith("#")) {
+      return (
+        <h2 key={idx} style={{ fontSize: "1.2rem", fontWeight: 800, color: "#0f172a", marginTop: "22px", marginBottom: "10px" }}>
+          {cleanLine.replace("#", "").trim()}
+        </h2>
+      );
+    }
+
+    if (cleanLine.startsWith("* ") || cleanLine.startsWith("- ")) {
+      const bulletText = cleanLine.substring(2).trim();
+      return (
+        <li key={idx} style={{ marginLeft: "14px", marginBottom: "4px", fontSize: "0.85rem", color: "#475569", lineHeight: 1.45 }}>
+          {parseBoldText(bulletText)}
+        </li>
+      );
+    }
+
+    return (
+      <p key={idx} style={{ fontSize: "0.85rem", color: "#475569", lineHeight: 1.45, margin: "0 0 8px 0" }}>
+        {parseBoldText(cleanLine)}
+      </p>
+    );
+  });
+}
+
+function parseBoldText(text: string) {
+  const parts = text.split(/\*\*(.*?)\*\*/g);
+  return parts.map((part, i) => {
+    if (i % 2 === 1) {
+      return <strong key={i} style={{ fontWeight: 700, color: "#0f172a" }}>{part}</strong>;
+    }
+    return part;
+  });
 }

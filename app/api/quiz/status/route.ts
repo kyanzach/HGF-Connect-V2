@@ -41,6 +41,7 @@ export async function GET(request: Request) {
               },
             },
             rewardItems: true,
+            event: true,
           },
         })
       : await db.sermonQuiz.findFirst({
@@ -57,6 +58,7 @@ export async function GET(request: Request) {
               },
             },
             rewardItems: true,
+            event: true,
           },
         });
 
@@ -186,6 +188,10 @@ export async function GET(request: Request) {
         youtubeVideoId: quiz.youtubeVideoId,
         status: quiz.status,
         eventId: quiz.eventId,
+        presentationFile: quiz.event?.presentationFile ?? null,
+        presentationSlides: quiz.event?.presentationSlides ? JSON.parse(JSON.stringify(quiz.event.presentationSlides)) : null,
+        commentary: quiz.event?.commentary ?? null,
+        speaker: quiz.event?.speaker ?? null,
       },
       days,
       currentDay,
