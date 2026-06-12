@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.26.2] — 2026-06-13
+### Fixed
+- **Double Path Prefix for Slide Source**: Modified `ResourcesClient.tsx` and `quiz/page.tsx` slide image elements to check if paths already start with a slash prefix (e.g. `/uploads/presentations/slides/`) before interpolating, preventing broken image indicators.
+- **Quiz Admin Rewards Drawer UI**: Refined "View Rewards" button in Quiz Admin to toggle open/closed, show a loading status, and display an explicit empty state fallback message when no rewards have been claimed yet.
+
 ## [v2.26.1] — 2026-06-13
 ### Fixed
 - **Admin Dashboard Safe Area Notch Alignment**: Added safe-area-inset-top padding to the admin main scroll container (`app/admin/layout.tsx`) and the sidebar navigation container (`components/layout/AdminSidebar.tsx`) to prevent status bar cutoffs and ensure all dashboard elements, menu items, and sidebar toggles are fully visible and clickable on iPhone devices.

@@ -242,9 +242,9 @@ export default function ResourcesClient({ events }: Props) {
                     {/* Widescreen 16:9 Carousel */}
                     <div style={{ position: "relative", width: "100%", paddingBottom: "56.25%", background: "#000", borderRadius: "12px", overflow: "hidden" }}>
                       <img
-                        src={`/uploads/presentations/slides/${slidesArray[activeSlide]}`}
+                        src={slidesArray[activeSlide].startsWith("/") ? slidesArray[activeSlide] : `/uploads/presentations/slides/${slidesArray[activeSlide]}`}
                         alt={`${ev.title} Slide ${activeSlide + 1}`}
-                        onClick={() => setLightboxSrc(`/uploads/presentations/slides/${slidesArray[activeSlide]}`)}
+                        onClick={() => setLightboxSrc(slidesArray[activeSlide].startsWith("/") ? slidesArray[activeSlide] : `/uploads/presentations/slides/${slidesArray[activeSlide]}`)}
                         style={{
                           position: "absolute",
                           top: 0,
@@ -337,7 +337,7 @@ export default function ResourcesClient({ events }: Props) {
                             }}
                           >
                             <img
-                              src={`/uploads/presentations/slides/${slideName}`}
+                              src={slideName.startsWith("/") ? slideName : `/uploads/presentations/slides/${slideName}`}
                               alt={`Thumb ${i + 1}`}
                               style={{ width: "100%", height: "100%", objectFit: "cover" }}
                             />

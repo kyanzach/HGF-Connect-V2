@@ -149,6 +149,7 @@ export default function QuizAdminPage() {
   // ── Rewards ──
   const [rewards, setRewards] = useState<any[]>([]);
   const [selectedQuizForRewards, setSelectedQuizForRewards] = useState<number | null>(null);
+  const [loadingRewardsId, setLoadingRewardsId] = useState<number | null>(null);
 
   // ── Reward Announcement Form State ──
   const [rewardTier, setRewardTier] = useState<string>("PERFECT");
@@ -457,11 +458,21 @@ export default function QuizAdminPage() {
 
   // ── Load rewards for a quiz ──
   async function loadRewards(quizId: number) {
+    if (selectedQuizForRewards === quizId) {
+      setSelectedQuizForRewards(null);
+      setRewards([]);
+      return;
+    }
     setSelectedQuizForRewards(quizId);
+    setLoadingRewardsId(quizId);
     try {
       const res = await fetch(`/api/quiz/rewards?quizId=${quizId}`);
       if (res.ok) setRewards(await res.json());
-    } catch {}
+    } catch (err) {
+      console.error("Failed to fetch rewards:", err);
+    } finally {
+      setLoadingRewardsId(null);
+    }
   }
 
   async function markDistributed(rewardId: number) {
@@ -1132,54 +1143,61 @@ export default function QuizAdminPage() {
                 </div>
               )}
 
-              {selectedQuizForRewards === quiz.id && rewards.length > 0 && (
+              {selectedQuizForRewards === quiz.id && (
                 <div style={{ marginTop: "12px", padding: "12px", background: "#f7fafc", borderRadius: "10px" }}>
-                  <h4 style={{ fontSize: "0.9rem", fontWeight: 700, marginBottom: "8px" }}>
-                    Rewards ({rewards.length})
+                  <h4 style={{ fontSize: "0.9rem", fontWeight: 700, marginBottom: "8px", display: "flex", justifyContent: "space-between" }}>
+                    <span>🏆 Rewards Summary</span>
+                    {loadingRewardsId === quiz.id && <span style={{ fontSize: "0.8rem", color: "#64748b" }}>Loading...</span>}
                   </h4>
-                  {rewards.map((r: any) => (
-                    <div
-                      key={r.id}
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        padding: "8px 0",
-                        borderBottom: "1px solid #e2e8f0",
-                      }}
-                    >
-                      <div>
-                        <strong style={{ fontSize: "0.9rem" }}>
-                          {r.member?.firstName} {r.member?.lastName}
-                        </strong>
-                        <br />
-                        <span style={{ color: "#718096", fontSize: "0.8rem" }}>
-                          {r.rewardTier} — {r.totalScore}/5 — {r.claimStatus}
-                        </span>
-                        {r.claimDetails && (
-                          <span style={{ color: "#4EB1CB", fontSize: "0.8rem", marginLeft: "8px" }}>
-                            {JSON.stringify(r.claimDetails)}
+                  {loadingRewardsId !== quiz.id && rewards.length === 0 ? (
+                    <p style={{ color: "#718096", fontSize: "0.85rem", margin: 0, fontStyle: "italic" }}>
+                      No players have claimed or qualified for rewards yet.
+                    </p>
+                  ) : (
+                    rewards.map((r: any) => (
+                      <div
+                        key={r.id}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          padding: "8px 0",
+                          borderBottom: "1px solid #e2e8f0",
+                        }}
+                      >
+                        <div>
+                          <strong style={{ fontSize: "0.9rem" }}>
+                            {r.member?.firstName} {r.member?.lastName}
+                          </strong>
+                          <br />
+                          <span style={{ color: "#718096", fontSize: "0.8rem" }}>
+                            {r.rewardTier} · Score: {r.totalScore}/7 · {r.claimStatus}
                           </span>
+                          {r.claimDetails && (
+                            <span style={{ color: "#4EB1CB", fontSize: "0.8rem", marginLeft: "8px" }}>
+                              {typeof r.claimDetails === "string" ? r.claimDetails : JSON.stringify(r.claimDetails)}
+                            </span>
+                          )}
+                        </div>
+                        {r.claimStatus !== "distributed" && (
+                          <button
+                            onClick={() => markDistributed(r.id)}
+                            style={{
+                              background: "#48BB78",
+                              color: "#fff",
+                              border: "none",
+                              borderRadius: "8px",
+                              padding: "6px 12px",
+                              fontSize: "0.8rem",
+                              cursor: "pointer",
+                            }}
+                          >
+                            ✅ Distributed
+                          </button>
                         )}
                       </div>
-                      {r.claimStatus !== "distributed" && (
-                        <button
-                          onClick={() => markDistributed(r.id)}
-                          style={{
-                            background: "#48BB78",
-                            color: "#fff",
-                            border: "none",
-                            borderRadius: "8px",
-                            padding: "6px 12px",
-                            fontSize: "0.8rem",
-                            cursor: "pointer",
-                          }}
-                        >
-                          ✅ Distributed
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               )}
             </div>
