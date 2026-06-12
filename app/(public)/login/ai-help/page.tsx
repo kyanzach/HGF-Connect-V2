@@ -13,6 +13,7 @@ interface MatchedAccount {
   lastName: string;
   username: string;
   phone: string;
+  email: string | null;
   birthdate: string | null;
   profilePicture: string | null;
 }
@@ -230,6 +231,8 @@ export default function AiHelpPage() {
 
           setTimeout(() => {
             const hasPhone = !!selected.phone;
+            const hasEmail = !!selected.email;
+
             if (hasPhone) {
               const maskedPhone = `${selected.phone.slice(0, 4)}*******${selected.phone.slice(-3)}`;
               setMessages((prev) => [
@@ -239,8 +242,28 @@ export default function AiHelpPage() {
                   sender: "ai",
                   text: `To secure your account, we need to send a 6-digit verification code (OTP) to your registered number: ${maskedPhone}.`,
                   component: (
-                    <button onClick={() => handleSendOtp(selected)} style={smallButtonStyle}>
-                      ✉️ Send OTP Code
+                    <button onClick={() => handleSendOtp(selected, "sms")} style={smallButtonStyle}>
+                      ✉️ Send OTP Code via SMS
+                    </button>
+                  ),
+                },
+              ]);
+              setCurrentStage("send_otp");
+            } else if (hasEmail) {
+              const email = selected.email!;
+              const atIndex = email.indexOf("@");
+              const maskedEmail = atIndex > 1
+                ? `${email[0]}***${email.slice(atIndex)}`
+                : email;
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: `ai-otp-ready-${Date.now()}`,
+                  sender: "ai",
+                  text: `To secure your account, we need to send a 6-digit verification code (OTP) to your registered email: ${maskedEmail}.`,
+                  component: (
+                    <button onClick={() => handleSendOtp(selected, "email")} style={smallButtonStyle}>
+                      ✉️ Send OTP Code via Email
                     </button>
                   ),
                 },
@@ -250,17 +273,17 @@ export default function AiHelpPage() {
               setMessages((prev) => [
                 ...prev,
                 {
-                  id: `ai-no-phone-${Date.now()}`,
+                  id: `ai-no-otp-needed-${Date.now()}`,
                   sender: "ai",
-                  text: `⚠️ This profile does not have a registered mobile number. We cannot send an OTP code for verification. Please contact your church administrator to manually recover this account.`,
+                  text: `This profile does not have a registered mobile number or email, but your details match. Click the button below to recover your account directly.`,
                   component: (
-                    <button onClick={handleRestart} style={smallButtonStyle}>
-                      🔄 Start Search Again
+                    <button onClick={() => handleDirectRetrieve(selected)} style={smallButtonStyle}>
+                      🔓 Retrieve Account
                     </button>
                   ),
                 },
               ]);
-              setCurrentStage("searching");
+              setCurrentStage("send_otp");
             }
             setIsTyping(false);
           }, 800);
@@ -354,6 +377,8 @@ export default function AiHelpPage() {
     setIsTyping(true);
     setTimeout(() => {
       const hasPhone = !!account.phone;
+      const hasEmail = !!account.email;
+
       if (hasPhone) {
         const maskedPhone = `${account.phone.slice(0, 4)}*******${account.phone.slice(-3)}`;
         setMessages((prev) => [
@@ -363,8 +388,28 @@ export default function AiHelpPage() {
             sender: "ai",
             text: `To secure your account, we need to send a 6-digit verification code (OTP) to your registered number: ${maskedPhone}.`,
             component: (
-              <button onClick={() => handleSendOtp(account)} style={smallButtonStyle}>
-                ✉️ Send OTP Code
+              <button onClick={() => handleSendOtp(account, "sms")} style={smallButtonStyle}>
+                ✉️ Send OTP Code via SMS
+              </button>
+            ),
+          },
+        ]);
+        setCurrentStage("send_otp");
+      } else if (hasEmail) {
+        const email = account.email!;
+        const atIndex = email.indexOf("@");
+        const maskedEmail = atIndex > 1
+          ? `${email[0]}***${email.slice(atIndex)}`
+          : email;
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `ai-otp-ready-${Date.now()}`,
+            sender: "ai",
+            text: `To secure your account, we need to send a 6-digit verification code (OTP) to your registered email: ${maskedEmail}.`,
+            component: (
+              <button onClick={() => handleSendOtp(account, "email")} style={smallButtonStyle}>
+                ✉️ Send OTP Code via Email
               </button>
             ),
           },
@@ -374,24 +419,24 @@ export default function AiHelpPage() {
         setMessages((prev) => [
           ...prev,
           {
-            id: `ai-no-phone-${Date.now()}`,
+            id: `ai-no-otp-needed-${Date.now()}`,
             sender: "ai",
-            text: `⚠️ This profile does not have a registered mobile number. We cannot send an OTP code for verification. Please contact your church administrator to manually recover this account.`,
+            text: `This profile does not have a registered mobile number or email, but your details match. Click the button below to recover your account directly.`,
             component: (
-              <button onClick={handleRestart} style={smallButtonStyle}>
-                🔄 Start Search Again
+              <button onClick={() => handleDirectRetrieve(account)} style={smallButtonStyle}>
+                🔓 Retrieve Account
               </button>
             ),
           },
         ]);
-        setCurrentStage("searching");
+        setCurrentStage("send_otp");
       }
       setIsTyping(false);
     }, 800);
   };
 
   // Trigger OTP sending
-  const handleSendOtp = async (account: MatchedAccount) => {
+  const handleSendOtp = async (account: MatchedAccount, method: "sms" | "email") => {
     setError("");
     setIsTyping(true);
 
@@ -405,12 +450,14 @@ export default function AiHelpPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to send OTP.");
 
+      const medium = method === "sms" ? "registered phone" : "registered email";
+
       setMessages((prev) => [
         ...prev,
         {
           id: `ai-otp-sent-${Date.now()}`,
           sender: "ai",
-          text: `✉️ Verification code has been sent! Please enter the 6-digit OTP code below.`,
+          text: `✉️ Verification code has been sent! Please enter the 6-digit OTP code sent to your ${medium}.`,
         },
       ]);
       setCurrentStage("verify_otp");
@@ -420,12 +467,126 @@ export default function AiHelpPage() {
         {
           id: `ai-otp-err-${Date.now()}`,
           sender: "ai",
-          text: `⚠️ Could not send OTP code: ${err.message || "Please verify your mobile number."}`,
+          text: `⚠️ Could not send OTP code: ${err.message || "Please try again."}`,
           component: (
-            <button onClick={() => handleSendOtp(account)} style={smallButtonStyle}>
+            <button onClick={() => handleSendOtp(account, method)} style={smallButtonStyle}>
               ✉️ Retry Send OTP
             </button>
           ),
+        },
+      ]);
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
+  // Direct Recovery when no contact verification is available
+  const handleDirectRetrieve = async (account: MatchedAccount) => {
+    if (!account) return;
+    setIsTyping(true);
+
+    try {
+      const duplicateIds = accounts.filter((acc) => acc.id !== account.id).map((acc) => acc.id);
+
+      const res = await fetch("/api/auth/retrieve-account/merge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          memberId: account.id,
+          otpCode: "",
+          duplicateIds,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Verification failed.");
+
+      const username = data.username || account.username;
+      setRecoveredUsername(username);
+
+      // Auto-login after successful merge
+      const loginRes = await signIn("credentials", {
+        memberId: String(account.id),
+        otpVerified: "true",
+        redirect: false,
+      });
+
+      if (loginRes?.error) {
+        throw new Error("Reset succeeded, but automatic login failed. Please sign in manually.");
+      }
+
+      sessionStorage.setItem("hgf-just-logged-in", "1");
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `ai-verify-success-${Date.now()}`,
+          sender: "ai",
+          text: `🎉 Success! Your account has been verified. Any duplicate profiles under your name have been merged (posts, comments, listings, etc.).`,
+          component: (
+            <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginTop: "0.5rem" }}>
+              <div style={recoveredCardStyle}>
+                <div
+                  style={{
+                    fontSize: "0.75rem",
+                    color: "#64748b",
+                    textTransform: "uppercase",
+                    fontWeight: 700,
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  Your Username
+                </div>
+                <div style={{ fontSize: "1.35rem", fontWeight: 800, color: "#0f172a", margin: "0.15rem 0 0.5rem" }}>
+                  {username}
+                </div>
+                <div
+                  style={{
+                    fontSize: "0.75rem",
+                    color: "#64748b",
+                    textTransform: "uppercase",
+                    fontWeight: 700,
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  Temporary Password Set
+                </div>
+                <div style={{ fontSize: "1.2rem", fontWeight: 800, color: "#10b981", margin: "0.15rem 0" }}>
+                  Godisgood
+                </div>
+              </div>
+
+              <Link
+                href="/profile/edit?tab=security"
+                style={{
+                  display: "block",
+                  width: "100%",
+                  padding: "0.85rem",
+                  background: PRIMARY,
+                  color: "white",
+                  borderRadius: "8px",
+                  fontWeight: 700,
+                  textDecoration: "none",
+                  fontSize: "0.9rem",
+                  textAlign: "center",
+                  boxSizing: "border-box",
+                  boxShadow: "0 4px 12px rgba(78, 177, 203, 0.3)",
+                }}
+              >
+                🔒 Change Password Now
+              </Link>
+            </div>
+          ),
+        },
+      ]);
+      setCurrentStage("success");
+    } catch (err: any) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `ai-verify-err-${Date.now()}`,
+          sender: "ai",
+          text: `⚠️ Verification failed: ${err.message || "Please contact your church administrator."}`,
         },
       ]);
     } finally {

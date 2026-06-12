@@ -5,6 +5,12 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.27.0] — 2026-06-13
+### Added
+- **Multi-Channel Account Recovery Routing**: Implemented conditional prioritized routing for AI account recovery OTP verification. SMS (via Itexmo provider) is prioritized if a mobile number is present. If no mobile number is found, it falls back to Email OTP verification (via Nodemailer). If neither is present, verification is bypassed to allow direct profile recovery.
+- **Adjustable OTP Validity Duration**: Increased the OTP waiting/validity period from 10 minutes to **30 minutes** to accommodate carrier delivery delays.
+- **Email OTP Provider**: Created a unified SMTP email dispatch utility in `lib/email.ts` using Nodemailer, with support for development mode console logs fallback.
+
 ## [v2.26.5] — 2026-06-13
 ### Added
 - **Pastors & Admins Answer Reveal**: Configured `api/quiz/status` to conditionally fetch and expose correct answers ONLY to administrators and active pastoral staff. Added a secure green panel inside the completed challenge information modal in the frontend that reveals the correct draggable verse sequence for SCRIPTURE_ORDERING (Verse Builder) challenges.

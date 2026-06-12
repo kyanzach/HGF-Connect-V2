@@ -18,32 +18,39 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid Member ID." }, { status: 400 });
     }
 
-    // 1. Verify OTP
-    const recoveryCode = await db.accountRecoveryCode.findFirst({
-      where: {
-        memberId: primaryId,
-        code: otpCode,
-        expiresAt: { gte: new Date() },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    if (!recoveryCode) {
-      return NextResponse.json({ error: "Invalid or expired OTP code." }, { status: 400 });
-    }
-
-    // Delete recovery codes immediately to prevent reuse
-    await db.accountRecoveryCode.deleteMany({
-      where: { memberId: primaryId },
-    });
-
-    // 2. Load primary profile
+    // 1. Load primary profile first to check contact details
     const primary = await db.member.findUnique({
       where: { id: primaryId },
     });
 
     if (!primary) {
       return NextResponse.json({ error: "Primary member profile not found." }, { status: 404 });
+    }
+
+    // Check if verification is needed (if profile has registered phone or email)
+    const hasPhone = !!(primary.phone && primary.phone.trim());
+    const hasEmail = !!(primary.email && primary.email.trim());
+    const needsVerification = hasPhone || hasEmail;
+
+    if (needsVerification) {
+      // Verify OTP
+      const recoveryCode = await db.accountRecoveryCode.findFirst({
+        where: {
+          memberId: primaryId,
+          code: otpCode,
+          expiresAt: { gte: new Date() },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      if (!recoveryCode) {
+        return NextResponse.json({ error: "Invalid or expired OTP code." }, { status: 400 });
+      }
+
+      // Delete recovery codes immediately to prevent reuse
+      await db.accountRecoveryCode.deleteMany({
+        where: { memberId: primaryId },
+      });
     }
 
     // 3. Reset password of primary account to "Godisgood"

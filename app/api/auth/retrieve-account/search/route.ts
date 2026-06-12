@@ -45,6 +45,7 @@ export async function POST(request: Request) {
         lastName: true,
         username: true,
         phone: true,
+        email: true,
         birthdate: true,
         profilePicture: true,
       },
