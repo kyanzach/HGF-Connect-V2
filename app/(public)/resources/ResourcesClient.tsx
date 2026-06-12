@@ -27,7 +27,7 @@ export default function ResourcesClient({ events }: Props) {
   
   // Carousel states mapped by event ID to allow multiple carousels on the same page
   const [activeSlides, setActiveSlides] = useState<Record<number, number>>({});
-  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [lightboxEventId, setLightboxEventId] = useState<number | null>(null);
 
   const filteredEvents = events.filter((ev) => {
     const query = searchQuery.toLowerCase();
@@ -244,7 +244,7 @@ export default function ResourcesClient({ events }: Props) {
                       <img
                         src={slidesArray[activeSlide].startsWith("/") ? slidesArray[activeSlide] : `/uploads/presentations/slides/${slidesArray[activeSlide]}`}
                         alt={`${ev.title} Slide ${activeSlide + 1}`}
-                        onClick={() => setLightboxSrc(slidesArray[activeSlide].startsWith("/") ? slidesArray[activeSlide] : `/uploads/presentations/slides/${slidesArray[activeSlide]}`)}
+                        onClick={() => setLightboxEventId(ev.id)}
                         style={{
                           position: "absolute",
                           top: 0,
@@ -383,10 +383,35 @@ export default function ResourcesClient({ events }: Props) {
       )}
 
       {/* Lightbox zoom wrapper */}
-      {lightboxSrc && (
+      {lightboxEventId !== null && (
         <ImageLightbox
-          src={lightboxSrc}
-          onClose={() => setLightboxSrc(null)}
+          src={(() => {
+            const activeEvent = events.find((e) => e.id === lightboxEventId);
+            const slides = activeEvent?.presentationSlides;
+            const slidesArray = slides ? (Array.isArray(slides) ? slides : JSON.parse(JSON.stringify(slides))) : [];
+            const activeSlide = getActiveSlideIndex(lightboxEventId);
+            const slideName = slidesArray[activeSlide] || "";
+            return slideName.startsWith("/") ? slideName : `/uploads/presentations/slides/${slideName}`;
+          })()}
+          onClose={() => setLightboxEventId(null)}
+          onPrev={() => {
+            const activeEvent = events.find((e) => e.id === lightboxEventId);
+            const slides = activeEvent?.presentationSlides;
+            const slidesArray = slides ? (Array.isArray(slides) ? slides : JSON.parse(JSON.stringify(slides))) : [];
+            handlePrevSlide(lightboxEventId, slidesArray.length);
+          }}
+          onNext={() => {
+            const activeEvent = events.find((e) => e.id === lightboxEventId);
+            const slides = activeEvent?.presentationSlides;
+            const slidesArray = slides ? (Array.isArray(slides) ? slides : JSON.parse(JSON.stringify(slides))) : [];
+            handleNextSlide(lightboxEventId, slidesArray.length);
+          }}
+          currentIndex={getActiveSlideIndex(lightboxEventId)}
+          totalSlides={(() => {
+            const activeEvent = events.find((e) => e.id === lightboxEventId);
+            const slides = activeEvent?.presentationSlides;
+            return slides ? (Array.isArray(slides) ? slides : JSON.parse(JSON.stringify(slides))).length : 0;
+          })()}
         />
       )}
     </div>

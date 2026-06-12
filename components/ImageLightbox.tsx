@@ -7,9 +7,21 @@ interface Props {
   src: string;
   alt?: string;
   onClose: () => void;
+  onPrev?: () => void;
+  onNext?: () => void;
+  currentIndex?: number;
+  totalSlides?: number;
 }
 
-export default function ImageLightbox({ src, alt = "Enlarged view", onClose }: Props) {
+export default function ImageLightbox({
+  src,
+  alt = "Enlarged view",
+  onClose,
+  onPrev,
+  onNext,
+  currentIndex,
+  totalSlides,
+}: Props) {
   const [scale, setScale] = useState(1);
   const [panX, setPanX] = useState(0);
   const [panY, setPanY] = useState(0);
@@ -25,6 +37,10 @@ export default function ImageLightbox({ src, alt = "Enlarged view", onClose }: P
   const isDragging = useRef(false);
   const startDrag = useRef({ x: 0, y: 0 });
 
+  // Touch Swipe navigation
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+
   const [mounted, setMounted] = useState(false);
 
   // Prevent background scrolling while open
@@ -36,14 +52,21 @@ export default function ImageLightbox({ src, alt = "Enlarged view", onClose }: P
     };
   }, []);
 
-  // Escape key to close
+  // Keyboard navigation: Escape to close, Arrows to slide
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
+      if (e.key === "ArrowLeft" && onPrev) onPrev();
+      if (e.key === "ArrowRight" && onNext) onNext();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  }, [onClose, onPrev, onNext]);
+
+  // Reset zoom when image source changes (so the next slide is not zoomed)
+  useEffect(() => {
+    resetZoom();
+  }, [src]);
 
   const resetZoom = () => {
     setScale(1);
@@ -73,6 +96,12 @@ export default function ImageLightbox({ src, alt = "Enlarged view", onClose }: P
 
       // Pan or click start
       panStart.current = { x: e.touches[0].clientX - panX, y: e.touches[0].clientY - panY };
+
+      // Initialize swipe capture if scale is 1
+      if (scale === 1) {
+        touchStartX.current = e.touches[0].clientX;
+        touchStartY.current = e.touches[0].clientY;
+      }
     }
   };
 
@@ -91,9 +120,29 @@ export default function ImageLightbox({ src, alt = "Enlarged view", onClose }: P
     }
   };
 
-  const handleTouchEnd = () => {
+  const handleTouchEnd = (e: React.TouchEvent) => {
     pinchDist.current = null;
     panStart.current = null;
+
+    // Detect swipe gesture when scale is 1
+    if (touchStartX.current !== null && touchStartY.current !== null && scale === 1 && e.changedTouches.length > 0) {
+      const dx = e.changedTouches[0].clientX - touchStartX.current;
+      const dy = e.changedTouches[0].clientY - touchStartY.current;
+      
+      // Swipe threshold (horizontal swipe with minimal vertical drift)
+      if (Math.abs(dx) > 60 && Math.abs(dy) < 60) {
+        if (dx > 0) {
+          // Swiped right -> go to previous
+          if (onPrev) onPrev();
+        } else {
+          // Swiped left -> go to next
+          if (onNext) onNext();
+        }
+      }
+    }
+
+    touchStartX.current = null;
+    touchStartY.current = null;
   };
 
   // Mouse pan logic for desktop
@@ -160,6 +209,30 @@ export default function ImageLightbox({ src, alt = "Enlarged view", onClose }: P
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
+      {/* Slide Counter (Top Center) */}
+      {typeof currentIndex === "number" && typeof totalSlides === "number" && totalSlides > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(24px + env(safe-area-inset-top, 0px))",
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "rgba(0, 0, 0, 0.6)",
+            color: "white",
+            padding: "8px 16px",
+            borderRadius: "20px",
+            fontSize: "0.85rem",
+            fontWeight: 700,
+            zIndex: 20001,
+            pointerEvents: "none",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
+            fontFamily: "inherit",
+          }}
+        >
+          {currentIndex + 1} / {totalSlides}
+        </div>
+      )}
+
       {/* Top Controls */}
       <div
         style={{
@@ -244,6 +317,78 @@ export default function ImageLightbox({ src, alt = "Enlarged view", onClose }: P
           ✕
         </button>
       </div>
+
+      {/* Left Navigation Control Arrow */}
+      {onPrev && totalSlides && totalSlides > 1 && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onPrev();
+          }}
+          style={{
+            position: "absolute",
+            left: "20px",
+            top: "50%",
+            transform: "translateY(-50%)",
+            width: "48px",
+            height: "48px",
+            borderRadius: "50%",
+            border: "none",
+            background: "rgba(0, 0, 0, 0.4)",
+            color: "white",
+            fontSize: "1.2rem",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            transition: "background 0.2s, transform 0.1s",
+            outline: "none",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
+            zIndex: 20002,
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(0, 0, 0, 0.6)")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(0, 0, 0, 0.4)")}
+          title="Previous Slide"
+        >
+          ◀
+        </button>
+      )}
+
+      {/* Right Navigation Control Arrow */}
+      {onNext && totalSlides && totalSlides > 1 && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onNext();
+          }}
+          style={{
+            position: "absolute",
+            right: "20px",
+            top: "50%",
+            transform: "translateY(-50%)",
+            width: "48px",
+            height: "48px",
+            borderRadius: "50%",
+            border: "none",
+            background: "rgba(0, 0, 0, 0.4)",
+            color: "white",
+            fontSize: "1.2rem",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            transition: "background 0.2s, transform 0.1s",
+            outline: "none",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
+            zIndex: 20002,
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(0, 0, 0, 0.6)")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(0, 0, 0, 0.4)")}
+          title="Next Slide"
+        >
+          ▶
+        </button>
+      )}
 
       <img
         ref={imgRef}

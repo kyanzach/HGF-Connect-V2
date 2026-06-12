@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.26.3] — 2026-06-13
+### Added
+- **Fullscreen Lightbox Slide Navigation**: Enhanced the maximized image viewer (`ImageLightbox.tsx`) to support slide deck exploration directly in full view. Added centered left/right arrow navigation controls, swipe gestures for touch devices, keyboard arrow triggers (`ArrowLeft` / `ArrowRight`), and a slide count header.
+- **Synchronized Active Slide Indices**: Bound `MemberQuizPage` and `ResourcesClient` carousel state updates to lightbox slide changes so current slide states are retained when toggled.
+
 ## [v2.26.2] — 2026-06-13
 ### Fixed
 - **Double Path Prefix for Slide Source**: Modified `ResourcesClient.tsx` and `quiz/page.tsx` slide image elements to check if paths already start with a slash prefix (e.g. `/uploads/presentations/slides/`) before interpolating, preventing broken image indicators.

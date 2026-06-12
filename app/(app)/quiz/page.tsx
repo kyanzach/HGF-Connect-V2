@@ -357,6 +357,23 @@ export default function MemberQuizPage() {
   const { quiz, days, progress } = quizStatus;
   const showClaimBox = progress?.isWeekComplete && progress.rewardTier === "PERFECT" && progress.rewardClaim?.claimStatus === "unclaimed";
 
+  const slides = quiz?.presentationSlides;
+  const slidesArray = slides
+    ? (Array.isArray(slides)
+        ? slides
+        : JSON.parse(JSON.stringify(slides)))
+    : [];
+
+  const handlePrevSlide = () => {
+    if (slidesArray.length === 0) return;
+    setActiveSlide((prev) => (prev > 0 ? prev - 1 : slidesArray.length - 1));
+  };
+
+  const handleNextSlide = () => {
+    if (slidesArray.length === 0) return;
+    setActiveSlide((prev) => (prev < slidesArray.length - 1 ? prev + 1 : 0));
+  };
+
   return (
     <div style={{ background: "#f8fafc", minHeight: "100vh", padding: "20px 16px 120px", paddingTop: "calc(env(safe-area-inset-top) + 20px)" }}>
       {/* Brand Header */}
@@ -417,12 +434,6 @@ export default function MemberQuizPage() {
 
       {/* Tabs / Sermon Replay & Slides */}
       {(() => {
-        const slides = quiz?.presentationSlides;
-        const slidesArray = slides
-          ? (Array.isArray(slides)
-              ? slides
-              : JSON.parse(JSON.stringify(slides)))
-          : [];
         const hasSlides = slidesArray.length > 0;
 
         if (!quiz?.youtubeVideoId && !hasSlides) return null;
@@ -962,8 +973,12 @@ export default function MemberQuizPage() {
 
       {lightboxSrc && (
         <ImageLightbox
-          src={lightboxSrc}
+          src={slidesArray[activeSlide].startsWith("/") ? slidesArray[activeSlide] : `/uploads/presentations/slides/${slidesArray[activeSlide]}`}
           onClose={() => setLightboxSrc(null)}
+          onPrev={handlePrevSlide}
+          onNext={handleNextSlide}
+          currentIndex={activeSlide}
+          totalSlides={slidesArray.length}
         />
       )}
     </div>
