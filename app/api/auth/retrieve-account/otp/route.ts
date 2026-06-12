@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
+import { sendSms } from "@/lib/sms";
 
 export const dynamic = "force-dynamic";
 
@@ -37,25 +38,13 @@ export async function POST(request: Request) {
         },
       });
 
-      // Create custom SMS batch to send the OTP (high priority)
+      // Send SMS synchronously immediately using the central helper
       const smsMessage = `HGF Connect: Your recovery OTP is ${code}. Valid for 30 minutes.`;
+      const smsResult = await sendSms(member.phone, smsMessage, member.id);
 
-      await db.customSmsBatch.create({
-        data: {
-          source: "account_recovery",
-          status: "pending",
-          priority: "high",
-          createdById: member.id,
-          recipients: {
-            create: {
-              memberId: member.id,
-              phoneNumber: member.phone,
-              personalizedMessage: smsMessage,
-              sendStatus: "pending",
-            },
-          },
-        },
-      });
+      if (!smsResult.success) {
+        return NextResponse.json({ error: "Failed to send SMS OTP: " + smsResult.error }, { status: 500 });
+      }
 
       // Mask phone for frontend display
       const cleanPhone = member.phone.trim();

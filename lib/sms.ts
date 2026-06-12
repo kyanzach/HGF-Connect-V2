@@ -2,6 +2,9 @@ import { db } from "./db";
 
 // Dynamic Sender ID Mapping based on message contents
 export function getSenderId(message: string, requestedSenderId?: string): string {
+  if (process.env.ITEXMO_SENDER_ID) {
+    return process.env.ITEXMO_SENDER_ID;
+  }
   if (requestedSenderId) return requestedSenderId;
 
   const msgLower = message.toLowerCase();

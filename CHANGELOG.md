@@ -5,6 +5,15 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.27.2] — 2026-06-13
+### Fixed
+- **Approved Sender ID Configuration**: Configured the SMS module to prioritize the `ITEXMO_SENDER_ID` environment variable (configured to `MASKPRO` in the production environment). This prevents carriers and iTexMo from silently discarding recovery OTP SMS messages due to unapproved custom sender masks (e.g. "HGF Connect").
+
+## [v2.27.1] — 2026-06-13
+### Fixed
+- **Instant OTP Transmission**: Refactored the SMS recovery path to use the direct synchronous `sendSms` helper, eliminating the delay from the background batch queuing cron job.
+- **Production SMS Credentials**: Resolved missing Itexmo environment variables and the internal API key on the production droplet's `.env.production` file and reloaded PM2.
+
 ## [v2.27.0] — 2026-06-13
 ### Added
 - **Multi-Channel Account Recovery Routing**: Implemented conditional prioritized routing for AI account recovery OTP verification. SMS (via Itexmo provider) is prioritized if a mobile number is present. If no mobile number is found, it falls back to Email OTP verification (via Nodemailer). If neither is present, verification is bypassed to allow direct profile recovery.
