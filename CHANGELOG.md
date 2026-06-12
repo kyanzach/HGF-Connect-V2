@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.26.4] — 2026-06-13
+### Added
+- **Local OCR Fallback for Flattened Slide Decks**: Configured `presentationProcessor.ts` to automatically detect flattened slide presentations containing no native text layers (e.g. rasterized PDF/PPTX). Added local OCR processing via Tesseract.js to extract text from slide image frames on the server, ensuring accurate AI spiritual takeaways and commentaries are generated without requiring vision APIs.
+
 ## [v2.26.3] — 2026-06-13
 ### Added
 - **Fullscreen Lightbox Slide Navigation**: Enhanced the maximized image viewer (`ImageLightbox.tsx`) to support slide deck exploration directly in full view. Added centered left/right arrow navigation controls, swipe gestures for touch devices, keyboard arrow triggers (`ArrowLeft` / `ArrowRight`), and a slide count header.

@@ -7,6 +7,7 @@ import pptxgen from "pptxgenjs";
 import { randomUUID } from "crypto";
 import axios from "axios";
 import pdfParse from "pdf-parse";
+import Tesseract from "tesseract.js";
 
 const execAsync = promisify(exec);
 
@@ -52,16 +53,73 @@ export async function processPresentation(
       pdfPath = path.join(tempDir, convertedPdfFile);
     }
 
-    // 1.5 Extract text from the PDF file using pdf-parse and generate AI commentary
-    let commentary: string | null = null;
+    // 1.5 Attempt to extract native text layer from PDF
+    let extractedText = "";
     try {
-      onProgress?.(30, "Extracting sermon text for AI commentary...");
+      onProgress?.(25, "Extracting native sermon text...");
       const pdfBuffer = await fs.readFile(pdfPath);
       const pdfData = await pdfParse(pdfBuffer);
-      const extractedText = pdfData.text || "";
+      extractedText = pdfData.text || "";
+    } catch (err) {
+      console.error("Failed to extract native text:", err);
+    }
 
-      if (extractedText.trim().length > 10) {
-        onProgress?.(35, "Generating AI sermon commentary...");
+    // 2. Convert PDF pages to JPEGs using pdftoppm
+    onProgress?.(35, "Extracting pages as slide images...");
+    const pagePrefix = path.join(tempDir, "page");
+    await execAsync(`pdftoppm -jpeg -r 150 "${pdfPath}" "${pagePrefix}"`);
+
+    // 3. Read extracted page JPEGs
+    const tempFiles = await fs.readdir(tempDir);
+    const jpegFiles = tempFiles
+      .filter((f) => f.startsWith("page-") && f.endsWith(".jpg"))
+      .map((f) => {
+        const match = f.match(/page-(\d+)\.jpg$/);
+        const pageNum = match ? parseInt(match[1], 10) : 0;
+        return {
+          filename: f,
+          pageNum,
+          fullPath: path.join(tempDir, f),
+        };
+      });
+
+    if (jpegFiles.length === 0) {
+      throw new Error("No slide pages could be extracted from the presentation.");
+    }
+
+    // Sort files numerically by page number
+    jpegFiles.sort((a, b) => a.pageNum - b.pageNum);
+
+    // 3.5 Perform local OCR if native text is insufficient (flattened slide deck)
+    const textLength = extractedText.replace(/\s+/g, "").length;
+    if (textLength < 50) {
+      onProgress?.(45, "Native text layer insufficient. Performing local OCR on slide images...");
+      let ocrText = "";
+      // Limit OCR to first 16 pages to prevent process timeouts on large slide decks
+      const maxOcrPages = Math.min(jpegFiles.length, 16);
+      for (let i = 0; i < maxOcrPages; i++) {
+        const file = jpegFiles[i];
+        try {
+          onProgress?.(
+            45 + Math.floor((i / maxOcrPages) * 15),
+            `Running local OCR on slide ${i + 1} of ${maxOcrPages}...`
+          );
+          const { data: { text } } = await Tesseract.recognize(file.fullPath, "eng");
+          if (text && text.trim()) {
+            ocrText += `\n--- Slide ${i + 1} ---\n${text.trim()}\n`;
+          }
+        } catch (ocrErr) {
+          console.error(`OCR failed for slide ${i + 1}:`, ocrErr);
+        }
+      }
+      extractedText = ocrText;
+    }
+
+    // 3.6 Generate AI commentary using extracted text
+    let commentary: string | null = null;
+    if (extractedText.trim().length > 10) {
+      try {
+        onProgress?.(65, "Generating AI sermon commentary...");
         
         const systemPrompt = `You are HGF Connect AI, a devoted pastoral assistant for House of Grace Fellowship.
 Analyze the following extracted text from the sermon slides.
@@ -104,37 +162,10 @@ Keep the tone encouraging, warm, and faith-based (in standard English, but frien
         if (rawReply) {
           commentary = rawReply.replace(/```markdown\n?|```html\n?|```\n?/g, "").trim();
         }
+      } catch (err) {
+        console.error("Failed to generate AI commentary:", err);
       }
-    } catch (err) {
-      console.error("Failed to extract text or generate AI commentary:", err);
-      // Fail gracefully so optimization continues
     }
-
-    // 2. Convert PDF pages to JPEGs using pdftoppm
-    onProgress?.(45, "Extracting pages as slide images...");
-    const pagePrefix = path.join(tempDir, "page");
-    await execAsync(`pdftoppm -jpeg -r 150 "${pdfPath}" "${pagePrefix}"`);
-
-    // 3. Read extracted page JPEGs
-    const tempFiles = await fs.readdir(tempDir);
-    const jpegFiles = tempFiles
-      .filter((f) => f.startsWith("page-") && f.endsWith(".jpg"))
-      .map((f) => {
-        const match = f.match(/page-(\d+)\.jpg$/);
-        const pageNum = match ? parseInt(match[1], 10) : 0;
-        return {
-          filename: f,
-          pageNum,
-          fullPath: path.join(tempDir, f),
-        };
-      });
-
-    if (jpegFiles.length === 0) {
-      throw new Error("No slide pages could be extracted from the presentation.");
-    }
-
-    // Sort files numerically by page number
-    jpegFiles.sort((a, b) => a.pageNum - b.pageNum);
 
     const slidePaths: string[] = [];
     const pptx = new pptxgen();
