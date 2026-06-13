@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.28.4] — 2026-06-14
+### Fixed
+- **Fixed Service Worker Cross-Cache Poisoning from Redirects**: Added a check to prevent caching of redirected navigation requests (`!r.redirected`) in both app shell and default fetch handlers, ensuring that pages like `/login` are not incorrectly cached with the HTML structure of private dashboard routes (like `/admin` or `/feed`) when middleware triggers automatic redirects.
+
 ## [v2.28.3] — 2026-06-14
 ### Fixed
 - **Resolved Next.js Client-Side Router Cache Collisions on Login**: Switched from `router.push` to `window.location.href` for navigating to `/feed` upon successful login, bypassing the stale client-side router cache that previously caused users to be redirected back to the login page on their first attempt.

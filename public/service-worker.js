@@ -1,6 +1,6 @@
-// HGF Connect — Service Worker v2.28.3
+// HGF Connect — Service Worker v2.28.4
 // Strategy: network-first for navigation, cache-first for assets, offline fallback for everything
-const CACHE_NAME = 'hgf-connect-v2.28.3';
+const CACHE_NAME = 'hgf-connect-v2.28.4';
 
 const PRECACHE = [
   '/',
@@ -87,7 +87,7 @@ self.addEventListener('fetch', (e) => {
         caches.match(request).then((cached) => {
           const fresh = fetch(request)
             .then((r) => {
-              if (r.ok) {
+              if (r.ok && !r.redirected) {
                 const clone = r.clone();
                 caches.open(CACHE_NAME).then((c) => c.put(request, clone));
               }
@@ -102,7 +102,7 @@ self.addEventListener('fetch', (e) => {
       e.respondWith(
         fetch(request)
           .then((r) => {
-            if (r.ok) {
+            if (r.ok && !r.redirected) {
               const clone = r.clone();
               caches.open(CACHE_NAME).then((c) => c.put(request, clone));
             }
