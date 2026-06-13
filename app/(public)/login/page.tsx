@@ -10,6 +10,7 @@ import {
   isPlatformAuthenticatorAvailable,
   authenticatePasskey,
 } from "@/lib/webauthnService";
+import { clearBrowserCaches } from "@/lib/logout";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -51,7 +52,8 @@ export default function LoginPage() {
 
       sessionStorage.setItem("hgf-just-logged-in", "1");
       success = true;
-      router.push("/feed");
+      await clearBrowserCaches();
+      window.location.href = "/feed";
     } catch (err: unknown) {
       // Two-case error handling:
       // 1. User explicitly cancelled (NotAllowedError) → show a brief message
@@ -95,8 +97,10 @@ export default function LoginPage() {
     // Set flag so BiometricEnrollTrigger shows modals (PWA first, then biometrics)
     sessionStorage.setItem("hgf-just-logged-in", "1");
 
+    await clearBrowserCaches();
+
     // Go straight to /feed — AppLayout territory, where modals fire
-    router.push("/feed");
+    window.location.href = "/feed";
   }
 
   return (

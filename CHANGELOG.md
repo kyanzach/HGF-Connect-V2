@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.28.3] — 2026-06-14
+### Fixed
+- **Resolved Next.js Client-Side Router Cache Collisions on Login**: Switched from `router.push` to `window.location.href` for navigating to `/feed` upon successful login, bypassing the stale client-side router cache that previously caused users to be redirected back to the login page on their first attempt.
+- **Prevented Logout Aborts**: Restored NextAuth's native callback redirect handling in `triggerLogout` to ensure the browser processes the HTTP-only cookie clearing headers before navigation, resolving issues where users remained signed in after their first logout attempt.
+
 ## [v2.28.2] — 2026-06-14
 ### Fixed
 - **Optimized Login Responsiveness**: Prevented the "Sign In" and "Authenticating..." loading states from resetting early on successful credential/biometric submissions, ensuring the button status remains disabled and visual feedback is maintained throughout the route transition to `/feed`.
