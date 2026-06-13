@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.27.4] — 2026-06-13
+### Fixed
+- **Fixed Feed Carousel Height Layout Shifts**: Enforced a fixed height of `220px` on the dashboard `HeroCarousel` container, aligned slide content vertically using flexbox, and added CSS line-clamping (`-webkit-line-clamp: 2`) on event titles/locations and prayer spotlight requests. This completely resolves Cumulative Layout Shift (CLS) layout jumps when the carousel auto-advances.
+- **Matched Feed Loading Skeleton**: Updated the loading placeholder skeleton in `/app/(app)/feed/loading.tsx` to match the exact `220px` fixed height, `12px` border-radius, and `1rem` margin wrapper of the real carousel to ensure a seamless initial page load transition.
+
 ## [v2.27.3] — 2026-06-13
 ### Fixed
 - **Restored Branded Sender IDs**: Removed the temporary `MASKPRO` override and restored the default dynamic branded Sender ID routing (e.g. `HGF Connect` for OTPs, `HGF Church` for general alerts), confirming that all five branded masks are fully registered, approved, and delivering successfully.

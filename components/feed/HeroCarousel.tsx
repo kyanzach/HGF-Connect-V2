@@ -122,14 +122,36 @@ export default function HeroCarousel({ firstName }: HeroCarouselProps) {
             Upcoming Event
           </span>
         </div>
-        <h2 style={{ fontSize: "1.125rem", fontWeight: 800, color: "white", margin: "0 0 0.375rem", lineHeight: 1.3 }}>
+        <h2
+          style={{
+            fontSize: "1.125rem",
+            fontWeight: 800,
+            color: "white",
+            margin: "0 0 0.375rem",
+            lineHeight: 1.3,
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
           {ev.title}
         </h2>
         <p style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.85)", margin: "0 0 0.25rem" }}>
           🗓️ {dateStr}{startStr ? ` · ${startStr}` : ""}
         </p>
         {ev.location && (
-          <p style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.7)", margin: "0 0 0.625rem" }}>
+          <p
+            style={{
+              fontSize: "0.75rem",
+              color: "rgba(255,255,255,0.7)",
+              margin: "0 0 0.625rem",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
             📍 {ev.location}
           </p>
         )}
@@ -162,7 +184,20 @@ export default function HeroCarousel({ firstName }: HeroCarouselProps) {
         <p style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.9)", margin: "0 0 0.25rem", fontWeight: 600 }}>
           {pr.author?.firstName || "Someone"} {pr.author?.lastName || ""} asks for prayer:
         </p>
-        <p style={{ fontSize: "0.85rem", color: "white", margin: "0 0 0.625rem", lineHeight: 1.5, fontStyle: "italic" }}>
+        <p
+          style={{
+            fontSize: "0.85rem",
+            color: "white",
+            margin: "0 0 0.625rem",
+            lineHeight: 1.5,
+            fontStyle: "italic",
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
           &ldquo;{truncated}&rdquo;
         </p>
         <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
@@ -303,11 +338,15 @@ export default function HeroCarousel({ firstName }: HeroCarouselProps) {
         background: (slides[idx]?.key === "event" && event?.coverPhoto)
           ? `url(/uploads/events/${event.coverPhoto}) center/cover no-repeat`
           : `linear-gradient(135deg, #1a7a94 0%, ${PRIMARY} 100%)`,
-        padding: "1.125rem 1rem 1.375rem",
+        padding: "1.125rem 1rem 1rem",
+        margin: "1rem 1rem 0",
         position: "relative",
         overflow: "hidden",
-        minHeight: 160,
+        height: 220,
         borderRadius: "12px",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
       }}
       onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
       onTouchEnd={(e) => {
@@ -356,7 +395,17 @@ export default function HeroCarousel({ firstName }: HeroCarouselProps) {
       )}
 
       {/* Current slide content */}
-      <div className="carousel-content" style={{ position: "relative", zIndex: 1 }}>
+      <div
+        className="carousel-content"
+        style={{
+          position: "relative",
+          zIndex: 1,
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+        }}
+      >
         {slides[idx]?.render()}
       </div>
 

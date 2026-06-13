@@ -1,6 +1,6 @@
-// HGF Connect — Service Worker v2.27.3
+// HGF Connect — Service Worker v2.27.4
 // Strategy: network-first for navigation, cache-first for assets, offline fallback for everything
-const CACHE_NAME = 'hgf-connect-v2.27.3';
+const CACHE_NAME = 'hgf-connect-v2.27.4';
 
 const PRECACHE = [
   '/',
@@ -8,6 +8,9 @@ const PRECACHE = [
   '/icons/icon-192.png',
   '/manifest.json',
 ];
+
+// App shell routes — these are stale-while-revalidated for instant navigation
+const APP_SHELL_ROUTES = ['/feed', '/prayer', '/stewardshop', '/me', '/quiz', '/events', '/notifications'];
 
 // Guaranteed offline fallback — NEVER returns null (Safari PWA crashes on null response)
 async function offlineFallback() {
@@ -73,25 +76,47 @@ self.addEventListener('fetch', (e) => {
   // Never cache Next.js internals or hot-reload
   if (request.url.includes('/_next/webpack-hmr')) return;
 
-  // Strategy 1: NAVIGATION → network-first, fall to offline.html
+  // Strategy 1: NAVIGATION
   if (request.mode === 'navigate') {
-    e.respondWith(
-      fetch(request)
-        .then((r) => {
-          if (r.ok) {
-            const clone = r.clone();
-            caches.open(CACHE_NAME).then((c) => c.put(request, clone));
-          }
-          return r;
+    const url = new URL(request.url);
+    const isAppShell = APP_SHELL_ROUTES.some((r) => url.pathname === r || url.pathname.startsWith(r + '/'));
+
+    if (isAppShell) {
+      // App shell routes → stale-while-revalidate (instant nav, background refresh)
+      e.respondWith(
+        caches.match(request).then((cached) => {
+          const fresh = fetch(request)
+            .then((r) => {
+              if (r.ok) {
+                const clone = r.clone();
+                caches.open(CACHE_NAME).then((c) => c.put(request, clone));
+              }
+              return r;
+            })
+            .catch(() => cached || offlineFallback());
+          return cached || fresh;
         })
-        .catch(async () => {
-          const exact = await caches.match(request);
-          if (exact) return exact;
-          const root = await caches.match('/');
-          if (root) return root;
-          return offlineFallback();
-        })
-    );
+      );
+    } else {
+      // Other pages → network-first, cache fallback
+      e.respondWith(
+        fetch(request)
+          .then((r) => {
+            if (r.ok) {
+              const clone = r.clone();
+              caches.open(CACHE_NAME).then((c) => c.put(request, clone));
+            }
+            return r;
+          })
+          .catch(async () => {
+            const exact = await caches.match(request);
+            if (exact) return exact;
+            const root = await caches.match('/');
+            if (root) return root;
+            return offlineFallback();
+          })
+      );
+    }
     return;
   }
 
