@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { Suspense } from "react";
 import { SessionProvider } from "next-auth/react";
 import { auth } from "@/lib/auth";
 import UpdateToast from "@/components/UpdateToast";
@@ -8,6 +9,7 @@ import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import VersionGuard from "@/components/VersionGuard";
 import { UploadProvider } from "@/context/UploadContext";
 import ImpersonationBanner from "@/components/layout/ImpersonationBanner";
+import NavigationProgress from "@/components/NavigationProgress";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -85,6 +87,9 @@ export default async function RootLayout({
       <body className="antialiased">
         <SessionProvider session={session}>
           <UploadProvider>
+            <Suspense fallback={null}>
+              <NavigationProgress />
+            </Suspense>
             {children}
             <ImpersonationBanner />
             <UpdateToast />

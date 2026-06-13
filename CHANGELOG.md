@@ -5,6 +5,13 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.28.0] — 2026-06-13
+### Added
+- **Navigation Progress Indicator**: Added a global YouTube/GitHub-style `NavigationProgress` bar at the top of the viewport on route transitions.
+- **Custom Loading Skeletons**: Created custom `loading.tsx` skeletons and reusable `SkeletonPulse` primitives for all major sections: Feed, Profile, Notifications, Prayer Wall, Quiz, and StewardShop.
+- **Bottom Dock & Header Navigation Feedback**: Added optimistic active state highlighting and tap animations to bottom dock and unified header menu links to ensure immediate tactile response on slow 5G connections.
+- **Service Worker Route Caching**: Configured service worker to use stale-while-revalidate caching for known app shell routes (`/feed`, `/prayer`, `/stewardshop`, `/me`, `/quiz`, `/events`, `/notifications`), enabling near-instant app shell loading.
+
 ## [v2.27.4] — 2026-06-13
 ### Fixed
 - **Fixed Feed Carousel Height Layout Shifts**: Enforced a fixed height of `220px` on the dashboard `HeroCarousel` container, aligned slide content vertically using flexbox, and added CSS line-clamping (`-webkit-line-clamp: 2`) on event titles/locations and prayer spotlight requests. This completely resolves Cumulative Layout Shift (CLS) layout jumps when the carousel auto-advances.

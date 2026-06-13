@@ -400,6 +400,8 @@ export default function UnifiedHeader() {
                   borderBottom: "1px solid rgba(255,255,255,0.09)",
                   background: isActive(href) ? "rgba(255,255,255,0.1)" : "transparent",
                   fontSize: "0.9rem",
+                  WebkitTapHighlightColor: "transparent",
+                  transition: "background 0.15s ease",
                 }}
               >
                 {icon && <span style={{ display: "flex", alignItems: "center", opacity: 0.9 }}>{icon}</span>}

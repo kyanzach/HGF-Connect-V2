@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, useCallback, useEffect } from "react";
 
 const PRIMARY = "#4EB1CB";
 
@@ -22,10 +23,33 @@ const DOCK_ITEMS: DockItem[] = [
 
 export default function BottomDock() {
   const pathname = usePathname();
+  // Track which item was tapped for optimistic highlighting
+  const [tappedHref, setTappedHref] = useState<string | null>(null);
 
   const isActive = (href: string) => {
     if (href === "/feed") return pathname === "/feed";
     return pathname?.startsWith(href);
+  };
+
+  // Clear optimistic state when pathname actually changes (navigation completed)
+  useEffect(() => {
+    setTappedHref(null);
+  }, [pathname]);
+
+  // Determine visual active state (real active OR optimistic tapped)
+  const isVisuallyActive = useCallback(
+    (href: string) => {
+      if (tappedHref) return href === tappedHref;
+      return isActive(href);
+    },
+    [tappedHref, pathname]
+  );
+
+  const handleTap = (href: string) => {
+    // Only set optimistic state if we're navigating to a different page
+    if (!isActive(href)) {
+      setTappedHref(href);
+    }
   };
 
   return (
@@ -52,6 +76,7 @@ export default function BottomDock() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={() => handleTap(item.href)}
               style={{
                 flex: 1,
                 display: "flex",
@@ -60,6 +85,7 @@ export default function BottomDock() {
                 justifyContent: "center",
                 textDecoration: "none",
                 position: "relative",
+                WebkitTapHighlightColor: "transparent",
               }}
               aria-label={item.label}
             >
@@ -78,6 +104,8 @@ export default function BottomDock() {
                   position: "absolute",
                   top: "-22px",
                   border: "3px solid white",
+                  transition: "transform 0.15s ease",
+                  transform: tappedHref === item.href ? "scale(0.92)" : "scale(1)",
                 }}
               >
                 {item.icon}
@@ -99,11 +127,12 @@ export default function BottomDock() {
           );
         }
 
-        const active = isActive(item.href);
+        const active = isVisuallyActive(item.href);
         return (
           <Link
             key={item.href}
             href={item.href}
+            onClick={() => handleTap(item.href)}
             style={{
               flex: 1,
               display: "flex",
@@ -112,19 +141,45 @@ export default function BottomDock() {
               justifyContent: "center",
               textDecoration: "none",
               gap: "2px",
+              WebkitTapHighlightColor: "transparent",
+              transition: "transform 0.1s ease",
+              transform: tappedHref === item.href ? "scale(0.9)" : "scale(1)",
             }}
           >
-            <span style={{ fontSize: "1.375rem", lineHeight: 1 }}>{item.icon}</span>
+            <span
+              style={{
+                fontSize: "1.375rem",
+                lineHeight: 1,
+                transition: "transform 0.15s ease",
+                transform: active ? "scale(1.1)" : "scale(1)",
+              }}
+            >
+              {item.icon}
+            </span>
             <span
               style={{
                 fontSize: "0.625rem",
                 fontWeight: active ? 700 : 500,
                 color: active ? PRIMARY : "#94a3b8",
                 letterSpacing: "0.01em",
+                transition: "color 0.15s ease, font-weight 0.15s ease",
               }}
             >
               {item.label}
             </span>
+            {/* Active dot indicator */}
+            {active && (
+              <div
+                style={{
+                  width: 4,
+                  height: 4,
+                  borderRadius: "50%",
+                  background: PRIMARY,
+                  position: "absolute",
+                  bottom: "calc(env(safe-area-inset-bottom, 0px) + 2px)",
+                }}
+              />
+            )}
           </Link>
         );
       })}
