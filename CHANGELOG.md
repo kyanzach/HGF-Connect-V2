@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.28.1] — 2026-06-13
+### Fixed
+- **Carousel Spacing & Dot Indicators Clearance**: Increased the dashboard `HeroCarousel` fixed height to `235px` (along with the loading skeleton) to provide adequate clearance for event slides with 2-line titles and location text, preventing the dot indicators from being pushed down and clipped by `overflow: hidden`.
+
 ## [v2.28.0] — 2026-06-13
 ### Added
 - **Navigation Progress Indicator**: Added a global YouTube/GitHub-style `NavigationProgress` bar at the top of the viewport on route transitions.

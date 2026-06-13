@@ -342,7 +342,7 @@ export default function HeroCarousel({ firstName }: HeroCarouselProps) {
         margin: "1rem 1rem 0",
         position: "relative",
         overflow: "hidden",
-        height: 220,
+        height: 235,
         borderRadius: "12px",
         display: "flex",
         flexDirection: "column",

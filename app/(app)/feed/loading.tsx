@@ -17,7 +17,7 @@ export default function FeedLoading() {
           className="hgf-skeleton"
           style={{
             width: "100%",
-            height: 220,
+            height: 235,
             borderRadius: "12px",
           }}
         />
