@@ -1,9 +1,10 @@
 "use client";
 
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { triggerLogout } from "@/lib/logout";
 
 const PRIMARY = "#4EB1CB";
 
@@ -123,7 +124,7 @@ export default function MePage() {
       {/* Sign out */}
       <div style={{ margin: "0.875rem 1rem 0" }}>
         <button
-          onClick={() => signOut({ callbackUrl: "/" })}
+          onClick={() => triggerLogout()}
           style={{ width: "100%", padding: "0.875rem", background: "white", border: "1.5px solid #fecaca", borderRadius: "14px", color: "#ef4444", fontSize: "0.9rem", fontWeight: 700, cursor: "pointer" }}
         >
           🚪 Sign Out

@@ -10,6 +10,7 @@ import VersionGuard from "@/components/VersionGuard";
 import { UploadProvider } from "@/context/UploadContext";
 import ImpersonationBanner from "@/components/layout/ImpersonationBanner";
 import NavigationProgress from "@/components/NavigationProgress";
+import LogoutOverlay from "@/components/app/LogoutOverlay";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -95,6 +96,7 @@ export default async function RootLayout({
             <UpdateToast />
             <ServiceWorkerRegistration />
             <VersionGuard />
+            <LogoutOverlay />
           </UploadProvider>
         </SessionProvider>
       </body>

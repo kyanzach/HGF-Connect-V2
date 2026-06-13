@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
 import { type Session } from "next-auth";
 import { useState, useEffect } from "react";
+import { triggerLogout } from "@/lib/logout";
 
 const NAV = [
   { label: "Dashboard", href: "/admin", icon: "📊" },
@@ -198,7 +198,7 @@ export default function AdminSidebar({ session }: { session: Session }) {
           </Link>
         )}
         <button
-          onClick={() => signOut({ callbackUrl: "/" })}
+          onClick={() => triggerLogout()}
           style={{
             background: "transparent",
             border: "none",

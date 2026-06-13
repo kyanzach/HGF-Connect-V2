@@ -23,10 +23,11 @@ import dynamic from "next/dynamic";
 const AddEventModal = dynamic(() => import("@/components/AddEventModal"), { ssr: false });
 import Image from "next/image";
 import Link from "next/link";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import NotificationBell from "@/components/NotificationBell";
 import { APP_VERSION } from "@/lib/version";
+import { triggerLogout } from "@/lib/logout";
 
 const PRIMARY   = "#4EB1CB";
 const DARK_NAV  = "#3A95AD";
@@ -351,7 +352,7 @@ export default function UnifiedHeader() {
                     )}
 
                     <HR />
-                    <DropItem label="🚪 Logout" onClick={() => { setDropOpen(false); signOut({ callbackUrl: "/" }); }} />
+                    <DropItem label="🚪 Logout" onClick={() => { setDropOpen(false); triggerLogout(); }} />
                   </div>
                 )}
               </div>

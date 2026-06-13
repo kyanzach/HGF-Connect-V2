@@ -37,6 +37,7 @@ export default function LoginPage() {
   async function handleBiometric() {
     setBioLoading(true);
     setError("");
+    let success = false;
     try {
       const { verified, memberId } = await authenticatePasskey();
       if (!verified) throw new Error("Biometric verification failed");
@@ -49,6 +50,7 @@ export default function LoginPage() {
       if (result?.error) throw new Error("Sign-in failed after biometric");
 
       sessionStorage.setItem("hgf-just-logged-in", "1");
+      success = true;
       router.push("/feed");
     } catch (err: unknown) {
       // Two-case error handling:
@@ -67,7 +69,9 @@ export default function LoginPage() {
         setError(""); // clear any previous error
       }
     } finally {
-      setBioLoading(false);
+      if (!success) {
+        setBioLoading(false);
+      }
     }
   }
 
@@ -82,10 +86,9 @@ export default function LoginPage() {
       redirect: false,
     });
 
-    setLoading(false);
-
     if (result?.error) {
       setError("Invalid username or password. Please try again.");
+      setLoading(false);
       return;
     }
 

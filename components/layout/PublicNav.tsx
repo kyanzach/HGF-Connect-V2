@@ -3,9 +3,10 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { APP_VERSION } from "@/lib/version";
+import { triggerLogout } from "@/lib/logout";
 
 const PRIMARY = "#4EB1CB";
 
@@ -180,7 +181,7 @@ export default function PublicNav() {
                   )}
                   <hr style={{ border: "none", borderTop: "1px solid #f1f5f9", margin: 0 }} />
                   <button
-                    onClick={() => signOut({ callbackUrl: "/" })}
+                    onClick={() => triggerLogout()}
                     style={{
                       width: "100%",
                       padding: "0.625rem 0.875rem",

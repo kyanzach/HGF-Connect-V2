@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.28.2] — 2026-06-14
+### Fixed
+- **Optimized Login Responsiveness**: Prevented the "Sign In" and "Authenticating..." loading states from resetting early on successful credential/biometric submissions, ensuring the button status remains disabled and visual feedback is maintained throughout the route transition to `/feed`.
+- **Instant Secure Logout Utility**: Introduced a centralized `triggerLogout` utility and a global, glassmorphic `<LogoutOverlay />` loader that activates immediately on sign-out to block concurrent clicks. Implemented an asynchronous sign-out race with a `1.2-second` safety fallback timeout that forces a redirect to the home page even if NextAuth network requests hang on poor mobile connections.
+
 ## [v2.28.1] — 2026-06-13
 ### Fixed
 - **Carousel Spacing & Dot Indicators Clearance**: Increased the dashboard `HeroCarousel` fixed height to `235px` (along with the loading skeleton) to provide adequate clearance for event slides with 2-line titles and location text, preventing the dot indicators from being pushed down and clipped by `overflow: hidden`.
