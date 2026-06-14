@@ -132,7 +132,7 @@ export async function PATCH(
   // If status changes to active, send welcome SMS notification
   if (updateData.status === "active" && existingMember && existingMember.status !== "active" && existingMember.phone) {
     const { sendSms } = await import("@/lib/sms");
-    const smsMessage = `Hi ${existingMember.firstName}! Great news! 🥳\n\nYour registration with House of Grace Fellowship has been approved. Welcome to our community!\n\nYou can now access your account at connect.houseofgrace.ph.\n\nGod bless!`;
+    const smsMessage = `Hi ${existingMember.firstName}! Great news! 🥳\n\nYour registration with HGF Connect has been approved. Welcome to our community!\n\nYou can now access your account at connect.houseofgrace.ph.\n\nGod bless!`;
     
     sendSms(existingMember.phone, smsMessage, id, undefined, "HGF Connect")
       .catch(err => console.error(`Failed to send approval SMS to member ID ${id}:`, err));
