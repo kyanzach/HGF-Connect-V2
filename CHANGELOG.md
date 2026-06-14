@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.28.5] — 2026-06-14
+### Added
+- **Admin Approval Welcome SMS Notification**: Configured the member status update endpoint (`PATCH /api/members/[id]`) to automatically trigger a welcome SMS notification (routed under the `"HGF Connect"` sender ID) when a pending registrant's status is updated to `"active"`.
+
 ## [v2.28.4] — 2026-06-14
 ### Fixed
 - **Fixed Service Worker Cross-Cache Poisoning from Redirects**: Added a check to prevent caching of redirected navigation requests (`!r.redirected`) in both app shell and default fetch handlers, ensuring that pages like `/login` are not incorrectly cached with the HTML structure of private dashboard routes (like `/admin` or `/feed`) when middleware triggers automatic redirects.
