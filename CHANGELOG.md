@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.28.6] — 2026-06-14
+### Added
+- **Database Duplicate Account Merger**: Created and executed `scratch/merge_duplicates.php` on production to safely merge 12 duplicate member groups, preserving the newer Auth.js credentials while transferring all attendance records (e.g. merging Rechelle Buro's 49 + 40 records to a total of 89 records).
+- **Attendance Check-in SMS Backfill Script**: Developed `scratch/queue_today_attendance_sms.php` to identify and queue 74 customized attendance check-in SMS notifications for today's service attendees.
+
 ## [v2.28.5] — 2026-06-14
 ### Added
 - **Admin Approval Welcome SMS Notification**: Configured the member status update endpoint (`PATCH /api/members/[id]`) to automatically trigger a welcome SMS notification (routed under the `"HGF Connect"` sender ID) when a pending registrant's status is updated to `"active"`.
