@@ -5,6 +5,13 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.29.0] — 2026-06-15
+### Added
+- **Ministry Application System**: Added a new interactive "Ministries" tab on the user profile editor page (`app/(public)/profile/edit/page.tsx`) with real-time active, pending, and unsaved state rendering, plus type warning restrictions for "New Friend" accounts.
+- **Admin Review Action Queue**: Created a double-tab registrations and ministry requests panel in the admin review dashboard (`app/admin/review/AdminReviewClient.tsx` and `app/admin/review/page.tsx`) to approve/deny ministry requests.
+- **Admin Review API Route**: Implemented `POST /api/ministries/review` to handle admin approvals/rejections, write to `db.appLog`, and dispatch congratulatory welcome SMS messages automatically routed through the `HGFMinistry` Sender ID.
+- **Member Ministries API Loader**: Updated `GET /api/members/[id]` to return pending ministries for the user themselves and admin/moderator roles, enabling pending application visibility.
+
 ## [v2.28.6] — 2026-06-14
 ### Added
 - **Database Duplicate Account Merger**: Created and executed `scratch/merge_duplicates.php` on production to safely merge 12 duplicate member groups, preserving the newer Auth.js credentials while transferring all attendance records (e.g. merging Rechelle Buro's 49 + 40 records to a total of 89 records).

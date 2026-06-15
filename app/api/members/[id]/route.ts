@@ -11,11 +11,13 @@ export async function GET(
   const session = await auth();
   const isAdmin = session && ["admin", "moderator", "usher"].includes(session.user.role);
 
+  const isSelf = session && session.user.id === String(id);
+
   const member = await db.member.findUnique({
     where: { id },
     include: {
       ministries: {
-        where: { status: "active" },
+        where: (isAdmin || isSelf) ? { status: { in: ["active", "pending"] } } : { status: "active" },
         include: { ministry: true },
       },
     },
@@ -44,6 +46,17 @@ export async function PATCH(
   const { id: idStr } = await params;
   const id = parseInt(idStr);
   const body = await request.json();
+
+  // Retrieve the existing member details to check the status and type before updates
+  const existingMember = await db.member.findUnique({
+    where: { id },
+    select: { status: true, phone: true, firstName: true, type: true }
+  });
+
+  if (!existingMember) {
+    return NextResponse.json({ error: "Member not found" }, { status: 404 });
+  }
+
   const isAdmin = ["admin", "moderator", "usher"].includes(session.user.role);
   const isSelf = session.user.id === String(id);
 
@@ -85,6 +98,67 @@ export async function PATCH(
     if (body.sms1dayReminder !== undefined) updateData.sms1dayReminder = body.sms1dayReminder;
     if (body.smsSameDayReminder !== undefined) updateData.smsSameDayReminder = body.smsSameDayReminder;
 
+    if (body.ministryIds !== undefined) {
+      const isNewFriend = existingMember?.type?.toLowerCase() === "new friend";
+      if (isNewFriend && !isAdmin) {
+        return NextResponse.json({ error: "Ministry involvement selections are only available for Family Members." }, { status: 400 });
+      }
+
+      const currentMemberMinistries = await db.memberMinistry.findMany({
+        where: { memberId: id },
+        select: { ministryId: true },
+      });
+
+      const currentIds: number[] = currentMemberMinistries.map(m => m.ministryId);
+      const newIds: number[] = (body.ministryIds || []).map((val: any) => Number(val));
+
+      const toAdd = newIds.filter(mid => !currentIds.includes(mid));
+      const toRemove = currentIds.filter(mid => !newIds.includes(mid));
+
+      if (toRemove.length > 0) {
+        await db.memberMinistry.deleteMany({
+          where: {
+            memberId: id,
+            ministryId: { in: toRemove },
+          },
+        });
+      }
+
+      for (const addId of toAdd) {
+        const status = isAdmin ? "active" : "pending";
+        const approvedById = isAdmin ? parseInt(session.user.id) : null;
+        const approvedAt = isAdmin ? new Date() : null;
+
+        const existing = await db.memberMinistry.findFirst({
+          where: { memberId: id, ministryId: addId },
+        });
+
+        if (existing) {
+          await db.memberMinistry.update({
+            where: { id: existing.id },
+            data: { status, approvedById, approvedAt, requestedAt: new Date() },
+          });
+        } else {
+          await db.memberMinistry.create({
+            data: {
+              memberId: id,
+              ministryId: addId,
+              status,
+              approvedById,
+              approvedAt,
+              requestedAt: new Date(),
+            },
+          });
+        }
+      }
+
+      const finalMemberMinistries = await db.memberMinistry.findMany({
+        where: { memberId: id, status: { in: ["active", "pending"] } },
+        select: { ministryId: true },
+      });
+      updateData.ministryInvolvement = finalMemberMinistries.map(m => m.ministryId).join(",");
+    }
+
     if (body.username !== undefined) {
       const u = body.username?.trim().toLowerCase();
       if (!u) {
@@ -121,11 +195,7 @@ export async function PATCH(
     return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
   }
 
-  // Retrieve the existing member details to check the status before update
-  const existingMember = await db.member.findUnique({
-    where: { id },
-    select: { status: true, phone: true, firstName: true }
-  });
+
 
   const updated = await db.member.update({ where: { id }, data: updateData });
 

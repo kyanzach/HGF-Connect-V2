@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import AdminReviewClient from "./AdminReviewClient";
 
-export const metadata: Metadata = { title: "Review New Registration — Admin" };
+export const metadata: Metadata = { title: "Review Action Queue — Admin" };
 
 export default async function AdminReviewPage() {
   const session = await auth();
@@ -20,5 +20,22 @@ export default async function AdminReviewPage() {
     },
   });
 
-  return <AdminReviewClient pending={pending as any} />;
+  const pendingMinistries = await db.memberMinistry.findMany({
+    where: { status: "pending" },
+    orderBy: { requestedAt: "desc" },
+    select: {
+      id: true,
+      memberId: true,
+      ministryId: true,
+      requestedAt: true,
+      member: {
+        select: { id: true, firstName: true, lastName: true, email: true, phone: true },
+      },
+      ministry: {
+        select: { id: true, name: true },
+      },
+    },
+  });
+
+  return <AdminReviewClient pending={pending as any} pendingMinistries={pendingMinistries as any} />;
 }

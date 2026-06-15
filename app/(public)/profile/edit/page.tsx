@@ -7,7 +7,7 @@ import PhotoViewerModal, { type HistoryPhoto } from "@/components/PhotoViewerMod
 
 const PRIMARY = "#4EB1CB";
 
-type TabKey = "personal" | "contact" | "bio" | "privacy" | "sms" | "security";
+type TabKey = "personal" | "contact" | "bio" | "privacy" | "sms" | "security" | "ministries";
 
 const TABS: { key: TabKey; icon: string; label: string }[] = [
   { key: "personal", icon: "👤", label: "Personal" },
@@ -16,6 +16,7 @@ const TABS: { key: TabKey; icon: string; label: string }[] = [
   { key: "security", icon: "🔑", label: "Security" },
   { key: "privacy", icon: "🔒", label: "Privacy" },
   { key: "sms", icon: "📲", label: "SMS Alerts" },
+  { key: "ministries", icon: "🤲", label: "Ministries" },
 ];
 
 export default function EditProfilePage() {
@@ -37,6 +38,11 @@ export default function EditProfilePage() {
   const [error, setError] = useState("");
   const profileInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
+
+  const [masterMinistries, setMasterMinistries] = useState<{ id: number; name: string }[]>([]);
+  const [selectedMinistryIds, setSelectedMinistryIds] = useState<number[]>([]);
+  const [initialMinistryStatuses, setInitialMinistryStatuses] = useState<Record<number, string>>({});
+  const [memberType, setMemberType] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     firstName: "", lastName: "",
@@ -122,12 +128,35 @@ export default function EditProfilePage() {
           username: data.username ?? "",
         });
         setOriginalUsername(data.username ?? "");
+        setMemberType(data.type ?? "Regular");
+
+        const userMins = data.ministries || [];
+        const ids = userMins.map((um: any) => um.ministryId);
+        setSelectedMinistryIds(ids);
+
+        const statuses: Record<number, string> = {};
+        userMins.forEach((um: any) => {
+          statuses[um.ministryId] = um.status;
+        });
+        setInitialMinistryStatuses(statuses);
+
         if (data.profilePicture) setProfilePic(`/uploads/profile_pictures/${data.profilePicture}`);
         if (data.coverPhoto) setCoverPic(`/uploads/cover_photos/${data.coverPhoto}`);
         setLoading(false);
       })
       .catch(() => setLoading(false));
   }, [memberId]);
+
+  useEffect(() => {
+    fetch("/api/ministries")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.ministries) {
+          setMasterMinistries(data.ministries);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Fetch photo history
   useEffect(() => {
@@ -156,11 +185,28 @@ export default function EditProfilePage() {
           ...form,
           birthdate: form.birthdate || null,
           baptismDate: form.baptismDate || null,
+          ministryIds: selectedMinistryIds,
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Failed to save");
       setSaved(true);
       setOriginalUsername(form.username);
+
+      // Re-fetch member details to update ministries state cleanly
+      fetch(`/api/members/${memberId}`)
+        .then((r) => r.json())
+        .then((data) => {
+          const userMins = data.ministries || [];
+          const ids = userMins.map((um: any) => um.ministryId);
+          setSelectedMinistryIds(ids);
+          const statuses: Record<number, string> = {};
+          userMins.forEach((um: any) => {
+            statuses[um.ministryId] = um.status;
+          });
+          setInitialMinistryStatuses(statuses);
+        })
+        .catch(() => {});
+
       setTimeout(() => setSaved(false), 2500);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to save");
@@ -556,6 +602,132 @@ export default function EditProfilePage() {
                 >
                   {pwSaving ? "Updating…" : "🔑 Update Password"}
                 </button>
+              </div>
+            )}
+
+            {activeTab === "ministries" && (
+              <div>
+                <p style={{ fontSize: "0.825rem", color: "#64748b", marginBottom: "1.25rem", lineHeight: 1.5 }}>
+                  Join ministries to serving our community. Regular selections require administrative confirmation.
+                </p>
+                {memberType?.toLowerCase() === "new friend" ? (
+                  <div style={{ background: "#f8fafc", borderRadius: "12px", border: "1.5px solid #e2e8f0", padding: "1.25rem", borderLeft: `4px solid ${PRIMARY}` }}>
+                    <div style={{ display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
+                      <span style={{ fontSize: "1.25rem" }}>ℹ️</span>
+                      <div>
+                        <h4 style={{ margin: "0 0 0.25rem", fontSize: "0.875rem", fontWeight: 700, color: "#1e293b" }}>Family Member Access Only</h4>
+                        <p style={{ margin: 0, fontSize: "0.8rem", color: "#64748b", lineHeight: 1.5 }}>
+                          Ministry involvement selections are only available for Family Members. We&apos;d like to invite you to become a member — please contact the church for more information!
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    {/* Unsaved changes notice */}
+                    {JSON.stringify([...selectedMinistryIds].sort()) !== JSON.stringify(Object.keys(initialMinistryStatuses).map(Number).sort()) && (
+                      <div style={{ background: "#fffbeb", border: "1px solid #fef3c7", borderRadius: "10px", padding: "0.75rem 1rem", marginBottom: "1.25rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                        <span style={{ fontSize: "1.1rem" }}>⚠️</span>
+                        <span style={{ fontSize: "0.8rem", color: "#b45309", fontWeight: 600 }}>
+                          You have unsaved changes. Click &quot;Save Changes&quot; at the bottom of the page to submit your request.
+                        </span>
+                      </div>
+                    )}
+
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "0.75rem" }}>
+                      {masterMinistries.map((m) => {
+                        const isSelected = selectedMinistryIds.includes(m.id);
+                        const status = initialMinistryStatuses[m.id]; // "active", "pending", or undefined
+                        const isPendingUnsaved = isSelected && !status;
+
+                        // Visual styling states
+                        let border = "1.5px solid #e2e8f0";
+                        let bg = "white";
+                        let statusText = "";
+                        let statusColor = "#94a3b8";
+                        let actionLabel = "Request to Join";
+                        let actionColor = PRIMARY;
+
+                        if (isSelected) {
+                          if (status === "active") {
+                            border = `1.5px solid #10b981`;
+                            bg = "#f0fdf4";
+                            statusText = "✅ Active";
+                            statusColor = "#10b981";
+                            actionLabel = "Leave Ministry";
+                            actionColor = "#ef4444";
+                          } else if (status === "pending") {
+                            border = `1.5px solid #f59e0b`;
+                            bg = "#fffbeb";
+                            statusText = "⏳ Pending Approval";
+                            statusColor = "#f59e0b";
+                            actionLabel = "Cancel Request";
+                            actionColor = "#ef4444";
+                          } else if (isPendingUnsaved) {
+                            border = `1.5px dashed ${PRIMARY}`;
+                            bg = "#f0f9ff";
+                            statusText = "✍️ Applying (Unsaved)";
+                            statusColor = PRIMARY;
+                            actionLabel = "Cancel Request";
+                            actionColor = "#ef4444";
+                          }
+                        }
+
+                        return (
+                          <div
+                            key={m.id}
+                            style={{
+                              border,
+                              background: bg,
+                              borderRadius: "12px",
+                              padding: "1rem",
+                              display: "flex",
+                              flexDirection: "column",
+                              justifyContent: "space-between",
+                              minHeight: 110,
+                              boxSizing: "border-box",
+                              transition: "all 0.2s",
+                            }}
+                          >
+                            <div>
+                              <div style={{ fontWeight: 700, fontSize: "0.875rem", color: "#1e293b" }}>{m.name}</div>
+                              {statusText && (
+                                <div style={{ fontSize: "0.72rem", color: statusColor, fontWeight: 700, marginTop: "0.25rem" }}>
+                                  {statusText}
+                                </div>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (isSelected) {
+                                  setSelectedMinistryIds(prev => prev.filter(id => id !== m.id));
+                                } else {
+                                  setSelectedMinistryIds(prev => [...prev, m.id]);
+                                }
+                              }}
+                              style={{
+                                width: "100%",
+                                padding: "0.4rem 0",
+                                border: `1px solid ${actionColor}`,
+                                borderRadius: "6px",
+                                background: isSelected ? "white" : actionColor,
+                                color: isSelected ? actionColor : "white",
+                                fontSize: "0.75rem",
+                                fontWeight: 700,
+                                cursor: "pointer",
+                                marginTop: "0.75rem",
+                                transition: "all 0.15s",
+                              }}
+                            >
+                              {actionLabel}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

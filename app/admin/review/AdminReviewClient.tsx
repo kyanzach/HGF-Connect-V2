@@ -3,7 +3,7 @@ import { useState } from "react";
 import ConfirmModal from "@/components/ConfirmModal";
 import Link from "next/link";
 
-const P = "#4EB1CB";
+const PRIMARY = "#4EB1CB";
 
 type PendingMember = {
   id: number; firstName: string; lastName: string; email: string | null; phone: string | null;
@@ -12,14 +12,33 @@ type PendingMember = {
   ministries: { ministry: { name: string } }[];
 };
 
-export default function AdminReviewClient({ pending: init }: { pending: PendingMember[] }) {
+type PendingMinistry = {
+  id: number;
+  memberId: number;
+  ministryId: number;
+  requestedAt: string | null;
+  member: { id: number; firstName: string; lastName: string; email: string | null; phone: string | null };
+  ministry: { id: number; name: string };
+};
+
+export default function AdminReviewClient({
+  pending: init,
+  pendingMinistries: initMins,
+}: {
+  pending: PendingMember[];
+  pendingMinistries: PendingMinistry[];
+}) {
   const [pending, setPending] = useState(init);
+  const [pendingMins, setPendingMins] = useState(initMins || []);
+  const [activeTab, setActiveTab] = useState<"registrations" | "ministries">("registrations");
   const [processing, setProcessing] = useState<number | null>(null);
+  
   const [confirmModal, setConfirmModal] = useState<{
     open: boolean; title: string; message: string; confirmLabel: string;
     confirmColor: string; loading: boolean; onConfirm: () => void;
   }>({ open: false, title: "", message: "", confirmLabel: "Confirm", confirmColor: "#ef4444", loading: false, onConfirm: () => {} });
 
+  // ── Registrations Actions ───────────────────────────────────────────────────
   async function approve(id: number) {
     setProcessing(id);
     const res = await fetch(`/api/members/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "active" }) });
@@ -44,64 +63,195 @@ export default function AdminReviewClient({ pending: init }: { pending: PendingM
     setConfirmModal(prev => ({ ...prev, open: false, loading: false }));
   }
 
-  if (pending.length === 0) {
-    return (
-      <div style={{ padding: "4rem 2rem", textAlign: "center" }}>
-        <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>✅</div>
-        <h2 style={{ fontSize: "1.25rem", fontWeight: 800, color: "#0f172a" }}>All caught up!</h2>
-        <p style={{ color: "#64748b" }}>No pending member registrations.</p>
-      </div>
-    );
+  // ── Ministry Requests Actions ──────────────────────────────────────────────
+  async function approveMinistry(id: number) {
+    setProcessing(id);
+    const res = await fetch("/api/ministries/review", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, action: "approve" }),
+    });
+    if (res.ok) setPendingMins(prev => prev.filter(m => m.id !== id));
+    setProcessing(null);
+  }
+
+  function promptDenyMinistry(id: number, memberName: string, ministryName: string) {
+    setConfirmModal({
+      open: true,
+      title: "Deny Ministry Request",
+      message: `Deny the request for "${memberName}" to join the "${ministryName}" ministry?`,
+      confirmLabel: "Deny",
+      confirmColor: "#ef4444",
+      loading: false,
+      onConfirm: () => executeDenyMinistry(id),
+    });
+  }
+  async function executeDenyMinistry(id: number) {
+    setConfirmModal(prev => ({ ...prev, loading: true }));
+    setProcessing(id);
+    const res = await fetch("/api/ministries/review", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, action: "deny" }),
+    });
+    if (res.ok) setPendingMins(prev => prev.filter(m => m.id !== id));
+    setProcessing(null);
+    setConfirmModal(prev => ({ ...prev, open: false, loading: false }));
   }
 
   return (
     <div style={{ padding: "1.5rem 2rem" }}>
       <div style={{ marginBottom: "1.5rem" }}>
-        <h1 style={{ fontSize: "1.5rem", fontWeight: 800, color: "#0f172a", margin: 0 }}>⏳ Review New Registration</h1>
-        <p style={{ color: "#64748b", fontSize: "0.875rem", margin: "0.25rem 0 0" }}>{pending.length} registration{pending.length !== 1 ? "s" : ""} awaiting approval</p>
+        <h1 style={{ fontSize: "1.5rem", fontWeight: 800, color: "#0f172a", margin: 0 }}>⏳ Action Review Queue</h1>
+        <p style={{ color: "#64748b", fontSize: "0.875rem", margin: "0.25rem 0 0" }}>
+          Review pending user accounts and ministry applications
+        </p>
       </div>
-      <div style={{ display: "grid", gap: "1rem" }}>
-        {pending.map(m => (
-          <div key={m.id} style={{ background: "white", borderRadius: "12px", border: "1px solid #fed7aa", padding: "1.25rem", borderLeft: "4px solid #f59e0b" }}>
-            <div className="registration-card-inner" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem" }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", marginBottom: "0.5rem", flexWrap: "wrap" }}>
-                  <h3 style={{ fontSize: "1.0625rem", fontWeight: 800, color: "#0f172a", margin: 0 }}>{m.firstName} {m.lastName}</h3>
-                  <span style={{ fontSize: "0.7rem", fontWeight: 700, background: "#fef3c7", color: "#d97706", padding: "0.2rem 0.5rem", borderRadius: "4px" }}>{m.type}</span>
-                  {m.ageGroup && <span style={{ fontSize: "0.7rem", fontWeight: 700, background: "#f1f5f9", color: "#475569", padding: "0.2rem 0.5rem", borderRadius: "4px" }}>{m.ageGroup}</span>}
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "0.375rem", fontSize: "0.825rem", color: "#64748b" }}>
-                  {m.email && <div>✉️ {m.email}</div>}
-                  {m.phone && <div>📞 {m.phone}</div>}
-                  {m.address && <div>📍 {m.address}</div>}
-                  {m.invitedBy && <div>👥 Invited by {m.invitedBy}</div>}
-                  {m.joinDate && <div>📅 Join date: {new Date(m.joinDate).toLocaleDateString("en-PH", { month: "long", day: "numeric", year: "numeric" })}</div>}
-                  <div style={{ color: "#94a3b8", fontSize: "0.75rem" }}>Registered {new Date(m.createdAt).toLocaleDateString("en-PH")}</div>
-                </div>
-                {m.ministries.length > 0 && (
-                  <div style={{ marginTop: "0.625rem", display: "flex", gap: "0.3rem", flexWrap: "wrap" }}>
-                    {m.ministries.map((mm, i) => <span key={i} style={{ fontSize: "0.7rem", background: P, color: "white", padding: "0.15rem 0.4rem", borderRadius: "4px", fontWeight: 700 }}>{mm.ministry.name}</span>)}
-                  </div>
-                )}
-              </div>
-              <div className="registration-actions" style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
-                <Link href={`/member/${m.id}`} style={{ padding: "0.5rem 0.875rem", border: "1.5px solid #e2e8f0", borderRadius: "8px", color: "#475569", textDecoration: "none", fontSize: "0.8rem", fontWeight: 700, display: "inline-block", textAlign: "center" }}>View</Link>
-                <button
-                  onClick={() => approve(m.id)} disabled={processing === m.id}
-                  style={{ padding: "0.5rem 0.875rem", border: "none", borderRadius: "8px", background: "#10b981", color: "white", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer", opacity: processing === m.id ? 0.6 : 1 }}>
-                  ✅ Approve
-                </button>
-                <button
-                  onClick={() => promptReject(m.id, `${m.firstName} ${m.lastName}`)} disabled={processing === m.id}
-                  style={{ padding: "0.5rem 0.875rem", border: "1.5px solid #fee2e2", borderRadius: "8px", background: "#fef2f2", color: "#ef4444", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer", opacity: processing === m.id ? 0.6 : 1 }}>
-                  ✗ Reject
-                </button>
-              </div>
-            </div>
+
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.5rem", borderBottom: "1px solid #e2e8f0", paddingBottom: "0.75rem" }}>
+        <button
+          onClick={() => setActiveTab("registrations")}
+          style={{
+            padding: "0.5rem 1rem",
+            borderRadius: "8px",
+            border: "none",
+            background: activeTab === "registrations" ? PRIMARY : "transparent",
+            color: activeTab === "registrations" ? "white" : "#64748b",
+            fontWeight: 700,
+            cursor: "pointer",
+            fontSize: "0.875rem",
+          }}
+        >
+          👥 Registrations ({pending.length})
+        </button>
+        <button
+          onClick={() => setActiveTab("ministries")}
+          style={{
+            padding: "0.5rem 1rem",
+            borderRadius: "8px",
+            border: "none",
+            background: activeTab === "ministries" ? PRIMARY : "transparent",
+            color: activeTab === "ministries" ? "white" : "#64748b",
+            fontWeight: 700,
+            cursor: "pointer",
+            fontSize: "0.875rem",
+          }}
+        >
+          🤲 Ministry Requests ({pendingMins.length})
+        </button>
+      </div>
+
+      {activeTab === "registrations" && (
+        pending.length === 0 ? (
+          <div style={{ padding: "4rem 2rem", textAlign: "center" }}>
+            <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>✅</div>
+            <h2 style={{ fontSize: "1.25rem", fontWeight: 800, color: "#0f172a" }}>All caught up!</h2>
+            <p style={{ color: "#64748b" }}>No pending member registrations.</p>
           </div>
-        ))}
-      </div>
+        ) : (
+          <div style={{ display: "grid", gap: "1rem" }}>
+            {pending.map(m => (
+              <div key={m.id} style={{ background: "white", borderRadius: "12px", border: "1px solid #fed7aa", padding: "1.25rem", borderLeft: "4px solid #f59e0b" }}>
+                <div className="registration-card-inner" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem" }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", marginBottom: "0.5rem", flexWrap: "wrap" }}>
+                      <h3 style={{ fontSize: "1.0625rem", fontWeight: 800, color: "#0f172a", margin: 0 }}>{m.firstName} {m.lastName}</h3>
+                      <span style={{ fontSize: "0.7rem", fontWeight: 700, background: "#fef3c7", color: "#d97706", padding: "0.2rem 0.5rem", borderRadius: "4px" }}>{m.type}</span>
+                      {m.ageGroup && <span style={{ fontSize: "0.7rem", fontWeight: 700, background: "#f1f5f9", color: "#475569", padding: "0.2rem 0.5rem", borderRadius: "4px" }}>{m.ageGroup}</span>}
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "0.375rem", fontSize: "0.825rem", color: "#64748b" }}>
+                      {m.email && <div>✉️ {m.email}</div>}
+                      {m.phone && <div>📞 {m.phone}</div>}
+                      {m.address && <div>📍 {m.address}</div>}
+                      {m.invitedBy && <div>👥 Invited by {m.invitedBy}</div>}
+                      {m.joinDate && <div>📅 Join date: {new Date(m.joinDate).toLocaleDateString("en-PH", { month: "long", day: "numeric", year: "numeric" })}</div>}
+                      <div style={{ color: "#94a3b8", fontSize: "0.75rem" }}>Registered {new Date(m.createdAt).toLocaleDateString("en-PH")}</div>
+                    </div>
+                    {m.ministries.length > 0 && (
+                      <div style={{ marginTop: "0.625rem", display: "flex", gap: "0.3rem", flexWrap: "wrap" }}>
+                        {m.ministries.map((mm, i) => <span key={i} style={{ fontSize: "0.7rem", background: PRIMARY, color: "white", padding: "0.15rem 0.4rem", borderRadius: "4px", fontWeight: 700 }}>{mm.ministry.name}</span>)}
+                      </div>
+                    )}
+                  </div>
+                  <div className="registration-actions" style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
+                    <Link href={`/member/${m.id}`} style={{ padding: "0.5rem 0.875rem", border: "1.5px solid #e2e8f0", borderRadius: "8px", color: "#475569", textDecoration: "none", fontSize: "0.8rem", fontWeight: 700, display: "inline-block", textAlign: "center" }}>View</Link>
+                    <button
+                      onClick={() => approve(m.id)} disabled={processing === m.id}
+                      style={{ padding: "0.5rem 0.875rem", border: "none", borderRadius: "8px", background: "#10b981", color: "white", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer", opacity: processing === m.id ? 0.6 : 1 }}>
+                      ✅ Approve
+                    </button>
+                    <button
+                      onClick={() => promptReject(m.id, `${m.firstName} ${m.lastName}`)} disabled={processing === m.id}
+                      style={{ padding: "0.5rem 0.875rem", border: "1.5px solid #fee2e2", borderRadius: "8px", background: "#fef2f2", color: "#ef4444", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer", opacity: processing === m.id ? 0.6 : 1 }}>
+                      ✗ Reject
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      )}
+
+      {activeTab === "ministries" && (
+        pendingMins.length === 0 ? (
+          <div style={{ padding: "4rem 2rem", textAlign: "center" }}>
+            <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>✅</div>
+            <h2 style={{ fontSize: "1.25rem", fontWeight: 800, color: "#0f172a" }}>All caught up!</h2>
+            <p style={{ color: "#64748b" }}>No pending ministry requests.</p>
+          </div>
+        ) : (
+          <div style={{ display: "grid", gap: "1rem" }}>
+            {pendingMins.map(m => (
+              <div key={m.id} style={{ background: "white", borderRadius: "12px", border: "1px solid #fed7aa", padding: "1.25rem", borderLeft: "4px solid #f59e0b" }}>
+                <div className="registration-card-inner" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem" }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", marginBottom: "0.5rem", flexWrap: "wrap" }}>
+                      <h3 style={{ fontSize: "1.0625rem", fontWeight: 800, color: "#0f172a", margin: 0 }}>
+                        {m.member.firstName} {m.member.lastName}
+                      </h3>
+                      <span style={{ fontSize: "0.7rem", fontWeight: 700, background: "#fef3c7", color: "#d97706", padding: "0.2rem 0.5rem", borderRadius: "4px" }}>
+                        Ministry Request
+                      </span>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "0.375rem", fontSize: "0.825rem", color: "#64748b" }}>
+                      <div>🤲 Requested: <span style={{ fontWeight: 700, color: PRIMARY }}>{m.ministry.name}</span></div>
+                      {m.member.email && <div>✉️ {m.member.email}</div>}
+                      {m.member.phone && <div>📞 {m.member.phone}</div>}
+                      {m.requestedAt && (
+                        <div style={{ color: "#94a3b8", fontSize: "0.75rem" }}>
+                          Requested {new Date(m.requestedAt).toLocaleDateString("en-PH", { month: "long", day: "numeric", year: "numeric" })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="registration-actions" style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
+                    <Link href={`/member/${m.member.id}`} style={{ padding: "0.5rem 0.875rem", border: "1.5px solid #e2e8f0", borderRadius: "8px", color: "#475569", textDecoration: "none", fontSize: "0.8rem", fontWeight: 700, display: "inline-block", textAlign: "center" }}>
+                      View Profile
+                    </Link>
+                    <button
+                      onClick={() => approveMinistry(m.id)} disabled={processing === m.id}
+                      style={{ padding: "0.5rem 0.875rem", border: "none", borderRadius: "8px", background: "#10b981", color: "white", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer", opacity: processing === m.id ? 0.6 : 1 }}
+                    >
+                      ✅ Approve
+                    </button>
+                    <button
+                      onClick={() => promptDenyMinistry(m.id, `${m.member.firstName} ${m.member.lastName}`, m.ministry.name)} disabled={processing === m.id}
+                      style={{ padding: "0.5rem 0.875rem", border: "1.5px solid #fee2e2", borderRadius: "8px", background: "#fef2f2", color: "#ef4444", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer", opacity: processing === m.id ? 0.6 : 1 }}
+                    >
+                      ✗ Reject
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      )}
+
       <ConfirmModal open={confirmModal.open} title={confirmModal.title} message={confirmModal.message} confirmLabel={confirmModal.confirmLabel} confirmColor={confirmModal.confirmColor} loading={confirmModal.loading} onConfirm={confirmModal.onConfirm} onCancel={() => setConfirmModal(prev => ({ ...prev, open: false }))} />
+
       <style>{`
         @media (max-width: 767px) {
           .registration-card-inner {
