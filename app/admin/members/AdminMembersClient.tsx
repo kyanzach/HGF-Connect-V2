@@ -43,7 +43,7 @@ export default function AdminMembersClient({
   const [adding, setAdding] = useState(false);
   const [addErr, setAddErr] = useState("");
   const [form, setForm] = useState({
-    firstName: "", lastName: "", email: "", phone: "", joinDate: "", ageGroup: "Adult", type: "Growing Friend", role: "member",
+    firstName: "", lastName: "", email: "", phone: "", joinDate: "", ageGroup: "Adult", type: "GrowingFriend", role: "member",
   });
   const [confirmModal, setConfirmModal] = useState<{
     open: boolean; title: string; message: string; confirmLabel: string;
@@ -74,7 +74,7 @@ export default function AdminMembersClient({
     const data = await res.json();
     if (!res.ok) { setAddErr(data.error ?? "Failed"); setAdding(false); return; }
     setMembers(prev => [data.member ?? data, ...prev]);
-    setShowAdd(false); setForm({ firstName: "", lastName: "", email: "", phone: "", joinDate: "", ageGroup: "Adult", type: "Growing Friend", role: "member" });
+    setShowAdd(false); setForm({ firstName: "", lastName: "", email: "", phone: "", joinDate: "", ageGroup: "Adult", type: "GrowingFriend", role: "member" });
     setAdding(false);
   }
 
@@ -224,9 +224,9 @@ Thank you and God bless!`;
         </select>
         <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={{ ...sel, width: 160 }}>
           <option value="all">All types</option>
-          <option value="Family Member">Family Member</option>
-          <option value="Growing Friend">Growing Friend</option>
-          <option value="New Friend">New Friend</option>
+          <option value="FamilyMember">Family Member</option>
+          <option value="GrowingFriend">Growing Friend</option>
+          <option value="NewFriend">New Friend</option>
         </select>
         <span style={{ color: "#94a3b8", fontSize: "0.875rem", alignSelf: "center" }}>{filtered.length} shown</span>
       </div>
@@ -256,7 +256,9 @@ Thank you and God bless!`;
                   </select></div>
                 <div><label style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b" }}>Type</label>
                   <select style={sel} value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}>
-                    <option>Family Member</option><option>Growing Friend</option><option>New Friend</option>
+                    <option value="FamilyMember">Family Member</option>
+                    <option value="GrowingFriend">Growing Friend</option>
+                    <option value="NewFriend">New Friend</option>
                   </select></div>
                 {isAdmin && <div><label style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b" }}>Role</label>
                   <select style={sel} value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}>
@@ -315,9 +317,9 @@ Thank you and God bless!`;
                         outline: "none",
                       }}
                     >
-                      <option value="Family Member">Family Member</option>
-                      <option value="Growing Friend">Growing Friend</option>
-                      <option value="New Friend">New Friend</option>
+                      <option value="FamilyMember">Family Member</option>
+                      <option value="GrowingFriend">Growing Friend</option>
+                      <option value="NewFriend">New Friend</option>
                     </select>
                   </td>
                   <td style={{ padding: "0.75rem 1rem" }}><span style={{ fontSize: "0.75rem", fontWeight: 700, color: STATUS_COLOR[m.status] ?? "#64748b", background: `${STATUS_COLOR[m.status] ?? "#64748b"}18`, padding: "0.2rem 0.6rem", borderRadius: "4px", textTransform: "capitalize" }}>{m.status}</span></td>
@@ -409,9 +411,9 @@ Thank you and God bless!`;
                   outline: "none",
                 }}
               >
-                <option value="Family Member">Family Member</option>
-                <option value="Growing Friend">Growing Friend</option>
-                <option value="New Friend">New Friend</option>
+                <option value="FamilyMember">Family Member</option>
+                <option value="GrowingFriend">Growing Friend</option>
+                <option value="NewFriend">New Friend</option>
               </select>
               {m.ministries.map((mm, j) => (
                 <span key={j} style={{ fontSize: "0.7rem", background: P, color: "white", padding: "0.15rem 0.4rem", borderRadius: "4px", fontWeight: 500 }}>

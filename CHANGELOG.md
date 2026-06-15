@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.29.3] — 2026-06-15
+### Fixed
+- **Admin Member Type Selector Defaulting**: Corrected the inline member Type dropdown option values to match the database/Prisma `MemberType` CamelCase strings (e.g. `FamilyMember`, `GrowingFriend`, `NewFriend` instead of spaced variants). This resolves the browser layout bug where all selector default values incorrectly loaded as "Family Member" instead of the member's actual stored database status type.
+
 ## [v2.29.2] — 2026-06-15
 ### Added
 - **Editable Member Types in Admin**: Replaced the plain text member Type badges in the administration dashboard (`app/admin/members/AdminMembersClient.tsx`) with styled inline select dropdowns. This allows admins and moderators to quickly transition users between "New Friend", "Growing Friend", and "Family Member" statuses dynamically on both desktop (table view) and mobile (card list).
