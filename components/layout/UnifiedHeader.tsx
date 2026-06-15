@@ -375,12 +375,23 @@ export default function UnifiedHeader() {
                 style={{
                   background: "rgba(255,255,255,0.15)", border: "none", color: "white",
                   width: 36, height: 36, borderRadius: 8, cursor: "pointer",
-                  fontSize: "1.1rem", display: "flex", alignItems: "center",
+                  display: "flex", alignItems: "center",
                   justifyContent: "center", flexShrink: 0,
                 }}
                 aria-label="Navigation menu"
             >
-              {navOpen ? "✕" : "☰"}
+              {navOpen ? (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block" }}>
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block" }}>
+                  <line x1="3" y1="12" x2="21" y2="12"></line>
+                  <line x1="3" y1="6" x2="21" y2="6"></line>
+                  <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+              )}
             </button>
           </div>
         </div>

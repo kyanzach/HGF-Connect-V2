@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.29.4] — 2026-06-15
+### Fixed
+- **Robust Hamburger Menu Icons**: Replaced the Unicode `☰` and `✕` characters in `UnifiedHeader.tsx` and `PublicNav.tsx` navigation buttons with inline vector SVGs. This fixes issues where navigation buttons were hidden or displayed as blank on some custom Android builds (like Oppo ColorOS, Huawei EMUI, etc.) which lack these symbols in their system font files.
+
 ## [v2.29.3] — 2026-06-15
 ### Fixed
 - **Admin Member Type Selector Defaulting**: Corrected the inline member Type dropdown option values to match the database/Prisma `MemberType` CamelCase strings (e.g. `FamilyMember`, `GrowingFriend`, `NewFriend` instead of spaced variants). This resolves the browser layout bug where all selector default values incorrectly loaded as "Family Member" instead of the member's actual stored database status type.

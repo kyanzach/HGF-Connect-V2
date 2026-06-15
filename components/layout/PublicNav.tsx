@@ -230,7 +230,6 @@ export default function PublicNav() {
               height: "36px",
               borderRadius: "8px",
               cursor: "pointer",
-              fontSize: "1.125rem",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -238,7 +237,18 @@ export default function PublicNav() {
             }}
             aria-label="Menu"
           >
-            ☰
+            {navOpen ? (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block" }}>
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block" }}>
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+              </svg>
+            )}
           </button>
         </div>
       </div>
