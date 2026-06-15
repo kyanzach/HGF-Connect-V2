@@ -35,6 +35,7 @@ export default function AdminMembersClient({
   const isStrictAdmin = session?.user?.role === "admin";
 
   const [members, setMembers] = useState(initial);
+  const [updatingTypeIds, setUpdatingTypeIds] = useState<Record<number, boolean>>({});
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -81,6 +82,24 @@ export default function AdminMembersClient({
     const newStatus = current === "active" ? "inactive" : "active";
     const res = await fetch(`/api/members/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: newStatus }) });
     if (res.ok) setMembers(prev => prev.map(m => m.id === id ? { ...m, status: newStatus } : m));
+  }
+
+  async function changeType(id: number, newType: string) {
+    setUpdatingTypeIds(prev => ({ ...prev, [id]: true }));
+    try {
+      const res = await fetch(`/api/members/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: newType }),
+      });
+      if (res.ok) {
+        setMembers(prev => prev.map(m => m.id === id ? { ...m, type: newType } : m));
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setUpdatingTypeIds(prev => ({ ...prev, [id]: false }));
+    }
   }
 
   function promptDeleteMember(id: number, name: string) {
@@ -279,7 +298,28 @@ Thank you and God bless!`;
                     <div style={{ fontSize: "0.8rem" }}>{m.email ?? "—"}</div>
                     <div style={{ fontSize: "0.7rem", color: "#94a3b8" }}>{m.phone ?? "—"}</div>
                   </td>
-                  <td style={{ padding: "0.75rem 1rem" }}><span style={{ fontSize: "0.75rem", background: "#f1f5f9", color: "#475569", padding: "0.2rem 0.5rem", borderRadius: "4px" }}>{m.type}</span></td>
+                  <td style={{ padding: "0.75rem 1rem" }}>
+                    <select
+                      value={m.type}
+                      disabled={updatingTypeIds[m.id]}
+                      onChange={(e) => changeType(m.id, e.target.value)}
+                      style={{
+                        fontSize: "0.75rem",
+                        background: "#f1f5f9",
+                        color: "#475569",
+                        padding: "0.15rem 0.45rem",
+                        borderRadius: "6px",
+                        border: "1px solid #e2e8f0",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        outline: "none",
+                      }}
+                    >
+                      <option value="Family Member">Family Member</option>
+                      <option value="Growing Friend">Growing Friend</option>
+                      <option value="New Friend">New Friend</option>
+                    </select>
+                  </td>
                   <td style={{ padding: "0.75rem 1rem" }}><span style={{ fontSize: "0.75rem", fontWeight: 700, color: STATUS_COLOR[m.status] ?? "#64748b", background: `${STATUS_COLOR[m.status] ?? "#64748b"}18`, padding: "0.2rem 0.6rem", borderRadius: "4px", textTransform: "capitalize" }}>{m.status}</span></td>
                   <td style={{ padding: "0.75rem 1rem" }}><span style={{ fontSize: "0.75rem", fontWeight: 700, color: ROLE_COLOR[m.role] ?? "#64748b" }}>{m.role}</span></td>
                   <td style={{ padding: "0.75rem 1rem" }}>
@@ -352,10 +392,27 @@ Thank you and God bless!`;
             </div>
 
             {/* Badges: Type & Active Ministries */}
-            <div style={{ display: "flex", gap: "0.3rem", marginBottom: "0.75rem", flexWrap: "wrap" }}>
-              <span style={{ fontSize: "0.7rem", background: "#f1f5f9", color: "#475569", padding: "0.15rem 0.4rem", borderRadius: "4px", fontWeight: 500 }}>
-                {m.type}
-              </span>
+            <div style={{ display: "flex", gap: "0.3rem", marginBottom: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
+              <select
+                value={m.type}
+                disabled={updatingTypeIds[m.id]}
+                onChange={(e) => changeType(m.id, e.target.value)}
+                style={{
+                  fontSize: "0.7rem",
+                  background: "#f1f5f9",
+                  color: "#475569",
+                  padding: "0.15rem 0.4rem",
+                  borderRadius: "6px",
+                  border: "1px solid #e2e8f0",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  outline: "none",
+                }}
+              >
+                <option value="Family Member">Family Member</option>
+                <option value="Growing Friend">Growing Friend</option>
+                <option value="New Friend">New Friend</option>
+              </select>
               {m.ministries.map((mm, j) => (
                 <span key={j} style={{ fontSize: "0.7rem", background: P, color: "white", padding: "0.15rem 0.4rem", borderRadius: "4px", fontWeight: 500 }}>
                   {mm.ministry.name}

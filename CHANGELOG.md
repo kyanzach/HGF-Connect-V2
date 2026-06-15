@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.29.2] — 2026-06-15
+### Added
+- **Editable Member Types in Admin**: Replaced the plain text member Type badges in the administration dashboard (`app/admin/members/AdminMembersClient.tsx`) with styled inline select dropdowns. This allows admins and moderators to quickly transition users between "New Friend", "Growing Friend", and "Family Member" statuses dynamically on both desktop (table view) and mobile (card list).
+
 ## [v2.29.1] — 2026-06-15
 ### Changed
 - **Profile Edit Tab Consolidation**: Merged Contact and Bio & Verse fields directly into the Personal tab under distinct, premium section headers. Merged SMS event alerts into the Privacy tab. Reordered and positioned the Ministries tab next to the Personal tab.
