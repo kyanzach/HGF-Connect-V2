@@ -5,6 +5,14 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.29.6] — 2026-06-15
+### Fixed
+- **PWA Stale Auth State & Artifacts**: Fixed a critical caching regression where logging out would leave navigation bar docks, FAB buttons, and user profile setting items visible.
+  - Excluded the root path `/` from the service worker's `PRECACHE` to prevent caching dynamic session states.
+  - Simplified the service worker's navigation strategy to fetch pages directly from the network (bypassing caches) and use `offline.html` only as a fallback.
+  - Implemented `<ClientAuthGuard />` in `app/(app)/layout.tsx` to immediately redirect unauthenticated users to `/login` client-side if their session becomes invalid or is cleared.
+  - Forced dynamic rendering on the home page (`app/page.tsx`) using `export const dynamic = "force-dynamic"` to guarantee fresh server checks.
+
 ## [v2.29.5] — 2026-06-15
 ### Added
 - **StewardShop Grid & Detail Skeletons**: Implemented Next.js route loading skeleton screens using the Facebook-style shimmer pulse primitives for the public listing grid page (`app/(public)/stewardshop/loading.tsx`) and single listing detail view (`app/(public)/stewardshop/[id]/loading.tsx`). This resolves perceived visual lag during SSR and IP/geolocation lookups.

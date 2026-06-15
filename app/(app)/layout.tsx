@@ -4,6 +4,7 @@ import UnifiedHeader from "@/components/layout/UnifiedHeader";
 import BottomDock from "@/components/app/BottomDock";
 import BiometricEnrollTrigger from "@/components/BiometricEnrollTrigger";
 import PullToRefresh from "@/components/PullToRefresh";
+import ClientAuthGuard from "@/components/ClientAuthGuard";
 
 export default async function AppLayout({
   children,
@@ -25,6 +26,7 @@ export default async function AppLayout({
         background: "#f8fafc",
       }}
     >
+      <ClientAuthGuard />
       {/* Sticky Top Header — full width */}
       <UnifiedHeader />
 
