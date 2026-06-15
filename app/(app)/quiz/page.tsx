@@ -17,6 +17,7 @@ import QuizPlayer from "@/components/quiz/QuizPlayer";
 import ConfirmModal from "@/components/ConfirmModal";
 import CleanYoutubePlayer from "@/components/quiz/CleanYoutubePlayer";
 import ImageLightbox from "@/components/ImageLightbox";
+import QuizLoading from "./loading";
 
 const PRIMARY = "#4EB1CB";
 
@@ -320,15 +321,7 @@ export default function MemberQuizPage() {
   }
 
   if (authStatus === "loading" || loading) {
-    return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f8fafc" }}>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ border: `4px solid ${PRIMARY}20`, borderTop: `4px solid ${PRIMARY}`, borderRadius: "50%", width: 40, height: 40, animation: "spin 1s linear infinite", margin: "0 auto 16px" }} />
-          <p style={{ color: "#64748b", fontSize: "0.95rem" }}>Loading Quiz for Christ...</p>
-        </div>
-        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
-      </div>
-    );
+    return <QuizLoading />;
   }
 
   if (!quizStatus || !quizStatus.active) {
@@ -415,8 +408,8 @@ export default function MemberQuizPage() {
             🧠
           </div>
           <div style={{ textAlign: "left" }}>
-            <h1 style={{ fontSize: "0.95rem", fontWeight: 800, color: "#0f172a", margin: 0 }}>HGF Quiz For Christ</h1>
-            <span style={{ fontSize: "0.75rem", color: PRIMARY, fontWeight: 700 }}>View Brand Hub & Leaderboard →</span>
+            <h1 style={{ fontSize: "0.95rem", fontWeight: 800, color: "#0f172a", margin: 0 }}>HGF Quiz for Christ Page</h1>
+            <span style={{ fontSize: "0.75rem", color: PRIMARY, fontWeight: 700 }}>View Leaderboard →</span>
           </div>
         </button>
       </div>

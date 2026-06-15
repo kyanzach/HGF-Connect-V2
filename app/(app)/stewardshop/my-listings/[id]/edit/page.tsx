@@ -37,7 +37,66 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+  const [enhancingTitle, setEnhancingTitle] = useState(false);
+  const [enhancingDesc, setEnhancingDesc] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function enhanceTitle() {
+    if (!form.title.trim()) return;
+    setEnhancingTitle(true);
+    try {
+      const res = await fetch("/api/ai/enhance-listing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: form.title,
+          listingType: form.listingType,
+          category: form.category,
+          conditionType: form.conditionType,
+          target: "title",
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.result) {
+          setForm((f) => ({ ...f, title: data.result }));
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setEnhancingTitle(false);
+    }
+  }
+
+  async function enhanceDescription() {
+    if (!form.title.trim()) return;
+    setEnhancingDesc(true);
+    try {
+      const res = await fetch("/api/ai/enhance-listing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: form.title,
+          description: form.description,
+          listingType: form.listingType,
+          category: form.category,
+          conditionType: form.conditionType,
+          target: "description",
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.result) {
+          setForm((f) => ({ ...f, description: data.result }));
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setEnhancingDesc(false);
+    }
+  }
 
   // Load existing listing data
   useEffect(() => {
@@ -216,13 +275,56 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
         {/* Title */}
         <div style={{ background: "white", borderRadius: "14px", padding: "1rem", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
           <label style={{ fontSize: "0.8rem", fontWeight: 700, color: "#64748b", display: "block", marginBottom: "0.5rem" }}>Title *</label>
-          <input value={form.title} onChange={(e) => set("title", e.target.value)} placeholder="Listing title" style={INPUT_STYLE} />
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <input value={form.title} onChange={(e) => set("title", e.target.value)} placeholder="Listing title" style={INPUT_STYLE} />
+            {form.title.trim() && (
+              <button
+                type="button"
+                onClick={enhanceTitle}
+                disabled={enhancingTitle}
+                style={{
+                  background: "#e0f7fb",
+                  color: PRIMARY,
+                  border: "none",
+                  borderRadius: "8px",
+                  padding: "0.375rem 0.75rem",
+                  fontSize: "0.75rem",
+                  fontWeight: 700,
+                  cursor: enhancingTitle ? "wait" : "pointer",
+                  flexShrink: 0,
+                }}
+              >
+                {enhancingTitle ? "Enhancing..." : "✨ AI Enhance"}
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Description */}
         <div style={{ background: "white", borderRadius: "14px", padding: "1rem", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
           <label style={{ fontSize: "0.8rem", fontWeight: 700, color: "#64748b", display: "block", marginBottom: "0.5rem" }}>Description</label>
-          <textarea value={form.description} onChange={(e) => set("description", e.target.value)} rows={4} style={{ ...INPUT_STYLE, resize: "none" }} />
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+            <textarea value={form.description} onChange={(e) => set("description", e.target.value)} rows={4} style={{ ...INPUT_STYLE, resize: "none" }} />
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={enhanceDescription}
+                disabled={enhancingDesc || !form.title.trim()}
+                style={{
+                  background: "#e0f7fb",
+                  color: PRIMARY,
+                  border: "none",
+                  borderRadius: "8px",
+                  padding: "0.375rem 0.75rem",
+                  fontSize: "0.75rem",
+                  fontWeight: 700,
+                  cursor: (enhancingDesc || !form.title.trim()) ? "not-allowed" : "pointer",
+                }}
+              >
+                {enhancingDesc ? "Enhancing..." : "✨ Enhance with AI"}
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Video URL */}

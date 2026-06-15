@@ -51,6 +51,65 @@ export default function SellPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [enhancingTitle, setEnhancingTitle] = useState(false);
+  const [enhancingDesc, setEnhancingDesc] = useState(false);
+
+  async function enhanceTitle() {
+    if (!form.title.trim()) return;
+    setEnhancingTitle(true);
+    try {
+      const res = await fetch("/api/ai/enhance-listing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: form.title,
+          listingType: form.listingType,
+          category: form.category,
+          conditionType: form.conditionType,
+          target: "title",
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.result) {
+          setForm((f) => ({ ...f, title: data.result }));
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setEnhancingTitle(false);
+    }
+  }
+
+  async function enhanceDescription() {
+    if (!form.title.trim()) return;
+    setEnhancingDesc(true);
+    try {
+      const res = await fetch("/api/ai/enhance-listing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: form.title,
+          description: form.description,
+          listingType: form.listingType,
+          category: form.category,
+          conditionType: form.conditionType,
+          target: "description",
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.result) {
+          setForm((f) => ({ ...f, description: data.result }));
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setEnhancingDesc(false);
+    }
+  }
 
   if (!session) {
     return (
@@ -209,19 +268,62 @@ export default function SellPage() {
 
         {/* Title */}
         <Field label="Title *">
-          <input
-            value={form.title} onChange={(e) => set("title", e.target.value)}
-            placeholder="What are you listing?" style={INPUT_STYLE}
-          />
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <input
+              value={form.title} onChange={(e) => set("title", e.target.value)}
+              placeholder="What are you listing?" style={INPUT_STYLE}
+            />
+            {form.title.trim() && (
+              <button
+                type="button"
+                onClick={enhanceTitle}
+                disabled={enhancingTitle}
+                style={{
+                  background: "#e0f7fb",
+                  color: PRIMARY,
+                  border: "none",
+                  borderRadius: "8px",
+                  padding: "0.375rem 0.75rem",
+                  fontSize: "0.75rem",
+                  fontWeight: 700,
+                  cursor: enhancingTitle ? "wait" : "pointer",
+                  flexShrink: 0,
+                }}
+              >
+                {enhancingTitle ? "Enhancing..." : "✨ AI Enhance"}
+              </button>
+            )}
+          </div>
         </Field>
 
         {/* Description */}
         <Field label="Description">
-          <textarea
-            value={form.description} onChange={(e) => set("description", e.target.value)}
-            placeholder="Describe your item — condition, size, reason for selling…"
-            rows={4} style={{ ...INPUT_STYLE, resize: "none" }}
-          />
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+            <textarea
+              value={form.description} onChange={(e) => set("description", e.target.value)}
+              placeholder="Describe your item — condition, size, reason for selling…"
+              rows={4} style={{ ...INPUT_STYLE, resize: "none" }}
+            />
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={enhanceDescription}
+                disabled={enhancingDesc || !form.title.trim()}
+                style={{
+                  background: "#e0f7fb",
+                  color: PRIMARY,
+                  border: "none",
+                  borderRadius: "8px",
+                  padding: "0.375rem 0.75rem",
+                  fontSize: "0.75rem",
+                  fontWeight: 700,
+                  cursor: (enhancingDesc || !form.title.trim()) ? "not-allowed" : "pointer",
+                }}
+              >
+                {enhancingDesc ? "Enhancing..." : "✨ Enhance with AI"}
+              </button>
+            </div>
+          </div>
         </Field>
 
         {/* Video URL */}

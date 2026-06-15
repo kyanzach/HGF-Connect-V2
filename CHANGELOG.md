@@ -5,6 +5,14 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.29.7] — 2026-06-15
+### Added
+- **StewardShop AI Enhancements**: Integrated "✨ AI Enhance" buttons for both Title and Description fields on the listing creation page (`app/(app)/stewardshop/sell/page.tsx`) and the listing edit page (`app/(app)/stewardshop/my-listings/[id]/edit/page.tsx`). Created a dedicated API route (`app/api/ai/enhance-listing/route.ts`) leveraging the Straico API and GPT-4o-mini to refine, structure, and generate catchy community marketplace listings.
+- **Quiz Hub Loading Skeleton**: Implemented a matching loading skeleton for the Quiz Hub (`app/(app)/quiz/hub/loading.tsx`).
+### Changed
+- **Facebook-Style Quiz Shimmer Loader**: Replaced the custom local spinning wheel loaders inside the member Quiz page (`app/(app)/quiz/page.tsx`) and Quiz Hub (`app/(app)/quiz/hub/page.tsx`) with the proper Facebook-style skeleton shimmers, ensuring smooth visual transitions during content updates.
+- **Brand Title Cleanup**: Removed all references to "Brand Hub" or custom branding tags across the Quiz pages, renaming it strictly to "HGF Quiz for Christ Page".
+
 ## [v2.29.6] — 2026-06-15
 ### Fixed
 - **PWA Stale Auth State & Artifacts**: Fixed a critical caching regression where logging out would leave navigation bar docks, FAB buttons, and user profile setting items visible.
