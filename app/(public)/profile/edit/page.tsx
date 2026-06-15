@@ -7,16 +7,13 @@ import PhotoViewerModal, { type HistoryPhoto } from "@/components/PhotoViewerMod
 
 const PRIMARY = "#4EB1CB";
 
-type TabKey = "personal" | "contact" | "bio" | "privacy" | "sms" | "security" | "ministries";
+type TabKey = "personal" | "ministries" | "security" | "privacy";
 
 const TABS: { key: TabKey; icon: string; label: string }[] = [
   { key: "personal", icon: "👤", label: "Personal" },
-  { key: "contact", icon: "📋", label: "Contact" },
-  { key: "bio", icon: "✝️", label: "Bio & Verse" },
+  { key: "ministries", icon: "🤲", label: "Ministries" },
   { key: "security", icon: "🔑", label: "Security" },
   { key: "privacy", icon: "🔒", label: "Privacy" },
-  { key: "sms", icon: "📲", label: "SMS Alerts" },
-  { key: "ministries", icon: "🤲", label: "Ministries" },
 ];
 
 export default function EditProfilePage() {
@@ -434,62 +431,75 @@ export default function EditProfilePage() {
 
             {activeTab === "personal" && (
               <div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 1rem" }}>
-                  {fieldGroup("First Name", <input style={inputStyle} value={form.firstName} onChange={(e) => set("firstName", e.target.value)} placeholder="First name" />)}
-                  {fieldGroup("Last Name", <input style={inputStyle} value={form.lastName} onChange={(e) => set("lastName", e.target.value)} placeholder="Last name" />)}
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 1rem" }}>
-                  {fieldGroup("Birthday", <input type="date" style={inputStyle} value={form.birthdate} onChange={(e) => set("birthdate", e.target.value)} />)}
-                  {fieldGroup("Baptism Date", <input type="date" style={inputStyle} value={form.baptismDate} onChange={(e) => set("baptismDate", e.target.value)} />)}
-                </div>
-                {fieldGroup("Invited / Referred By", <input style={inputStyle} value={form.invitedBy} onChange={(e) => set("invitedBy", e.target.value)} placeholder="Who invited you?" />)}
-                {fieldGroup("Family Members (comma-separated)", <input style={inputStyle} value={form.familyMembers} onChange={(e) => set("familyMembers", e.target.value)} placeholder="" />)}
-              </div>
-            )}
-
-            {activeTab === "contact" && (
-              <div>
-                {fieldGroup("Mobile Number", <input style={inputStyle} type="tel" value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="+63 917 123 4567" />)}
-                {fieldGroup("Address", <textarea style={{ ...inputStyle, resize: "none" } as React.CSSProperties} rows={3} value={form.address} onChange={(e) => set("address", e.target.value)} placeholder="Davao City, Philippines" />)}
-              </div>
-            )}
-
-            {activeTab === "bio" && (
-              <div>
-                <p style={{ fontSize: "0.825rem", color: "#64748b", marginBottom: "0.75rem" }}>Share a Bible verse that inspires you — it will appear on your public profile.</p>
-                {fieldGroup("Favorite Bible Verse", (
-                  <textarea
-                    style={{ ...inputStyle, resize: "vertical", minHeight: 100 } as React.CSSProperties}
-                    rows={5}
-                    value={form.favoriteVerse}
-                    onChange={(e) => set("favoriteVerse", e.target.value)}
-                    placeholder='"For God so loved the world..." — John 3:16'
-                  />
-                ))}
-                {form.favoriteVerse && (
-                  <div style={{ background: "#f8fafc", borderRadius: "10px", padding: "0.875rem 1rem", borderLeft: `3px solid ${PRIMARY}` }}>
-                    <p style={{ fontSize: "0.8rem", color: "#64748b", fontStyle: "italic", margin: 0 }}>{form.favoriteVerse}</p>
+                {/* Section: Basic Info */}
+                <div style={{ marginBottom: "1.5rem" }}>
+                  <h3 style={{ fontSize: "0.875rem", fontWeight: 700, color: PRIMARY, margin: "0 0 1rem 0", borderBottom: "1.5px solid #f1f5f9", paddingBottom: "0.5rem" }}>Basic Details</h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 1rem" }}>
+                    {fieldGroup("First Name", <input style={inputStyle} value={form.firstName} onChange={(e) => set("firstName", e.target.value)} placeholder="First name" />)}
+                    {fieldGroup("Last Name", <input style={inputStyle} value={form.lastName} onChange={(e) => set("lastName", e.target.value)} placeholder="Last name" />)}
                   </div>
-                )}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 1rem" }}>
+                    {fieldGroup("Birthday", <input type="date" style={inputStyle} value={form.birthdate} onChange={(e) => set("birthdate", e.target.value)} />)}
+                    {fieldGroup("Baptism Date", <input type="date" style={inputStyle} value={form.baptismDate} onChange={(e) => set("baptismDate", e.target.value)} />)}
+                  </div>
+                </div>
+
+                {/* Section: Contact Details */}
+                <div style={{ marginBottom: "1.5rem" }}>
+                  <h3 style={{ fontSize: "0.875rem", fontWeight: 700, color: PRIMARY, margin: "0 0 1rem 0", borderBottom: "1.5px solid #f1f5f9", paddingBottom: "0.5rem" }}>Contact Information</h3>
+                  {fieldGroup("Mobile Number", <input style={inputStyle} type="tel" value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="+63 917 123 4567" />)}
+                  {fieldGroup("Address", <textarea style={{ ...inputStyle, resize: "none" } as React.CSSProperties} rows={3} value={form.address} onChange={(e) => set("address", e.target.value)} placeholder="Davao City, Philippines" />)}
+                </div>
+
+                {/* Section: Bio & Verse */}
+                <div style={{ marginBottom: "1.5rem" }}>
+                  <h3 style={{ fontSize: "0.875rem", fontWeight: 700, color: PRIMARY, margin: "0 0 1rem 0", borderBottom: "1.5px solid #f1f5f9", paddingBottom: "0.5rem" }}>Bio & Favorite Verse</h3>
+                  <p style={{ fontSize: "0.825rem", color: "#64748b", marginBottom: "0.75rem" }}>Share a Bible verse that inspires you — it will appear on your public profile.</p>
+                  {fieldGroup("Favorite Bible Verse", (
+                    <textarea
+                      style={{ ...inputStyle, resize: "vertical", minHeight: 100 } as React.CSSProperties}
+                      rows={5}
+                      value={form.favoriteVerse}
+                      onChange={(e) => set("favoriteVerse", e.target.value)}
+                      placeholder='"For God so loved the world..." — John 3:16'
+                    />
+                  ))}
+                  {form.favoriteVerse && (
+                    <div style={{ background: "#f8fafc", borderRadius: "10px", padding: "0.875rem 1rem", borderLeft: `3px solid ${PRIMARY}`, marginTop: "-0.5rem", marginBottom: "1rem" }}>
+                      <p style={{ fontSize: "0.8rem", color: "#64748b", fontStyle: "italic", margin: 0 }}>{form.favoriteVerse}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Section: Additional Details */}
+                <div>
+                  <h3 style={{ fontSize: "0.875rem", fontWeight: 700, color: PRIMARY, margin: "0 0 1rem 0", borderBottom: "1.5px solid #f1f5f9", paddingBottom: "0.5rem" }}>Background & Connection</h3>
+                  {fieldGroup("Invited / Referred By", <input style={inputStyle} value={form.invitedBy} onChange={(e) => set("invitedBy", e.target.value)} placeholder="Who invited you?" />)}
+                  {fieldGroup("Family Members (comma-separated)", <input style={inputStyle} value={form.familyMembers} onChange={(e) => set("familyMembers", e.target.value)} placeholder="" />)}
+                </div>
               </div>
             )}
 
             {activeTab === "privacy" && (
               <div>
-                <p style={{ fontSize: "0.825rem", color: "#64748b", marginBottom: "0.875rem" }}>Control what other members can see on your public profile.</p>
-                {toggleRow("Show Email Address", "Members in the directory can see your email", "showEmail")}
-                {toggleRow("Show Phone Number", "Members in the directory can see your phone", "showPhone")}
-                {toggleRow("Show Home Address", "Members in the directory can see your address", "showAddress")}
-              </div>
-            )}
+                {/* Section: Profile Visibility */}
+                <div style={{ marginBottom: "1.75rem" }}>
+                  <h3 style={{ fontSize: "0.875rem", fontWeight: 700, color: PRIMARY, margin: "0 0 0.5rem 0", borderBottom: "1.5px solid #f1f5f9", paddingBottom: "0.5rem" }}>Profile Visibility</h3>
+                  <p style={{ fontSize: "0.825rem", color: "#64748b", marginBottom: "0.875rem" }}>Control what other members can see on your public profile in the church directory.</p>
+                  {toggleRow("Show Email Address", "Members in the directory can see your email", "showEmail")}
+                  {toggleRow("Show Phone Number", "Members in the directory can see your phone", "showPhone")}
+                  {toggleRow("Show Home Address", "Members in the directory can see your address", "showAddress")}
+                </div>
 
-            {activeTab === "sms" && (
-              <div>
-                <p style={{ fontSize: "0.825rem", color: "#64748b", marginBottom: "0.875rem" }}>Choose which SMS event reminders you&apos;d like to receive.</p>
-                {toggleRow("5-Day Reminder", "Receive an SMS 5 days before an event", "sms5dayReminder")}
-                {toggleRow("3-Day Reminder", "Receive an SMS 3 days before an event", "sms3dayReminder")}
-                {toggleRow("1-Day Reminder", "Receive an SMS 1 day before an event", "sms1dayReminder")}
-                {toggleRow("Same-Day Reminder", "Receive an SMS on the morning of an event", "smsSameDayReminder")}
+                {/* Section: SMS Alerts */}
+                <div>
+                  <h3 style={{ fontSize: "0.875rem", fontWeight: 700, color: PRIMARY, margin: "0 0 0.5rem 0", borderBottom: "1.5px solid #f1f5f9", paddingBottom: "0.5rem" }}>SMS Event Reminders</h3>
+                  <p style={{ fontSize: "0.825rem", color: "#64748b", marginBottom: "0.875rem" }}>Choose which SMS event alerts and reminders you&apos;d like to receive on your mobile number.</p>
+                  {toggleRow("5-Day Reminder", "Receive an SMS 5 days before an event", "sms5dayReminder")}
+                  {toggleRow("3-Day Reminder", "Receive an SMS 3 days before an event", "sms3dayReminder")}
+                  {toggleRow("1-Day Reminder", "Receive an SMS 1 day before an event", "sms1dayReminder")}
+                  {toggleRow("Same-Day Reminder", "Receive an SMS on the morning of an event", "smsSameDayReminder")}
+                </div>
               </div>
             )}
 
