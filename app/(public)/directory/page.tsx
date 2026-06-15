@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
+import { SkeletonCard } from "@/components/ui/SkeletonPulse";
 
 const PRIMARY = "#4EB1CB";
 
@@ -253,7 +254,7 @@ export default function DirectoryPage() {
         <div style={{ maxWidth: 560, margin: "0 auto", padding: "1rem 0.875rem 4rem" }}>
           {loading ? (
             Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} style={{ background: "white", borderRadius: "18px", height: 120, marginBottom: "0.75rem", animation: "pulse 1.5s ease infinite", opacity: 0.7 }} />
+              <SkeletonCard key={i} hasAvatar={true} />
             ))
           ) : filtered.length === 0 ? (
             <div style={{ textAlign: "center", padding: "5rem 1rem" }}>

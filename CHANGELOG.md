@@ -5,6 +5,14 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.29.5] — 2026-06-15
+### Added
+- **StewardShop Grid & Detail Skeletons**: Implemented Next.js route loading skeleton screens using the Facebook-style shimmer pulse primitives for the public listing grid page (`app/(public)/stewardshop/loading.tsx`) and single listing detail view (`app/(public)/stewardshop/[id]/loading.tsx`). This resolves perceived visual lag during SSR and IP/geolocation lookups.
+- **Events Grid & Detail Skeletons**: Added structured route loader overlays for `/events` (`app/(public)/events/loading.tsx`) and event detail views (`app/(public)/event/[id]/loading.tsx`).
+- **Sermon Resources Loading Screen**: Created a widescreen slide carousel and takeaway layout loading skeleton (`app/(public)/resources/loading.tsx`).
+### Changed
+- **Premium Directory Loader**: Replaced the basic CSS opacity pulse boxes inside `app/(public)/directory/page.tsx` with high-fidelity `SkeletonCard` shimmer structures to match the brand layout.
+
 ## [v2.29.4] — 2026-06-15
 ### Fixed
 - **Robust Hamburger Menu Icons**: Replaced the Unicode `☰` and `✕` characters in `UnifiedHeader.tsx` and `PublicNav.tsx` navigation buttons with inline vector SVGs. This fixes issues where navigation buttons were hidden or displayed as blank on some custom Android builds (like Oppo ColorOS, Huawei EMUI, etc.) which lack these symbols in their system font files.
