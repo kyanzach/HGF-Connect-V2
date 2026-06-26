@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.29.8] — 2026-06-26
+### Fixed
+- **Database Duplicate Account Merger (v2)**: Executed database duplicate cleanups on the production server to safely merge 9 duplicate member groups (Lance Kirby Ador, Jhundel Bou, Clarizza Delos Santos, Faith/Fatz Pahimnayan, Ritchel Buro, Elana/Ellana Aguan, Rianah Fama, Monique Milliones, and Cabigon Cj/Gershon Cabigon). This preserves their login credentials, biometrics, profiles, and combines their attendance histories, resolving the delta between registered database accounts (340) and active community records (bringing the count to 331).
+
 ## [v2.29.7] — 2026-06-15
 ### Added
 - **StewardShop AI Enhancements**: Integrated "✨ AI Enhance" buttons for both Title and Description fields on the listing creation page (`app/(app)/stewardshop/sell/page.tsx`) and the listing edit page (`app/(app)/stewardshop/my-listings/[id]/edit/page.tsx`). Created a dedicated API route (`app/api/ai/enhance-listing/route.ts`) leveraging the Straico API and GPT-4o-mini to refine, structure, and generate catchy community marketplace listings.
