@@ -6,9 +6,16 @@ import AdminMembersClient from "./AdminMembersClient";
 
 export const metadata: Metadata = { title: "Members — Admin" };
 
-export default async function AdminMembersPage() {
+interface PageProps {
+  searchParams: Promise<{ tab?: string }>;
+}
+
+export default async function AdminMembersPage({ searchParams }: PageProps) {
   const session = await auth();
   if (!session || !["admin", "moderator", "usher"].includes(session.user.role)) redirect("/login");
+
+  const resolvedParams = await searchParams;
+  const initialTab = resolvedParams?.tab;
 
   const [members, ministries] = await Promise.all([
     db.member.findMany({
@@ -32,5 +39,12 @@ export default async function AdminMembersPage() {
     db.ministry.findMany({ where: { status: "active" }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
 
-  return <AdminMembersClient members={members as any} ministries={ministries} isAdmin={["admin", "moderator", "usher"].includes(session.user.role)} />;
+  return (
+    <AdminMembersClient
+      members={members as any}
+      ministries={ministries}
+      isAdmin={["admin", "moderator", "usher"].includes(session.user.role)}
+      initialTab={initialTab}
+    />
+  );
 }

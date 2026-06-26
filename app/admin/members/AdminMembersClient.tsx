@@ -31,8 +31,8 @@ const STATUS_COLOR: Record<string, string> = { approved: "#10b981", active: "#10
 const ROLE_COLOR: Record<string, string> = { admin: "#ef4444", moderator: "#f59e0b", usher: "#8b5cf6", member: "#64748b" };
 
 export default function AdminMembersClient({
-  members: initial, ministries, isAdmin,
-}: { members: Member[]; ministries: { id: number; name: string }[]; isAdmin: boolean }) {
+  members: initial, ministries, isAdmin, initialTab,
+}: { members: Member[]; ministries: { id: number; name: string }[]; isAdmin: boolean; initialTab?: string }) {
   const { data: session, update } = useSession();
   const router = useRouter();
   const isStrictAdmin = session?.user?.role === "admin";
@@ -41,7 +41,13 @@ export default function AdminMembersClient({
   const [updatingTypeIds, setUpdatingTypeIds] = useState<Record<number, boolean>>({});
   const [updatingStatusIds, setUpdatingStatusIds] = useState<Record<number, boolean>>({});
   const [search, setSearch] = useState("");
-  const [segmentTab, setSegmentTab] = useState<SegmentTab>("active");
+
+  const isValidTab = (tab?: string): tab is SegmentTab => {
+    return ["active", "inactive", "guests", "archived"].includes(tab || "");
+  };
+  const [segmentTab, setSegmentTab] = useState<SegmentTab>(
+    isValidTab(initialTab) ? initialTab : "active"
+  );
   const [typeFilter, setTypeFilter] = useState("all");
   const [showAdd, setShowAdd] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -113,6 +119,9 @@ export default function AdminMembersClient({
     members.forEach(m => {
       if (m.status === "archived") {
         archivedList.push(m);
+        return;
+      }
+      if (m.status === "pending") {
         return;
       }
 

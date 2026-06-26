@@ -5,6 +5,12 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.31.4] — 2026-06-26
+### Changed
+- **Dashboard Stats Widgets**: Enhanced and aligned the dashboard widgets to display the exact segmented breakdowns of community members: Active Members (✅), Inactive Members (💤), Guests (👋), Archived Members (📁), Pending Approval (⏳), and Total Members (📋), matching the frontend tab counts.
+- **Member Directory Query Params**: Enabled passing query search parameters (`tab`) to AdminMembersPage to initialize and switch to the correct active tab immediately upon widget redirection.
+- **Pending Members Filtering**: Filtered out pending approval members from counting in Active, Inactive, Guests, and Archived lists on both the dashboard and members page directory tabs, resolving count mismatches.
+
 ## [v2.31.3] — 2026-06-26
 ### Fixed
 - **Legacy Attendance App SSO Alignment**: Updated the status queries across the legacy PHP application (`/var/www/hgf-legacy/attendance/`) to validate `status != 'archived' AND status != 'pending'` instead of requiring `status = 'active'`, matching the new member dynamic segmentation model and resolving the "User not found or inactive" SSO block.

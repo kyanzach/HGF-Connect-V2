@@ -12,15 +12,18 @@ async function getDashboardStats() {
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
   const [
-    totalActive,
-    totalPending,
-    totalMembers,
+    members,
     eventsThisMonth,
     recentLogs,
   ] = await Promise.all([
-    db.member.count({ where: { status: { notIn: ["pending", "archived"] } } }),
-    db.member.count({ where: { status: "pending" } }),
-    db.member.count(),
+    db.member.findMany({
+      select: {
+        status: true,
+        attendance: {
+          select: { attendanceDate: true }
+        }
+      }
+    }),
     db.event.count({
       where: { eventDate: { gte: startOfMonth }, status: "scheduled" },
     }),
@@ -29,9 +32,68 @@ async function getDashboardStats() {
       take: 8,
     }),
   ]);
+
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(now.getDate() - 30);
+
+  let activeCount = 0;
+  let inactiveCount = 0;
+  let guestCount = 0;
+  let archivedCount = 0;
+  let pendingCount = 0;
+
+  members.forEach(m => {
+    if (m.status === "archived") {
+      archivedCount++;
+      return;
+    }
+    if (m.status === "pending") {
+      pendingCount++;
+      return;
+    }
+    if (m.status === "active") {
+      activeCount++;
+      return;
+    }
+    if (m.status === "inactive") {
+      inactiveCount++;
+      return;
+    }
+    if (m.status === "guest") {
+      guestCount++;
+      return;
+    }
+
+    // Auto
+    const records = m.attendance || [];
+    const total = records.length;
+    if (total <= 1) {
+      guestCount++;
+    } else {
+      const dates = records.map(a => a.attendanceDate ? new Date(a.attendanceDate).getTime() : 0);
+      const latest = Math.max(...dates);
+      if (latest >= thirtyDaysAgo.getTime()) {
+        activeCount++;
+      } else {
+        inactiveCount++;
+      }
+    }
+  });
+
+  const totalMembers = members.length;
   const smsPending = 0; // SMS batch model coming in future phase
 
-  return { totalActive, totalPending, totalMembers, eventsThisMonth, recentLogs, smsPending };
+  return {
+    activeCount,
+    inactiveCount,
+    guestCount,
+    archivedCount,
+    pendingCount,
+    totalMembers,
+    eventsThisMonth,
+    recentLogs,
+    smsPending
+  };
 }
 
 export default async function AdminDashboardPage() {
@@ -66,9 +128,12 @@ export default async function AdminDashboardPage() {
           marginBottom: "2.5rem",
         }}
       >
-        <StatCard label="Active Members" value={stats.totalActive} icon="👥" color="#4eb1cb" />
-        <StatCard label="Pending Approval" value={stats.totalPending} icon="⏳" color="#f59e0b" href="/admin/review" />
-        <StatCard label="Total Members" value={stats.totalMembers} icon="📋" color="#8b5cf6" href="/admin/members" />
+        <StatCard label="Active Members" value={stats.activeCount} icon="✅" color="#10b981" href="/admin/members?tab=active" />
+        <StatCard label="Inactive Members" value={stats.inactiveCount} icon="💤" color="#f59e0b" href="/admin/members?tab=inactive" />
+        <StatCard label="Guests" value={stats.guestCount} icon="👋" color="#8b5cf6" href="/admin/members?tab=guests" />
+        <StatCard label="Archived Members" value={stats.archivedCount} icon="📁" color="#64748b" href="/admin/members?tab=archived" />
+        <StatCard label="Pending Approval" value={stats.pendingCount} icon="⏳" color="#f59e0b" href="/admin/review" />
+        <StatCard label="Total Members" value={stats.totalMembers} icon="📋" color="#4eb1cb" href="/admin/members" />
         <StatCard label="Events This Month" value={stats.eventsThisMonth} icon="📅" color="#10b981" href="/admin/events" />
         <StatCard label="Pending SMS" value={stats.smsPending} icon="📱" color="#3b82f6" href="/admin/sms" />
       </div>
