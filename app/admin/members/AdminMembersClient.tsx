@@ -82,6 +82,23 @@ export default function AdminMembersClient({
     }
   }
 
+  function getMemberAutoSegment(m: Member): "active" | "inactive" | "guests" | "archived" {
+    if (m.status === "archived") return "archived";
+    if (m.status === "active") return "active";
+    if (m.status === "inactive") return "inactive";
+    if (m.status === "guest") return "guests";
+
+    const records = m.attendance || [];
+    if (records.length <= 1) return "guests";
+
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const dates = records.map(a => a.attendanceDate ? new Date(a.attendanceDate as string).getTime() : 0);
+    const latest = Math.max(...dates);
+    if (latest >= thirtyDaysAgo.getTime()) return "active";
+    return "inactive";
+  }
+
   // ── Segment members by attendance behavior & overrides ────────────────────
   const segments = useMemo(() => {
     const now = new Date();
@@ -217,7 +234,22 @@ export default function AdminMembersClient({
     }
   }
 
-  async function handleResetPassword(id: number, name: string) {
+  function handleResetPassword(id: number, name: string) {
+    setConfirmModal({
+      open: true,
+      title: "Reset Password",
+      message: `Are you sure you want to reset the password for "${name}"? This will invalidate their current password.`,
+      confirmLabel: "Reset Password",
+      confirmColor: "#4f46e5",
+      loading: false,
+      onConfirm: () => {
+        setConfirmModal(prev => ({ ...prev, open: false }));
+        executeResetPassword(id, name);
+      }
+    });
+  }
+
+  async function executeResetPassword(id: number, name: string) {
     setResetDetails({ open: true, name, username: "", loading: true, copied: false, error: "" });
     try {
       const res = await fetch(`/api/members/${id}/reset-password`, { method: "POST" });
@@ -387,6 +419,7 @@ Thank you and God bless!`;
                   ? new Date(latestDate).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" }) 
                   : "Never";
                 const latestEventTitle = latestRecord?.event?.title || "No event details";
+                const autoSegment = getMemberAutoSegment(m);
 
                 return (
                   <tr key={m.id} style={{ borderBottom: i < filtered.length - 1 ? "1px solid #f1f5f9" : "none" }}>
@@ -494,10 +527,10 @@ Thank you and God bless!`;
                         }}
                       >
                         <option value="approved">Auto</option>
-                        <option value="active">Force Active</option>
-                        <option value="inactive">Force Inactive</option>
-                        <option value="guest">Force Guest</option>
-                        <option value="archived">Force Archived</option>
+                        {(m.status === "active" || autoSegment !== "active") && <option value="active">Force Active</option>}
+                        {(m.status === "inactive" || autoSegment !== "inactive") && <option value="inactive">Force Inactive</option>}
+                        {(m.status === "guest" || autoSegment !== "guests") && <option value="guest">Force Guest</option>}
+                        {(m.status === "archived" || autoSegment !== "archived") && <option value="archived">Force Archived</option>}
                         {m.status === "pending" && <option value="pending">Pending</option>}
                       </select>
                     </td>
@@ -545,6 +578,7 @@ Thank you and God bless!`;
             ? new Date(latestDate).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" }) 
             : "Never";
           const latestEventTitle = latestRecord?.event?.title || "No event details";
+          const autoSegment = getMemberAutoSegment(m);
 
           return (
             <div key={m.id} style={{ background: "white", border: "1.5px solid #e2e8f0", borderRadius: "12px", padding: "1.25rem", marginBottom: "0.75rem", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
@@ -579,10 +613,10 @@ Thank you and God bless!`;
                     }}
                   >
                     <option value="approved">Auto</option>
-                    <option value="active">Force Active</option>
-                    <option value="inactive">Force Inactive</option>
-                    <option value="guest">Force Guest</option>
-                    <option value="archived">Force Archived</option>
+                    {(m.status === "active" || autoSegment !== "active") && <option value="active">Force Active</option>}
+                    {(m.status === "inactive" || autoSegment !== "inactive") && <option value="inactive">Force Inactive</option>}
+                    {(m.status === "guest" || autoSegment !== "guests") && <option value="guest">Force Guest</option>}
+                    {(m.status === "archived" || autoSegment !== "archived") && <option value="archived">Force Archived</option>}
                     {m.status === "pending" && <option value="pending">Pending</option>}
                   </select>
                   <span style={{ fontSize: "0.65rem", fontWeight: 700, color: ROLE_COLOR[m.role] ?? "#64748b", background: `${ROLE_COLOR[m.role] ?? "#64748b"}18`, padding: "0.2rem 0.5rem", borderRadius: "4px", textTransform: "capitalize" }}>

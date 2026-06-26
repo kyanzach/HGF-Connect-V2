@@ -5,6 +5,13 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.31.1] — 2026-06-26
+### Added
+- **Password Reset Confirmation**: Added a confirmation step modal before executing a password reset.
+
+### Changed
+- **Decluttered Status Overrides**: Dynamically filters dropdown override status choices based on their segment, hiding redundant force options.
+
 ## [v2.31.0] — 2026-06-26
 ### Added
 - **4th Member Segmentation Tab (Archived)**: Added an "Archived" (📁) tab to isolate members who have left the church or transferred.
