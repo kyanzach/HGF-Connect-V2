@@ -154,7 +154,7 @@ export default function DirectoryPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/members?status=active&limit=500").then((r) => r.json()),
+      fetch("/api/members?limit=500").then((r) => r.json()),
       fetch("/api/ministries").then((r) => r.json()),
     ]).then(([md, mins]) => {
       setMembers(md.members ?? md ?? []);

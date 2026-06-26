@@ -17,9 +17,12 @@ export default function AdminSendSmsClient() {
   }>({ open: false, title: "", message: "", confirmLabel: "Confirm", confirmColor: "#4EB1CB", loading: false, onConfirm: () => {} });
 
   useEffect(() => {
-    fetch("/api/members?status=active&limit=500")
+    fetch("/api/members?limit=500")
       .then(r => r.json())
-      .then(d => setMembers(d.members ?? d ?? []));
+      .then(d => {
+        const list = d.members ?? d ?? [];
+        setMembers(list.filter((m: any) => m.status !== "archived" && m.status !== "pending"));
+      });
   }, []);
 
   const filtered = filter === "all" ? members : members.filter(m => m.type === filter || m.ageGroup === filter);

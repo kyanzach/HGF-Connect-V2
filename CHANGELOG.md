@@ -5,6 +5,12 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.31.2] — 2026-06-26
+### Fixed
+- **Profile Page (404 Issue)**: Allowed viewing profile pages for all valid community members (approved, active, inactive, guest), throwing a 404 only for archived and pending registrants.
+- **Community Directory**: Fixed the directory page fetching parameter that was querying for active status only, ensuring all approved community members display properly.
+- **Custom SMS Recipients**: Aligned the custom SMS composer recipient loader to query all valid members, filtering out archived and pending users.
+
 ## [v2.31.1] — 2026-06-26
 ### Added
 - **Password Reset Confirmation**: Added a confirmation step modal before executing a password reset.

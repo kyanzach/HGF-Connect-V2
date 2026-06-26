@@ -33,7 +33,7 @@ export default async function MemberProfilePage({ params }: { params: Promise<{ 
     },
   });
 
-  if (!member || member.status !== "active") notFound();
+  if (!member || member.status === "archived" || member.status === "pending") notFound();
 
   const isOwn = session?.user?.id === String(id);
   const isAdmin = session ? ["admin", "moderator"].includes(session.user.role ?? "") : false;
