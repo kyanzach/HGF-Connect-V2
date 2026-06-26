@@ -33,7 +33,7 @@ export async function POST(request: Request) {
 
     // Fetch all active members with a birthday
     const activeMembers = await db.member.findMany({
-      where: { status: "active" },
+      where: { status: { notIn: ["pending", "archived"] } },
       select: {
         id: true,
         firstName: true,

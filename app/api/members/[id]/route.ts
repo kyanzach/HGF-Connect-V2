@@ -27,7 +27,7 @@ export async function GET(
     return NextResponse.json({ error: "Member not found" }, { status: 404 });
   }
 
-  if (!isAdmin && member.status !== "active") {
+  if (!isAdmin && member.status === "archived") {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -200,8 +200,8 @@ export async function PATCH(
 
   const updated = await db.member.update({ where: { id }, data: updateData });
 
-  // If status changes to active, send welcome SMS notification
-  if (updateData.status === "active" && existingMember && existingMember.status !== "active" && existingMember.phone) {
+  // If status changes to approved (from pending), send welcome SMS notification
+  if (updateData.status === "approved" && existingMember && existingMember.status === "pending" && existingMember.phone) {
     const { sendSms } = await import("@/lib/sms");
     const smsMessage = `Hi ${existingMember.firstName}! Great news! 🥳\n\nYour registration with HGF Connect has been approved. Welcome to our community!\n\nYou can now access your account at connect.houseofgrace.ph.\n\nGod bless!`;
     

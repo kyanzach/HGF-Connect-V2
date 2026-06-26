@@ -41,7 +41,7 @@ export default function AdminReviewClient({
   // ── Registrations Actions ───────────────────────────────────────────────────
   async function approve(id: number) {
     setProcessing(id);
-    const res = await fetch(`/api/members/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "active" }) });
+    const res = await fetch(`/api/members/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "approved" }) });
     if (res.ok) setPending(prev => prev.filter(m => m.id !== id));
     setProcessing(null);
   }

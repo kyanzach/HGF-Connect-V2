@@ -4,7 +4,7 @@ declare module "next-auth" {
   interface User {
     id: string;
     role: "admin" | "moderator" | "usher" | "user" | "multimedia";
-    status: "active" | "inactive" | "pending";
+    status: "active" | "inactive" | "pending" | "archived" | "guest" | "approved";
     firstName: string;
     lastName: string;
     username: string | null;
@@ -16,7 +16,7 @@ declare module "next-auth" {
     impersonator?: {
       id: string;
       role: "admin" | "moderator" | "usher" | "user" | "multimedia";
-      status: "active" | "inactive" | "pending";
+      status: "active" | "inactive" | "pending" | "archived" | "guest" | "approved";
       firstName: string;
       lastName: string;
       username: string | null;
@@ -29,7 +29,7 @@ declare module "next-auth/jwt" {
   interface JWT {
     id: string;
     role: "admin" | "moderator" | "usher" | "user" | "multimedia";
-    status: "active" | "inactive" | "pending";
+    status: "active" | "inactive" | "pending" | "archived" | "guest" | "approved";
     firstName: string;
     lastName: string;
     username: string | null;
@@ -37,7 +37,7 @@ declare module "next-auth/jwt" {
     impersonator?: {
       id: string;
       role: "admin" | "moderator" | "usher" | "user" | "multimedia";
-      status: "active" | "inactive" | "pending";
+      status: "active" | "inactive" | "pending" | "archived" | "guest" | "approved";
       firstName: string;
       lastName: string;
       username: string | null;

@@ -22,12 +22,12 @@ type Member = {
   createdAt: string;
   invitedBy: string | null;
   ministries: { ministry: { name: string } }[];
-  attendance?: { attendanceDate: string | Date | null }[];
+  attendance?: { attendanceDate: string | Date | null; event?: { title: string } | null }[];
 };
 
-type SegmentTab = "active" | "inactive" | "guests";
+type SegmentTab = "active" | "inactive" | "guests" | "archived";
 
-const STATUS_COLOR: Record<string, string> = { active: "#10b981", pending: "#f59e0b", inactive: "#94a3b8" };
+const STATUS_COLOR: Record<string, string> = { approved: "#10b981", active: "#10b981", pending: "#f59e0b", inactive: "#ef4444", guest: "#8b5cf6", archived: "#64748b" };
 const ROLE_COLOR: Record<string, string> = { admin: "#ef4444", moderator: "#f59e0b", usher: "#8b5cf6", member: "#64748b" };
 
 export default function AdminMembersClient({
@@ -39,6 +39,7 @@ export default function AdminMembersClient({
 
   const [members, setMembers] = useState(initial);
   const [updatingTypeIds, setUpdatingTypeIds] = useState<Record<number, boolean>>({});
+  const [updatingStatusIds, setUpdatingStatusIds] = useState<Record<number, boolean>>({});
   const [search, setSearch] = useState("");
   const [segmentTab, setSegmentTab] = useState<SegmentTab>("active");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -63,7 +64,25 @@ export default function AdminMembersClient({
     error: string;
   }>({ open: false, name: "", username: "", loading: false, copied: false, error: "" });
 
-  // ── Segment members by attendance behavior ──────────────────────────────────
+  async function changeStatus(id: number, newStatus: string) {
+    setUpdatingStatusIds(prev => ({ ...prev, [id]: true }));
+    try {
+      const res = await fetch(`/api/members/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) {
+        setMembers(prev => prev.map(m => m.id === id ? { ...m, status: newStatus } : m));
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setUpdatingStatusIds(prev => ({ ...prev, [id]: false }));
+    }
+  }
+
+  // ── Segment members by attendance behavior & overrides ────────────────────
   const segments = useMemo(() => {
     const now = new Date();
     const thirtyDaysAgo = new Date();
@@ -72,8 +91,29 @@ export default function AdminMembersClient({
     const activeList: Member[] = [];
     const inactiveList: Member[] = [];
     const guestList: Member[] = [];
+    const archivedList: Member[] = [];
 
     members.forEach(m => {
+      if (m.status === "archived") {
+        archivedList.push(m);
+        return;
+      }
+
+      // Check for manual overrides:
+      if (m.status === "active") {
+        activeList.push(m);
+        return;
+      }
+      if (m.status === "inactive") {
+        inactiveList.push(m);
+        return;
+      }
+      if (m.status === "guest") {
+        guestList.push(m);
+        return;
+      }
+
+      // Default: Auto (Attendance-based)
       const records = m.attendance || [];
       const total = records.length;
       if (total <= 1) {
@@ -89,11 +129,15 @@ export default function AdminMembersClient({
       }
     });
 
-    return { activeList, inactiveList, guestList };
+    return { activeList, inactiveList, guestList, archivedList };
   }, [members]);
 
   const filtered = useMemo(() => {
-    let list = segmentTab === "active" ? segments.activeList : segmentTab === "inactive" ? segments.inactiveList : segments.guestList;
+    let list = segments.activeList;
+    if (segmentTab === "inactive") list = segments.inactiveList;
+    else if (segmentTab === "guests") list = segments.guestList;
+    else if (segmentTab === "archived") list = segments.archivedList;
+    
     if (search) list = list.filter(m => `${m.firstName} ${m.lastName} ${m.email ?? ""} ${m.username ?? ""}`.toLowerCase().includes(search.toLowerCase()));
     if (typeFilter !== "all") list = list.filter(m => m.type === typeFilter);
     return list;
@@ -240,11 +284,12 @@ Thank you and God bless!`;
       </div>
 
       {/* ── Segment Tabs ─────────────────────────────────────────────── */}
-      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
+      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem", flexWrap: "wrap" }}>
         {([
           { key: "active" as SegmentTab, label: "Active", count: segments.activeList.length, color: "#10b981", icon: "✅" },
           { key: "inactive" as SegmentTab, label: "Inactive", count: segments.inactiveList.length, color: "#f59e0b", icon: "💤" },
           { key: "guests" as SegmentTab, label: "Guests", count: segments.guestList.length, color: "#8b5cf6", icon: "👋" },
+          { key: "archived" as SegmentTab, label: "Archived", count: segments.archivedList.length, color: "#64748b", icon: "📁" },
         ]).map(tab => {
           const isActive = segmentTab === tab.key;
           return (
@@ -328,72 +373,162 @@ Thank you and God bless!`;
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
             <thead>
               <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-                {["Member", "Contact", "Type", "Status", "Role", "Ministries", "Username", "Actions"].map(h => (
+                {["Member", "Contact", "Type", "Visits", "Last Visit", "Status", "Role", "Ministries", "Username", "Actions"].map(h => (
                   <th key={h} style={{ padding: "0.75rem 1rem", textAlign: "left", fontWeight: 700, color: "#64748b", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.04em", whiteSpace: "nowrap" }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {filtered.map((m, i) => (
-                <tr key={m.id} style={{ borderBottom: i < filtered.length - 1 ? "1px solid #f1f5f9" : "none" }}>
-                  <td style={{ padding: "0.75rem 1rem" }}>
-                    <Link href={`/member/${m.id}`} style={{ fontWeight: 700, color: "#0f172a", textDecoration: "none" }}>{m.firstName} {m.lastName}</Link>
-                    {m.joinDate && <div style={{ fontSize: "0.7rem", color: "#94a3b8" }}>Since {new Date(m.joinDate).toLocaleDateString("en-PH", { month: "short", year: "numeric" })}</div>}
-                  </td>
-                  <td style={{ padding: "0.75rem 1rem", color: "#475569" }}>
-                    <div style={{ fontSize: "0.8rem" }}>{m.email ?? "—"}</div>
-                    <div style={{ fontSize: "0.7rem", color: "#94a3b8" }}>{m.phone ?? "—"}</div>
-                  </td>
-                  <td style={{ padding: "0.75rem 1rem" }}>
-                    <select
-                      value={m.type}
-                      disabled={updatingTypeIds[m.id]}
-                      onChange={(e) => changeType(m.id, e.target.value)}
-                      style={{
+              {filtered.map((m, i) => {
+                const visitCount = m.attendance?.length || 0;
+                const latestRecord = m.attendance?.[0] || null;
+                const latestDate = latestRecord?.attendanceDate;
+                const formattedDate = latestDate 
+                  ? new Date(latestDate).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" }) 
+                  : "Never";
+                const latestEventTitle = latestRecord?.event?.title || "No event details";
+
+                return (
+                  <tr key={m.id} style={{ borderBottom: i < filtered.length - 1 ? "1px solid #f1f5f9" : "none" }}>
+                    <td style={{ padding: "0.75rem 1rem" }}>
+                      <Link href={`/member/${m.id}`} style={{ fontWeight: 700, color: "#0f172a", textDecoration: "none" }}>{m.firstName} {m.lastName}</Link>
+                      {m.joinDate && <div style={{ fontSize: "0.7rem", color: "#94a3b8" }}>Since {new Date(m.joinDate).toLocaleDateString("en-PH", { month: "short", year: "numeric" })}</div>}
+                    </td>
+                    <td style={{ padding: "0.75rem 1rem", color: "#475569" }}>
+                      <div style={{ fontSize: "0.8rem" }}>{m.email ?? "—"}</div>
+                      <div style={{ fontSize: "0.7rem", color: "#94a3b8" }}>{m.phone ?? "—"}</div>
+                    </td>
+                    <td style={{ padding: "0.75rem 1rem" }}>
+                      <select
+                        value={m.type}
+                        disabled={updatingTypeIds[m.id]}
+                        onChange={(e) => changeType(m.id, e.target.value)}
+                        style={{
+                          fontSize: "0.75rem",
+                          background: "#f1f5f9",
+                          color: "#475569",
+                          padding: "0.15rem 0.45rem",
+                          borderRadius: "6px",
+                          border: "1px solid #e2e8f0",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          outline: "none",
+                        }}
+                      >
+                        <option value="FamilyMember">Family Member</option>
+                        <option value="GrowingFriend">Growing Friend</option>
+                        <option value="NewFriend">New Friend</option>
+                      </select>
+                    </td>
+                    <td style={{ padding: "0.75rem 1rem" }}>
+                      <span style={{
                         fontSize: "0.75rem",
-                        background: "#f1f5f9",
-                        color: "#475569",
-                        padding: "0.15rem 0.45rem",
+                        background: visitCount > 0 ? "#e0f7fb" : "#f1f5f9",
+                        color: visitCount > 0 ? P : "#64748b",
+                        padding: "0.2rem 0.5rem",
                         borderRadius: "6px",
-                        border: "1px solid #e2e8f0",
-                        fontWeight: 600,
-                        cursor: "pointer",
-                        outline: "none",
-                      }}
-                    >
-                      <option value="FamilyMember">Family Member</option>
-                      <option value="GrowingFriend">Growing Friend</option>
-                      <option value="NewFriend">New Friend</option>
-                    </select>
-                  </td>
-                  <td style={{ padding: "0.75rem 1rem" }}><span style={{ fontSize: "0.75rem", fontWeight: 700, color: STATUS_COLOR[m.status] ?? "#64748b", background: `${STATUS_COLOR[m.status] ?? "#64748b"}18`, padding: "0.2rem 0.6rem", borderRadius: "4px", textTransform: "capitalize" }}>{m.status}</span></td>
-                  <td style={{ padding: "0.75rem 1rem" }}><span style={{ fontSize: "0.75rem", fontWeight: 700, color: ROLE_COLOR[m.role] ?? "#64748b" }}>{m.role}</span></td>
-                  <td style={{ padding: "0.75rem 1rem" }}>
-                    <div style={{ display: "flex", gap: "0.25rem", flexWrap: "wrap" }}>
-                      {m.ministries.slice(0, 2).map((mm, j) => <span key={j} style={{ fontSize: "0.7rem", background: P, color: "white", padding: "0.15rem 0.4rem", borderRadius: "4px" }}>{mm.ministry.name}</span>)}
-                    </div>
-                  </td>
-                  <td style={{ padding: "0.75rem 1rem" }}>
-                    <code style={{ fontSize: "0.8rem", background: "#f1f5f9", padding: "0.2rem 0.45rem", borderRadius: "4px", color: "#0f172a" }}>
-                      {m.username ?? "—"}
-                    </code>
-                  </td>
-                  <td style={{ padding: "0.75rem 0.5rem", whiteSpace: "nowrap" }}>
-                    <div style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}>
-                      <Link href={`/member/${m.id}`} title="View Profile" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: "8px", background: `${P}15`, color: P, textDecoration: "none", fontSize: "0.85rem" }}>👁</Link>
-                      <button onClick={() => handleResetPassword(m.id, `${m.firstName} ${m.lastName}`)} title="Reset Password" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: "8px", background: "#eef2ff", color: "#4f46e5", border: "none", cursor: "pointer", fontSize: "0.85rem" }}>🔑</button>
-                      {isStrictAdmin && (
-                        <button onClick={() => handleImpersonate(m.id, `${m.firstName} ${m.lastName}`)} title="Login As" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: "8px", background: `${P}15`, color: P, border: "none", cursor: "pointer", fontSize: "0.85rem" }}>🔄</button>
+                        fontWeight: 700
+                      }}>
+                        {visitCount}
+                      </span>
+                    </td>
+                    <td style={{ padding: "0.75rem 1rem", color: "#475569" }}>
+                      {visitCount > 0 ? (
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
+                          <span>{formattedDate}</span>
+                          <div className="hgf-tooltip-container" style={{ position: "relative", display: "inline-flex" }}>
+                            <span style={{ cursor: "pointer", fontSize: "0.9rem", color: P }}>ℹ️</span>
+                            <div className="hgf-tooltip-content" style={{
+                              position: "absolute",
+                              bottom: "125%",
+                              left: "50%",
+                              transform: "translateX(-50%)",
+                              background: "#1e293b",
+                              color: "white",
+                              padding: "0.5rem 0.75rem",
+                              borderRadius: "6px",
+                              fontSize: "0.75rem",
+                              fontWeight: 500,
+                              whiteSpace: "normal",
+                              width: "200px",
+                              boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                              zIndex: 10,
+                              pointerEvents: "none",
+                              opacity: 0,
+                              transition: "opacity 0.2s ease, transform 0.2s ease",
+                              textAlign: "center"
+                            }}>
+                              {latestEventTitle}
+                              <div style={{
+                                position: "absolute",
+                                top: "100%",
+                                left: "50%",
+                                transform: "translateX(-50%)",
+                                borderWidth: "5px",
+                                borderStyle: "solid",
+                                borderColor: "#1e293b transparent transparent transparent"
+                              }} />
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <span style={{ color: "#94a3b8" }}>Never</span>
                       )}
-                      {isAdmin && (
-                        <button onClick={() => promptDeleteMember(m.id, `${m.firstName} ${m.lastName}`)} title="Delete Member" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: "8px", background: "#fef2f2", color: "#ef4444", border: "none", cursor: "pointer", fontSize: "0.85rem" }}>🗑️</button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td style={{ padding: "0.75rem 1rem" }}>
+                      <select
+                        value={m.status}
+                        disabled={updatingStatusIds[m.id]}
+                        onChange={(e) => changeStatus(m.id, e.target.value)}
+                        style={{
+                          fontSize: "0.75rem",
+                          background: STATUS_COLOR[m.status] ? `${STATUS_COLOR[m.status]}18` : "#f1f5f9",
+                          color: STATUS_COLOR[m.status] ?? "#475569",
+                          padding: "0.15rem 0.45rem",
+                          borderRadius: "6px",
+                          border: "1px solid #e2e8f0",
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          outline: "none",
+                          textTransform: "capitalize"
+                        }}
+                      >
+                        <option value="approved">Auto</option>
+                        <option value="active">Force Active</option>
+                        <option value="inactive">Force Inactive</option>
+                        <option value="guest">Force Guest</option>
+                        <option value="archived">Force Archived</option>
+                        {m.status === "pending" && <option value="pending">Pending</option>}
+                      </select>
+                    </td>
+                    <td style={{ padding: "0.75rem 1rem" }}><span style={{ fontSize: "0.75rem", fontWeight: 700, color: ROLE_COLOR[m.role] ?? "#64748b" }}>{m.role}</span></td>
+                    <td style={{ padding: "0.75rem 1rem" }}>
+                      <div style={{ display: "flex", gap: "0.25rem", flexWrap: "wrap" }}>
+                        {m.ministries.slice(0, 2).map((mm, j) => <span key={j} style={{ fontSize: "0.7rem", background: P, color: "white", padding: "0.15rem 0.4rem", borderRadius: "4px" }}>{mm.ministry.name}</span>)}
+                      </div>
+                    </td>
+                    <td style={{ padding: "0.75rem 1rem" }}>
+                      <code style={{ fontSize: "0.8rem", background: "#f1f5f9", padding: "0.2rem 0.45rem", borderRadius: "4px", color: "#0f172a" }}>
+                        {m.username ?? "—"}
+                      </code>
+                    </td>
+                    <td style={{ padding: "0.75rem 0.5rem", whiteSpace: "nowrap" }}>
+                      <div style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}>
+                        <Link href={`/member/${m.id}`} title="View Profile" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: "8px", background: `${P}15`, color: P, textDecoration: "none", fontSize: "0.85rem" }}>👁</Link>
+                        <button onClick={() => handleResetPassword(m.id, `${m.firstName} ${m.lastName}`)} title="Reset Password" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: "8px", background: "#eef2ff", color: "#4f46e5", border: "none", cursor: "pointer", fontSize: "0.85rem" }}>🔑</button>
+                        {isStrictAdmin && (
+                          <button onClick={() => handleImpersonate(m.id, `${m.firstName} ${m.lastName}`)} title="Login As" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: "8px", background: `${P}15`, color: P, border: "none", cursor: "pointer", fontSize: "0.85rem" }}>🔄</button>
+                        )}
+                        {isAdmin && (
+                          <button onClick={() => promptDeleteMember(m.id, `${m.firstName} ${m.lastName}`)} title="Delete Member" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: "8px", background: "#fef2f2", color: "#ef4444", border: "none", cursor: "pointer", fontSize: "0.85rem" }}>🗑️</button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
               {filtered.length === 0 && (
-                <tr><td colSpan={8} style={{ padding: "3rem", textAlign: "center", color: "#94a3b8" }}>No members found.</td></tr>
+                <tr><td colSpan={10} style={{ padding: "3rem", textAlign: "center", color: "#94a3b8" }}>No members found.</td></tr>
               )}
             </tbody>
           </table>
@@ -402,58 +537,102 @@ Thank you and God bless!`;
 
       {/* ── Mobile View (Cards) ── */}
       <div className="mobile-view" style={{ display: "none" }}>
-        {filtered.map(m => (
-          <div key={m.id} style={{ background: "white", border: "1.5px solid #e2e8f0", borderRadius: "12px", padding: "1.25rem", marginBottom: "0.75rem", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
-            {/* Header: Name & Status badges */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.625rem" }}>
-              <div>
-                <Link href={`/member/${m.id}`} style={{ fontWeight: 800, color: "#0f172a", textDecoration: "none", fontSize: "1.0625rem", lineHeight: 1.25 }}>
-                  {m.firstName} {m.lastName}
-                </Link>
-                {m.joinDate && (
-                  <div style={{ fontSize: "0.7rem", color: "#94a3b8", marginTop: "0.15rem" }}>
-                    Since {new Date(m.joinDate).toLocaleDateString("en-PH", { month: "short", year: "numeric" })}
-                  </div>
+        {filtered.map(m => {
+          const visitCount = m.attendance?.length || 0;
+          const latestRecord = m.attendance?.[0] || null;
+          const latestDate = latestRecord?.attendanceDate;
+          const formattedDate = latestDate 
+            ? new Date(latestDate).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" }) 
+            : "Never";
+          const latestEventTitle = latestRecord?.event?.title || "No event details";
+
+          return (
+            <div key={m.id} style={{ background: "white", border: "1.5px solid #e2e8f0", borderRadius: "12px", padding: "1.25rem", marginBottom: "0.75rem", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+              {/* Header: Name & Status dropdowns */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.625rem" }}>
+                <div>
+                  <Link href={`/member/${m.id}`} style={{ fontWeight: 800, color: "#0f172a", textDecoration: "none", fontSize: "1.0625rem", lineHeight: 1.25 }}>
+                    {m.firstName} {m.lastName}
+                  </Link>
+                  {m.joinDate && (
+                    <div style={{ fontSize: "0.7rem", color: "#94a3b8", marginTop: "0.15rem" }}>
+                      Since {new Date(m.joinDate).toLocaleDateString("en-PH", { month: "short", year: "numeric" })}
+                    </div>
+                  )}
+                </div>
+                <div style={{ display: "flex", gap: "0.3rem", alignItems: "center" }}>
+                  <select
+                    value={m.status}
+                    disabled={updatingStatusIds[m.id]}
+                    onChange={(e) => changeStatus(m.id, e.target.value)}
+                    style={{
+                      fontSize: "0.65rem",
+                      background: STATUS_COLOR[m.status] ? `${STATUS_COLOR[m.status]}18` : "#f1f5f9",
+                      color: STATUS_COLOR[m.status] ?? "#475569",
+                      padding: "0.15rem 0.4rem",
+                      borderRadius: "6px",
+                      border: "1px solid #e2e8f0",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      outline: "none",
+                      textTransform: "capitalize"
+                    }}
+                  >
+                    <option value="approved">Auto</option>
+                    <option value="active">Force Active</option>
+                    <option value="inactive">Force Inactive</option>
+                    <option value="guest">Force Guest</option>
+                    <option value="archived">Force Archived</option>
+                    {m.status === "pending" && <option value="pending">Pending</option>}
+                  </select>
+                  <span style={{ fontSize: "0.65rem", fontWeight: 700, color: ROLE_COLOR[m.role] ?? "#64748b", background: `${ROLE_COLOR[m.role] ?? "#64748b"}18`, padding: "0.2rem 0.5rem", borderRadius: "4px", textTransform: "capitalize" }}>
+                    {m.role}
+                  </span>
+                </div>
+              </div>
+
+              {/* Badges: Type & Active Ministries */}
+              <div style={{ display: "flex", gap: "0.3rem", marginBottom: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
+                <select
+                  value={m.type}
+                  disabled={updatingTypeIds[m.id]}
+                  onChange={(e) => changeType(m.id, e.target.value)}
+                  style={{
+                    fontSize: "0.7rem",
+                    background: "#f1f5f9",
+                    color: "#475569",
+                    padding: "0.15rem 0.4rem",
+                    borderRadius: "6px",
+                    border: "1px solid #e2e8f0",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    outline: "none",
+                  }}
+                >
+                  <option value="FamilyMember">Family Member</option>
+                  <option value="GrowingFriend">Growing Friend</option>
+                  <option value="NewFriend">New Friend</option>
+                </select>
+                {m.ministries.map((mm, j) => (
+                  <span key={j} style={{ fontSize: "0.7rem", background: P, color: "white", padding: "0.15rem 0.4rem", borderRadius: "4px", fontWeight: 500 }}>
+                    {mm.ministry.name}
+                  </span>
+                ))}
+              </div>
+
+              {/* Attendance Activity bar */}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.75rem", color: "#64748b", marginTop: "0.5rem", marginBottom: "0.75rem" }}>
+                <span>📊</span>
+                {visitCount > 0 ? (
+                  <span>
+                    <strong>{visitCount}</strong> {visitCount === 1 ? "visit" : "visits"}
+                    {" • "}
+                    Last: {formattedDate} <span style={{ color: "#475569" }}>({latestEventTitle})</span>
+                  </span>
+                ) : (
+                  <span>No attendance recorded</span>
                 )}
               </div>
-              <div style={{ display: "flex", gap: "0.3rem" }}>
-                <span style={{ fontSize: "0.65rem", fontWeight: 700, color: STATUS_COLOR[m.status] ?? "#64748b", background: `${STATUS_COLOR[m.status] ?? "#64748b"}18`, padding: "0.2rem 0.5rem", borderRadius: "4px", textTransform: "capitalize" }}>
-                  {m.status}
-                </span>
-                <span style={{ fontSize: "0.65rem", fontWeight: 700, color: ROLE_COLOR[m.role] ?? "#64748b", background: `${ROLE_COLOR[m.role] ?? "#64748b"}18`, padding: "0.2rem 0.5rem", borderRadius: "4px", textTransform: "capitalize" }}>
-                  {m.role}
-                </span>
-              </div>
-            </div>
-
-            {/* Badges: Type & Active Ministries */}
-            <div style={{ display: "flex", gap: "0.3rem", marginBottom: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
-              <select
-                value={m.type}
-                disabled={updatingTypeIds[m.id]}
-                onChange={(e) => changeType(m.id, e.target.value)}
-                style={{
-                  fontSize: "0.7rem",
-                  background: "#f1f5f9",
-                  color: "#475569",
-                  padding: "0.15rem 0.4rem",
-                  borderRadius: "6px",
-                  border: "1px solid #e2e8f0",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  outline: "none",
-                }}
-              >
-                <option value="FamilyMember">Family Member</option>
-                <option value="GrowingFriend">Growing Friend</option>
-                <option value="NewFriend">New Friend</option>
-              </select>
-              {m.ministries.map((mm, j) => (
-                <span key={j} style={{ fontSize: "0.7rem", background: P, color: "white", padding: "0.15rem 0.4rem", borderRadius: "4px", fontWeight: 500 }}>
-                  {mm.ministry.name}
-                </span>
-              ))}
-            </div>
 
             {/* Contact details & Username card */}
             <div style={{ background: "#f8fafc", borderRadius: "8px", padding: "0.75rem", fontSize: "0.8rem", color: "#475569", marginBottom: "0.75rem", border: "1px solid #f1f5f9" }}>
@@ -493,7 +672,8 @@ Thank you and God bless!`;
               )}
             </div>
           </div>
-        ))}
+        );
+      })}
         {filtered.length === 0 && (
           <div style={{ padding: "3rem", textAlign: "center", color: "#94a3b8", background: "white", borderRadius: "12px", border: "1px solid #e2e8f0" }}>No members found.</div>
         )}
@@ -596,6 +776,10 @@ Thank you and God bless!`;
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
+        }
+        .hgf-tooltip-container:hover .hgf-tooltip-content {
+          opacity: 1 !important;
+          transform: translateX(-50%) translateY(-2px) !important;
         }
         @media (max-width: 767px) {
           .desktop-view {

@@ -5,6 +5,16 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.31.0] — 2026-06-26
+### Added
+- **4th Member Segmentation Tab (Archived)**: Added an "Archived" (📁) tab to isolate members who have left the church or transferred.
+- **Attendance Columns**: Added columns for total visits, last visit date, and last event name to the members table. Used responsive hover-tooltips for desktop and an inline details row on mobile card views.
+- **Status Override Selectors**: Replaced static status labels with inline dropdown selectors (Auto, Force Active, Force Inactive, Force Guest, Force Archived).
+
+### Changed
+- **SMS Exclusions**: Updated birthday check and SMS reminder APIs to exclude members whose status is "Archived".
+- **Authentication Block**: Updated WebAuthn and password authentication logic to deny logins for "Archived" users.
+
 ## [v2.30.0] — 2026-06-26
 ### Added
 - **Member Segmentation Tabs**: Admin members page now classifies members into 3 attendance-based segments — **Active** (attended within last 30 days, 2+ total), **Inactive** (2+ attendance but none in 30 days), and **Guests** (0–1 attendance records). Each tab shows a count card with icon, count, and label.

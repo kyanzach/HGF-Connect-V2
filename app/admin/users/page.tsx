@@ -12,7 +12,7 @@ export default async function AdminUsersPage() {
 
   // All active members
   const users = await db.member.findMany({
-    where: { status: "active" },
+    where: { status: { notIn: ["pending", "archived"] } },
     orderBy: [{ role: "asc" }, { firstName: "asc" }],
     select: { id: true, firstName: true, lastName: true, email: true, phone: true, role: true, status: true, lastLogin: true, username: true },
   });

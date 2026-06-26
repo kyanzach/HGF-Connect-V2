@@ -11,7 +11,7 @@ export async function GET(req: Request) {
   // If username provided, check for that user (used on login page before signing in)
   if (username) {
     const member = await db.member.findFirst({
-      where: { OR: [{ username }, { email: username }], status: "active" },
+      where: { OR: [{ username }, { email: username }], status: { notIn: ["pending", "archived"] } },
       select: { id: true },
     });
     if (!member) return NextResponse.json({ hasCredentials: false });

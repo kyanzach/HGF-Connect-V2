@@ -61,7 +61,7 @@ export async function POST(req: Request) {
 
   // ── USERNAME-FIRST (legacy) mode ────────────────────────────────────────────
   const member = await db.member.findFirst({
-    where: { OR: [{ username }, { email: username }], status: "active" },
+    where: { OR: [{ username }, { email: username }], status: { notIn: ["pending", "archived"] } },
     select: { id: true },
   });
 

@@ -18,7 +18,7 @@ async function getDashboardStats() {
     eventsThisMonth,
     recentLogs,
   ] = await Promise.all([
-    db.member.count({ where: { status: "active" } }),
+    db.member.count({ where: { status: { notIn: ["pending", "archived"] } } }),
     db.member.count({ where: { status: "pending" } }),
     db.member.count(),
     db.event.count({

@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
   // Fetch phone numbers for selected members
   const members = await db.member.findMany({
-    where: { id: { in: memberIds }, status: "active", NOT: { phone: null } },
+    where: { id: { in: memberIds }, status: { notIn: ["pending", "archived"] }, NOT: { phone: null } },
     select: { id: true, firstName: true, lastName: true, phone: true },
   });
 

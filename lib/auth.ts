@@ -26,7 +26,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           const member = await db.member.findUnique({
             where: { id: Number(credentials.memberId) },
           });
-          if (!member) return null;
+          if (!member || member.status === "archived") return null;
 
           await db.member.update({
             where: { id: member.id },
@@ -55,7 +55,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           const member = await db.member.findUnique({
             where: { id: Number(credentials.memberId) },
           });
-          if (!member) return null;
+          if (!member || member.status === "archived") return null;
 
           await db.member.update({
             where: { id: member.id },
@@ -91,7 +91,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           },
         });
 
-        if (!member || !member.password) return null;
+        if (!member || !member.password || member.status === "archived") return null;
 
         const passwordMatch = await bcrypt.compare(password, member.password);
         if (!passwordMatch) return null;

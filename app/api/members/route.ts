@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
 
   const where: any = {};
   if (!isAdmin) {
-    where.status = "active";
+    where.status = { notIn: ["pending", "archived"] };
   }
   if (status) where.status = status;
   if (type) where.type = type;
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
       ageGroup: (ageGroup as any) || "Adult",
       type: (type?.replace(" ", "") as any) || "GrowingFriend",
       invitedBy,
-      status: isAdmin ? "active" : "pending",
+      status: isAdmin ? "approved" : "pending",
       role: isAdmin && role ? (role as any) : "user",
       joinDate: isAdmin && joinDate ? new Date(joinDate) : undefined,
     },
