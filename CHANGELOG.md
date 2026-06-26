@@ -8,8 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v2.31.5] — 2026-06-27
 ### Added
 - **Facebook-Style Inline Headers**: Added inline action text ("updated their profile picture", "updated their cover photo") to the post author headers in `PostCard.tsx` for photo update posts.
-- **Community Feed Post Bumping**: Automatically bumps a post's `createdAt` timestamp to the current time when a member leaves a comment or reply, prompting active posts to rise to the top of the community feed.
-- **Photo Posts Backfill**: Implemented `scratch/backfill_photo_posts.mjs` to reconcile historical database records by creating and linking missing posts for old profile/cover photos, and bumping commented posts to their active dates.
+- **Community Feed Post Bumping**: Introduced the `bumped_at` timestamp in the database to decouple feed ordering from the original post creation date. Newly commented or replied posts have their `bumped_at` timestamp bumped, causing them to float to the top of the feed while maintaining their original correct `created_at` timestamp in headers (preventing misleading "updated their profile picture 12m ago" text).
+- **Photo Posts Backfill**: Implemented `scratch/backfill_photo_posts.mjs` to reconcile historical database records by creating and linking missing posts for old profile/cover photos, and setting their initial `bumped_at` times based on comment timestamps.
 - **Legacy Attendance Export referral Source**: Enhanced the legacy attendance report CSV export to include the "Invited By" referral field for each member attendance record.
 
 ## [v2.31.4] — 2026-06-26

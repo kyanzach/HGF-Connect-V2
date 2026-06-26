@@ -690,11 +690,13 @@ model Post {
   comments   Comment[]
   createdAt  DateTime       @default(now()) @map("created_at")
   updatedAt  DateTime       @updatedAt @map("updated_at")
+  bumpedAt   DateTime       @default(now()) @map("bumped_at")
   photos     PostPhoto[]
   rewardItem QuizRewardItem?
 
   @@index([authorId])
   @@index([createdAt])
+  @@index([bumpedAt])
   @@map("posts")
 }
 
