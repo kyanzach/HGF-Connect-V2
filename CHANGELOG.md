@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.29.9] — 2026-06-26
+### Added
+- **Profile Settings Gender & Address**: Added `gender` select dropdown (Male, Female) to the profile settings edit page and displayed it under the Personal Details card on the About profile tab. Enabled gender fetching and updating across Next.js APIs.
+- **Attendance CSV Export Enhancements**: Updated the legacy attendance app's CSV export script on the production server to query and include `gender`, `age_group`, and `role` (mapped from member `type`) fields in the exported CSV headers and data rows.
+
 ## [v2.29.8] — 2026-06-26
 ### Fixed
 - **Database Duplicate Account Merger (v2)**: Executed database duplicate cleanups on the production server to safely merge 9 duplicate member groups (Lance Kirby Ador, Jhundel Bou, Clarizza Delos Santos, Faith/Fatz Pahimnayan, Ritchel Buro, Elana/Ellana Aguan, Rianah Fama, Monique Milliones, and Cabigon Cj/Gershon Cabigon). This preserves their login credentials, biometrics, profiles, and combines their attendance histories, resolving the delta between registered database accounts (340) and active community records (bringing the count to 331).

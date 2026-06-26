@@ -28,6 +28,7 @@ interface ProfileData {
   favoriteVerse: string | null; joinDate: string | null;
   birthdate: string | null; baptismDate: string | null;
   invitedBy: string | null; address: string | null;
+  gender: string | null;
   email: string | null; phone: string | null;
   showEmail: boolean; showPhone: boolean; showAddress: boolean;
   familyMembers: string | null;
@@ -177,9 +178,10 @@ function AboutTab({ m }: { m: ProfileData }) {
           </div>
         </div>
       )}
-      {(m.birthdate || m.baptismDate || m.invitedBy) && (
+      {(m.birthdate || m.baptismDate || m.invitedBy || m.gender) && (
         <div style={{ background: "white", borderRadius: "16px", padding: "1rem", marginBottom: "0.75rem", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
           <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.25rem" }}>ℹ️ Personal Details</div>
+          {m.gender && <Row icon="🚻" label="Gender" value={m.gender} />}
           {m.birthdate && <Row icon="🎂" label="Birthday" value={fmt(m.birthdate)} />}
           {m.baptismDate && <Row icon="🌊" label="Baptism Date" value={fmt(m.baptismDate)} />}
           {m.invitedBy && <Row icon="👥" label="Invited By" value={m.invitedBy} />}

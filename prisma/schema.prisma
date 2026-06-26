@@ -25,6 +25,7 @@ model Member {
   phone                 String?   @db.VarChar(20)
   address               String?   @db.Text
   birthdate             DateTime? @db.Date
+  gender                String?   @db.VarChar(10)
   joinDate              DateTime? @map("join_date") @db.Date
   baptismDate           DateTime? @map("baptism_date") @db.Date
   familyMembers         String?   @map("family_members") @db.Text

@@ -53,6 +53,7 @@ export default async function MemberProfilePage({ params }: { params: Promise<{ 
     baptismDate: member.baptismDate?.toISOString() ?? null,
     invitedBy: member.invitedBy ?? null,
     address: member.address ?? null,
+    gender: member.gender ?? null,
     email: member.email ?? null,
     phone: member.phone ?? null,
     showEmail: member.showEmail ?? false,

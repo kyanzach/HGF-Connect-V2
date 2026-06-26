@@ -58,6 +58,7 @@ export async function GET(request: NextRequest) {
         baptismDate: true,    // completeness
         invitedBy: true,      // completeness (name only, non-sensitive)
         address: true,        // completeness
+        gender: true,
         favoriteVerse: true,  // completeness + shown on card
         familyMembers: true,  // completeness
         showEmail: true,

@@ -83,6 +83,7 @@ export async function PATCH(
         ? body.phone.replace(/\D/g, "").replace(/^0/, "+63").slice(0, 13)
         : null;
     if (body.address !== undefined) updateData.address = body.address;
+    if (body.gender !== undefined) updateData.gender = body.gender;
     if (body.birthdate !== undefined)
       updateData.birthdate = body.birthdate ? new Date(body.birthdate) : null;
     if (body.baptismDate !== undefined)

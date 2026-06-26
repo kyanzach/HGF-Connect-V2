@@ -46,6 +46,7 @@ export default function EditProfilePage() {
     birthdate: "", baptismDate: "",
     invitedBy: "", familyMembers: "",
     phone: "", address: "",
+    gender: "",
     favoriteVerse: "",
     showEmail: true, showPhone: true, showAddress: true,
     sms5dayReminder: true, sms3dayReminder: true,
@@ -114,6 +115,7 @@ export default function EditProfilePage() {
           familyMembers: data.familyMembers ?? "",
           phone: data.phone ?? "",
           address: data.address ?? "",
+          gender: data.gender ?? "",
           favoriteVerse: data.favoriteVerse ?? "",
           showEmail: data.showEmail ?? true,
           showPhone: data.showPhone ?? true,
@@ -442,6 +444,13 @@ export default function EditProfilePage() {
                     {fieldGroup("Birthday", <input type="date" style={inputStyle} value={form.birthdate} onChange={(e) => set("birthdate", e.target.value)} />)}
                     {fieldGroup("Baptism Date", <input type="date" style={inputStyle} value={form.baptismDate} onChange={(e) => set("baptismDate", e.target.value)} />)}
                   </div>
+                  {fieldGroup("Gender", (
+                    <select style={inputStyle} value={form.gender} onChange={(e) => set("gender", e.target.value)}>
+                      <option value="">Select Gender</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                    </select>
+                  ))}
                 </div>
 
                 {/* Section: Contact Details */}
