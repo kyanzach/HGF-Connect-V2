@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.31.3] — 2026-06-26
+### Fixed
+- **Legacy Attendance App SSO Alignment**: Updated the status queries across the legacy PHP application (`/var/www/hgf-legacy/attendance/`) to validate `status != 'archived' AND status != 'pending'` instead of requiring `status = 'active'`, matching the new member dynamic segmentation model and resolving the "User not found or inactive" SSO block.
+
 ## [v2.31.2] — 2026-06-26
 ### Fixed
 - **Profile Page (404 Issue)**: Allowed viewing profile pages for all valid community members (approved, active, inactive, guest), throwing a 404 only for archived and pending registrants.
