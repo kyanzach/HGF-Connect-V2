@@ -88,6 +88,12 @@ export async function POST(
       },
     });
 
+    // Bump the post's timestamp to the current time so it goes to the top of the feed
+    await (db as any).post.update({
+      where: { id: postId },
+      data: { createdAt: new Date() },
+    });
+
     const authorName = `${comment.author.firstName} ${comment.author.lastName}`;
     const preview = content.trim().slice(0, 80);
     const postLink = `/feed?post=${postId}`;

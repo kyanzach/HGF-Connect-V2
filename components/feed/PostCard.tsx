@@ -555,6 +555,16 @@ export default function PostCard({ post }: PostCardProps) {
           <div style={{ flex: 1, minWidth: 0 }}>
             <button onClick={() => { window.location.href = isQuizPost ? "/quiz/hub" : isChurchPost ? "/church" : `/member/${post.author.id}`; }} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left" }}>
               <span style={{ fontWeight: 700, fontSize: "0.9rem", color: "#1e293b" }}>{authorName}</span>
+              {post.type === "PROFILE_PHOTO" && (
+                <span style={{ fontSize: "0.9rem", color: "#64748b", fontWeight: 400, marginLeft: "0.25rem" }}>
+                  updated their profile picture
+                </span>
+              )}
+              {post.type === "COVER_PHOTO" && (
+                <span style={{ fontSize: "0.9rem", color: "#64748b", fontWeight: 400, marginLeft: "0.25rem" }}>
+                  updated their cover photo
+                </span>
+              )}
             </button>
             <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", flexWrap: "wrap" }}>
               <span style={{ fontSize: "0.7rem", color: "#94a3b8" }}>{timeAgo(post.createdAt)}</span>

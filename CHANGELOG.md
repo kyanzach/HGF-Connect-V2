@@ -5,6 +5,13 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.31.5] — 2026-06-27
+### Added
+- **Facebook-Style Inline Headers**: Added inline action text ("updated their profile picture", "updated their cover photo") to the post author headers in `PostCard.tsx` for photo update posts.
+- **Community Feed Post Bumping**: Automatically bumps a post's `createdAt` timestamp to the current time when a member leaves a comment or reply, prompting active posts to rise to the top of the community feed.
+- **Photo Posts Backfill**: Implemented `scratch/backfill_photo_posts.mjs` to reconcile historical database records by creating and linking missing posts for old profile/cover photos, and bumping commented posts to their active dates.
+- **Legacy Attendance Export referral Source**: Enhanced the legacy attendance report CSV export to include the "Invited By" referral field for each member attendance record.
+
 ## [v2.31.4] — 2026-06-26
 ### Changed
 - **Dashboard Stats Widgets**: Enhanced and aligned the dashboard widgets to display the exact segmented breakdowns of community members: Active Members (✅), Inactive Members (💤), Guests (👋), Archived Members (📁), Pending Approval (⏳), and Total Members (📋), matching the frontend tab counts.
