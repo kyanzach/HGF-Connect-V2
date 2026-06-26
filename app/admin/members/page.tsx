@@ -18,6 +18,7 @@ export default async function AdminMembersPage() {
         username: true, status: true, role: true, type: true, ageGroup: true,
         joinDate: true, createdAt: true, invitedBy: true,
         ministries: { where: { status: "active" }, include: { ministry: { select: { name: true } } }, take: 3 },
+        attendance: { select: { attendanceDate: true } },
       },
     }),
     db.ministry.findMany({ where: { status: "active" }, orderBy: { name: "asc" }, select: { id: true, name: true } }),

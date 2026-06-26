@@ -5,6 +5,15 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.30.0] — 2026-06-26
+### Added
+- **Member Segmentation Tabs**: Admin members page now classifies members into 3 attendance-based segments — **Active** (attended within last 30 days, 2+ total), **Inactive** (2+ attendance but none in 30 days), and **Guests** (0–1 attendance records). Each tab shows a count card with icon, count, and label.
+- **SMS Guest Exclusion**: SMS event reminder campaigns now automatically exclude guest-classified members (≤1 attendance) from receiving messages. Inactive members are still included for re-engagement purposes.
+
+### Changed
+- **Actions Column Redesign**: Replaced the cramped 2-line text-link action bar (View | Deactivate | Reset Pass | Login As | Delete) with clean single-line icon buttons (👁 🔑 🔄 🗑️) with tooltips, both on desktop table and mobile card views.
+- **Removed Manual Deactivate/Activate Toggle**: The manual status toggle has been replaced by the automatic attendance-based segmentation system. Members are now classified by their attendance behavior rather than manual admin action.
+
 ## [v2.29.9] — 2026-06-26
 ### Added
 - **Profile Settings Gender & Address**: Added `gender` select dropdown (Male, Female) to the profile settings edit page and displayed it under the Personal Details card on the About profile tab. Enabled gender fetching and updating across Next.js APIs.

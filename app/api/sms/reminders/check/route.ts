@@ -176,7 +176,8 @@ export async function POST(request: NextRequest) {
 
     if (dueReminders.length > 0) {
       // Get all active members with a valid phone number
-      const members = await db.member.findMany({
+      // Exclude GUESTS (≤1 attendance record) — they should not receive event SMS campaigns
+      const allMembers = await db.member.findMany({
         where: {
           status: "active",
           phone: { not: null }
@@ -188,9 +189,13 @@ export async function POST(request: NextRequest) {
           sms5dayReminder: true,
           sms3dayReminder: true,
           sms1dayReminder: true,
-          smsSameDayReminder: true
+          smsSameDayReminder: true,
+          _count: { select: { attendance: true } },
         }
       });
+
+      // Filter out guests (≤1 attendance) — keep active + inactive members for re-engagement
+      const members = allMembers.filter(m => (m._count?.attendance ?? 0) > 1);
 
       for (const reminder of dueReminders) {
         // Map reminder type to member opt-in field name

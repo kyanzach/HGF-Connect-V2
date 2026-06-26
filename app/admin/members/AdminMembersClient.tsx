@@ -22,7 +22,10 @@ type Member = {
   createdAt: string;
   invitedBy: string | null;
   ministries: { ministry: { name: string } }[];
+  attendance?: { attendanceDate: string | Date | null }[];
 };
+
+type SegmentTab = "active" | "inactive" | "guests";
 
 const STATUS_COLOR: Record<string, string> = { active: "#10b981", pending: "#f59e0b", inactive: "#94a3b8" };
 const ROLE_COLOR: Record<string, string> = { admin: "#ef4444", moderator: "#f59e0b", usher: "#8b5cf6", member: "#64748b" };
@@ -37,7 +40,7 @@ export default function AdminMembersClient({
   const [members, setMembers] = useState(initial);
   const [updatingTypeIds, setUpdatingTypeIds] = useState<Record<number, boolean>>({});
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [segmentTab, setSegmentTab] = useState<SegmentTab>("active");
   const [typeFilter, setTypeFilter] = useState("all");
   const [showAdd, setShowAdd] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -60,13 +63,41 @@ export default function AdminMembersClient({
     error: string;
   }>({ open: false, name: "", username: "", loading: false, copied: false, error: "" });
 
+  // ── Segment members by attendance behavior ──────────────────────────────────
+  const segments = useMemo(() => {
+    const now = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(now.getDate() - 30);
+
+    const activeList: Member[] = [];
+    const inactiveList: Member[] = [];
+    const guestList: Member[] = [];
+
+    members.forEach(m => {
+      const records = m.attendance || [];
+      const total = records.length;
+      if (total <= 1) {
+        guestList.push(m);
+      } else {
+        const dates = records.map(a => a.attendanceDate ? new Date(a.attendanceDate as string).getTime() : 0);
+        const latest = Math.max(...dates);
+        if (latest >= thirtyDaysAgo.getTime()) {
+          activeList.push(m);
+        } else {
+          inactiveList.push(m);
+        }
+      }
+    });
+
+    return { activeList, inactiveList, guestList };
+  }, [members]);
+
   const filtered = useMemo(() => {
-    let list = members;
+    let list = segmentTab === "active" ? segments.activeList : segmentTab === "inactive" ? segments.inactiveList : segments.guestList;
     if (search) list = list.filter(m => `${m.firstName} ${m.lastName} ${m.email ?? ""} ${m.username ?? ""}`.toLowerCase().includes(search.toLowerCase()));
-    if (statusFilter !== "all") list = list.filter(m => m.status === statusFilter);
     if (typeFilter !== "all") list = list.filter(m => m.type === typeFilter);
     return list;
-  }, [members, search, statusFilter, typeFilter]);
+  }, [segments, segmentTab, search, typeFilter]);
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault(); setAdding(true); setAddErr("");
@@ -78,11 +109,6 @@ export default function AdminMembersClient({
     setAdding(false);
   }
 
-  async function toggleStatus(id: number, current: string) {
-    const newStatus = current === "active" ? "inactive" : "active";
-    const res = await fetch(`/api/members/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: newStatus }) });
-    if (res.ok) setMembers(prev => prev.map(m => m.id === id ? { ...m, status: newStatus } : m));
-  }
 
   async function changeType(id: number, newType: string) {
     setUpdatingTypeIds(prev => ({ ...prev, [id]: true }));
@@ -203,7 +229,7 @@ Thank you and God bless!`;
 
   return (
     <div style={{ padding: "1.5rem 2rem" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
         <div>
           <h1 style={{ fontSize: "1.5rem", fontWeight: 800, color: "#0f172a", margin: 0 }}>👥 Members</h1>
           <p style={{ color: "#64748b", fontSize: "0.875rem", margin: "0.25rem 0 0" }}>{members.length} total members</p>
@@ -213,15 +239,33 @@ Thank you and God bless!`;
         </button>
       </div>
 
+      {/* ── Segment Tabs ─────────────────────────────────────────────── */}
+      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
+        {([
+          { key: "active" as SegmentTab, label: "Active", count: segments.activeList.length, color: "#10b981", icon: "✅" },
+          { key: "inactive" as SegmentTab, label: "Inactive", count: segments.inactiveList.length, color: "#f59e0b", icon: "💤" },
+          { key: "guests" as SegmentTab, label: "Guests", count: segments.guestList.length, color: "#8b5cf6", icon: "👋" },
+        ]).map(tab => {
+          const isActive = segmentTab === tab.key;
+          return (
+            <button key={tab.key} onClick={() => setSegmentTab(tab.key)} style={{
+              flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "0.25rem",
+              padding: "0.75rem 0.5rem", borderRadius: "12px", cursor: "pointer", transition: "all 0.2s",
+              border: isActive ? `2px solid ${tab.color}` : "2px solid #e2e8f0",
+              background: isActive ? `${tab.color}0D` : "white",
+              boxShadow: isActive ? `0 2px 12px ${tab.color}25` : "none",
+            }}>
+              <span style={{ fontSize: "1.25rem" }}>{tab.icon}</span>
+              <span style={{ fontSize: "1.5rem", fontWeight: 900, color: isActive ? tab.color : "#475569", lineHeight: 1 }}>{tab.count}</span>
+              <span style={{ fontSize: "0.7rem", fontWeight: 700, color: isActive ? tab.color : "#94a3b8", textTransform: "uppercase", letterSpacing: "0.04em" }}>{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Filters */}
       <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1.25rem", flexWrap: "wrap" }}>
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 Search name or email…" style={{ ...inp, maxWidth: 280 }} />
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ ...sel, width: 140 }}>
-          <option value="all">All statuses</option>
-          <option value="active">Active</option>
-          <option value="pending">Pending</option>
-          <option value="inactive">Inactive</option>
-        </select>
         <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={{ ...sel, width: 160 }}>
           <option value="all">All types</option>
           <option value="FamilyMember">Family Member</option>
@@ -334,27 +378,16 @@ Thank you and God bless!`;
                       {m.username ?? "—"}
                     </code>
                   </td>
-                  <td style={{ padding: "0.75rem 1rem" }}>
-                    <div style={{ display: "flex", gap: "0.375rem" }}>
-                      <Link href={`/member/${m.id}`} style={{ fontSize: "0.75rem", color: P, textDecoration: "none", fontWeight: 700 }}>View</Link>
-                      <span style={{ color: "#e2e8f0" }}>|</span>
-                      <button onClick={() => toggleStatus(m.id, m.status)} style={{ fontSize: "0.75rem", color: m.status === "active" ? "#f59e0b" : "#10b981", background: "none", border: "none", cursor: "pointer", fontWeight: 700, padding: 0 }}>
-                        {m.status === "active" ? "Deactivate" : "Activate"}
-                      </button>
-                      <span style={{ color: "#e2e8f0" }}>|</span>
-                      <button onClick={() => handleResetPassword(m.id, `${m.firstName} ${m.lastName}`)} style={{ fontSize: "0.75rem", color: "#4f46e5", background: "none", border: "none", cursor: "pointer", fontWeight: 700, padding: 0 }}>
-                        Reset Pass
-                      </button>
+                  <td style={{ padding: "0.75rem 0.5rem", whiteSpace: "nowrap" }}>
+                    <div style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}>
+                      <Link href={`/member/${m.id}`} title="View Profile" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: "8px", background: `${P}15`, color: P, textDecoration: "none", fontSize: "0.85rem" }}>👁</Link>
+                      <button onClick={() => handleResetPassword(m.id, `${m.firstName} ${m.lastName}`)} title="Reset Password" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: "8px", background: "#eef2ff", color: "#4f46e5", border: "none", cursor: "pointer", fontSize: "0.85rem" }}>🔑</button>
                       {isStrictAdmin && (
-                        <>
-                          <span style={{ color: "#e2e8f0" }}>|</span>
-                          <button onClick={() => handleImpersonate(m.id, `${m.firstName} ${m.lastName}`)} style={{ fontSize: "0.75rem", color: P, background: "none", border: "none", cursor: "pointer", fontWeight: 700, padding: 0 }}>
-                            Login As
-                          </button>
-                        </>
+                        <button onClick={() => handleImpersonate(m.id, `${m.firstName} ${m.lastName}`)} title="Login As" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: "8px", background: `${P}15`, color: P, border: "none", cursor: "pointer", fontSize: "0.85rem" }}>🔄</button>
                       )}
-                      {isAdmin && <><span style={{ color: "#e2e8f0" }}>|</span>
-                        <button onClick={() => promptDeleteMember(m.id, `${m.firstName} ${m.lastName}`)} style={{ fontSize: "0.75rem", color: "#ef4444", background: "none", border: "none", cursor: "pointer", fontWeight: 700, padding: 0 }}>Delete</button></>}
+                      {isAdmin && (
+                        <button onClick={() => promptDeleteMember(m.id, `${m.firstName} ${m.lastName}`)} title="Delete Member" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: "8px", background: "#fef2f2", color: "#ef4444", border: "none", cursor: "pointer", fontSize: "0.85rem" }}>🗑️</button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -441,24 +474,21 @@ Thank you and God bless!`;
             </div>
 
             {/* Responsive Actions bar */}
-            <div style={{ display: "flex", gap: "0.5rem", borderTop: "1px solid #f1f5f9", paddingTop: "0.75rem", flexWrap: "wrap" }}>
-              <Link href={`/member/${m.id}`} style={{ flex: 1, textAlign: "center", fontSize: "0.75rem", color: P, background: "#e0f7fb", border: "none", borderRadius: "6px", padding: "0.5rem 0", fontWeight: 700, textDecoration: "none" }}>
-                View
+            <div style={{ display: "flex", gap: "0.5rem", borderTop: "1px solid #f1f5f9", paddingTop: "0.75rem" }}>
+              <Link href={`/member/${m.id}`} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "0.25rem", fontSize: "0.75rem", color: P, background: "#e0f7fb", border: "none", borderRadius: "6px", padding: "0.5rem 0", fontWeight: 700, textDecoration: "none" }}>
+                👁 View
               </Link>
-              <button onClick={() => toggleStatus(m.id, m.status)} style={{ flex: 1.5, fontSize: "0.75rem", color: m.status === "active" ? "#d97706" : "#059669", background: m.status === "active" ? "#fef3c7" : "#d1fae5", border: "none", borderRadius: "6px", padding: "0.5rem 0", fontWeight: 700, cursor: "pointer" }}>
-                {m.status === "active" ? "Deactivate" : "Activate"}
-              </button>
-              <button onClick={() => handleResetPassword(m.id, `${m.firstName} ${m.lastName}`)} style={{ flex: 1.5, fontSize: "0.75rem", color: "#4f46e5", background: "#e0e7ff", border: "none", borderRadius: "6px", padding: "0.5rem 0", fontWeight: 700, cursor: "pointer" }}>
-                Reset Pass
+              <button onClick={() => handleResetPassword(m.id, `${m.firstName} ${m.lastName}`)} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "0.25rem", fontSize: "0.75rem", color: "#4f46e5", background: "#e0e7ff", border: "none", borderRadius: "6px", padding: "0.5rem 0", fontWeight: 700, cursor: "pointer" }}>
+                🔑 Reset
               </button>
               {isStrictAdmin && (
-                <button onClick={() => handleImpersonate(m.id, `${m.firstName} ${m.lastName}`)} style={{ flex: 1.5, fontSize: "0.75rem", color: "white", background: P, border: "none", borderRadius: "6px", padding: "0.5rem 0", fontWeight: 700, cursor: "pointer" }}>
-                  Login As
+                <button onClick={() => handleImpersonate(m.id, `${m.firstName} ${m.lastName}`)} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "0.25rem", fontSize: "0.75rem", color: "white", background: P, border: "none", borderRadius: "6px", padding: "0.5rem 0", fontWeight: 700, cursor: "pointer" }}>
+                  🔄 Login As
                 </button>
               )}
               {isAdmin && (
-                <button onClick={() => promptDeleteMember(m.id, `${m.firstName} ${m.lastName}`)} style={{ flex: 1, fontSize: "0.75rem", color: "#dc2626", background: "#fee2e2", border: "none", borderRadius: "6px", padding: "0.5rem 0", fontWeight: 700, cursor: "pointer" }}>
-                  Delete
+                <button onClick={() => promptDeleteMember(m.id, `${m.firstName} ${m.lastName}`)} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "0.25rem", fontSize: "0.75rem", color: "#dc2626", background: "#fee2e2", border: "none", borderRadius: "6px", padding: "0.5rem 0", fontWeight: 700, cursor: "pointer" }}>
+                  🗑️ Delete
                 </button>
               )}
             </div>
