@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.31.6] — 2026-06-27
+### Fixed
+- **Large Presentation Uploads (Stuck at 5%)**: Excluded `/api/` paths from the Next.js middleware matcher inside `middleware.ts` and configured `experimental.proxyClientMaxBodySize: "500mb"` in `next.config.js`. This resolves request body truncation issues on files exceeding 10MB, which triggered `TypeError: Failed to parse body as FormData` and left pastors' uploads hanging.
+
 ## [v2.31.5] — 2026-06-27
 ### Added
 - **Facebook-Style Inline Headers**: Added inline action text ("updated their profile picture", "updated their cover photo") to the post author headers in `PostCard.tsx` for photo update posts.

@@ -2,6 +2,9 @@
 const { version } = require("./package.json");
 
 const nextConfig = {
+  experimental: {
+    proxyClientMaxBodySize: "500mb",
+  },
   // Expose version from package.json to all client components
   env: {
     NEXT_PUBLIC_APP_VERSION: version,
