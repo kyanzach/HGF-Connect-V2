@@ -19,6 +19,7 @@ async function getDashboardStats() {
     db.member.findMany({
       select: {
         status: true,
+        ageGroup: true,
         attendance: {
           select: { attendanceDate: true }
         }
@@ -41,6 +42,9 @@ async function getDashboardStats() {
   let guestCount = 0;
   let archivedCount = 0;
   let pendingCount = 0;
+  let adultCount = 0;
+  let youthCount = 0;
+  let kidsCount = 0;
 
   members.forEach(m => {
     if (m.status === "archived") {
@@ -51,6 +55,13 @@ async function getDashboardStats() {
       pendingCount++;
       return;
     }
+
+    // Count age groups for active/inactive/guest community members
+    const age = m.ageGroup || "Adult";
+    if (age === "Adult") adultCount++;
+    else if (age === "Youth") youthCount++;
+    else if (age === "Kids") kidsCount++;
+
     if (m.status === "active") {
       activeCount++;
       return;
@@ -92,7 +103,10 @@ async function getDashboardStats() {
     totalMembers,
     eventsThisMonth,
     recentLogs,
-    smsPending
+    smsPending,
+    adultCount,
+    youthCount,
+    kidsCount
   };
 }
 
@@ -136,6 +150,24 @@ export default async function AdminDashboardPage() {
         <StatCard label="Total Members" value={stats.totalMembers} icon="📋" color="#4eb1cb" href="/admin/members" />
         <StatCard label="Events This Month" value={stats.eventsThisMonth} icon="📅" color="#10b981" href="/admin/events" />
         <StatCard label="Pending SMS" value={stats.smsPending} icon="📱" color="#3b82f6" href="/admin/sms" />
+      </div>
+
+      {/* Age Groups Breakdown */}
+      <div style={{ marginBottom: "2.5rem" }}>
+        <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "#0f172a", marginBottom: "1rem" }}>
+          Age Groups
+        </h2>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+            gap: "1.25rem",
+          }}
+        >
+          <StatCard label="Adults" value={stats.adultCount} icon="👨" color="#3b82f6" href="/admin/members?age=Adult" />
+          <StatCard label="Youth" value={stats.youthCount} icon="🧑" color="#ec4899" href="/admin/members?age=Youth" />
+          <StatCard label="Kids" value={stats.kidsCount} icon="👧" color="#10b981" href="/admin/members?age=Kids" />
+        </div>
       </div>
 
       {/* Quick Actions */}

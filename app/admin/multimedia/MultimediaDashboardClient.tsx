@@ -41,6 +41,7 @@ interface EventRow {
 
 interface Props {
   event: EventRow | null;
+  upcomingEvents?: EventRow[];
   crew: MemberSelect[];
   session: any;
   customSettings: Record<string, string>;
@@ -48,6 +49,7 @@ interface Props {
 
 export default function MultimediaDashboardClient({
   event: initialEvent,
+  upcomingEvents = [],
   crew,
   session,
   customSettings,
@@ -455,21 +457,60 @@ export default function MultimediaDashboardClient({
           </p>
         </div>
 
-        {/* Live Clock Widget */}
-        <div
-          style={{
-            background: "rgba(15, 23, 42, 0.05)",
-            border: "1px solid rgba(15, 23, 42, 0.08)",
-            padding: "0.5rem 1rem",
-            borderRadius: "12px",
-            textAlign: "right",
-          }}
-        >
-          <div style={{ fontSize: "0.6875rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>
-            Manila Time
-          </div>
-          <div style={{ fontSize: "1.125rem", fontWeight: 800, color: "#0f172a", fontFamily: "monospace" }}>
-            {currentTime || "Loading clock..."}
+        {/* Dropdown for active event selection & Live Clock Widget */}
+        <div style={{ display: "flex", alignItems: "center", gap: "1.25rem", flexWrap: "wrap" }}>
+          {upcomingEvents && upcomingEvents.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+              <label style={{ fontSize: "0.6875rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>
+                Select Active Event
+              </label>
+              <select
+                value={event?.id || ""}
+                onChange={(e) => {
+                  const selectedId = Number(e.target.value);
+                  const selected = upcomingEvents.find((ev: any) => ev.id === selectedId);
+                  if (selected) {
+                    setEvent(selected);
+                    setTasks(selected.sopTasks || []);
+                    setActiveSlide(0);
+                  }
+                }}
+                style={{
+                  fontSize: "0.875rem",
+                  fontWeight: 700,
+                  color: "#0f172a",
+                  background: "white",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "8px",
+                  padding: "0.45rem 0.75rem",
+                  outline: "none",
+                  cursor: "pointer",
+                }}
+              >
+                {upcomingEvents.map((ev: any) => (
+                  <option key={ev.id} value={ev.id}>
+                    {new Date(ev.eventDate).toLocaleDateString("en-PH", { month: "short", day: "numeric" })} - {ev.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div
+            style={{
+              background: "rgba(15, 23, 42, 0.05)",
+              border: "1px solid rgba(15, 23, 42, 0.08)",
+              padding: "0.5rem 1rem",
+              borderRadius: "12px",
+              textAlign: "right",
+            }}
+          >
+            <div style={{ fontSize: "0.6875rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>
+              Manila Time
+            </div>
+            <div style={{ fontSize: "1.125rem", fontWeight: 800, color: "#0f172a", fontFamily: "monospace" }}>
+              {currentTime || "Loading clock..."}
+            </div>
           </div>
         </div>
       </div>

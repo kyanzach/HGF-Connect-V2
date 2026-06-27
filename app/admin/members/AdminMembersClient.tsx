@@ -31,8 +31,8 @@ const STATUS_COLOR: Record<string, string> = { approved: "#10b981", active: "#10
 const ROLE_COLOR: Record<string, string> = { admin: "#ef4444", moderator: "#f59e0b", usher: "#8b5cf6", member: "#64748b" };
 
 export default function AdminMembersClient({
-  members: initial, ministries, isAdmin, initialTab,
-}: { members: Member[]; ministries: { id: number; name: string }[]; isAdmin: boolean; initialTab?: string }) {
+  members: initial, ministries, isAdmin, initialTab, initialAge,
+}: { members: Member[]; ministries: { id: number; name: string }[]; isAdmin: boolean; initialTab?: string; initialAge?: string }) {
   const { data: session, update } = useSession();
   const router = useRouter();
   const isStrictAdmin = session?.user?.role === "admin";
@@ -40,6 +40,7 @@ export default function AdminMembersClient({
   const [members, setMembers] = useState(initial);
   const [updatingTypeIds, setUpdatingTypeIds] = useState<Record<number, boolean>>({});
   const [updatingStatusIds, setUpdatingStatusIds] = useState<Record<number, boolean>>({});
+  const [updatingAgeGroupIds, setUpdatingAgeGroupIds] = useState<Record<number, boolean>>({});
   const [search, setSearch] = useState("");
 
   const isValidTab = (tab?: string): tab is SegmentTab => {
@@ -49,6 +50,7 @@ export default function AdminMembersClient({
     isValidTab(initialTab) ? initialTab : "active"
   );
   const [typeFilter, setTypeFilter] = useState("all");
+  const [ageFilter, setAgeFilter] = useState(initialAge || "all");
   const [showAdd, setShowAdd] = useState(false);
   const [adding, setAdding] = useState(false);
   const [addErr, setAddErr] = useState("");
@@ -166,8 +168,9 @@ export default function AdminMembersClient({
     
     if (search) list = list.filter(m => `${m.firstName} ${m.lastName} ${m.email ?? ""} ${m.username ?? ""}`.toLowerCase().includes(search.toLowerCase()));
     if (typeFilter !== "all") list = list.filter(m => m.type === typeFilter);
+    if (ageFilter !== "all") list = list.filter(m => (m.ageGroup || "Adult") === ageFilter);
     return list;
-  }, [segments, segmentTab, search, typeFilter]);
+  }, [segments, segmentTab, search, typeFilter, ageFilter]);
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault(); setAdding(true); setAddErr("");
@@ -195,6 +198,24 @@ export default function AdminMembersClient({
       console.error(err);
     } finally {
       setUpdatingTypeIds(prev => ({ ...prev, [id]: false }));
+    }
+  }
+
+  async function changeAgeGroup(id: number, newAgeGroup: string) {
+    setUpdatingAgeGroupIds(prev => ({ ...prev, [id]: true }));
+    try {
+      const res = await fetch(`/api/members/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ageGroup: newAgeGroup }),
+      });
+      if (res.ok) {
+        setMembers(prev => prev.map(m => m.id === id ? { ...m, ageGroup: newAgeGroup } : m));
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setUpdatingAgeGroupIds(prev => ({ ...prev, [id]: false }));
     }
   }
 
@@ -358,6 +379,12 @@ Thank you and God bless!`;
           <option value="GrowingFriend">Growing Friend</option>
           <option value="NewFriend">New Friend</option>
         </select>
+        <select value={ageFilter} onChange={e => setAgeFilter(e.target.value)} style={{ ...sel, width: 140 }}>
+          <option value="all">All ages</option>
+          <option value="Adult">Adult</option>
+          <option value="Youth">Youth</option>
+          <option value="Kids">Kids</option>
+        </select>
         <span style={{ color: "#94a3b8", fontSize: "0.875rem", alignSelf: "center" }}>{filtered.length} shown</span>
       </div>
 
@@ -414,7 +441,7 @@ Thank you and God bless!`;
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
             <thead>
               <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-                {["Member", "Contact", "Type", "Visits", "Last Visit", "Status", "Role", "Ministries", "Username", "Actions"].map(h => (
+                {["Member", "Contact", "Type", "Age Group", "Visits", "Last Visit", "Status", "Role", "Ministries", "Username", "Actions"].map(h => (
                   <th key={h} style={{ padding: "0.75rem 1rem", textAlign: "left", fontWeight: 700, color: "#64748b", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.04em", whiteSpace: "nowrap" }}>{h}</th>
                 ))}
               </tr>
@@ -460,6 +487,28 @@ Thank you and God bless!`;
                         <option value="FamilyMember">Family Member</option>
                         <option value="GrowingFriend">Growing Friend</option>
                         <option value="NewFriend">New Friend</option>
+                      </select>
+                    </td>
+                    <td style={{ padding: "0.75rem 1rem" }}>
+                      <select
+                        value={m.ageGroup || "Adult"}
+                        disabled={updatingAgeGroupIds[m.id]}
+                        onChange={(e) => changeAgeGroup(m.id, e.target.value)}
+                        style={{
+                          fontSize: "0.75rem",
+                          background: "#f1f5f9",
+                          color: "#475569",
+                          padding: "0.15rem 0.45rem",
+                          borderRadius: "6px",
+                          border: "1px solid #e2e8f0",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          outline: "none",
+                        }}
+                      >
+                        <option value="Adult">Adult</option>
+                        <option value="Youth">Youth</option>
+                        <option value="Kids">Kids</option>
                       </select>
                     </td>
                     <td style={{ padding: "0.75rem 1rem" }}>
@@ -570,7 +619,7 @@ Thank you and God bless!`;
                 );
               })}
               {filtered.length === 0 && (
-                <tr><td colSpan={10} style={{ padding: "3rem", textAlign: "center", color: "#94a3b8" }}>No members found.</td></tr>
+                <tr><td colSpan={11} style={{ padding: "3rem", textAlign: "center", color: "#94a3b8" }}>No members found.</td></tr>
               )}
             </tbody>
           </table>
@@ -655,6 +704,26 @@ Thank you and God bless!`;
                   <option value="FamilyMember">Family Member</option>
                   <option value="GrowingFriend">Growing Friend</option>
                   <option value="NewFriend">New Friend</option>
+                </select>
+                <select
+                  value={m.ageGroup || "Adult"}
+                  disabled={updatingAgeGroupIds[m.id]}
+                  onChange={(e) => changeAgeGroup(m.id, e.target.value)}
+                  style={{
+                    fontSize: "0.7rem",
+                    background: "#f1f5f9",
+                    color: "#475569",
+                    padding: "0.15rem 0.4rem",
+                    borderRadius: "6px",
+                    border: "1px solid #e2e8f0",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    outline: "none",
+                  }}
+                >
+                  <option value="Adult">Adult</option>
+                  <option value="Youth">Youth</option>
+                  <option value="Kids">Kids</option>
                 </select>
                 {m.ministries.map((mm, j) => (
                   <span key={j} style={{ fontSize: "0.7rem", background: P, color: "white", padding: "0.15rem 0.4rem", borderRadius: "4px", fontWeight: 500 }}>

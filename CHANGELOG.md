@@ -5,6 +5,14 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.32.0] — 2026-06-27
+### Added
+- **Age Groups Support**: Integrated Age Groups ("Adult", "Youth", "Kids") into the church directory and dashboard. Added a responsive Age Groups widgets breakdown section on the admin home page, inline select-editable dropdowns in both desktop table view and mobile card view, and an Age Group filter on the admin members directory.
+- **Active Event Switcher Dropdown**: Passed up to 10 upcoming events to the multimedia dashboard and added a Select Active Event dropdown widget to the header next to the Manila Time clock. This allows team members to switch the active dashboard to any future scheduled event and download sermon slide presentations in advance on Saturday (or any other day).
+
+### Changed
+- **Sermon Slides Selection Prioritization**: Default-selects the nearest event containing an uploaded presentation file when multiple events occur on the same day, preventing empty duplicate events from overriding and hiding sermon presentations.
+
 ## [v2.31.6] — 2026-06-27
 ### Fixed
 - **Large Presentation Uploads (Stuck at 5%)**: Excluded `/api/` paths from the Next.js middleware matcher inside `middleware.ts` and configured `experimental.proxyClientMaxBodySize: "500mb"` in `next.config.js`. This resolves request body truncation issues on files exceeding 10MB, which triggered `TypeError: Failed to parse body as FormData` and left pastors' uploads hanging.

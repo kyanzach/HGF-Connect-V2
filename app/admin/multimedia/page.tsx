@@ -17,8 +17,8 @@ export default async function MultimediaAdminPage() {
   const manilaDateString = now.toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
   const todayStart = new Date(`${manilaDateString}T00:00:00.000+08:00`);
 
-  // Get the nearest event (upcoming/today first, otherwise most recent past)
-  let event = await db.event.findFirst({
+  // Get upcoming and today's events (up to 10)
+  let eventsList = await db.event.findMany({
     where: { eventDate: { gte: todayStart } },
     orderBy: { eventDate: "asc" },
     include: {
@@ -34,10 +34,12 @@ export default async function MultimediaAdminPage() {
         select: { firstName: true, lastName: true },
       },
     },
+    take: 10,
   });
 
-  if (!event) {
-    event = await db.event.findFirst({
+  // If no upcoming events, fall back to the last 5 past events
+  if (eventsList.length === 0) {
+    eventsList = await db.event.findMany({
       orderBy: { eventDate: "desc" },
       include: {
         sopTasks: {
@@ -52,8 +54,12 @@ export default async function MultimediaAdminPage() {
           select: { firstName: true, lastName: true },
         },
       },
+      take: 5,
     });
   }
+
+  // Prioritize the event that has a sermon presentation uploaded as the default
+  const defaultEvent = eventsList.find(e => e.presentationFile !== null) || eventsList[0] || null;
 
   // Get all members who are in the multimedia team
   const multimediaCrew = await db.member.findMany({
@@ -81,13 +87,15 @@ export default async function MultimediaAdminPage() {
   }, {} as Record<string, string>);
 
   // Serialize Date objects to JSON-friendly format
-  const serializedEvent = event ? JSON.parse(JSON.stringify(event)) : null;
+  const serializedEvent = defaultEvent ? JSON.parse(JSON.stringify(defaultEvent)) : null;
+  const serializedEventsList = JSON.parse(JSON.stringify(eventsList));
   const serializedCrew = JSON.parse(JSON.stringify(multimediaCrew));
   const serializedSession = JSON.parse(JSON.stringify(session));
 
   return (
     <MultimediaDashboardClient
       event={serializedEvent}
+      upcomingEvents={serializedEventsList}
       crew={serializedCrew}
       session={serializedSession}
       customSettings={settingsObj}
