@@ -51,6 +51,8 @@ export default function AdminMembersClient({
   );
   const [typeFilter, setTypeFilter] = useState("all");
   const [ageFilter, setAgeFilter] = useState(initialAge || "all");
+  const [sortField, setSortField] = useState<"name" | "type" | "ageGroup" | "visits" | "lastVisit" | "ministries" | null>(null);
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [showAdd, setShowAdd] = useState(false);
   const [adding, setAdding] = useState(false);
   const [addErr, setAddErr] = useState("");
@@ -171,6 +173,53 @@ export default function AdminMembersClient({
     if (ageFilter !== "all") list = list.filter(m => (m.ageGroup || "Adult") === ageFilter);
     return list;
   }, [segments, segmentTab, search, typeFilter, ageFilter]);
+
+  const sorted = useMemo(() => {
+    if (!sortField) return filtered;
+    
+    return [...filtered].sort((a, b) => {
+      let valA: any = "";
+      let valB: any = "";
+      
+      if (sortField === "name") {
+        valA = `${a.firstName} ${a.lastName}`.toLowerCase();
+        valB = `${b.firstName} ${b.lastName}`.toLowerCase();
+      } else if (sortField === "type") {
+        valA = (a.type || "").toLowerCase();
+        valB = (b.type || "").toLowerCase();
+      } else if (sortField === "ageGroup") {
+        valA = (a.ageGroup || "Adult").toLowerCase();
+        valB = (b.ageGroup || "Adult").toLowerCase();
+      } else if (sortField === "visits") {
+        valA = a.attendance?.length || 0;
+        valB = b.attendance?.length || 0;
+      } else if (sortField === "lastVisit") {
+        valA = a.attendance?.[0]?.attendanceDate ? new Date(a.attendance[0].attendanceDate).getTime() : 0;
+        valB = b.attendance?.[0]?.attendanceDate ? new Date(b.attendance[0].attendanceDate).getTime() : 0;
+      } else if (sortField === "ministries") {
+        valA = a.ministries.map(m => m.ministry.name).join(", ").toLowerCase();
+        valB = b.ministries.map(m => m.ministry.name).join(", ").toLowerCase();
+      }
+      
+      if (valA < valB) return sortOrder === "asc" ? -1 : 1;
+      if (valA > valB) return sortOrder === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [filtered, sortField, sortOrder]);
+
+  const handleSort = (field: typeof sortField) => {
+    if (sortField === field) {
+      setSortOrder(prev => prev === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortOrder("asc");
+    }
+  };
+
+  const renderSortIndicator = (field: typeof sortField) => {
+    if (sortField !== field) return " ↕";
+    return sortOrder === "asc" ? " ▲" : " ▼";
+  };
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault(); setAdding(true); setAddErr("");
@@ -385,7 +434,34 @@ Thank you and God bless!`;
           <option value="Youth">Youth</option>
           <option value="Kids">Kids</option>
         </select>
-        <span style={{ color: "#94a3b8", fontSize: "0.875rem", alignSelf: "center" }}>{filtered.length} shown</span>
+        <select
+          value={sortField ? `${sortField}-${sortOrder}` : "none"}
+          onChange={e => {
+            if (e.target.value === "none") {
+              setSortField(null);
+            } else {
+              const [field, order] = e.target.value.split("-") as [any, any];
+              setSortField(field);
+              setSortOrder(order);
+            }
+          }}
+          style={{ ...sel, width: 160 }}
+        >
+          <option value="none">Sort by: Default</option>
+          <option value="name-asc">Name (A-Z)</option>
+          <option value="name-desc">Name (Z-A)</option>
+          <option value="type-asc">Type (A-Z)</option>
+          <option value="type-desc">Type (Z-A)</option>
+          <option value="ageGroup-asc">Age Group (A-Z)</option>
+          <option value="ageGroup-desc">Age Group (Z-A)</option>
+          <option value="visits-desc">Visits (High-Low)</option>
+          <option value="visits-asc">Visits (Low-High)</option>
+          <option value="lastVisit-desc">Last Visit (Newest)</option>
+          <option value="lastVisit-asc">Last Visit (Oldest)</option>
+          <option value="ministries-asc">Ministries (A-Z)</option>
+          <option value="ministries-desc">Ministries (Z-A)</option>
+        </select>
+        <span style={{ color: "#94a3b8", fontSize: "0.875rem", alignSelf: "center" }}>{sorted.length} shown</span>
       </div>
 
       {/* Add member modal */}
@@ -441,13 +517,50 @@ Thank you and God bless!`;
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
             <thead>
               <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-                {["Member", "Contact", "Type", "Age Group", "Visits", "Last Visit", "Status", "Role", "Ministries", "Username", "Actions"].map(h => (
-                  <th key={h} style={{ padding: "0.75rem 1rem", textAlign: "left", fontWeight: 700, color: "#64748b", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.04em", whiteSpace: "nowrap" }}>{h}</th>
-                ))}
+                {[
+                  { label: "Member", field: "name" as const },
+                  { label: "Contact", field: null },
+                  { label: "Type", field: "type" as const },
+                  { label: "Age Group", field: "ageGroup" as const },
+                  { label: "Visits", field: "visits" as const },
+                  { label: "Last Visit", field: "lastVisit" as const },
+                  { label: "Status", field: null },
+                  { label: "Role", field: null },
+                  { label: "Ministries", field: "ministries" as const },
+                  { label: "Username", field: null },
+                  { label: "Actions", field: null }
+                ].map(col => {
+                  const isSortable = col.field !== null;
+                  return (
+                    <th
+                      key={col.label}
+                      onClick={() => isSortable && handleSort(col.field)}
+                      style={{
+                        padding: "0.75rem 1rem",
+                        textAlign: "left",
+                        fontWeight: 700,
+                        color: "#64748b",
+                        fontSize: "0.75rem",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.04em",
+                        whiteSpace: "nowrap",
+                        cursor: isSortable ? "pointer" : "default",
+                        userSelect: "none",
+                      }}
+                    >
+                      {col.label}
+                      {isSortable && (
+                        <span style={{ color: sortField === col.field ? P : "#cbd5e1", marginLeft: "0.25rem", fontSize: "0.7rem" }}>
+                          {renderSortIndicator(col.field)}
+                        </span>
+                      )}
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
-              {filtered.map((m, i) => {
+              {sorted.map((m, i) => {
                 const visitCount = m.attendance?.length || 0;
                 const latestRecord = m.attendance?.[0] || null;
                 const latestDate = latestRecord?.attendanceDate;
@@ -458,7 +571,7 @@ Thank you and God bless!`;
                 const autoSegment = getMemberAutoSegment(m);
 
                 return (
-                  <tr key={m.id} style={{ borderBottom: i < filtered.length - 1 ? "1px solid #f1f5f9" : "none" }}>
+                  <tr key={m.id} style={{ borderBottom: i < sorted.length - 1 ? "1px solid #f1f5f9" : "none" }}>
                     <td style={{ padding: "0.75rem 1rem" }}>
                       <Link href={`/member/${m.id}`} style={{ fontWeight: 700, color: "#0f172a", textDecoration: "none" }}>{m.firstName} {m.lastName}</Link>
                       {m.joinDate && <div style={{ fontSize: "0.7rem", color: "#94a3b8" }}>Since {new Date(m.joinDate).toLocaleDateString("en-PH", { month: "short", year: "numeric" })}</div>}
@@ -618,7 +731,7 @@ Thank you and God bless!`;
                   </tr>
                 );
               })}
-              {filtered.length === 0 && (
+              {sorted.length === 0 && (
                 <tr><td colSpan={11} style={{ padding: "3rem", textAlign: "center", color: "#94a3b8" }}>No members found.</td></tr>
               )}
             </tbody>
@@ -628,7 +741,7 @@ Thank you and God bless!`;
 
       {/* ── Mobile View (Cards) ── */}
       <div className="mobile-view" style={{ display: "none" }}>
-        {filtered.map(m => {
+        {sorted.map(m => {
           const visitCount = m.attendance?.length || 0;
           const latestRecord = m.attendance?.[0] || null;
           const latestDate = latestRecord?.attendanceDate;
@@ -786,7 +899,7 @@ Thank you and God bless!`;
           </div>
         );
       })}
-        {filtered.length === 0 && (
+        {sorted.length === 0 && (
           <div style={{ padding: "3rem", textAlign: "center", color: "#94a3b8", background: "white", borderRadius: "12px", border: "1px solid #e2e8f0" }}>No members found.</div>
         )}
       </div>

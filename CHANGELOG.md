@@ -5,6 +5,12 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.32.1] — 2026-06-27
+### Added
+- **Clickable Sorting on Directory Columns**: Enabled clicking on column headers (MEMBER, TYPE, AGE GROUP, VISITS, LAST VISIT, MINISTRIES) to sort the members list directory in ascending and descending orders. Added matching ▲/▼ indicator arrows to the headers.
+- **Universal Sorting Dropdown**: Integrated a Sort select filter to the search controls area for a consistent sorting experience on mobile layouts (where table headers are hidden).
+- **Segmented Age Group Widgets**: Re-grouped the home page Age Group cards into 6 separate widgets (Active Adults/Youth/Kids under "Active Age Groups" and Inactive Adults/Youth/Kids under "Inactive Age Groups").
+
 ## [v2.32.0] — 2026-06-27
 ### Added
 - **Age Groups Support**: Integrated Age Groups ("Adult", "Youth", "Kids") into the church directory and dashboard. Added a responsive Age Groups widgets breakdown section on the admin home page, inline select-editable dropdowns in both desktop table view and mobile card view, and an Age Group filter on the admin members directory.

@@ -42,9 +42,13 @@ async function getDashboardStats() {
   let guestCount = 0;
   let archivedCount = 0;
   let pendingCount = 0;
-  let adultCount = 0;
-  let youthCount = 0;
-  let kidsCount = 0;
+  
+  let activeAdults = 0;
+  let activeYouth = 0;
+  let activeKids = 0;
+  let inactiveAdults = 0;
+  let inactiveYouth = 0;
+  let inactiveKids = 0;
 
   members.forEach(m => {
     if (m.status === "archived") {
@@ -56,38 +60,50 @@ async function getDashboardStats() {
       return;
     }
 
-    // Count age groups for active/inactive/guest community members
-    const age = m.ageGroup || "Adult";
-    if (age === "Adult") adultCount++;
-    else if (age === "Youth") youthCount++;
-    else if (age === "Kids") kidsCount++;
-
+    // Determine segment dynamically
+    let segment: "active" | "inactive" | "guest" = "guest";
     if (m.status === "active") {
-      activeCount++;
-      return;
-    }
-    if (m.status === "inactive") {
-      inactiveCount++;
-      return;
-    }
-    if (m.status === "guest") {
-      guestCount++;
-      return;
+      segment = "active";
+    } else if (m.status === "inactive") {
+      segment = "inactive";
+    } else if (m.status === "guest") {
+      segment = "guest";
+    } else {
+      // Auto
+      const records = m.attendance || [];
+      const total = records.length;
+      if (total <= 1) {
+        segment = "guest";
+      } else {
+        const dates = records.map(a => a.attendanceDate ? new Date(a.attendanceDate).getTime() : 0);
+        const latest = Math.max(...dates);
+        if (latest >= thirtyDaysAgo.getTime()) {
+          segment = "active";
+        } else {
+          segment = "inactive";
+        }
+      }
     }
 
-    // Auto
-    const records = m.attendance || [];
-    const total = records.length;
-    if (total <= 1) {
+    // Increment segmentation counters
+    if (segment === "active") {
+      activeCount++;
+    } else if (segment === "inactive") {
+      inactiveCount++;
+    } else if (segment === "guest") {
       guestCount++;
-    } else {
-      const dates = records.map(a => a.attendanceDate ? new Date(a.attendanceDate).getTime() : 0);
-      const latest = Math.max(...dates);
-      if (latest >= thirtyDaysAgo.getTime()) {
-        activeCount++;
-      } else {
-        inactiveCount++;
-      }
+    }
+
+    // Count age groups for active and inactive segments
+    const age = m.ageGroup || "Adult";
+    if (segment === "active") {
+      if (age === "Adult") activeAdults++;
+      else if (age === "Youth") activeYouth++;
+      else if (age === "Kids") activeKids++;
+    } else if (segment === "inactive") {
+      if (age === "Adult") inactiveAdults++;
+      else if (age === "Youth") inactiveYouth++;
+      else if (age === "Kids") inactiveKids++;
     }
   });
 
@@ -104,9 +120,12 @@ async function getDashboardStats() {
     eventsThisMonth,
     recentLogs,
     smsPending,
-    adultCount,
-    youthCount,
-    kidsCount
+    activeAdults,
+    activeYouth,
+    activeKids,
+    inactiveAdults,
+    inactiveYouth,
+    inactiveKids
   };
 }
 
@@ -152,10 +171,10 @@ export default async function AdminDashboardPage() {
         <StatCard label="Pending SMS" value={stats.smsPending} icon="📱" color="#3b82f6" href="/admin/sms" />
       </div>
 
-      {/* Age Groups Breakdown */}
-      <div style={{ marginBottom: "2.5rem" }}>
-        <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "#0f172a", marginBottom: "1rem" }}>
-          Age Groups
+      {/* Active Age Groups Breakdown */}
+      <div style={{ marginBottom: "1.5rem" }}>
+        <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "#10b981", marginBottom: "1rem" }}>
+          Active Age Groups
         </h2>
         <div
           style={{
@@ -164,9 +183,27 @@ export default async function AdminDashboardPage() {
             gap: "1.25rem",
           }}
         >
-          <StatCard label="Adults" value={stats.adultCount} icon="👨" color="#3b82f6" href="/admin/members?age=Adult" />
-          <StatCard label="Youth" value={stats.youthCount} icon="🧑" color="#ec4899" href="/admin/members?age=Youth" />
-          <StatCard label="Kids" value={stats.kidsCount} icon="👧" color="#10b981" href="/admin/members?age=Kids" />
+          <StatCard label="Active Adults" value={stats.activeAdults} icon="👨" color="#3b82f6" href="/admin/members?tab=active&age=Adult" />
+          <StatCard label="Active Youth" value={stats.activeYouth} icon="🧑" color="#ec4899" href="/admin/members?tab=active&age=Youth" />
+          <StatCard label="Active Kids" value={stats.activeKids} icon="👧" color="#10b981" href="/admin/members?tab=active&age=Kids" />
+        </div>
+      </div>
+
+      {/* Inactive Age Groups Breakdown */}
+      <div style={{ marginBottom: "2.5rem" }}>
+        <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "#f59e0b", marginBottom: "1rem" }}>
+          Inactive Age Groups
+        </h2>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+            gap: "1.25rem",
+          }}
+        >
+          <StatCard label="Inactive Adults" value={stats.inactiveAdults} icon="😴" color="#64748b" href="/admin/members?tab=inactive&age=Adult" />
+          <StatCard label="Inactive Youth" value={stats.inactiveYouth} icon="🥱" color="#ec4899" href="/admin/members?tab=inactive&age=Youth" />
+          <StatCard label="Inactive Kids" value={stats.inactiveKids} icon="💤" color="#f59e0b" href="/admin/members?tab=inactive&age=Kids" />
         </div>
       </div>
 
