@@ -4,6 +4,7 @@ import Link from "next/link";
 import { formatDate } from "@/lib/utils";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import DashboardChartsClient from "@/components/DashboardChartsClient";
 
 export const metadata: Metadata = { title: "Admin Dashboard" };
 
@@ -15,6 +16,7 @@ async function getDashboardStats() {
     members,
     eventsThisMonth,
     recentLogs,
+    recentServices,
   ] = await Promise.all([
     db.member.findMany({
       select: {
@@ -31,6 +33,23 @@ async function getDashboardStats() {
     db.appLog.findMany({
       orderBy: { createdAt: "desc" },
       take: 8,
+    }),
+    db.event.findMany({
+      orderBy: { eventDate: "desc" },
+      where: {
+        eventType: "sunday_service",
+        status: "scheduled",
+        eventDate: { lte: now }
+      },
+      take: 8,
+      select: {
+        id: true,
+        title: true,
+        eventDate: true,
+        attendance: {
+          select: { id: true }
+        }
+      }
     }),
   ]);
 
@@ -110,6 +129,13 @@ async function getDashboardStats() {
   const totalMembers = members.length;
   const smsPending = 0; // SMS batch model coming in future phase
 
+  const attendanceTrend = recentServices.map(ev => ({
+    id: ev.id,
+    title: ev.title,
+    eventDate: ev.eventDate.toISOString(),
+    count: ev.attendance.length
+  })).reverse();
+
   return {
     activeCount,
     inactiveCount,
@@ -125,7 +151,8 @@ async function getDashboardStats() {
     activeKids,
     inactiveAdults,
     inactiveYouth,
-    inactiveKids
+    inactiveKids,
+    attendanceTrend
   };
 }
 
@@ -170,6 +197,9 @@ export default async function AdminDashboardPage() {
         <StatCard label="Events This Month" value={stats.eventsThisMonth} icon="📅" color="#10b981" href="/admin/events" />
         <StatCard label="Pending SMS" value={stats.smsPending} icon="📱" color="#3b82f6" href="/admin/sms" />
       </div>
+
+      {/* Charts (Attendance Trends & Demographic Distribution) */}
+      <DashboardChartsClient stats={stats} attendanceTrend={stats.attendanceTrend} />
 
       {/* Active Age Groups Breakdown */}
       <div style={{ marginBottom: "1.5rem" }}>

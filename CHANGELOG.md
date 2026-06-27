@@ -5,6 +5,12 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.33.0] — 2026-06-27
+### Added
+- **Interactive SVG Dashboard Charts**: Designed and integrated two responsive SVG-based charts to enhance the admin home page UI/UX:
+  - **Sunday Service Attendance Trends Chart**: A curved line/area chart tracking weekly Sunday service attendance over the last 8 weeks. Built with smooth grids, a glowing background area fill gradient, and interactive circle plot markers that trigger floating glassmorphic info tooltips showing event metadata and exact metrics on hover.
+  - **Age demographic Distribution Donut Chart**: A circular demographic graph illustrating the breakdown of Adults, Youth, and Kids. Supports segment hover scale transitions, interactive legend controls, and dynamic center labels.
+
 ## [v2.32.1] — 2026-06-27
 ### Added
 - **Clickable Sorting on Directory Columns**: Enabled clicking on column headers (MEMBER, TYPE, AGE GROUP, VISITS, LAST VISIT, MINISTRIES) to sort the members list directory in ascending and descending orders. Added matching ▲/▼ indicator arrows to the headers.
