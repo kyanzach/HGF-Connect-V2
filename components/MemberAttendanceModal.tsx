@@ -8,6 +8,7 @@ interface HistoryItem {
   eventId: number;
   title: string;
   eventDate: string;
+  eventType: string;
   speaker: string;
   attended: boolean;
 }
@@ -346,48 +347,64 @@ export default function MemberAttendanceModal({ isOpen, onClose, memberId, membe
                       </svg>
 
                       {/* Timeline hover tooltips */}
-                      {hoveredNode && (
-                        <div
-                          style={{
-                            position: "absolute",
-                            left: `${(hoveredNode.x / svgWidth) * 100}%`,
-                            top: `${hoveredNode.y - 12}px`,
-                            transform: "translate(-50%, -100%)",
-                            background: "#0f172a",
-                            color: "white",
-                            padding: "0.5rem 0.75rem",
-                            borderRadius: "8px",
-                            fontSize: "0.75rem",
-                            boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.25)",
-                            zIndex: 10,
-                            minWidth: "180px",
-                            pointerEvents: "none",
-                          }}
-                        >
-                          <div style={{ fontWeight: 800, color: hoveredNode.data.attended ? P : "#94a3b8", display: "flex", justifyContent: "space-between", marginBottom: "0.25rem" }}>
-                            <span>{new Date(hoveredNode.data.eventDate).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}</span>
-                            <span>{hoveredNode.data.attended ? "✅ Attended" : "❌ Missed"}</span>
-                          </div>
-                          <div style={{ fontWeight: 700, color: "white", marginBottom: "0.25rem", lineHeight: 1.2 }}>
-                            {hoveredNode.data.title}
-                          </div>
-                          <div style={{ fontSize: "0.7rem", color: "#cbd5e1", borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: "0.25rem" }}>
-                            Speaker: <strong>{hoveredNode.data.speaker}</strong>
-                          </div>
-                          {/* tooltip pointer */}
+                      {hoveredNode && (() => {
+                        const isLeft = hoveredNode.index <= 1;
+                        const isRight = hoveredNode.index >= points.length - 2;
+                        const transformVal = isLeft 
+                          ? "translate(-10%, -100%)" 
+                          : (isRight ? "translate(-90%, -100%)" : "translate(-50%, -100%)");
+                        const arrowLeft = isLeft 
+                          ? "15%" 
+                          : (isRight ? "85%" : "50%");
+                        
+                        return (
                           <div
                             style={{
                               position: "absolute",
-                              bottom: "-4px",
-                              left: "50%",
-                              transform: "translateX(-50%) rotate(45deg)",
-                              width: "8px",
-                              height: "8px",
+                              left: `${(hoveredNode.x / svgWidth) * 100}%`,
+                              top: `${hoveredNode.y - 12}px`,
+                              transform: transformVal,
                               background: "#0f172a",
+                              color: "white",
+                              padding: "0.5rem 0.75rem",
+                              borderRadius: "8px",
+                              fontSize: "0.75rem",
+                              boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.25)",
+                              zIndex: 10,
+                              minWidth: "185px",
+                              whiteSpace: "normal",
+                              pointerEvents: "none",
                             }}
-                          />
-                        </div>
-                      )}
+                          >
+                            <div style={{ fontWeight: 800, color: hoveredNode.data.attended ? P : "#94a3b8", display: "flex", justifyContent: "space-between", marginBottom: "0.25rem", gap: "0.5rem" }}>
+                              <span>{new Date(hoveredNode.data.eventDate).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}</span>
+                              <span>{hoveredNode.data.attended ? "✅ Attended" : "❌ Missed"}</span>
+                            </div>
+                            <div style={{ fontWeight: 700, color: "white", marginBottom: "0.25rem", lineHeight: 1.2, wordBreak: "break-word", whiteSpace: "normal" }}>
+                              {hoveredNode.data.title}
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.7rem", color: "#cbd5e1", marginBottom: "0.25rem", gap: "0.5rem" }}>
+                              <span>Service:</span>
+                              <strong style={{ color: "white", textAlign: "right" }}>{hoveredNode.data.eventType === "grace_night" ? "Grace Night (Wed)" : (hoveredNode.data.eventType === "special_event" ? "Special Service" : "Sunday Service (Sun)")}</strong>
+                            </div>
+                            <div style={{ fontSize: "0.7rem", color: "#cbd5e1", borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: "0.25rem" }}>
+                              Speaker: <strong>{hoveredNode.data.speaker}</strong>
+                            </div>
+                            {/* tooltip pointer */}
+                            <div
+                              style={{
+                                position: "absolute",
+                                bottom: "-4px",
+                                left: arrowLeft,
+                                transform: "translateX(-50%) rotate(45deg)",
+                                width: "8px",
+                                height: "8px",
+                                background: "#0f172a",
+                              }}
+                            />
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 )}

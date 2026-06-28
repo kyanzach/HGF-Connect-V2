@@ -45,7 +45,7 @@ export async function GET(
   // Fetch all Sunday Service events for that year
   const services = await db.event.findMany({
     where: {
-      eventType: { in: ["sunday_service", "grace_night"] },
+      eventType: { in: ["sunday_service", "grace_night", "special_event"] },
       status: { in: ["scheduled", "completed"] },
       eventDate: {
         gte: startDate,
@@ -57,6 +57,7 @@ export async function GET(
       id: true,
       title: true,
       eventDate: true,
+      eventType: true,
       speaker: true,
     },
   });
@@ -83,6 +84,7 @@ export async function GET(
     eventId: s.id,
     title: s.title,
     eventDate: s.eventDate.toISOString(),
+    eventType: s.eventType,
     speaker: s.speaker || "Unknown Preacher",
     attended: attendanceEventIds.has(s.id),
   }));

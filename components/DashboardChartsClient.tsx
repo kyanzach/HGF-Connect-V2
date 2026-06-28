@@ -476,109 +476,120 @@ export default function DashboardChartsClient({ attendanceTrend: initialTrend, s
               </svg>
 
               {/* Custom Tooltip */}
-              {hoveredPoint && (
-                <div
-                  style={{
-                    position: "absolute",
-                    left: `${(hoveredPoint.x / chartWidth) * 100}%`,
-                    top: `${(hoveredPoint.y / chartHeight) * 100 - 32}%`,
-                    transform: "translate(-50%, -100%)",
-                    background: "#0f172a",
-                    color: "white",
-                    padding: "0.6rem 0.8rem",
-                    borderRadius: "8px",
-                    fontSize: "0.75rem",
-                    boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.25)",
-                    zIndex: 10,
-                    whiteSpace: "normal",
-                    minWidth: trendMode === "year" ? "240px" : "185px",
-                    pointerEvents: "none",
-                    transition: "left 0.1s ease, top 0.1s ease",
-                  }}
-                >
-                  <div style={{ fontWeight: 800, fontSize: "0.725rem", color: P, marginBottom: "0.15rem", textTransform: "uppercase" }}>
-                    {trendMode === "month" 
-                      ? formatLabelDate(hoveredPoint.data.eventDate)
-                      : `${new Date(hoveredPoint.data.eventDate).toLocaleDateString("en-US", { month: "long" })} ${selectedYear}`}
-                  </div>
-                  <div style={{ fontWeight: 700, fontSize: "0.75rem", marginBottom: "0.25rem", lineHeight: 1.2 }}>
-                    {hoveredPoint.data.title}
-                  </div>
-
-                  {trendMode === "month" ? (
-                    <>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.675rem", color: "#cbd5e1", marginBottom: "0.15rem" }}>
-                        <span>Preacher:</span>
-                        <strong style={{ color: "white" }}>{(hoveredPoint.data as any).speaker || "Unknown Preacher"}</strong>
-                      </div>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.675rem", color: "#cbd5e1", marginBottom: "0.25rem" }}>
-                        <span>Service:</span>
-                        <strong style={{ color: "white" }}>{(hoveredPoint.data as any).eventType === "grace_night" ? "Grace Night (Wed)" : "Sunday Service (Sun)"}</strong>
-                      </div>
-                      <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: "0.25rem", fontSize: "0.675rem", color: "#cbd5e1" }}>
-                        <span>Attendance:</span>
-                        <strong style={{ color: "white" }}>{hoveredPoint.data.count} members</strong>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: "0.25rem", fontSize: "0.675rem", color: "#cbd5e1", marginBottom: "0.35rem" }}>
-                        <span>Monthly Average:</span>
-                        <strong style={{ color: "white" }}>{hoveredPoint.data.count} members</strong>
-                      </div>
-
-                      {/* List of services in that month */}
-                      {(hoveredPoint.data as any).events && (hoveredPoint.data as any).events.length > 0 ? (
-                        <div 
-                          className="custom-scrollbar"
-                          style={{ 
-                            display: "flex", 
-                            flexDirection: "column", 
-                            gap: "0.35rem", 
-                            marginTop: "0.35rem", 
-                            maxHeight: "150px", 
-                            overflowY: "auto", 
-                            borderTop: "1px solid rgba(255,255,255,0.15)", 
-                            paddingTop: "0.35rem"
-                          }}
-                        >
-                          {(hoveredPoint.data as any).events.map((ev: any, idx: number) => {
-                            const evDate = new Date(ev.eventDate).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-                            return (
-                              <div key={idx} style={{ fontSize: "0.65rem", display: "flex", flexDirection: "column", borderBottom: idx < (hoveredPoint.data as any).events.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none", paddingBottom: "0.2rem" }}>
-                                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                                  <span style={{ color: P, fontWeight: 700 }}>{evDate} ({ev.eventType === "grace_night" ? "Wed" : "Sun"})</span>
-                                  <strong style={{ color: "white" }}>{ev.count} members</strong>
-                                </div>
-                                <div style={{ color: "#cbd5e1", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "210px" }} title={ev.title}>
-                                  {ev.title}
-                                </div>
-                                <div style={{ color: "#94a3b8", fontSize: "0.6rem" }}>
-                                  Speaker: {ev.speaker}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div style={{ fontSize: "0.65rem", color: "#94a3b8", textAlign: "center", padding: "0.25rem 0" }}>No services this month</div>
-                      )}
-                    </>
-                  )}
-                  {/* Pointer arrow */}
+              {hoveredPoint && (() => {
+                const isLeft = hoveredPoint.index <= 1;
+                const isRight = hoveredPoint.index >= trendData.length - 2;
+                const transformVal = isLeft 
+                  ? "translate(-10%, -100%)" 
+                  : (isRight ? "translate(-90%, -100%)" : "translate(-50%, -100%)");
+                const arrowLeft = isLeft 
+                  ? "15%" 
+                  : (isRight ? "85%" : "50%");
+                
+                return (
                   <div
                     style={{
                       position: "absolute",
-                      bottom: "-4px",
-                      left: "50%",
-                      transform: "translateX(-50%) rotate(45deg)",
-                      width: "8px",
-                      height: "8px",
+                      left: `${(hoveredPoint.x / chartWidth) * 100}%`,
+                      top: `${(hoveredPoint.y / chartHeight) * 100 - 32}%`,
+                      transform: transformVal,
                       background: "#0f172a",
+                      color: "white",
+                      padding: "0.6rem 0.8rem",
+                      borderRadius: "8px",
+                      fontSize: "0.75rem",
+                      boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.25)",
+                      zIndex: 10,
+                      whiteSpace: "normal",
+                      minWidth: trendMode === "year" ? "240px" : "185px",
+                      pointerEvents: "none",
+                      transition: "left 0.1s ease, top 0.1s ease",
                     }}
-                  />
-                </div>
-              )}
+                  >
+                    <div style={{ fontWeight: 800, fontSize: "0.725rem", color: P, marginBottom: "0.15rem", textTransform: "uppercase" }}>
+                      {trendMode === "month" 
+                        ? formatLabelDate(hoveredPoint.data.eventDate)
+                        : `${new Date(hoveredPoint.data.eventDate).toLocaleDateString("en-US", { month: "long" })} ${selectedYear}`}
+                    </div>
+                    <div style={{ fontWeight: 700, fontSize: "0.75rem", marginBottom: "0.25rem", lineHeight: 1.2, wordBreak: "break-word", whiteSpace: "normal" }}>
+                      {hoveredPoint.data.title}
+                    </div>
+
+                    {trendMode === "month" ? (
+                      <>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.675rem", color: "#cbd5e1", marginBottom: "0.15rem", gap: "0.5rem" }}>
+                          <span>Preacher:</span>
+                          <strong style={{ color: "white", textAlign: "right" }}>{(hoveredPoint.data as any).speaker || "Unknown Preacher"}</strong>
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.675rem", color: "#cbd5e1", marginBottom: "0.25rem", gap: "0.5rem" }}>
+                          <span>Service:</span>
+                          <strong style={{ color: "white", textAlign: "right" }}>{(hoveredPoint.data as any).eventType === "grace_night" ? "Grace Night (Wed)" : ((hoveredPoint.data as any).eventType === "special_event" ? "Special Service" : "Sunday Service (Sun)")}</strong>
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: "0.25rem", fontSize: "0.675rem", color: "#cbd5e1" }}>
+                          <span>Attendance:</span>
+                          <strong style={{ color: "white" }}>{hoveredPoint.data.count} members</strong>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: "0.25rem", fontSize: "0.675rem", color: "#cbd5e1", marginBottom: "0.35rem" }}>
+                          <span>Monthly Average:</span>
+                          <strong style={{ color: "white" }}>{hoveredPoint.data.count} members</strong>
+                        </div>
+
+                        {/* List of services in that month */}
+                        {(hoveredPoint.data as any).events && (hoveredPoint.data as any).events.length > 0 ? (
+                          <div 
+                            className="custom-scrollbar"
+                            style={{ 
+                              display: "flex", 
+                              flexDirection: "column", 
+                              gap: "0.35rem", 
+                              marginTop: "0.35rem", 
+                              maxHeight: "150px", 
+                              overflowY: "auto", 
+                              borderTop: "1px solid rgba(255,255,255,0.15)", 
+                              paddingTop: "0.35rem"
+                            }}
+                          >
+                            {(hoveredPoint.data as any).events.map((ev: any, idx: number) => {
+                              const evDate = new Date(ev.eventDate).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                              return (
+                                <div key={idx} style={{ fontSize: "0.65rem", display: "flex", flexDirection: "column", borderBottom: idx < (hoveredPoint.data as any).events.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none", paddingBottom: "0.2rem" }}>
+                                  <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
+                                    <span style={{ color: P, fontWeight: 700 }}>{evDate} ({ev.eventType === "grace_night" ? "Wed" : (ev.eventType === "special_event" ? "Spl" : "Sun")})</span>
+                                    <strong style={{ color: "white" }}>{ev.count} members</strong>
+                                  </div>
+                                  <div style={{ color: "#cbd5e1", wordBreak: "break-word", whiteSpace: "normal", fontSize: "0.65rem", lineHeight: 1.1, marginTop: "0.1rem" }} title={ev.title}>
+                                    {ev.title}
+                                  </div>
+                                  <div style={{ color: "#94a3b8", fontSize: "0.6rem", marginTop: "0.1rem" }}>
+                                    Speaker: {ev.speaker}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: "0.65rem", color: "#94a3b8", textAlign: "center", padding: "0.25rem 0" }}>No services this month</div>
+                        )}
+                      </>
+                    )}
+                    {/* Pointer arrow */}
+                    <div
+                      style={{
+                        position: "absolute",
+                        bottom: "-4px",
+                        left: arrowLeft,
+                        transform: "translateX(-50%) rotate(45deg)",
+                        width: "8px",
+                        height: "8px",
+                        background: "#0f172a",
+                      }}
+                    />
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>

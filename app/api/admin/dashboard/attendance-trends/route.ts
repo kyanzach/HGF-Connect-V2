@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     const services = await db.event.findMany({
       orderBy: { eventDate: "asc" },
       where: {
-        eventType: { in: ["sunday_service", "grace_night"] },
+        eventType: { in: ["sunday_service", "grace_night", "special_event"] },
         status: { in: ["scheduled", "completed"] },
         eventDate: {
           gte: startDate,
@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
     const services = await db.event.findMany({
       orderBy: { eventDate: "asc" },
       where: {
-        eventType: { in: ["sunday_service", "grace_night"] },
+        eventType: { in: ["sunday_service", "grace_night", "special_event"] },
         status: { in: ["scheduled", "completed"] },
         eventDate: {
           gte: startDate,
