@@ -35,7 +35,9 @@ export default function MemberAttendanceModal({ isOpen, onClose, memberId, membe
   const [totalAttended, setTotalAttended] = useState<number>(0);
   const [attendanceRate, setAttendanceRate] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [hoveredNode, setHoveredNode] = useState<{ index: number; x: number; y: number; data: HistoryItem } | null>(null);
+  
+  const [hoveredNodeId, setHoveredNodeId] = useState<number | null>(null);
+  const [selectedService, setSelectedService] = useState<HistoryItem | null>(null);
 
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -56,6 +58,8 @@ export default function MemberAttendanceModal({ isOpen, onClose, memberId, membe
 
     const fetchStats = async () => {
       setIsLoading(true);
+      setSelectedService(null);
+      setHoveredNodeId(null);
       try {
         const res = await fetch(`/api/members/${memberId}/attendance-stats?year=${selectedYear}`);
         if (res.ok) {
@@ -85,24 +89,27 @@ export default function MemberAttendanceModal({ isOpen, onClose, memberId, membe
     }
   };
 
-  // Sparkline dimensions
-  const svgWidth = 600;
-  const svgHeight = 100;
-  const paddingX = 30;
-  const centerY = svgHeight / 2;
-  const plotWidth = svgWidth - paddingX * 2;
-
-  const points = history.map((item, idx) => {
-    const x = paddingX + (idx * (plotWidth / Math.max(history.length - 1, 1)));
-    const y = centerY;
-    return { x, y, data: item };
-  });
-
   const getRateColor = (rate: number) => {
     if (rate >= 80) return "#10b981"; // Green
     if (rate >= 50) return "#eab308"; // Orange/Yellow
     return "#ef4444"; // Red
   };
+
+  // Group the services of the year by month (0 = Jan, 11 = Dec)
+  const monthsData = Array.from({ length: 12 }, (_, i) => {
+    const monthServices = history.filter(item => {
+      const d = new Date(item.eventDate);
+      return d.getUTCMonth() === i;
+    });
+    const attendedInMonth = monthServices.filter(s => s.attended).length;
+    return {
+      monthIndex: i,
+      monthName: new Date(2026, i, 1).toLocaleDateString("en-US", { month: "short" }),
+      services: monthServices,
+      attendedCount: attendedInMonth,
+      totalCount: monthServices.length,
+    };
+  });
 
   return (
     <div
@@ -291,122 +298,202 @@ export default function MemberAttendanceModal({ isOpen, onClose, memberId, membe
                     {totalAttended} / {totalServices}
                   </div>
                 </div>
-              </div>
-
-              {/* Sparkline Graph Card */}
+                            {/* Yearly Service Attendance Grid */}
               <div style={{ border: "1px solid #e2e8f0", borderRadius: "16px", padding: "1.25rem", position: "relative" }}>
-                <h4 style={{ fontSize: "0.875rem", fontWeight: 700, color: "#334155", margin: "0 0 1rem 0" }}>
-                  📈 Timeline of Services
+                <h4 style={{ fontSize: "0.875rem", fontWeight: 700, color: "#334155", margin: "0 0 0.25rem 0" }}>
+                  📅 Yearly Attendance Grid
                 </h4>
+                <p style={{ color: "#64748b", fontSize: "0.75rem", margin: "0 0 1rem 0" }}>
+                  A visual calendar of all scheduled services grouped by month. Hover nodes for info, click to pin details.
+                </p>
 
                 {history.length === 0 ? (
                   <div style={{ padding: "1.5rem 0", textAlign: "center", color: "#94a3b8", fontSize: "0.85rem" }}>
-                    No Sunday Services scheduled for {selectedYear} yet.
+                    No services scheduled for {selectedYear} yet.
                   </div>
                 ) : (
-                  <div style={{ width: "100%", overflowX: "auto", paddingBottom: "0.5rem" }} className="custom-scrollbar">
-                    <div style={{ position: "relative", width: `${svgWidth}px`, height: `${svgHeight}px`, margin: "0 auto" }}>
-                      <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} width={svgWidth} height={svgHeight}>
-                        {/* Connecting timeline axis */}
-                        <line
-                          x1={paddingX}
-                          y1={centerY}
-                          x2={svgWidth - paddingX}
-                          y2={centerY}
-                          stroke="#e2e8f0"
-                          strokeWidth="2.5"
-                          strokeLinecap="round"
-                        />
-
-                        {/* Nodes */}
-                        {points.map((p, idx) => (
-                          <g key={idx}>
-                            {/* Hover tracker */}
-                            <circle
-                              cx={p.x}
-                              cy={p.y}
-                              r="14"
-                              fill="transparent"
-                              style={{ cursor: "pointer" }}
-                              onMouseEnter={() => setHoveredNode({ index: idx, x: p.x, y: p.y, data: p.data })}
-                              onMouseLeave={() => setHoveredNode(null)}
-                            />
-
-                            {/* Node Circle representation */}
-                            <circle
-                              cx={p.x}
-                              cy={p.y}
-                              r={hoveredNode?.index === idx ? "7" : "5"}
-                              fill={p.data.attended ? P : "white"}
-                              stroke={p.data.attended ? P : "#cbd5e1"}
-                              strokeWidth={p.data.attended ? "0" : "2"}
-                              style={{ transition: "all 0.15s ease", pointerEvents: "none" }}
-                            />
-                          </g>
-                        ))}
-                      </svg>
-
-                      {/* Timeline hover tooltips */}
-                      {hoveredNode && (() => {
-                        const isLeft = hoveredNode.index <= 1;
-                        const isRight = hoveredNode.index >= points.length - 2;
-                        const transformVal = isLeft 
-                          ? "translate(-10%, -100%)" 
-                          : (isRight ? "translate(-90%, -100%)" : "translate(-50%, -100%)");
-                        const arrowLeft = isLeft 
+                  <>
+                    <div style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fill, minmax(115px, 1fr))",
+                      gap: "0.75rem",
+                    }}>
+                      {monthsData.map((m) => {
+                        const isLeftColumn = [0, 4, 8].includes(m.monthIndex);
+                        const isRightColumn = [3, 7, 11].includes(m.monthIndex);
+                        const tooltipTransform = isLeftColumn 
+                          ? "translateX(-15%)" 
+                          : (isRightColumn ? "translateX(-85%)" : "translateX(-50%)");
+                        const arrowLeft = isLeftColumn 
                           ? "15%" 
-                          : (isRight ? "85%" : "50%");
-                        
+                          : (isRightColumn ? "85%" : "50%");
+
                         return (
-                          <div
-                            style={{
-                              position: "absolute",
-                              left: `${(hoveredNode.x / svgWidth) * 100}%`,
-                              top: `${hoveredNode.y - 12}px`,
-                              transform: transformVal,
-                              background: "#0f172a",
-                              color: "white",
-                              padding: "0.5rem 0.75rem",
-                              borderRadius: "8px",
-                              fontSize: "0.75rem",
-                              boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.25)",
-                              zIndex: 10,
-                              minWidth: "185px",
-                              whiteSpace: "normal",
-                              pointerEvents: "none",
+                          <div 
+                            key={m.monthIndex} 
+                            style={{ 
+                              background: "#f8fafc", 
+                              border: "1px solid #e2e8f0", 
+                              borderRadius: "12px", 
+                              padding: "0.6rem", 
+                              display: "flex", 
+                              flexDirection: "column", 
+                              gap: "0.35rem" 
                             }}
                           >
-                            <div style={{ fontWeight: 800, color: hoveredNode.data.attended ? P : "#94a3b8", display: "flex", justifyContent: "space-between", marginBottom: "0.25rem", gap: "0.5rem" }}>
-                              <span>{new Date(hoveredNode.data.eventDate).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}</span>
-                              <span>{hoveredNode.data.attended ? "✅ Attended" : "❌ Missed"}</span>
+                            <div style={{ 
+                              fontSize: "0.65rem", 
+                              fontWeight: 800, 
+                              color: "#475569", 
+                              textTransform: "uppercase", 
+                              letterSpacing: "0.05em", 
+                              borderBottom: "1px solid #e2e8f0", 
+                              paddingBottom: "0.2rem", 
+                              display: "flex", 
+                              justifyContent: "space-between" 
+                            }}>
+                              <span>{m.monthName}</span>
+                              <span style={{ color: "#94a3b8", fontWeight: 600 }}>
+                                {m.totalCount > 0 ? `${m.attendedCount}/${m.totalCount}` : "—"}
+                              </span>
                             </div>
-                            <div style={{ fontWeight: 700, color: "white", marginBottom: "0.25rem", lineHeight: 1.2, wordBreak: "break-word", whiteSpace: "normal" }}>
-                              {hoveredNode.data.title}
+                            
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginTop: "0.15rem" }}>
+                              {m.services.map((item) => (
+                                <div
+                                  key={item.eventId}
+                                  style={{
+                                    position: "relative",
+                                    width: "20px",
+                                    height: "20px",
+                                    borderRadius: "50%",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    cursor: "pointer",
+                                    fontSize: "8px",
+                                    fontWeight: "800",
+                                    transition: "transform 0.15s ease",
+                                    transform: hoveredNodeId === item.eventId ? "scale(1.15)" : "scale(1)",
+                                    background: item.attended ? P : "#f1f5f9",
+                                    color: item.attended ? "white" : "#94a3b8",
+                                    border: item.attended ? "none" : "1.5px dashed #cbd5e1",
+                                    boxShadow: hoveredNodeId === item.eventId ? "0 4px 6px -1px rgba(0,0,0,0.15)" : "none",
+                                  }}
+                                  onMouseEnter={() => setHoveredNodeId(item.eventId)}
+                                  onMouseLeave={() => setHoveredNodeId(null)}
+                                  onClick={() => setSelectedService(item)}
+                                >
+                                  {item.eventType === "grace_night" ? "M" : (item.eventType === "special_event" ? "Sp" : "S")}
+
+                                  {/* Hover Tooltip floating relative to the grid node */}
+                                  {hoveredNodeId === item.eventId && (
+                                    <div
+                                      style={{
+                                        position: "absolute",
+                                        bottom: "135%",
+                                        left: "50%",
+                                        transform: tooltipTransform,
+                                        background: "#0f172a",
+                                        color: "white",
+                                        padding: "0.5rem 0.75rem",
+                                        borderRadius: "8px",
+                                        fontSize: "0.725rem",
+                                        boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.3)",
+                                        zIndex: 50,
+                                        minWidth: "190px",
+                                        whiteSpace: "normal",
+                                        pointerEvents: "none",
+                                        textAlign: "left",
+                                      }}
+                                    >
+                                      <div style={{ fontWeight: 800, color: item.attended ? P : "#94a3b8", display: "flex", justifyContent: "space-between", marginBottom: "0.25rem", gap: "0.5rem" }}>
+                                        <span>{new Date(item.eventDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                                        <span>{item.attended ? "✅ Attended" : "❌ Missed"}</span>
+                                      </div>
+                                      <div style={{ fontWeight: 700, color: "white", marginBottom: "0.25rem", lineHeight: 1.2, wordBreak: "break-word" }}>
+                                        {item.title}
+                                      </div>
+                                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.65rem", color: "#cbd5e1", marginBottom: "0.25rem" }}>
+                                        <span>Service:</span>
+                                        <strong style={{ color: "white" }}>
+                                          {item.eventType === "grace_night" ? "Grace Night" : (item.eventType === "special_event" ? "Special Event" : "Sunday Service")}
+                                        </strong>
+                                      </div>
+                                      <div style={{ fontSize: "0.65rem", color: "#cbd5e1", borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: "0.25rem" }}>
+                                        Speaker: <strong>{item.speaker || "Guest Speaker"}</strong>
+                                      </div>
+                                      {/* pointer arrow */}
+                                      <div
+                                        style={{
+                                          position: "absolute",
+                                          bottom: "-4px",
+                                          left: arrowLeft,
+                                          transform: "translateX(-50%) rotate(45deg)",
+                                          width: "8px",
+                                          height: "8px",
+                                          background: "#0f172a",
+                                        }}
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                              {m.services.length === 0 && (
+                                <div style={{ fontSize: "0.6rem", color: "#94a3b8", fontStyle: "italic", padding: "0.2rem 0" }}>
+                                  No services
+                                </div>
+                              )}
                             </div>
-                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.7rem", color: "#cbd5e1", marginBottom: "0.25rem", gap: "0.5rem" }}>
-                              <span>Service:</span>
-                              <strong style={{ color: "white", textAlign: "right" }}>{hoveredNode.data.eventType === "grace_night" ? "Grace Night (Wed)" : (hoveredNode.data.eventType === "special_event" ? "Special Service" : "Sunday Service (Sun)")}</strong>
-                            </div>
-                            <div style={{ fontSize: "0.7rem", color: "#cbd5e1", borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: "0.25rem" }}>
-                              Speaker: <strong>{hoveredNode.data.speaker}</strong>
-                            </div>
-                            {/* tooltip pointer */}
-                            <div
-                              style={{
-                                position: "absolute",
-                                bottom: "-4px",
-                                left: arrowLeft,
-                                transform: "translateX(-50%) rotate(45deg)",
-                                width: "8px",
-                                height: "8px",
-                                background: "#0f172a",
-                              }}
-                            />
                           </div>
                         );
-                      })()}
+                      })}
                     </div>
-                  </div>
+
+                    {/* Selected Service Detail Panel */}
+                    {selectedService ? (
+                      <div style={{ 
+                        marginTop: "1rem", 
+                        padding: "0.75rem 1rem", 
+                        background: "#f0f9ff", 
+                        border: "1px solid #bae6fd", 
+                        borderRadius: "12px", 
+                        display: "flex", 
+                        flexDirection: "column", 
+                        gap: "0.25rem" 
+                      }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontSize: "0.7rem", fontWeight: 800, color: P, textTransform: "uppercase" }}>
+                            📌 Pinned Service Details
+                          </span>
+                          <span style={{ fontSize: "0.725rem", fontWeight: 700, color: selectedService.attended ? "#10b981" : "#ef4444" }}>
+                            {selectedService.attended ? "✅ Attended" : "❌ Missed"}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: "0.85rem", fontWeight: 800, color: "#1e293b", marginTop: "0.15rem" }}>
+                          {selectedService.title}
+                        </div>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem", marginTop: "0.25rem", fontSize: "0.7rem", color: "#64748b" }}>
+                          <span>Date: <strong style={{ color: "#334155" }}>{new Date(selectedService.eventDate).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", year: "numeric" })}</strong></span>
+                          <span>Speaker: <strong style={{ color: "#334155" }}>{selectedService.speaker || "Guest Speaker"}</strong></span>
+                          <span>Type: <strong style={{ color: "#334155" }}>{selectedService.eventType === "grace_night" ? "Grace Night (Midweek)" : (selectedService.eventType === "special_event" ? "Special Service" : "Sunday Service")}</strong></span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ 
+                        marginTop: "1rem", 
+                        padding: "0.6rem", 
+                        textAlign: "center", 
+                        background: "#f8fafc", 
+                        border: "1px dashed #cbd5e1", 
+                        borderRadius: "12px", 
+                        color: "#64748b", 
+                        fontSize: "0.725rem" 
+                      }}>
+                        💡 Tip: Click any service node in the grid above to pin its sermon and speaker details here.
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -429,10 +516,10 @@ export default function MemberAttendanceModal({ isOpen, onClose, memberId, membe
                       <div key={idx} style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8125rem" }}>
                           <span style={{ fontWeight: 700, color: "#334155" }}>
-                            {sp.name}
+                            {sp.name === "Unknown Preacher" ? "Guest / Unspecified Speaker" : sp.name}
                           </span>
                           <span style={{ fontWeight: 800, color: getRateColor(sp.rate) }}>
-                            {sp.rate}% <span style={{ color: "#64748b", fontWeight: 500 }}>({sp.attended} / {sp.total})</span>
+                            {sp.rate}% <span style={{ color: "#64748b", fontWeight: 500 }}>({sp.attended} of {sp.total} attended)</span>
                           </span>
                         </div>
                         {/* Progress Bar */}
@@ -451,7 +538,7 @@ export default function MemberAttendanceModal({ isOpen, onClose, memberId, membe
                     ))}
                   </div>
                 )}
-              </div>
+              </div>              </div>
             </>
           )}
         </div>

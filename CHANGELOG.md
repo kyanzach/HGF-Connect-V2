@@ -5,6 +5,17 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.35.0] — 2026-06-28
+### Added
+- **Monthly Grid-Calendar Attendance Timeline**: Replaced the flat horizontal sparkline timeline in the Member Attendance History modal with a modern, structured calendar monthly grid:
+  - Divides the year into 12 month cards, listing the month name and the member's monthly attendance ratio (e.g. `2/4`).
+  - Represents each service as a dedicated interactive circle badge containing a day indicator: `S` for Sunday Service, `M` for Midweek Service, or `Sp` for Special Event.
+  - Color-codes circles: solid teal (`#4EB1CB`) for attended, and dashed light gray for missed.
+- **Pinned Service Details Panel**: Added an interactive details summary panel beneath the grid. Clicking any service circle pins the full details (Date, Topic, Preacher, and Type) on screen.
+- **Preacher Metrics Clarification**:
+  - Re-labeled correlation statistics to plain-English `(X of Y attended)` format for instant readability.
+  - Renamed database `Unknown Preacher` category to `Guest / Unspecified Speaker`.
+
 ## [v2.34.2] — 2026-06-28
 ### Fixed
 - **Special Event Services (Ordinations & Celebrations)**: Integrated `special_event` type into the dashboard, trends API, and member stats queries, resolving missing records like the June 14 Ordination Ceremony.
