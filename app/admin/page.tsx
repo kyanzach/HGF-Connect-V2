@@ -41,8 +41,8 @@ async function getDashboardStats() {
     db.event.findMany({
       orderBy: { eventDate: "asc" },
       where: {
-        eventType: "sunday_service",
-        status: "scheduled",
+        eventType: { in: ["sunday_service", "grace_night"] },
+        status: { in: ["scheduled", "completed"] },
         eventDate: {
           gte: startOfRange,
           lte: endOfRange,

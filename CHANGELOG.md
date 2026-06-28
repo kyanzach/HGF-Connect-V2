@@ -5,6 +5,13 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.34.1] — 2026-06-28
+### Fixed
+- **Historical and Midweek Service Inclusion**: Expanded database events queries to capture both Sunday services (`sunday_service`) and Wednesday midweek services (`grace_night`) under both `scheduled` and `completed` status headers, ensuring past completed events populate correctly.
+- **Detailed Month/Year Tooltips**: Re-engineered chart tooltips to render highly comprehensive metadata:
+  - In By Month view: Lists exact date, service category, preacher/speaker, and exact attendance.
+  - In By Year view: Dynamically queries and renders a scrollable list inside the tooltip showing all services that occurred during that month, complete with exact date, sermon name, preacher, and individual attendance numbers.
+
 ## [v2.34.0] — 2026-06-28
 ### Added
 - **Member Attendance History Modal**: Replaced the static hover tooltip on the member list `ℹ️` button (for both desktop and mobile layouts) with a clickable trigger that launches a detailed yearly attendance stats modal. Features:

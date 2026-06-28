@@ -34,8 +34,8 @@ export async function GET(request: NextRequest) {
     const services = await db.event.findMany({
       orderBy: { eventDate: "asc" },
       where: {
-        eventType: "sunday_service",
-        status: "scheduled",
+        eventType: { in: ["sunday_service", "grace_night"] },
+        status: { in: ["scheduled", "completed"] },
         eventDate: {
           gte: startDate,
           lte: endDate,
@@ -45,6 +45,8 @@ export async function GET(request: NextRequest) {
         id: true,
         title: true,
         eventDate: true,
+        eventType: true,
+        speaker: true,
         attendance: {
           select: { id: true }
         }
@@ -55,6 +57,8 @@ export async function GET(request: NextRequest) {
       id: s.id,
       title: s.title,
       eventDate: s.eventDate.toISOString(),
+      eventType: s.eventType,
+      speaker: s.speaker || "Unknown Preacher",
       count: s.attendance.length,
     }));
 
@@ -70,16 +74,21 @@ export async function GET(request: NextRequest) {
     const endDate = new Date(Date.UTC(yearVal, 11, 31, 23, 59, 59, 999));
 
     const services = await db.event.findMany({
+      orderBy: { eventDate: "asc" },
       where: {
-        eventType: "sunday_service",
-        status: "scheduled",
+        eventType: { in: ["sunday_service", "grace_night"] },
+        status: { in: ["scheduled", "completed"] },
         eventDate: {
           gte: startDate,
           lte: endDate,
         },
       },
       select: {
+        id: true,
+        title: true,
         eventDate: true,
+        eventType: true,
+        speaker: true,
         attendance: {
           select: { id: true }
         }
@@ -90,13 +99,29 @@ export async function GET(request: NextRequest) {
       month: i,
       totalCount: 0,
       eventCount: 0,
+      events: [] as Array<{
+        id: number;
+        title: string;
+        eventDate: string;
+        eventType: string;
+        speaker: string;
+        count: number;
+      }>
     }));
 
     services.forEach(s => {
-      // Correctly compute month from the UTC date
       const m = new Date(s.eventDate).getUTCMonth();
-      monthlyData[m].totalCount += s.attendance.length;
+      const count = s.attendance.length;
+      monthlyData[m].totalCount += count;
       monthlyData[m].eventCount++;
+      monthlyData[m].events.push({
+        id: s.id,
+        title: s.title,
+        eventDate: s.eventDate.toISOString(),
+        eventType: s.eventType,
+        speaker: s.speaker || "Unknown Preacher",
+        count,
+      });
     });
 
     const trend = monthlyData.map((d, i) => {
@@ -107,6 +132,7 @@ export async function GET(request: NextRequest) {
         title: `${label} Average Attendance (${d.eventCount} services)`,
         eventDate: new Date(Date.UTC(yearVal, i, 15)).toISOString(),
         count: avg,
+        events: d.events,
       };
     });
 

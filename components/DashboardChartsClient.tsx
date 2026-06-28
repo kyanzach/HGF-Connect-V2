@@ -485,27 +485,86 @@ export default function DashboardChartsClient({ attendanceTrend: initialTrend, s
                     transform: "translate(-50%, -100%)",
                     background: "#0f172a",
                     color: "white",
-                    padding: "0.5rem 0.75rem",
+                    padding: "0.6rem 0.8rem",
                     borderRadius: "8px",
                     fontSize: "0.75rem",
                     boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.25)",
                     zIndex: 10,
                     whiteSpace: "normal",
-                    minWidth: "160px",
+                    minWidth: trendMode === "year" ? "240px" : "185px",
                     pointerEvents: "none",
                     transition: "left 0.1s ease, top 0.1s ease",
                   }}
                 >
                   <div style={{ fontWeight: 800, fontSize: "0.725rem", color: P, marginBottom: "0.15rem", textTransform: "uppercase" }}>
-                    {formatLabelDate(hoveredPoint.data.eventDate)}
+                    {trendMode === "month" 
+                      ? formatLabelDate(hoveredPoint.data.eventDate)
+                      : `${new Date(hoveredPoint.data.eventDate).toLocaleDateString("en-US", { month: "long" })} ${selectedYear}`}
                   </div>
                   <div style={{ fontWeight: 700, fontSize: "0.75rem", marginBottom: "0.25rem", lineHeight: 1.2 }}>
                     {hoveredPoint.data.title}
                   </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: "0.25rem", fontSize: "0.7rem", color: "#94a3b8" }}>
-                    <span>Attendance:</span>
-                    <strong style={{ color: "white" }}>{hoveredPoint.data.count} members</strong>
-                  </div>
+
+                  {trendMode === "month" ? (
+                    <>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.675rem", color: "#cbd5e1", marginBottom: "0.15rem" }}>
+                        <span>Preacher:</span>
+                        <strong style={{ color: "white" }}>{(hoveredPoint.data as any).speaker || "Unknown Preacher"}</strong>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.675rem", color: "#cbd5e1", marginBottom: "0.25rem" }}>
+                        <span>Service:</span>
+                        <strong style={{ color: "white" }}>{(hoveredPoint.data as any).eventType === "grace_night" ? "Grace Night (Wed)" : "Sunday Service (Sun)"}</strong>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: "0.25rem", fontSize: "0.675rem", color: "#cbd5e1" }}>
+                        <span>Attendance:</span>
+                        <strong style={{ color: "white" }}>{hoveredPoint.data.count} members</strong>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: "0.25rem", fontSize: "0.675rem", color: "#cbd5e1", marginBottom: "0.35rem" }}>
+                        <span>Monthly Average:</span>
+                        <strong style={{ color: "white" }}>{hoveredPoint.data.count} members</strong>
+                      </div>
+
+                      {/* List of services in that month */}
+                      {(hoveredPoint.data as any).events && (hoveredPoint.data as any).events.length > 0 ? (
+                        <div 
+                          className="custom-scrollbar"
+                          style={{ 
+                            display: "flex", 
+                            flexDirection: "column", 
+                            gap: "0.35rem", 
+                            marginTop: "0.35rem", 
+                            maxHeight: "150px", 
+                            overflowY: "auto", 
+                            borderTop: "1px solid rgba(255,255,255,0.15)", 
+                            paddingTop: "0.35rem"
+                          }}
+                        >
+                          {(hoveredPoint.data as any).events.map((ev: any, idx: number) => {
+                            const evDate = new Date(ev.eventDate).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                            return (
+                              <div key={idx} style={{ fontSize: "0.65rem", display: "flex", flexDirection: "column", borderBottom: idx < (hoveredPoint.data as any).events.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none", paddingBottom: "0.2rem" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                  <span style={{ color: P, fontWeight: 700 }}>{evDate} ({ev.eventType === "grace_night" ? "Wed" : "Sun"})</span>
+                                  <strong style={{ color: "white" }}>{ev.count} members</strong>
+                                </div>
+                                <div style={{ color: "#cbd5e1", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "210px" }} title={ev.title}>
+                                  {ev.title}
+                                </div>
+                                <div style={{ color: "#94a3b8", fontSize: "0.6rem" }}>
+                                  Speaker: {ev.speaker}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: "0.65rem", color: "#94a3b8", textAlign: "center", padding: "0.25rem 0" }}>No services this month</div>
+                      )}
+                    </>
+                  )}
                   {/* Pointer arrow */}
                   <div
                     style={{

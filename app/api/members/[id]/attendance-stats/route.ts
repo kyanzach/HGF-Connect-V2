@@ -45,8 +45,8 @@ export async function GET(
   // Fetch all Sunday Service events for that year
   const services = await db.event.findMany({
     where: {
-      eventType: "sunday_service",
-      status: "scheduled",
+      eventType: { in: ["sunday_service", "grace_night"] },
+      status: { in: ["scheduled", "completed"] },
       eventDate: {
         gte: startDate,
         lte: endDate,
