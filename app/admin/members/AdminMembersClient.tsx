@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import ConfirmModal from "@/components/ConfirmModal";
+import MemberAttendanceModal from "@/components/MemberAttendanceModal";
 
 const P = "#4EB1CB";
 
@@ -53,6 +54,7 @@ export default function AdminMembersClient({
   const [ageFilter, setAgeFilter] = useState(initialAge || "all");
   const [sortField, setSortField] = useState<"name" | "type" | "ageGroup" | "visits" | "lastVisit" | "ministries" | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [selectedMemberForStats, setSelectedMemberForStats] = useState<{ id: number; name: string } | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [adding, setAdding] = useState(false);
   const [addErr, setAddErr] = useState("");
@@ -640,40 +642,26 @@ Thank you and God bless!`;
                       {visitCount > 0 ? (
                         <div style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
                           <span>{formattedDate}</span>
-                          <div className="hgf-tooltip-container" style={{ position: "relative", display: "inline-flex" }}>
-                            <span style={{ cursor: "pointer", fontSize: "0.9rem", color: P }}>ℹ️</span>
-                            <div className="hgf-tooltip-content" style={{
-                              position: "absolute",
-                              bottom: "125%",
-                              left: "50%",
-                              transform: "translateX(-50%)",
-                              background: "#1e293b",
-                              color: "white",
-                              padding: "0.5rem 0.75rem",
-                              borderRadius: "6px",
-                              fontSize: "0.75rem",
-                              fontWeight: 500,
-                              whiteSpace: "normal",
-                              width: "200px",
-                              boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                              zIndex: 10,
-                              pointerEvents: "none",
-                              opacity: 0,
-                              transition: "opacity 0.2s ease, transform 0.2s ease",
-                              textAlign: "center"
-                            }}>
-                              {latestEventTitle}
-                              <div style={{
-                                position: "absolute",
-                                top: "100%",
-                                left: "50%",
-                                transform: "translateX(-50%)",
-                                borderWidth: "5px",
-                                borderStyle: "solid",
-                                borderColor: "#1e293b transparent transparent transparent"
-                              }} />
-                            </div>
-                          </div>
+                          <button
+                            onClick={() => setSelectedMemberForStats({ id: m.id, name: `${m.firstName} ${m.lastName}` })}
+                            title="View Attendance History Graph"
+                            style={{
+                              background: "none",
+                              border: "none",
+                              cursor: "pointer",
+                              fontSize: "0.9rem",
+                              color: P,
+                              padding: "0.15rem",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              transition: "transform 0.15s ease",
+                            }}
+                            onMouseOver={(e) => e.currentTarget.style.transform = "scale(1.25)"}
+                            onMouseOut={(e) => e.currentTarget.style.transform = "scale(1)"}
+                          >
+                            ℹ️
+                          </button>
                         </div>
                       ) : (
                         <span style={{ color: "#94a3b8" }}>Never</span>
@@ -852,7 +840,24 @@ Thank you and God bless!`;
                   <span>
                     <strong>{visitCount}</strong> {visitCount === 1 ? "visit" : "visits"}
                     {" • "}
-                    Last: {formattedDate} <span style={{ color: "#475569" }}>({latestEventTitle})</span>
+                    Last: {formattedDate}
+                    <button
+                      onClick={() => setSelectedMemberForStats({ id: m.id, name: `${m.firstName} ${m.lastName}` })}
+                      title="View Attendance History Graph"
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        fontSize: "0.85rem",
+                        color: P,
+                        padding: "0 0.2rem",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        verticalAlign: "middle",
+                      }}
+                    >
+                      ℹ️
+                    </button>
                   </span>
                 ) : (
                   <span>No attendance recorded</span>
@@ -995,6 +1000,13 @@ Thank you and God bless!`;
       )}
 
       <ConfirmModal open={confirmModal.open} title={confirmModal.title} message={confirmModal.message} confirmLabel={confirmModal.confirmLabel} confirmColor={confirmModal.confirmColor} loading={confirmModal.loading} onConfirm={confirmModal.onConfirm} onCancel={() => setConfirmModal(prev => ({ ...prev, open: false }))} />
+
+      <MemberAttendanceModal
+        isOpen={!!selectedMemberForStats}
+        onClose={() => setSelectedMemberForStats(null)}
+        memberId={selectedMemberForStats?.id || 0}
+        memberName={selectedMemberForStats?.name || ""}
+      />
 
       {/* Responsive Styles Injection */}
       <style>{`

@@ -5,6 +5,20 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.34.0] — 2026-06-28
+### Added
+- **Member Attendance History Modal**: Replaced the static hover tooltip on the member list `ℹ️` button (for both desktop and mobile layouts) with a clickable trigger that launches a detailed yearly attendance stats modal. Features:
+  - An interactive SVG sparkline charting all scheduled Sunday services chronologically. Color codes attended (solid teal) vs. missed (hollow gray) services.
+  - Hover tooltip metrics details for each Sunday service showing date, sermon topic, and preacher.
+  - **Sermon Preacher Correlation Engine**: Calculates and charts attendance rates grouped by preacher/speaker to highlight attendance dependencies.
+  - Quick summary indicators showing total scheduled services, attended services, and percentage rates.
+  - Inter-year navigation arrows.
+- **Advanced Dashboard Trends Selectors**: Refactored the dashboard trends chart card to default to the current month and added a selectors header to filter and navigate data dynamically:
+  - Toggle between **By Month** and **By Year** modes. In By Month mode, it displays individual services. In By Year mode, it groups data and displays average Sunday attendance per month.
+  - Dropdown selectors for Year and Month.
+  - Previous and Next navigation arrows to chronologically step through months/years.
+- **Age Demographic Segment Filters**: Integrated a status dropdown (All / Active Only / Inactive Only) to the Age Distribution donut chart card header, triggering instant client-side segment counts and legend percentage recalculations.
+
 ## [v2.33.0] — 2026-06-27
 ### Added
 - **Interactive SVG Dashboard Charts**: Designed and integrated two responsive SVG-based charts to enhance the admin home page UI/UX:

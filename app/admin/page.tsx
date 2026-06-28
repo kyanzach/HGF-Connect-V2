@@ -11,6 +11,10 @@ export const metadata: Metadata = { title: "Admin Dashboard" };
 async function getDashboardStats() {
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+  const startOfRange = new Date(Date.UTC(currentYear, currentMonth, 1, 0, 0, 0, 0));
+  const endOfRange = new Date(Date.UTC(currentYear, currentMonth + 1, 0, 23, 59, 59, 999));
 
   const [
     members,
@@ -35,13 +39,15 @@ async function getDashboardStats() {
       take: 8,
     }),
     db.event.findMany({
-      orderBy: { eventDate: "desc" },
+      orderBy: { eventDate: "asc" },
       where: {
         eventType: "sunday_service",
         status: "scheduled",
-        eventDate: { lte: now }
+        eventDate: {
+          gte: startOfRange,
+          lte: endOfRange,
+        }
       },
-      take: 8,
       select: {
         id: true,
         title: true,
@@ -134,7 +140,7 @@ async function getDashboardStats() {
     title: ev.title,
     eventDate: ev.eventDate.toISOString(),
     count: ev.attendance.length
-  })).reverse();
+  }));
 
   return {
     activeCount,
