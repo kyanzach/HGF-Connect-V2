@@ -63,6 +63,8 @@ export async function POST(req: NextRequest) {
 
     // Resolve sharer user from share token if present
     let sharerUserId: number | null = null;
+    let finalShareToken: string | null = shareToken ?? null;
+
     if (shareToken) {
       const share = await db.listingShare.findFirst({
         where: { shareCode: shareToken, listingId: listing.id },
@@ -71,11 +73,57 @@ export async function POST(req: NextRequest) {
       sharerUserId = share?.sharerId ?? null;
     }
 
+    // Fallback: If no valid sharer is resolved, fallback to HGF Church
+    if (!sharerUserId) {
+      let churchMember = await db.member.findFirst({
+        where: { email: "church@houseofgrace.ph" },
+      }).catch(() => null);
+
+      if (!churchMember) {
+        churchMember = await db.member.create({
+          data: {
+            firstName: "HGF",
+            lastName: "Church",
+            email: "church@houseofgrace.ph",
+            username: "hgfchurch",
+            phone: "09000000000",
+            address: "Davao City",
+            role: "admin",
+            status: "active",
+            type: "FamilyMember",
+            isVerified: true,
+          },
+        }).catch(() => null);
+      }
+
+      if (churchMember) {
+        sharerUserId = churchMember.id;
+        const churchShareCode = `HGFCHURCH${String(listing.id).padStart(2, "0")}`;
+        finalShareToken = churchShareCode;
+
+        let churchShare = await db.listingShare.findUnique({
+          where: { shareCode: churchShareCode },
+        }).catch(() => null);
+
+        if (!churchShare) {
+          churchShare = await db.listingShare.create({
+            data: {
+              listingId: listing.id,
+              sharerId: churchMember.id,
+              shareCode: churchShareCode,
+              loveGiftEarned: 0,
+              status: "pending",
+            },
+          }).catch(() => null);
+        }
+      }
+    }
+
     // Create prospect record (v1.1 §71-73)
     await db.marketplaceProspect.create({
       data: {
         listingId: listing.id,
-        shareToken: shareToken ?? null,
+        shareToken: finalShareToken,
         sharerUserId,
         prospectName: prospectName.trim(),
         prospectMobile: prospectMobile?.trim() || null,
@@ -88,15 +136,22 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Phase 7: notify sharer (fire-and-forget)
+    // Phase 7: notify sharer (fire-and-forget) - skip for HGF Church system account
     if (sharerUserId) {
-      void notifySharerProspect(
-        sharerUserId,
-        listing.title,
-        listing.id,
-        prospectName.trim(),
-        actionType as "reveal" | "contact"
-      );
+      const church = await db.member.findFirst({
+        where: { email: "church@houseofgrace.ph" },
+        select: { id: true }
+      }).catch(() => null);
+
+      if (!church || sharerUserId !== church.id) {
+        void notifySharerProspect(
+          sharerUserId,
+          listing.title,
+          listing.id,
+          prospectName.trim(),
+          actionType as "reveal" | "contact"
+        );
+      }
     }
 
     // Phase 10: notify seller if prospect submitted contact info (in-app + SMS)
@@ -140,7 +195,7 @@ export async function POST(req: NextRequest) {
       ogPrice,
       sellerName: `${listing.seller.firstName} ${listing.seller.lastName}`,
       loveGiftAmount: listing.loveGiftAmount,
-      couponCode: shareToken ?? `DIRECT${listing.id}`,       // e.g. "RYANP01" or "DIRECT12"
+      couponCode: finalShareToken ?? `HGFCHURCH${String(listing.id).padStart(2, "0")}`,
     });
 
   } catch (err) {

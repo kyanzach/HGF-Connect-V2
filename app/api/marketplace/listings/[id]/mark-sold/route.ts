@@ -138,10 +138,22 @@ export async function POST(req: NextRequest, { params }: Props) {
       });
 
       // Using raw SQL because the bundled Prisma engine caches 'method' as required
-      await tx.$executeRaw`
-        INSERT INTO love_gift_claims (listing_share_id, listing_id, sharer_id, seller_id, amount, status, created_at)
-        VALUES (${share.id}, ${listingId}, ${share.sharerId}, ${memberId}, ${loveGiftAmount}, 'pending', NOW())
-      `;
+      const church = await tx.member.findFirst({
+        where: { email: "church@houseofgrace.ph" },
+        select: { id: true }
+      }).catch(() => null);
+
+      if (church && share.sharerId === church.id) {
+        await tx.$executeRaw`
+          INSERT INTO love_gift_claims (listing_share_id, listing_id, sharer_id, seller_id, amount, status, method, created_at)
+          VALUES (${share.id}, ${listingId}, ${share.sharerId}, ${memberId}, ${loveGiftAmount}, 'pending', 'contact', NOW())
+        `;
+      } else {
+        await tx.$executeRaw`
+          INSERT INTO love_gift_claims (listing_share_id, listing_id, sharer_id, seller_id, amount, status, created_at)
+          VALUES (${share.id}, ${listingId}, ${share.sharerId}, ${memberId}, ${loveGiftAmount}, 'pending', NOW())
+        `;
+      }
 
       sharerCredited = true;
       claimCreated = true;

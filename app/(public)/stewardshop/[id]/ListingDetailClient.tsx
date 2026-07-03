@@ -11,6 +11,17 @@ function strikeText(text: string): string {
   return text.split("").map((c) => c + "\u0336").join("");
 }
 
+function formatDisplayPhone(phone: string): string {
+  let clean = phone.replace(/[^0-9]/g, "");
+  if (clean.startsWith("639") && clean.length === 12) {
+    return `09${clean.substring(3, 5)} ${clean.substring(5, 8)} ${clean.substring(8)}`;
+  }
+  if (clean.startsWith("09") && clean.length === 11) {
+    return `${clean.substring(0, 4)} ${clean.substring(4, 7)} ${clean.substring(7)}`;
+  }
+  return phone;
+}
+
 function renderFormattedText(text: string) {
   if (!text) return null;
   const lines = text.split("\n");
@@ -433,6 +444,27 @@ function CouponRevealCard({ revealed, sellerName, sellerMobile, loveGiftAmount, 
   const saving = ogPrice ? ogPrice - discountedPrice : 0;
   const pct = ogPrice ? Math.round((saving / ogPrice) * 100) : 0;
 
+  const [mobileCopied, setMobileCopied] = useState(false);
+
+  const handleCopyMobile = useCallback(() => {
+    if (!sellerMobile) return;
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(sellerMobile).then(() => {
+        setMobileCopied(true);
+        setTimeout(() => setMobileCopied(false), 2000);
+      }).catch(() => {});
+    } else {
+      const input = document.createElement("input");
+      input.value = sellerMobile;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand("copy");
+      document.body.removeChild(input);
+      setMobileCopied(true);
+      setTimeout(() => setMobileCopied(false), 2000);
+    }
+  }, [sellerMobile]);
+
   return (
     <div style={{ background: "linear-gradient(135deg, #f0fdf4, #dcfce7)", border: "1.5px solid #86efac", borderRadius: "16px", padding: "1.25rem", marginTop: "1rem", position: "relative", overflow: "hidden" }}>
       <p style={{ textAlign: "center", color: "#16a34a", fontWeight: 700, fontSize: "0.9rem", margin: "0 0 1rem" }}>
@@ -466,11 +498,102 @@ function CouponRevealCard({ revealed, sellerName, sellerMobile, loveGiftAmount, 
         </div>
       )}
 
-      <p style={{ textAlign: "center", fontSize: "0.8rem", color: "#4b5563", margin: "0.5rem 0" }}>
-        Contact <strong>{sellerName}</strong>{sellerMobile ? ` — ${sellerMobile}` : ""} to complete your purchase.
+      {/* Enhanced Contact Card UI */}
+      <div style={{ 
+        background: "white", 
+        border: "1px solid #cceeff", 
+        borderRadius: "14px", 
+        padding: "0.75rem 1rem", 
+        marginTop: "1.25rem",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.03)"
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flex: 1, minWidth: 0 }}>
+          <div style={{ 
+            width: "36px", 
+            height: "36px", 
+            borderRadius: "50%", 
+            background: "#ecfeff", 
+            color: "#0e7490", 
+            display: "flex", 
+            alignItems: "center", 
+            justifyContent: "center",
+            fontSize: "1.1rem",
+            flexShrink: 0
+          }}>
+            👤
+          </div>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 700, color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {sellerName}
+            </p>
+            {sellerMobile ? (
+              <p style={{ margin: "0.15rem 0 0", fontSize: "0.8rem", color: "#64748b", fontWeight: 600 }}>
+                {formatDisplayPhone(sellerMobile)}
+              </p>
+            ) : (
+              <p style={{ margin: "0.15rem 0 0", fontSize: "0.75rem", color: "#94a3b8" }}>No contact number</p>
+            )}
+          </div>
+        </div>
+
+        {sellerMobile && (
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexShrink: 0 }}>
+            {/* Copy Button */}
+            <button
+              onClick={handleCopyMobile}
+              title="Copy number"
+              style={{
+                border: "none",
+                background: mobileCopied ? "#f0fdf4" : "#f1f5f9",
+                color: mobileCopied ? "#16a34a" : "#475569",
+                borderRadius: "10px",
+                padding: "0.45rem 0.625rem",
+                fontSize: "0.75rem",
+                fontWeight: 700,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.25rem",
+                transition: "all 0.2s ease"
+              }}
+            >
+              {mobileCopied ? "✓ Copied" : "📋 Copy"}
+            </button>
+
+            {/* Direct Call Link */}
+            <a
+              href={`tel:${sellerMobile}`}
+              title="Call seller"
+              style={{
+                textDecoration: "none",
+                background: "#4eb1cb",
+                color: "white",
+                borderRadius: "10px",
+                padding: "0.45rem 0.625rem",
+                fontSize: "0.75rem",
+                fontWeight: 700,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "all 0.2s ease"
+              }}
+            >
+              📞 Call
+            </a>
+          </div>
+        )}
+      </div>
+
+      <p style={{ textAlign: "center", fontSize: "0.7rem", color: "#64748b", margin: "0.85rem 0 0", fontStyle: "italic" }}>
+        Present your discount card to the seller to complete your purchase.
       </p>
+
       {loveGiftAmount > 0 && isLoggedIn && (
-        <p style={{ textAlign: "center", fontSize: "0.75rem", color: "#9f1239", margin: "0.375rem 0 0" }}>
+        <p style={{ textAlign: "center", fontSize: "0.75rem", color: "#9f1239", margin: "0.75rem 0 0", borderTop: "1px dashed #fecdd3", paddingTop: "0.75rem" }}>
           ❤️ Share this listing — earn ₱{loveGiftAmount.toLocaleString()} Love Gift per confirmed sale!
         </p>
       )}

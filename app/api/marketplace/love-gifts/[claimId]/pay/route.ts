@@ -32,28 +32,61 @@ export async function PATCH(req: NextRequest, { params }: Props) {
     return NextResponse.json({ error: `Claim is already ${claim.status}` }, { status: 400 });
   }
 
-  await db.loveGiftClaim.update({
-    where: { id: claim.id },
-    data: { status: "paid", paidAt: new Date() },
-  });
- 
-  // Notify sharer
-  try {
-    const seller = await db.member.findUnique({
-      where: { id: sellerId },
-      select: { firstName: true },
+  // Find HGF Church member ID
+  const church = await db.member.findFirst({
+    where: { email: "church@houseofgrace.ph" },
+    select: { id: true }
+  }).catch(() => null);
+
+  const isChurchClaim = church && claim.sharerId === church.id;
+
+  if (isChurchClaim) {
+    // Transactional: set status to received directly + publish celebration feed post
+    await db.$transaction(async (tx) => {
+      await tx.loveGiftClaim.update({
+        where: { id: claim.id },
+        data: { status: "received", paidAt: new Date(), receivedAt: new Date() },
+      });
+
+      const seller = await tx.member.findUnique({
+        where: { id: sellerId },
+        select: { firstName: true, lastName: true },
+      });
+      const sellerName = `${seller?.firstName ?? "Seller"} ${seller?.lastName ?? ""}`.trim();
+      const amount = Number(claim.amount);
+
+      await tx.post.create({
+        data: {
+          authorId: claim.sharerId,
+          type: "TEXT",
+          content: `🎉 HGF StewardShop Celebration! HGF Church has received a ₱${amount.toLocaleString()} Love Gift contribution from ${sellerName} for the listing "${claim.listing.title}". Thank you for your stewardship! Praise God! 🎁\n\nCheck out the StewardShop at connect.houseofgrace.ph/stewardshop to support our community!`,
+        },
+      });
     });
-    await db.notification.create({
-      data: {
-        memberId: claim.sharerId,
-        type: "love_gift_paid",
-        title: "💸 Love Gift Payment Sent!",
-        body: `${seller?.firstName ?? "Seller"} marked your ₱${Number(claim.amount).toLocaleString()} Love Gift for "${claim.listing.title}" as paid. Please confirm receipt!`,
-        link: `/stewardshop/my-shares?tab=won&listing=${claim.listingId}`,
-      },
+  } else {
+    await db.loveGiftClaim.update({
+      where: { id: claim.id },
+      data: { status: "paid", paidAt: new Date() },
     });
-  } catch (err) {
-    console.error("Failed to notify sharer about payment:", err);
+
+    // Notify normal sharer
+    try {
+      const seller = await db.member.findUnique({
+        where: { id: sellerId },
+        select: { firstName: true },
+      });
+      await db.notification.create({
+        data: {
+          memberId: claim.sharerId,
+          type: "love_gift_paid",
+          title: "💸 Love Gift Payment Sent!",
+          body: `${seller?.firstName ?? "Seller"} marked your ₱${Number(claim.amount).toLocaleString()} Love Gift for "${claim.listing.title}" as paid. Please confirm receipt!`,
+          link: `/stewardshop/my-shares?tab=won&listing=${claim.listingId}`,
+        },
+      });
+    } catch (err) {
+      console.error("Failed to notify sharer about payment:", err);
+    }
   }
 
   return NextResponse.json({

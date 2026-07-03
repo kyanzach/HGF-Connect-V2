@@ -5,6 +5,12 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.36.12] — 2026-07-03
+### Added
+- **HGF Church Fallback Referrer**: Added automatic fallback to HGF Church system account for direct marketplace visitors. Generates custom `HGFCHURCHXX` coupon codes (zero-padded listing ID).
+- **Auto-Settle & Community Feed Celebration**: Implemented auto-transition of HGF Church claims to the `received` state upon seller payment, automatically generating a public feed celebration post praising God on behalf of HGF Church.
+- **Enhanced Seller Contact Card UI**: Redesigned the contact section in the discount reveal component to display a modern, verified-looking contact card with formatted phone numbers, a one-press clipboard copy button (with `✓ Copied` state feedback), and direct dialing buttons.
+
 ## [v2.36.11] — 2026-07-03
 ### Fixed
 - **Prospect Notification Alerts**: Corrected the trigger conditions inside `app/api/marketplace/prospects/route.ts` to notify sellers via SMS and in-app notifications on both `reveal` and `contact` prospect forms, rather than strictly on `contact`.

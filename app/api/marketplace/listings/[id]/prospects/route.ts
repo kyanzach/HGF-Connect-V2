@@ -86,6 +86,7 @@ export async function GET(_req: NextRequest, { params }: Props) {
       gcashMobile: c.gcashMobile,
       createdAt: c.createdAt.toISOString(),
       paidAt: c.paidAt?.toISOString() ?? null,
+      receivedAt: c.receivedAt?.toISOString() ?? null,
     })),
   });
 }

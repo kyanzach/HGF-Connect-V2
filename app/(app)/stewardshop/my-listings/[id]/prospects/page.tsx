@@ -24,6 +24,7 @@ interface Claim {
   amount: number; method: string; status: string;
   gcashName: string | null; gcashMobile: string | null;
   createdAt: string; paidAt: string | null;
+  receivedAt?: string | null;
 }
 
 export default function ProspectsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -175,16 +176,16 @@ export default function ProspectsPage({ params }: { params: Promise<{ id: string
           <div style={{ background: "white", borderRadius: "14px", padding: "1rem", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", marginBottom: "1rem", border: "1.5px solid #fecdd3" }}>
             <h3 style={{ margin: "0 0 0.75rem", fontSize: "0.85rem", fontWeight: 800, color: "#9f1239" }}>❤️ Love Gift Claims</h3>
             {claims.map((claim) => (
-              <div key={claim.id} style={{ padding: "0.75rem", borderRadius: "10px", background: claim.status === "pending" ? "#fff7ed" : claim.status === "paid" ? "#f0fdf4" : "#f8fafc", marginBottom: "0.5rem", border: "1px solid #f1f5f9" }}>
+              <div key={claim.id} style={{ padding: "0.75rem", borderRadius: "10px", background: claim.status === "pending" ? "#fff7ed" : (claim.status === "paid" || claim.status === "received") ? "#f0fdf4" : "#f8fafc", marginBottom: "0.5rem", border: "1px solid #f1f5f9" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.375rem" }}>
                   <div>
                     <p style={{ margin: 0, fontWeight: 700, fontSize: "0.85rem", color: "#1e293b" }}>{claim.sharerName}</p>
                     <p style={{ margin: "0.1rem 0 0", fontSize: "0.72rem", color: "#64748b" }}>
-                      {claim.method === "gcash" ? "💳 GCash Request" : "📞 Contact Request"} · ₱{claim.amount.toLocaleString()}
+                      {claim.method === "gcash" ? "💳 GCash Request" : claim.sharerName === "HGF Church" ? "⛪ Church Payout" : "📞 Contact Request"} · ₱{claim.amount.toLocaleString()}
                     </p>
                   </div>
-                  <span style={{ background: claim.status === "pending" ? "#fef3c7" : claim.status === "paid" ? "#d1fae5" : "#f1f5f9", color: claim.status === "pending" ? "#92400e" : claim.status === "paid" ? "#166534" : "#64748b", fontSize: "0.65rem", fontWeight: 700, padding: "0.15rem 0.5rem", borderRadius: "4px" }}>
-                    {claim.status === "pending" ? "⏳ PENDING" : claim.status === "paid" ? "✅ PAID" : claim.status.toUpperCase()}
+                  <span style={{ background: claim.status === "pending" ? "#fef3c7" : (claim.status === "paid" || claim.status === "received") ? "#d1fae5" : "#f1f5f9", color: claim.status === "pending" ? "#92400e" : (claim.status === "paid" || claim.status === "received") ? "#166534" : "#64748b", fontSize: "0.65rem", fontWeight: 700, padding: "0.15rem 0.5rem", borderRadius: "4px" }}>
+                    {claim.status === "pending" ? "⏳ PENDING" : (claim.status === "paid" || claim.status === "received") ? "✅ SETTLED" : claim.status.toUpperCase()}
                   </span>
                 </div>
 
@@ -200,6 +201,15 @@ export default function ProspectsPage({ params }: { params: Promise<{ id: string
                   </div>
                 )}
 
+                {/* HGF Church payment details (seller can see) */}
+                {claim.sharerName === "HGF Church" && (
+                  <div style={{ background: "white", borderRadius: "8px", padding: "0.5rem 0.75rem", marginTop: "0.375rem", border: "1px solid #e2e8f0" }}>
+                    <p style={{ margin: 0, fontSize: "0.75rem", color: "#475569", lineHeight: 1.4 }}>
+                      Please remit this Love Gift to the <strong>HGF Church</strong> treasury or GCash account.
+                    </p>
+                  </div>
+                )}
+
                 {/* Mark as Paid button */}
                 {claim.status === "pending" && (
                   <button
@@ -210,9 +220,14 @@ export default function ProspectsPage({ params }: { params: Promise<{ id: string
                     {paying === claim.id ? "Processing…" : "💸 Mark as Paid"}
                   </button>
                 )}
-                {claim.paidAt && (
+                {claim.paidAt && claim.status !== "received" && (
                   <p style={{ margin: "0.375rem 0 0", fontSize: "0.68rem", color: "#15803d" }}>
                     Paid on {new Date(claim.paidAt).toLocaleDateString("en-PH", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                  </p>
+                )}
+                {claim.status === "received" && claim.receivedAt && (
+                  <p style={{ margin: "0.375rem 0 0", fontSize: "0.68rem", color: "#16a34a", fontWeight: 700 }}>
+                    🎉 Received on {new Date(claim.receivedAt).toLocaleDateString("en-PH", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                   </p>
                 )}
               </div>

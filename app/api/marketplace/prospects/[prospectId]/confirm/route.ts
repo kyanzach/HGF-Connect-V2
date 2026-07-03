@@ -59,12 +59,25 @@ export async function POST(_req: NextRequest, { params }: Props) {
       });
 
       // Create Love Gift claim so sharer can request payment
-      // Using raw SQL because the bundled Prisma engine caches 'method' as required
-      // even though schema.prisma has it as optional. DB column is already NULL-able.
-      await db.$executeRaw`
-        INSERT INTO love_gift_claims (listing_share_id, listing_id, sharer_id, seller_id, amount, status, created_at)
-        VALUES (${share.id}, ${prospect.listingId}, ${share.sharerId}, ${memberId}, ${loveGiftAmount}, 'pending', NOW())
-      `;
+      // For HGF Church, pre-populate method as 'contact' directly.
+      const church = await db.member.findFirst({
+        where: { email: "church@houseofgrace.ph" },
+        select: { id: true }
+      }).catch(() => null);
+
+      if (church && share.sharerId === church.id) {
+        await db.$executeRaw`
+          INSERT INTO love_gift_claims (listing_share_id, listing_id, sharer_id, seller_id, amount, status, method, created_at)
+          VALUES (${share.id}, ${prospect.listingId}, ${share.sharerId}, ${memberId}, ${loveGiftAmount}, 'pending', 'contact', NOW())
+        `;
+      } else {
+        // Using raw SQL because the bundled Prisma engine caches 'method' as required
+        // even though schema.prisma has it as optional. DB column is already NULL-able.
+        await db.$executeRaw`
+          INSERT INTO love_gift_claims (listing_share_id, listing_id, sharer_id, seller_id, amount, status, created_at)
+          VALUES (${share.id}, ${prospect.listingId}, ${share.sharerId}, ${memberId}, ${loveGiftAmount}, 'pending', NOW())
+        `;
+      }
 
       sharerCredited = true;
 
