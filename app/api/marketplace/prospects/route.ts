@@ -99,15 +99,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Phase 10: notify seller if prospect wants to contact them (in-app + SMS)
-    if (actionType === "contact") {
+    // Phase 10: notify seller if prospect submitted contact info (in-app + SMS)
+    if (actionType === "contact" || actionType === "reveal") {
       // 1. In-app notification
+      const actionText = actionType === "reveal" ? "revealed your discount" : "requested to contact you";
       await db.notification.create({
         data: {
           memberId: listing.seller.id,
           type: "marketplace_prospect",
           title: "🛍️ New Listing Prospect!",
-          body: `${prospectName.trim()} is interested in "${listing.title}" and requested to contact you. Tap to view details.`,
+          body: `${prospectName.trim()} is interested in "${listing.title}" (${actionText}). Tap to view details.`,
           link: `/stewardshop/my-listings/${listing.id}/prospects`,
         },
       }).catch(err => console.error("Failed to create prospect notification:", err));

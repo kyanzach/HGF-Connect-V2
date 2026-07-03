@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.36.11] — 2026-07-03
+### Fixed
+- **Prospect Notification Alerts**: Corrected the trigger conditions inside `app/api/marketplace/prospects/route.ts` to notify sellers via SMS and in-app notifications on both `reveal` and `contact` prospect forms, rather than strictly on `contact`.
+- **Prospect SMS Backfill**: Executed a script to backfill the missing notification SMS to listers for the four most recent prospects from the past 30 days.
+
 ## [v2.36.10] — 2026-07-03
 ### Changed
 - **Polite Public Version Updates**: Restricted the `VersionGuard` update modal popup to authenticated members (`sessionStatus === "authenticated"`). For unauthenticated public visitors, the modal is hidden, and version updates are applied transparently by listening to page/route transitions: the app triggers a cache-clearing service worker update and hard-reload on the new pathname whenever they navigate away.
