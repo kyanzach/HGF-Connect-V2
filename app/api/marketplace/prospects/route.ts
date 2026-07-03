@@ -116,7 +116,7 @@ export async function POST(req: NextRequest) {
       ogPrice,
       sellerName: `${listing.seller.firstName} ${listing.seller.lastName}`,
       loveGiftAmount: listing.loveGiftAmount,
-      couponCode: shareToken ?? null,       // e.g. "RYANP01" — show to buyer, they quote to seller
+      couponCode: shareToken ?? `DIRECT${listing.id}`,       // e.g. "RYANP01" or "DIRECT12"
     });
 
   } catch (err) {

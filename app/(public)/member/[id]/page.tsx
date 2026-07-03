@@ -33,10 +33,14 @@ export default async function MemberProfilePage({ params }: { params: Promise<{ 
     },
   });
 
-  if (!member || member.status === "archived" || member.status === "pending") notFound();
+  if (!member || member.status === "archived") notFound();
 
   const isOwn = session?.user?.id === String(id);
   const isAdmin = session ? ["admin", "moderator"].includes(session.user.role ?? "") : false;
+
+  if (member.status === "pending" && !isOwn && !isAdmin) {
+    notFound();
+  }
 
   // Serialize for client — only pass privacy-safe data
   const safeData = {

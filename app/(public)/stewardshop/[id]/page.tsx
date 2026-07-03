@@ -16,6 +16,10 @@ function cleanDescription(desc: string | null): string {
   return desc.replace(/\[video:(https?:\/\/[^\]\s]+)\]/g, "").trim();
 }
 
+function strikeText(text: string): string {
+  return text.split("").map((c) => c + "\u0336").join("");
+}
+
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { id } = await params;
   const { ref } = await searchParams;
@@ -40,6 +44,10 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 
   const cleanedDesc = cleanDescription(listing.description).slice(0, 160) || "Listed on HGF Connect Marketplace";
 
+  const hasDiscount = !!(listing.discountedPrice && listing.ogPrice && Number(listing.discountedPrice) < Number(listing.ogPrice));
+  const ogPriceFormatted = listing.ogPrice ? `₱${Number(listing.ogPrice).toLocaleString()}` : null;
+  const struckPrice = ogPriceFormatted ? strikeText(ogPriceFormatted) : "";
+
   // ── Sharer-specific OG tags (v1.1 §26-31) ─────────────────────────────────
   if (ref) {
     const share = await db.listingShare.findFirst({
@@ -49,16 +57,21 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 
     if (share) {
       const sharerName = `${share.sharer.firstName} ${share.sharer.lastName}`;
-      const ogPrice = listing.ogPrice ? `₱${Number(listing.ogPrice).toLocaleString()}` : null;
-      const discPrice = listing.discountedPrice ? `₱${Number(listing.discountedPrice).toLocaleString()}` : null;
-      const priceStr = ogPrice && discPrice ? `${ogPrice} → ${discPrice}` : ogPrice ?? "Free";
+      
+      let priceStr = ogPriceFormatted ?? "Free";
+      let descStr = `${sharerName} thinks you'll be interested and wanted to share this offer with you.`;
+      
+      if (hasDiscount) {
+        priceStr = `${struckPrice} (Reveal discount price - you won't believe the new price!)`;
+        descStr = `${sharerName} wants you to see this special deal! Reveal the discount price now.`;
+      }
 
       return {
         title: `${sharerName} shared: ${listing.title} — ${priceStr} | HGF Marketplace`,
-        description: `${sharerName} thinks you'll be interested and wanted to share this offer with you.`,
+        description: descStr,
         openGraph: {
-          title: `${sharerName} has shared this discounted ${listing.title}: ${priceStr}`,
-          description: `${sharerName} thinks you'll be interested and wanted to share this discount with you.`,
+          title: `${sharerName} shared: ${listing.title} — ${priceStr}`,
+          description: descStr,
           type: "website",
           images: [
             {
@@ -74,12 +87,22 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   }
 
   // ── Default OG tags (no ref, or ref not found) ─────────────────────────────
+  let priceStr = ogPriceFormatted ?? "Free";
+  let descStr = cleanedDesc;
+
+  if (hasDiscount) {
+    priceStr = `${struckPrice} (Reveal discount price - you won't believe the new price!)`;
+    descStr = `🔒 Special discount available! Reveal the discount price now (you won't believe the new price!). ${cleanedDesc}`;
+  }
+
+  const defaultTitle = `${listing.title} — ${priceStr} | HGF Marketplace`;
+
   return {
-    title: `${listing.title} | HGF Marketplace`,
-    description: cleanedDesc,
+    title: defaultTitle,
+    description: descStr,
     openGraph: {
-      title: listing.title,
-      description: cleanedDesc,
+      title: defaultTitle,
+      description: descStr,
       type: "website",
       images: [
         {
@@ -188,6 +211,21 @@ export default async function ListingDetailPage({ params, searchParams }: Props)
   // Check if current user is the seller (to hide share button for own listings)
   const isLoggedIn = !!session?.user;
 
+  let currentUser = null;
+  if (session?.user?.id) {
+    const userMember = await db.member.findUnique({
+      where: { id: parseInt(session.user.id) },
+      select: { firstName: true, lastName: true, email: true, phone: true }
+    }).catch(() => null);
+    if (userMember) {
+      currentUser = {
+        name: `${userMember.firstName ?? ""} ${userMember.lastName ?? ""}`.trim() || session.user.name || "",
+        email: userMember.email ?? "",
+        phone: userMember.phone ?? "",
+      };
+    }
+  }
+
   // ── Self-referral guard: strip ref if sharer === current user ──────────────
   let effectiveRef = ref ?? null;
   if (effectiveRef && isLoggedIn && !isOwner) {
@@ -239,6 +277,7 @@ export default async function ListingDetailPage({ params, searchParams }: Props)
     isSold,
     shareToken: effectiveRef,
     videoUrl,
+    currentUser,
   };
 
   return (

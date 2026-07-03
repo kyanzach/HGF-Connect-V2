@@ -5,6 +5,16 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.36.0] — 2026-07-03
+### Added
+- **StewardShop Direct Reveal**: Allowed all logged-in members and direct public visitors to reveal discount codes on marketplace listings, removing the previous restriction that only allowed reveals via shared referral links.
+- **Pre-filled Lead Forms**: Integrates database session loading to pre-fill the name, mobile number, and email inputs inside the contact and discount reveal forms for authenticated community members.
+- **Direct Lead Coupon Code fallback**: Returns a standardized fallback coupon code format (`DIRECT[listingId]`) for direct visitors who reveal listing discounts without a referrer code.
+- **Catchy Discount OpenGraph Metadata**: Enhances listing metadata generation to dynamically strike out the original listing price (using Unicode text-combining strikethrough characters) and appends a catchy lead call-to-action (`(Reveal discount price - you won't believe the new price!)`) inside both OpenGraph and page headers.
+
+### Changed
+- **Pending Profile Administrative Access**: Allowed logged-in administrators, moderators, and the profile owner to view their own profile even if the account is in `pending` approval status, resolving 404 errors.
+
 ## [v2.35.0] — 2026-06-28
 ### Added
 - **Monthly Grid-Calendar Attendance Timeline**: Replaced the flat horizontal sparkline timeline in the Member Attendance History modal with a modern, structured calendar monthly grid:

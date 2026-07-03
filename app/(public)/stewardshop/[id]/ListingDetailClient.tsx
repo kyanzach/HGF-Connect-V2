@@ -217,6 +217,7 @@ interface ListingData {
   seller: { id: number; firstName: string; lastName: string; profilePicture: string | null; isVerified: boolean; mobileNumber: string | null };
   isOwner: boolean; isLoggedIn: boolean; isSold?: boolean; shareToken: string | null;
   videoUrl?: string | null;
+  currentUser?: { name: string; email: string; phone: string } | null;
 }
 
 interface RevealedState {
@@ -459,6 +460,16 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
   const [revealed, setRevealed] = useState<RevealedState | null>(null);
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
 
+  // Pre-fill user info if logged in
+  useEffect(() => {
+    if (listing.currentUser) {
+      setName(listing.currentUser.name || "");
+      setMobile(listing.currentUser.phone || "");
+      setEmail(listing.currentUser.email || "");
+      setConsented(true); // Default to true for authenticated members
+    }
+  }, [listing.currentUser]);
+
   // Load persisted reveal from localStorage on mount (non-owners only)
   useEffect(() => {
     if (listing.isOwner) {
@@ -582,10 +593,58 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
 
           {listing.ogPrice ? (
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem", flexWrap: "wrap" }}>
-              <span style={{ fontSize: "1.625rem", fontWeight: 900, color: PRIMARY }}>₱{listing.ogPrice.toLocaleString()}</span>
-              {listing.hasDiscount && !revealed && listing.shareToken && (
-                <span style={{ background: "#f0f9ff", color: PRIMARY, fontSize: "0.75rem", fontWeight: 700, padding: "0.2rem 0.6rem", borderRadius: "999px", border: `1px solid ${PRIMARY}` }}>
-                  🔒 Discount available
+              {listing.hasDiscount && !revealed ? (
+                <>
+                  <span
+                    onClick={() => openModal("reveal")}
+                    style={{
+                      fontSize: "1.625rem",
+                      fontWeight: 900,
+                      color: "#94a3b8",
+                      textDecoration: "line-through",
+                      cursor: "pointer",
+                      userSelect: "none"
+                    }}
+                  >
+                    ₱{listing.ogPrice.toLocaleString()}
+                  </span>
+                  <span
+                    onClick={() => openModal("reveal")}
+                    style={{
+                      background: "linear-gradient(135deg, #f0fdfa, #ccfbf1)",
+                      color: "#0f766e",
+                      fontSize: "0.75rem",
+                      fontWeight: 700,
+                      padding: "0.25rem 0.75rem",
+                      borderRadius: "999px",
+                      border: "1.5px solid #99f6e4",
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
+                      userSelect: "none",
+                      animation: "pulse-glow 2s infinite"
+                    }}
+                  >
+                    🔒 Reveal Discount Price
+                  </span>
+                </>
+              ) : listing.hasDiscount && revealed ? (
+                <>
+                  <span style={{ fontSize: "1.2rem", color: "#94a3b8", textDecoration: "line-through", fontWeight: 700 }}>
+                    ₱{listing.ogPrice.toLocaleString()}
+                  </span>
+                  <span style={{ fontSize: "1.625rem", fontWeight: 900, color: "#16a34a" }}>
+                    ₱{revealed.discountedPrice.toLocaleString()}
+                  </span>
+                  <span style={{ background: "#dcfce7", color: "#16a34a", fontSize: "0.72rem", fontWeight: 700, padding: "0.2rem 0.6rem", borderRadius: "999px" }}>
+                    Discount Applied
+                  </span>
+                </>
+              ) : (
+                <span style={{ fontSize: "1.625rem", fontWeight: 900, color: PRIMARY }}>
+                  ₱{listing.ogPrice.toLocaleString()}
                 </span>
               )}
             </div>
@@ -659,14 +718,13 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
             {!revealed && !listing.isOwner && (
               <div style={{ background: "white", borderRadius: "16px", padding: "1.25rem", marginBottom: "0.75rem", boxShadow: "0 2px 12px rgba(78,177,203,0.12)", border: "1.5px solid #bae6fd" }}>
                 <p style={{ fontSize: "0.8rem", color: "#0369a1", textAlign: "center", margin: "0 0 1rem", lineHeight: 1.5 }}>
-                  {listing.hasDiscount && listing.shareToken
+                  {listing.hasDiscount
                     ? "🔒 A discounted price is available. Reveal it to see your discount code — show the code to the seller at purchase to claim your discount!"
                     : listing.ogPrice
                       ? "Interested? Contact the seller to discuss pricing or arrange a purchase."
                       : "Interested? Contact the seller to get more information about this listing."}
                 </p>
-                {/* Only show Reveal button if hasDiscount AND arrived via referral */}
-                {listing.hasDiscount && listing.shareToken && (
+                {listing.hasDiscount && (
                   <button
                     onClick={() => openModal("reveal")}
                     style={{ display: "block", width: "100%", background: `linear-gradient(135deg, ${PRIMARY}, #2563eb)`, color: "white", border: "none", borderRadius: "999px", padding: "0.875rem", fontSize: "1rem", fontWeight: 700, cursor: "pointer", marginBottom: "0.625rem", fontFamily: "inherit", animation: "pulse-glow 2s infinite" }}
