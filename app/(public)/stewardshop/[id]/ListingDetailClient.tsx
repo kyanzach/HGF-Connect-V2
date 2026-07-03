@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import AnalyticsModal from "@/components/stewardshop/AnalyticsModal";
 
 const PRIMARY = "#4EB1CB";
@@ -438,6 +439,8 @@ function SharePanel({ listingId, loveGiftAmount, title }: { listingId: number; l
 export default function ListingDetailClient({ listing }: { listing: ListingData }) {
   const shareToken = listing.shareToken ?? undefined;
   const { containerRef, burst } = useConfetti();
+  const searchParams = useSearchParams();
+  const revealParam = searchParams.get("reveal");
 
   // localStorage key for this listing's reveal
   const localKey = `hgf_reveal_${listing.id}`;
@@ -490,6 +493,13 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
     setModal(type); setError("");
     logEvent(type === "reveal" ? "reveal_click" : "contact_click");
   }
+
+  // Deep-link to reveal discount modal if query param is set
+  useEffect(() => {
+    if (revealParam === "true" && !revealed && !listing.isOwner) {
+      openModal("reveal");
+    }
+  }, [revealParam, revealed, listing.isOwner]);
   function closeModal() { setModal(null); setError(""); }
 
   const handleSubmit = useCallback(async () => {

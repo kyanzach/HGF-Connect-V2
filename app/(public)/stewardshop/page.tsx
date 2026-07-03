@@ -162,51 +162,64 @@ export default async function MarketplaceSSRPage({
         ) : (
           <>
             <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: "0.625rem", width: "100%" }}>
-              {listings.map((listing) => (
-                <Link
-                  key={listing.id}
-                  href={`/stewardshop/${listing.id}`}
-                  style={{ textDecoration: "none" }}
-                >
-                  <div style={{ background: "white", borderRadius: "14px", overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.09)", minWidth: 0, width: "100%" }}>
-                    {/* Photo or placeholder */}
-                    <div style={{ width: "100%", height: 130, background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2.5rem", position: "relative" }}>
-                      {listing.photos[0] ? (
-                        <img
-                          src={`/uploads/marketplace/${listing.photos[0].photoPath}`}
-                          alt={listing.title}
-                          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
-                        />
-                      ) : (
-                        CATEGORY_ICONS[listing.category ?? ""] ?? "📦"
-                      )}
-                      {/* Type badge */}
-                      <span style={{ position: "absolute", top: "0.375rem", left: "0.375rem", background: TYPE_COLORS[listing.listingType] ?? PRIMARY, color: "white", fontSize: "0.625rem", fontWeight: 700, padding: "0.15rem 0.45rem", borderRadius: "4px", textTransform: "uppercase" }}>
-                        {TYPE_LABELS[listing.listingType] ?? listing.listingType}
-                      </span>
-                      {/* Love Gift badge — members only, bottom-right */}
-                      {isLoggedIn && Number(listing.loveGiftAmount) > 0 && (
-                        <span style={{ position: "absolute", bottom: "0.375rem", right: "0.375rem", background: "#ef4444", color: "white", fontSize: "0.6rem", fontWeight: 700, padding: "0.15rem 0.4rem", borderRadius: "4px" }}>
-                          ❤️ ₱{Number(listing.loveGiftAmount).toLocaleString()}
+              {listings.map((listing) => {
+                const hasDiscount = !!(listing.discountedPrice && listing.ogPrice && Number(listing.discountedPrice) < Number(listing.ogPrice));
+                return (
+                  <Link
+                    key={listing.id}
+                    href={`/stewardshop/${listing.id}${hasDiscount ? "?reveal=true" : ""}`}
+                    style={{ textDecoration: "none" }}
+                  >
+                    <div style={{ background: "white", borderRadius: "14px", overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.09)", minWidth: 0, width: "100%" }}>
+                      {/* Photo or placeholder */}
+                      <div style={{ width: "100%", height: 130, background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2.5rem", position: "relative" }}>
+                        {listing.photos[0] ? (
+                          <img
+                            src={`/uploads/marketplace/${listing.photos[0].photoPath}`}
+                            alt={listing.title}
+                            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+                          />
+                        ) : (
+                          CATEGORY_ICONS[listing.category ?? ""] ?? "📦"
+                        )}
+                        {/* Type badge */}
+                        <span style={{ position: "absolute", top: "0.375rem", left: "0.375rem", background: TYPE_COLORS[listing.listingType] ?? PRIMARY, color: "white", fontSize: "0.625rem", fontWeight: 700, padding: "0.15rem 0.45rem", borderRadius: "4px", textTransform: "uppercase" }}>
+                          {TYPE_LABELS[listing.listingType] ?? listing.listingType}
                         </span>
-                      )}
-                    </div>
+                        {/* Love Gift badge — members only, bottom-right */}
+                        {isLoggedIn && Number(listing.loveGiftAmount) > 0 && (
+                          <span style={{ position: "absolute", bottom: "0.375rem", right: "0.375rem", background: "#ef4444", color: "white", fontSize: "0.6rem", fontWeight: 700, padding: "0.15rem 0.4", borderRadius: "4px" }}>
+                            ❤️ ₱{Number(listing.loveGiftAmount).toLocaleString()}
+                          </span>
+                        )}
+                      </div>
 
-                    {/* Info */}
-                    <div style={{ padding: "0.625rem" }}>
-                      <div style={{ fontWeight: 700, fontSize: "0.8rem", color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: "0.25rem" }}>
-                        {listing.title}
-                      </div>
-                      {/* Price — always original only, no discount on grid */}
-                      <div style={{ display: "flex", alignItems: "center", gap: "0.3rem", flexWrap: "nowrap", overflow: "hidden", minWidth: 0 }}>
-                        <span style={{ fontWeight: 800, fontSize: "0.9rem", color: PRIMARY, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>
-                          {listing.ogPrice
-                            ? `₱${Number(listing.ogPrice).toLocaleString()}`
-                            : listing.price
-                              ? `₱${Number(listing.price).toLocaleString()}`
-                              : listing.priceLabel ?? "Free"}
-                        </span>
-                      </div>
+                      {/* Info */}
+                      <div style={{ padding: "0.625rem" }}>
+                        <div style={{ fontWeight: 700, fontSize: "0.8rem", color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: "0.25rem" }}>
+                          {listing.title}
+                        </div>
+                        {/* Price — strikethrough + badge if discount exists */}
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", flexWrap: "wrap", overflow: "hidden", minWidth: 0 }}>
+                          {hasDiscount ? (
+                            <>
+                              <span style={{ fontWeight: 850, fontSize: "0.85rem", color: "#94a3b8", textDecoration: "line-through", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                ₱{Number(listing.ogPrice).toLocaleString()}
+                              </span>
+                              <span style={{ background: "linear-gradient(135deg, #f0fdfa, #ccfbf1)", color: "#0f766e", fontSize: "0.55rem", fontWeight: 700, padding: "0.08rem 0.35rem", borderRadius: "999px", border: "1px solid #99f6e4", display: "inline-flex", alignItems: "center", gap: "2px", whiteSpace: "nowrap", flexShrink: 0 }}>
+                                🔒 Reveal Price
+                              </span>
+                            </>
+                          ) : (
+                            <span style={{ fontWeight: 800, fontSize: "0.9rem", color: PRIMARY, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>
+                              {listing.ogPrice
+                                ? `₱${Number(listing.ogPrice).toLocaleString()}`
+                                : listing.price
+                                  ? `₱${Number(listing.price).toLocaleString()}`
+                                  : listing.priceLabel ?? "Free"}
+                            </span>
+                          )}
+                        </div>
                       {listing.locationArea && (
                         <div style={{ fontSize: "0.675rem", color: "#94a3b8", marginTop: "0.25rem" }}>
                           📍 {listing.locationArea}
@@ -218,7 +231,7 @@ export default async function MarketplaceSSRPage({
                     </div>
                   </div>
                 </Link>
-              ))}
+              )})}
             </div>
 
             {/* Pagination */}

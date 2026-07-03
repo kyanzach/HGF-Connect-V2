@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.36.1] — 2026-07-03
+### Added
+- **StewardShop Directory Price Strikethrough & Badges**: Strikethrough is now rendered on the original price for discounted listings directly on the main directory page, alongside a "🔒 Reveal Price" badge.
+- **Marketplace Listing Deep-Linking**: Clicking a discounted item on the main directory page deep-links directly to `/stewardshop/[id]?reveal=true`, which automatically opens the lead capture and reveal discount modal on page load.
+
 ## [v2.36.0] — 2026-07-03
 ### Added
 - **StewardShop Direct Reveal**: Allowed all logged-in members and direct public visitors to reveal discount codes on marketplace listings, removing the previous restriction that only allowed reveals via shared referral links.
