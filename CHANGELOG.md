@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.36.9] — 2026-07-03
+### Changed
+- **Checkmark Bullet List Layout**: Refactored `renderFormattedText` in `ListingDetailClient.tsx` to automatically detect list items starting with check emojis (`✅`, `☑`, `✔️`, `✔`) and render them with `listStyleType: "none"` and a matching negative left margin (`marginLeft: "-1.1rem"`). This removes the redundant dot bullets for checkmark lines while preserving them for normal specification items.
+
 ## [v2.36.8] — 2026-07-03
 ### Fixed
 - **Database-Backed Prospect Restoring**: Integrated a database check on server-side detail page loads (`page.tsx`) to lookup any existing prospect record matching the current user's email/phone. Automatically populates and hydrates the `revealed` discount/coupon UI on the client if already revealed previously (even if localStorage is cleared or viewed on a different device).

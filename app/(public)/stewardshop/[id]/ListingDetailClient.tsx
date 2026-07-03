@@ -71,8 +71,16 @@ function renderFormattedText(text: string) {
     // Check for list items starting with "* " or "- "
     else if (trimmed.startsWith("* ") || trimmed.startsWith("- ") || (trimmed.startsWith("*") && !trimmed.slice(1).startsWith("*")) || (trimmed.startsWith("-") && !trimmed.slice(1).startsWith("-"))) {
       const content = trimmed.replace(/^[\*\-]\s*/, "");
+      const startsWithCheck = /^[✅☑✔️✔]/.test(content.trim());
       listItems.push(
-        <li key={`li-${index}`} style={{ margin: "0.2rem 0", color: "#334155" }}>
+        <li
+          key={`li-${index}`}
+          style={{
+            margin: "0.2rem 0",
+            color: "#334155",
+            ...(startsWithCheck ? { listStyleType: "none", marginLeft: "-1.1rem" } : {})
+          }}
+        >
           {parseInlineMarkdown(content)}
         </li>
       );
