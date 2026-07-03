@@ -253,6 +253,38 @@ export default async function ListingDetailPage({ params, searchParams }: Props)
     ? Math.round(((Number(listing.ogPrice) - Number(listing.discountedPrice)) / Number(listing.ogPrice)) * 100)
     : 0;
 
+  // Restore revealed discount if logged-in user has already submitted a prospect
+  let previouslyRevealed = null;
+  if (isLoggedIn && currentUser) {
+    const searchConditions = [];
+    if (currentUser.email) {
+      searchConditions.push({ prospectEmail: currentUser.email });
+    }
+    if (currentUser.phone) {
+      searchConditions.push({ prospectMobile: currentUser.phone });
+    }
+
+    if (searchConditions.length > 0) {
+      const existingProspect = await db.marketplaceProspect.findFirst({
+        where: {
+          listingId: listing.id,
+          OR: searchConditions,
+        },
+        orderBy: { id: "desc" },
+      }).catch(() => null);
+
+      if (existingProspect) {
+        previouslyRevealed = {
+          discountedPrice: listing.discountedPrice ? Number(listing.discountedPrice) : 0,
+          ogPrice: listing.ogPrice ? Number(listing.ogPrice) : null,
+          sellerName: `${listing.seller.firstName} ${listing.seller.lastName}`,
+          actionType: existingProspect.actionType as "reveal" | "contact",
+          couponCode: existingProspect.shareToken ?? `DIRECT${listing.id}`,
+        };
+      }
+    }
+  }
+
   // Serialize — strip discountedPrice before sending to client (NEVER expose it here)
   const safeListingData = {
     id: listing.id,
@@ -264,6 +296,7 @@ export default async function ListingDetailPage({ params, searchParams }: Props)
     // discountedPrice deliberately OMITTED — only returned after prospect submit (v1.1 §170)
     hasDiscount: !!(listing.discountedPrice && listing.ogPrice && Number(listing.discountedPrice) > 0 && Number(listing.discountedPrice) < Number(listing.ogPrice)),
     discountPercent,
+    previouslyRevealed,
     priceLabel: listing.priceLabel,
     conditionType: listing.conditionType,
     locationArea: listing.locationArea,

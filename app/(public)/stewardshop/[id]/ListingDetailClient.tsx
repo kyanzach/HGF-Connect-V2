@@ -336,6 +336,7 @@ interface ListingData {
   isOwner: boolean; isLoggedIn: boolean; isSold?: boolean; shareToken: string | null;
   videoUrl?: string | null;
   currentUser?: { name: string; email: string; phone: string } | null;
+  previouslyRevealed?: RevealedState | null;
 }
 
 interface RevealedState {
@@ -661,7 +662,7 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
   const [consented, setConsented] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [revealed, setRevealed] = useState<RevealedState | null>(null);
+  const [revealed, setRevealed] = useState<RevealedState | null>(listing.previouslyRevealed || null);
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
 
   // Pre-fill user info if logged in
@@ -682,11 +683,14 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
       setRevealed(null);
       return;
     }
+    if (listing.previouslyRevealed) {
+      return;
+    }
     try {
       const stored = localStorage.getItem(localKey);
       if (stored) setRevealed(JSON.parse(stored) as RevealedState);
     } catch { /* ignore */ }
-  }, [localKey, listing.isOwner, listing.hasDiscount]);
+  }, [localKey, listing.isOwner, listing.hasDiscount, listing.previouslyRevealed]);
 
   const sellerName = `${listing.seller.firstName} ${listing.seller.lastName}`;
   const sellerInitials = `${listing.seller.firstName[0]}${listing.seller.lastName?.[0] ?? ""}`;
