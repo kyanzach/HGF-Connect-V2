@@ -7,6 +7,10 @@ import AnalyticsModal from "@/components/stewardshop/AnalyticsModal";
 
 const PRIMARY = "#4EB1CB";
 
+function strikeText(text: string): string {
+  return text.split("").map((c) => c + "\u0336").join("");
+}
+
 // ── Photo Carousel ─────────────────────────────────────────────────────────────
 function PhotoCarousel({ photos, title, videoUrl }: { photos: { photoPath: string }[]; title: string; videoUrl?: string | null }) {
   const [idx, setIdx] = useState(0);
@@ -141,7 +145,17 @@ function PhotoCarousel({ photos, title, videoUrl }: { photos: { photoPath: strin
 }
 
 // ── Owner Share Panel (for owner to copy/share listing directly) ──────────────
-function OwnerSharePanel({ listingId, title }: { listingId: number; title: string }) {
+function OwnerSharePanel({
+  listingId,
+  title,
+  hasDiscount,
+  ogPrice
+}: {
+  listingId: number;
+  title: string;
+  hasDiscount: boolean;
+  ogPrice: number | null;
+}) {
   const [copied, setCopied] = useState(false);
   const cleanTitle = title
     .toLowerCase()
@@ -165,7 +179,11 @@ function OwnerSharePanel({ listingId, title }: { listingId: number; title: strin
 
   function shareNative() {
     if (navigator.share) {
-      navigator.share({ title, text: `Check out my listing on StewardShop! 🎁`, url: shareLink }).catch(() => {});
+      const ogPriceStr = ogPrice ? `₱${ogPrice.toLocaleString()}` : "";
+      const text = hasDiscount && ogPriceStr
+        ? `Check out my listing: ${title} — ${strikeText(ogPriceStr)} (reveal discount price) 🎁`
+        : `Check out my listing on StewardShop! 🎁`;
+      navigator.share({ title, text, url: shareLink }).catch(() => {});
     } else { copyLink(); }
   }
 
@@ -353,20 +371,29 @@ function CouponRevealCard({ revealed, sellerName, sellerMobile, loveGiftAmount, 
 }
 
 // ── Share & Bless Panel ────────────────────────────────────────────────────────
-function SharePanel({ listingId, loveGiftAmount, title }: { listingId: number; loveGiftAmount: number; title: string }) {
-  const [shareLink, setShareLink] = useState<string | null>(null);
-  const [shareCode, setShareCode] = useState<string | null>(null);
+function SharePanel({
+  listingId,
+  loveGiftAmount,
+  title,
+  shareLink,
+  shareCode,
+  setShareLink,
+  setShareCode,
+  hasDiscount,
+  ogPrice
+}: {
+  listingId: number;
+  loveGiftAmount: number;
+  title: string;
+  shareLink: string | null;
+  shareCode: string | null;
+  setShareLink: (link: string | null) => void;
+  setShareCode: (code: string | null) => void;
+  hasDiscount: boolean;
+  ogPrice: number | null;
+}) {
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    fetch(`/api/marketplace/listings/${listingId}/share`)
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.shareLink) { setShareLink(d.shareLink); setShareCode(d.shareCode); }
-      })
-      .catch(() => {});
-  }, [listingId]);
 
   async function generateLink() {
     setLoading(true);
@@ -391,7 +418,11 @@ function SharePanel({ listingId, loveGiftAmount, title }: { listingId: number; l
   function shareNative() {
     if (!shareLink) return;
     if (navigator.share) {
-      navigator.share({ title, text: `Check this out on StewardShop! 🎁`, url: shareLink }).catch(() => {});
+      const ogPriceStr = ogPrice ? `₱${ogPrice.toLocaleString()}` : "";
+      const text = hasDiscount && ogPriceStr
+        ? `Check out this listing: ${title} — ${strikeText(ogPriceStr)} (reveal discount price) 🎁`
+        : `Check out this listing on StewardShop! 🎁`;
+      navigator.share({ title, text, url: shareLink }).catch(() => {});
     } else { copyLink(); }
   }
 
@@ -441,6 +472,49 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
   const { containerRef, burst } = useConfetti();
   const searchParams = useSearchParams();
   const revealParam = searchParams.get("reveal");
+
+  const [shareLink, setShareLink] = useState<string | null>(null);
+  const [shareCode, setShareCode] = useState<string | null>(null);
+  const [headerCopied, setHeaderCopied] = useState(false);
+
+  // Load share link for logged in user on mount
+  useEffect(() => {
+    if (listing.isLoggedIn && !listing.isOwner) {
+      fetch(`/api/marketplace/listings/${listing.id}/share`)
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.shareLink) { setShareLink(d.shareLink); setShareCode(d.shareCode); }
+        })
+        .catch(() => {});
+    }
+  }, [listing.id, listing.isLoggedIn, listing.isOwner]);
+
+  const handleHeaderShare = useCallback(async () => {
+    const finalUrl = shareLink || (typeof window !== "undefined" ? window.location.origin + `/stewardshop/${listing.id}` : `https://connect.houseofgrace.ph/stewardshop/${listing.id}`);
+    const ogPriceStr = listing.ogPrice ? `₱${listing.ogPrice.toLocaleString()}` : "";
+    const text = listing.hasDiscount && ogPriceStr
+      ? `Check out this listing: ${listing.title} — ${strikeText(ogPriceStr)} (reveal discount price) 🎁`
+      : `Check out this listing: ${listing.title}${ogPriceStr ? ` — ${ogPriceStr}` : ""} 🎁`;
+
+    if (navigator.share) {
+      navigator.share({
+        title: listing.title,
+        text: text,
+        url: finalUrl
+      }).catch(() => {});
+    } else {
+      try {
+        await navigator.clipboard.writeText(finalUrl);
+        setHeaderCopied(true);
+        setTimeout(() => setHeaderCopied(false), 2000);
+      } catch {
+        const input = document.createElement("input"); input.value = finalUrl;
+        document.body.appendChild(input); input.select(); document.execCommand("copy"); document.body.removeChild(input);
+        setHeaderCopied(true);
+        setTimeout(() => setHeaderCopied(false), 2000);
+      }
+    }
+  }, [listing, shareLink]);
 
   // localStorage key for this listing's reveal
   const localKey = `hgf_reveal_${listing.id}`;
@@ -599,7 +673,34 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
       <div style={{ padding: "1rem" }}>
         {/* Title + Price */}
         <div style={{ background: "white", borderRadius: "16px", padding: "1rem", marginBottom: "0.75rem", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
-          <h1 style={{ fontSize: "1.125rem", fontWeight: 800, color: "#1e293b", margin: "0 0 0.5rem" }}>{listing.title}</h1>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.5rem", marginBottom: "0.5rem" }}>
+            <h1 style={{ fontSize: "1.125rem", fontWeight: 800, color: "#1e293b", margin: 0, lineHeight: 1.3 }}>
+              {listing.title}
+            </h1>
+            <button
+              onClick={handleHeaderShare}
+              style={{
+                background: "#f1f5f9",
+                border: "none",
+                borderRadius: "50%",
+                width: "36px",
+                height: "36px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                flexShrink: 0,
+                fontSize: "1.1rem",
+                color: "#64748b",
+                fontFamily: "inherit",
+                WebkitTapHighlightColor: "transparent",
+                transition: "background 0.2s"
+              }}
+              title={headerCopied ? "Link Copied!" : "Share Listing"}
+            >
+              {headerCopied ? "✅" : "📤"}
+            </button>
+          </div>
 
           {listing.ogPrice ? (
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem", flexWrap: "wrap" }}>
@@ -756,12 +857,27 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
 
             {/* ── Share & Bless Panel */}
             {listing.loveGiftAmount > 0 && listing.isLoggedIn && !listing.isOwner && (
-              <SharePanel listingId={listing.id} loveGiftAmount={listing.loveGiftAmount} title={listing.title} />
+              <SharePanel
+                listingId={listing.id}
+                loveGiftAmount={listing.loveGiftAmount}
+                title={listing.title}
+                shareLink={shareLink}
+                shareCode={shareCode}
+                setShareLink={setShareLink}
+                setShareCode={setShareCode}
+                hasDiscount={listing.hasDiscount}
+                ogPrice={listing.ogPrice}
+              />
             )}
 
             {/* Owner Share Panel */}
             {listing.isOwner && (
-              <OwnerSharePanel listingId={listing.id} title={listing.title} />
+              <OwnerSharePanel
+                listingId={listing.id}
+                title={listing.title}
+                hasDiscount={listing.hasDiscount}
+                ogPrice={listing.ogPrice}
+              />
             )}
           </>
         )}

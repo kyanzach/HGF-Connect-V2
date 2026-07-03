@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.36.2] — 2026-07-03
+### Added
+- **Listing Header Share Button**: A share button (`📤`) is now available directly in the listing header (next to the title) for all users, enabling quick sharing even if no Love Gift is configured.
+- **Discount Strikethrough Share Formatting**: Native sharing copy for all share actions (header share, love-gift share, and owner share) now formats the share text to include a unicode-strikethrough version of the original price followed by `(reveal discount price)`, e.g. `Take All Garage Sale — ₱̶1̶2̶,̶0̶0̶0̶ (reveal discount price)`.
+
 ## [v2.36.1] — 2026-07-03
 ### Added
 - **StewardShop Directory Price Strikethrough & Badges**: Strikethrough is now rendered on the original price for discounted listings directly on the main directory page, alongside a "🔒 Reveal Price" badge.
