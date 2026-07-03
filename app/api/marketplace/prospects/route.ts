@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
       // 2. SMS alert (fire-and-forget, following Rule 14: clean prefixes connecting with connect.houseofgrace.ph/)
       if (listing.seller.phone) {
         const { sendSms } = await import("@/lib/sms");
-        const smsMessage = `Hi ${listing.seller.firstName}! You have a new prospect for your listing "${listing.title}". ${prospectName.trim()} (${prospectMobile?.trim() || "no phone provided"}) wants to purchase it. View details at connect.houseofgrace.ph/stewardshop/my-listings/${listing.id}/prospects. God bless!`;
+        const smsMessage = `Hi ${listing.seller.firstName}! You have a new prospect for your listing "${listing.title}". ${prospectName.trim()} (${prospectMobile?.trim() || "no phone provided"}) is interested in it. View details at connect.houseofgrace.ph/stewardshop/my-listings/${listing.id}/prospects. God bless!`;
         
         sendSms(listing.seller.phone, smsMessage, listing.seller.id, undefined, "HGF Connect")
           .catch(err => console.error(`Failed to send prospect SMS to seller ID ${listing.seller.id}:`, err));

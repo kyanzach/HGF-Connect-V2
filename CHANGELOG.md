@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.36.7] — 2026-07-03
+### Changed
+- **SMS Prospect Copy Update**: Softened the SMS notification wording sent to sellers when a prospect contacts them to say they are "interested in it" rather than "wants to purchase it".
+
 ## [v2.36.6] — 2026-07-03
 ### Changed
 - **StewardShop Branding Suffix**: Renamed title suffix from `HGF Marketplace` to `HGF StewardShop` across public listing detail routes and love gifts page metadata.
