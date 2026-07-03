@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.36.15] — 2026-07-03
+### Added
+- **Referrer Context in SMS Alerts**: Appended the referrer's identity details directly to the seller notification SMS and in-app alerts (e.g. `referred by member John Doe` or `referred via HGF Church campaign ads`) to give listers immediate clarity on where leads originated.
+
 ## [v2.36.14] — 2026-07-03
 ### Added
 - **Listing Location Auto-Prepopulation**: Implemented auto-prepopulation of the "Location Area" field on the listing creation (Sell) page. The client queries the user's previous listings, retrieves the most recent listing's location, and inserts it as the default input value.

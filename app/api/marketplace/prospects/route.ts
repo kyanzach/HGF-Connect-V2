@@ -156,14 +156,32 @@ export async function POST(req: NextRequest) {
 
     // Phase 10: notify seller if prospect submitted contact info (in-app + SMS)
     if (actionType === "contact" || actionType === "reveal") {
+      // Resolve referrer details
+      let referrerText = "";
+      if (sharerUserId) {
+        const sharer = await db.member.findUnique({
+          where: { id: sharerUserId },
+          select: { firstName: true, lastName: true, email: true }
+        }).catch(() => null);
+
+        if (sharer) {
+          if (sharer.email === "church@houseofgrace.ph") {
+            referrerText = "referred via HGF Church campaign ads";
+          } else {
+            referrerText = `referred by member ${sharer.firstName} ${sharer.lastName}`;
+          }
+        }
+      }
+
       // 1. In-app notification
       const actionText = actionType === "reveal" ? "revealed your discount" : "requested to contact you";
+      const refInApp = referrerText ? ` (${referrerText})` : "";
       await db.notification.create({
         data: {
           memberId: listing.seller.id,
           type: "marketplace_prospect",
           title: "🛍️ New Listing Prospect!",
-          body: `${prospectName.trim()} is interested in "${listing.title}" (${actionText}). Tap to view details.`,
+          body: `${prospectName.trim()} is interested in "${listing.title}" (${actionText})${refInApp}. Tap to view details.`,
           link: `/stewardshop/my-listings/${listing.id}/prospects`,
         },
       }).catch(err => console.error("Failed to create prospect notification:", err));
@@ -171,7 +189,8 @@ export async function POST(req: NextRequest) {
       // 2. SMS alert (fire-and-forget, following Rule 14: clean prefixes connecting with connect.houseofgrace.ph/)
       if (listing.seller.phone) {
         const { sendSms } = await import("@/lib/sms");
-        const smsMessage = `Hi ${listing.seller.firstName}! You have a new prospect for your listing "${listing.title}". ${prospectName.trim()} (${prospectMobile?.trim() || "no phone provided"}) is interested in it. View details at connect.houseofgrace.ph/stewardshop/my-listings/${listing.id}/prospects. God bless!`;
+        const refSuffix = referrerText ? ` (${referrerText})` : "";
+        const smsMessage = `Hi ${listing.seller.firstName}! You have a new prospect for your listing "${listing.title}". ${prospectName.trim()} (${prospectMobile?.trim() || "no phone provided"}) is interested in it${refSuffix}. View details at connect.houseofgrace.ph/stewardshop/my-listings/${listing.id}/prospects. God bless!`;
         
         sendSms(listing.seller.phone, smsMessage, listing.seller.id, undefined, "HGF Connect")
           .catch(err => console.error(`Failed to send prospect SMS to seller ID ${listing.seller.id}:`, err));
