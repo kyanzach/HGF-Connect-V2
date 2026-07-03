@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.36.10] — 2026-07-03
+### Changed
+- **Polite Public Version Updates**: Restricted the `VersionGuard` update modal popup to authenticated members (`sessionStatus === "authenticated"`). For unauthenticated public visitors, the modal is hidden, and version updates are applied transparently by listening to page/route transitions: the app triggers a cache-clearing service worker update and hard-reload on the new pathname whenever they navigate away.
+
 ## [v2.36.9] — 2026-07-03
 ### Changed
 - **Checkmark Bullet List Layout**: Refactored `renderFormattedText` in `ListingDetailClient.tsx` to automatically detect list items starting with check emojis (`✅`, `☑`, `✔️`, `✔`) and render them with `listStyleType: "none"` and a matching negative left margin (`marginLeft: "-1.1rem"`). This removes the redundant dot bullets for checkmark lines while preserving them for normal specification items.

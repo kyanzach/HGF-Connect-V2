@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { APP_VERSION } from "@/lib/version";
+import { useSession } from "next-auth/react";
+import { usePathname } from "next/navigation";
 
 /**
  * VersionGuard — Shows a polite update modal when a new version is deployed.
@@ -21,6 +23,10 @@ const CHECK_INTERVAL_MS = 60_000; // 60 seconds
 const DISMISSED_KEY = "hgf_update_dismissed_version";
 
 export default function VersionGuard() {
+  const { status: sessionStatus } = useSession();
+  const pathname = usePathname();
+  const lastPathname = useRef<string | null>(null);
+
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isChecking = useRef(false);
   const [pendingVersion, setPendingVersion] = useState<string | null>(null);
@@ -105,6 +111,19 @@ export default function VersionGuard() {
     };
   }, []);
 
+  // For public visitors (non-authenticated): perform a transparent hard-reload on route transition to fetch the latest version
+  useEffect(() => {
+    if (!pathname) return;
+    if (!pendingVersion) {
+      lastPathname.current = pathname;
+      return;
+    }
+
+    if (sessionStatus === "unauthenticated" && lastPathname.current && lastPathname.current !== pathname) {
+      handleUpdate();
+    }
+  }, [pathname, pendingVersion, sessionStatus]);
+
   async function handleUpdate() {
     if (updating) return;
     setUpdating(true);
@@ -153,7 +172,7 @@ export default function VersionGuard() {
     setPendingVersion(null);
   }
 
-  if (!pendingVersion) return null;
+  if (!pendingVersion || sessionStatus !== "authenticated") return null;
 
   return (
     <div
