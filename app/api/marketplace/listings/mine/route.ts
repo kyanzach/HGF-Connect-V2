@@ -37,6 +37,7 @@ export async function GET(_req: NextRequest) {
       shareCount: l._count.shares,
       isPrivate: l.isPrivate,
       moderationReason: l.moderationReason,
+      locationArea: l.locationArea,
     })),
   });
 }

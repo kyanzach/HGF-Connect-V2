@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
@@ -53,6 +53,22 @@ export default function SellPage() {
   const [error, setError] = useState("");
   const [enhancingTitle, setEnhancingTitle] = useState(false);
   const [enhancingDesc, setEnhancingDesc] = useState(false);
+
+  useEffect(() => {
+    if (session?.user) {
+      fetch("/api/marketplace/listings/mine")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.listings && data.listings.length > 0) {
+            const lastLocation = data.listings[0].locationArea;
+            if (lastLocation) {
+              setForm((f) => ({ ...f, locationArea: lastLocation }));
+            }
+          }
+        })
+        .catch((err) => console.error("Failed to load last listing location:", err));
+    }
+  }, [session]);
 
   async function enhanceTitle() {
     if (!form.title.trim()) return;

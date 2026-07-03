@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.36.14] — 2026-07-03
+### Added
+- **Listing Location Auto-Prepopulation**: Implemented auto-prepopulation of the "Location Area" field on the listing creation (Sell) page. The client queries the user's previous listings, retrieves the most recent listing's location, and inserts it as the default input value.
+
 ## [v2.36.13] — 2026-07-03
 ### Fixed
 - **Mobile Responsive Header Alignment**: Resolved a layout overflow bug on narrow mobile screens (under 440px) where the top navigation elements would stretch wider than the screen, pushing the hamburger menu off the right edge. On smaller viewports, the "BETA vX.X.X" badge and the user's name/arrow are now dynamically hidden, transforming the avatar button into a clean, compact round profile picture, ensuring uniform layout across all phone models.
