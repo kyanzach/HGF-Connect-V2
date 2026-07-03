@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.36.16] — 2026-07-03
+### Changed
+- **Location Area Presentation Layout**: Extracted the location badge from the inline tags row into its own dedicated block line container. Displays on its own line with flex-start alignment and light container borders to wrap long addresses cleanly without stretching the tags flow.
+- **Client Coupon Self-Healing**: Added dynamic client-side rewrite in `ListingDetailClient.tsx` to automatically map legacy `"DIRECTXX"` coupon codes loaded from `localStorage` or `previouslyRevealed` server configurations to the corrected `"HGFCHURCHXX"` campaign structure.
+
 ## [v2.36.15] — 2026-07-03
 ### Added
 - **Referrer Context in SMS Alerts**: Appended the referrer's identity details directly to the seller notification SMS and in-app alerts (e.g. `referred by member John Doe` or `referred via HGF Church campaign ads`) to give listers immediate clarity on where leads originated.

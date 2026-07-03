@@ -815,13 +815,25 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
       return;
     }
     if (listing.previouslyRevealed) {
+      const prev = { ...listing.previouslyRevealed };
+      if (prev.couponCode && prev.couponCode.startsWith("DIRECT")) {
+        prev.couponCode = `HGFCHURCH${String(listing.id).padStart(2, "0")}`;
+      }
+      setRevealed(prev);
       return;
     }
     try {
       const stored = localStorage.getItem(localKey);
-      if (stored) setRevealed(JSON.parse(stored) as RevealedState);
+      if (stored) {
+        const parsed = JSON.parse(stored) as RevealedState;
+        if (parsed.couponCode && parsed.couponCode.startsWith("DIRECT")) {
+          parsed.couponCode = `HGFCHURCH${String(listing.id).padStart(2, "0")}`;
+          try { localStorage.setItem(localKey, JSON.stringify(parsed)); } catch { /* ignore */ }
+        }
+        setRevealed(parsed);
+      }
     } catch { /* ignore */ }
-  }, [localKey, listing.isOwner, listing.hasDiscount, listing.previouslyRevealed]);
+  }, [localKey, listing.isOwner, listing.hasDiscount, listing.previouslyRevealed, listing.id]);
 
   const sellerName = `${listing.seller.firstName} ${listing.seller.lastName}`;
   const sellerInitials = `${listing.seller.firstName[0]}${listing.seller.lastName?.[0] ?? ""}`;
@@ -1042,7 +1054,6 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
           <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "0.75rem" }}>
             {listing.conditionType && listing.conditionType !== "na" && <span style={{ background: "#eff6ff", color: "#1d4ed8", fontSize: "0.72rem", padding: "0.2rem 0.625rem", borderRadius: "999px", fontWeight: 600 }}>{CONDITION_LABELS[listing.conditionType] ?? listing.conditionType}</span>}
             {listing.category && <span style={{ background: "#f5f3ff", color: "#7c3aed", fontSize: "0.72rem", padding: "0.2rem 0.625rem", borderRadius: "999px", fontWeight: 600 }}>{listing.category}</span>}
-            {listing.locationArea && <span style={{ fontSize: "0.72rem", color: "#94a3b8" }}>📍 {listing.locationArea}</span>}
             {listing.isOwner ? (
               <button
                 onClick={() => setAnalyticsOpen(true)}
@@ -1067,6 +1078,25 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
               <span style={{ fontSize: "0.72rem", color: "#94a3b8" }}>👁 {listing.viewCount} views</span>
             )}
           </div>
+
+          {/* Dedicated Location Block for clean wrapping of long addresses */}
+          {listing.locationArea && (
+            <div style={{ 
+              marginTop: "0.75rem", 
+              display: "flex", 
+              alignItems: "flex-start", 
+              gap: "0.35rem", 
+              background: "#f8fafc", 
+              border: "1px solid #f1f5f9", 
+              borderRadius: "10px", 
+              padding: "0.45rem 0.65rem" 
+            }}>
+              <span style={{ fontSize: "0.85rem", color: "#64748b", marginTop: "1px" }}>📍</span>
+              <span style={{ fontSize: "0.72rem", color: "#64748b", lineHeight: 1.4, fontWeight: 500 }}>
+                {listing.locationArea}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Description */}
