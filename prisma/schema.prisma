@@ -92,6 +92,7 @@ model Member {
 
   // Seller verification badge (Phase 9)
   isVerified            Boolean              @default(false) @map("is_verified")
+  phoneInvalid          Boolean              @default(false) @map("phone_invalid")
 
   // GCash details (auto-fills on Love Gift claims)
   gcashName             String?              @map("gcash_name") @db.VarChar(100)

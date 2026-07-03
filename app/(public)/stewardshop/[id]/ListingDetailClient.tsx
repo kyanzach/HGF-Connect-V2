@@ -11,6 +11,91 @@ function strikeText(text: string): string {
   return text.split("").map((c) => c + "\u0336").join("");
 }
 
+function renderFormattedText(text: string) {
+  if (!text) return null;
+  const lines = text.split("\n");
+  const elements: React.ReactNode[] = [];
+  let listItems: React.ReactNode[] = [];
+
+  const flushList = (key: string) => {
+    if (listItems.length > 0) {
+      elements.push(
+        <ul key={`ul-${key}`} style={{ paddingLeft: "1.2rem", margin: "0.4rem 0", listStyleType: "disc" }}>
+          {listItems}
+        </ul>
+      );
+      listItems = [];
+    }
+  };
+
+  const parseInlineMarkdown = (inlineText: string) => {
+    // Process bold (**text** or __text__)
+    const parts = inlineText.split(/\*\*|__/);
+    return parts.map((part, i) => {
+      if (i % 2 === 1) {
+        return <strong key={i} style={{ fontWeight: 700, color: "#0f172a" }}>{part}</strong>;
+      }
+      return part;
+    });
+  };
+
+  lines.forEach((line, index) => {
+    const trimmed = line.trim();
+
+    // Check for headers (e.g. ###, ##, #)
+    if (trimmed.startsWith("###")) {
+      flushList(`h3-${index}`);
+      const content = trimmed.replace(/^###\s*/, "").replace(/\*\*$/, "").replace(/^\*\*/, "");
+      elements.push(
+        <h3 key={index} style={{ fontSize: "0.95rem", fontWeight: 700, color: "#1e293b", marginTop: "0.85rem", marginBottom: "0.4rem" }}>
+          {parseInlineMarkdown(content)}
+        </h3>
+      );
+    } else if (trimmed.startsWith("##")) {
+      flushList(`h2-${index}`);
+      const content = trimmed.replace(/^##\s*/, "").replace(/\*\*$/, "").replace(/^\*\*/, "");
+      elements.push(
+        <h2 key={index} style={{ fontSize: "1.05rem", fontWeight: 700, color: "#1e293b", marginTop: "0.9rem", marginBottom: "0.45rem" }}>
+          {parseInlineMarkdown(content)}
+        </h2>
+      );
+    } else if (trimmed.startsWith("#")) {
+      flushList(`h1-${index}`);
+      const content = trimmed.replace(/^#\s*/, "").replace(/\*\*$/, "").replace(/^\*\*/, "");
+      elements.push(
+        <h1 key={index} style={{ fontSize: "1.15rem", fontWeight: 800, color: "#1e293b", marginTop: "1rem", marginBottom: "0.5rem" }}>
+          {parseInlineMarkdown(content)}
+        </h1>
+      );
+    }
+    // Check for list items starting with "* " or "- "
+    else if (trimmed.startsWith("* ") || trimmed.startsWith("- ") || (trimmed.startsWith("*") && !trimmed.slice(1).startsWith("*")) || (trimmed.startsWith("-") && !trimmed.slice(1).startsWith("-"))) {
+      const content = trimmed.replace(/^[\*\-]\s*/, "");
+      listItems.push(
+        <li key={`li-${index}`} style={{ margin: "0.2rem 0", color: "#334155" }}>
+          {parseInlineMarkdown(content)}
+        </li>
+      );
+    } else {
+      // Empty line or regular text
+      if (trimmed === "") {
+        flushList(`empty-${index}`);
+        elements.push(<div key={`br-${index}`} style={{ height: "0.4rem" }} />);
+      } else {
+        flushList(`text-${index}`);
+        elements.push(
+          <p key={index} style={{ margin: "0 0 0.4rem 0", color: "#334155", lineHeight: 1.6 }}>
+            {parseInlineMarkdown(line)}
+          </p>
+        );
+      }
+    }
+  });
+
+  flushList(`final`);
+  return elements;
+}
+
 // ── Photo Carousel ─────────────────────────────────────────────────────────────
 function PhotoCarousel({ photos, title, videoUrl }: { photos: { photoPath: string }[]; title: string; videoUrl?: string | null }) {
   const [idx, setIdx] = useState(0);
@@ -810,7 +895,9 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
         {listing.description && (
           <div style={{ background: "white", borderRadius: "16px", padding: "1rem", marginBottom: "0.75rem", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
             <h3 style={{ fontSize: "0.8rem", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 0.5rem" }}>About this item</h3>
-            <p style={{ fontSize: "0.9rem", color: "#334155", lineHeight: 1.7, margin: 0, whiteSpace: "pre-line" }}>{listing.description}</p>
+            <div style={{ fontSize: "0.9rem", color: "#334155", lineHeight: 1.7 }}>
+              {renderFormattedText(listing.description)}
+            </div>
           </div>
         )}
 

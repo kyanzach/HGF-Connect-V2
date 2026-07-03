@@ -44,7 +44,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 
   const cleanedDesc = cleanDescription(listing.description).slice(0, 160) || "Listed on HGF Connect Marketplace";
 
-  const hasDiscount = !!(listing.discountedPrice && listing.ogPrice && Number(listing.discountedPrice) < Number(listing.ogPrice));
+  const hasDiscount = !!(listing.discountedPrice && listing.ogPrice && Number(listing.discountedPrice) > 0 && Number(listing.discountedPrice) < Number(listing.ogPrice));
   const ogPriceFormatted = listing.ogPrice ? `₱${Number(listing.ogPrice).toLocaleString()}` : null;
   const struckPrice = ogPriceFormatted ? strikeText(ogPriceFormatted) : "";
 
@@ -254,7 +254,7 @@ export default async function ListingDetailPage({ params, searchParams }: Props)
     category: listing.category,
     ogPrice: listing.ogPrice ? Number(listing.ogPrice) : null,
     // discountedPrice deliberately OMITTED — only returned after prospect submit (v1.1 §170)
-    hasDiscount: !!(listing.discountedPrice && listing.ogPrice && Number(listing.discountedPrice) < Number(listing.ogPrice)),
+    hasDiscount: !!(listing.discountedPrice && listing.ogPrice && Number(listing.discountedPrice) > 0 && Number(listing.discountedPrice) < Number(listing.ogPrice)),
     priceLabel: listing.priceLabel,
     conditionType: listing.conditionType,
     locationArea: listing.locationArea,

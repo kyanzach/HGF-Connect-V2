@@ -5,6 +5,15 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.36.3] — 2026-07-03
+### Added
+- **Listing Description Markdown Parsing**: Added a basic Markdown-like parser (`renderFormattedText`) in the listing detail page to render headers (`#`, `##`, `###`), bold formatting (`**text**`), bullet lists (`*`, `-`), and line breaks beautifully instead of rendering raw markdown tags.
+- **SMS Flagging for Invalid Phone Numbers**: Automatically flags a member's phone number as invalid (`phoneInvalid = true`) in the database upon validation or gateway delivery failures, preventing redundant SMS retry attempts.
+- **SMS Flag Reset on Phone Number Updates**: Automatically resets `phoneInvalid = false` when a member or admin updates the phone number in `app/api/members/[id]/route.ts`.
+
+### Fixed
+- **StewardShop P0 Discount Bug**: Fixed a bug where a listing with a discounted price of `₱0` (or empty placeholder defaults) was treated as having an active discount (displaying "100% OFF" and a strike-through). The system now requires the discounted price to be strictly greater than 0 for `hasDiscount` to be true.
+
 ## [v2.36.2] — 2026-07-03
 ### Added
 - **Listing Header Share Button**: A share button (`📤`) is now available directly in the listing header (next to the title) for all users, enabling quick sharing even if no Love Gift is configured.

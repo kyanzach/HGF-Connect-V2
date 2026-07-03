@@ -163,7 +163,7 @@ export default async function MarketplaceSSRPage({
           <>
             <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: "0.625rem", width: "100%" }}>
               {listings.map((listing) => {
-                const hasDiscount = !!(listing.discountedPrice && listing.ogPrice && Number(listing.discountedPrice) < Number(listing.ogPrice));
+                const hasDiscount = !!(listing.discountedPrice && listing.ogPrice && Number(listing.discountedPrice) > 0 && Number(listing.discountedPrice) < Number(listing.ogPrice));
                 return (
                   <Link
                     key={listing.id}

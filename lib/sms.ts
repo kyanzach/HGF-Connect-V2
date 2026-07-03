@@ -85,34 +85,33 @@ export async function sendSms(
   const sanitizedMessage = sanitizeMessage(message);
   const senderId = getSenderId(sanitizedMessage, requestedSenderId);
 
-  // Validate number format (639XXXXXXXXX - 12 digits)
-  if (!/^639[0-9]{9}$/.test(formattedPhone)) {
-    const errorMsg = `Invalid Philippine mobile number format: ${to} (formatted: ${formattedPhone})`;
-    console.error(`sendSms - Validation failed: ${errorMsg}`);
-    
-    // Log failure in database if possible
-    await logToDb({
-      phone: formattedPhone || to,
-      message: sanitizedMessage || message,
-      status: "Failed",
-      error: errorMsg,
-      memberId,
-      reminderId,
-    });
-
-    return { success: false, status: "Failed", error: errorMsg };
-  }
-
-  // Resolve memberId if not provided (needed for non-null relation constraint)
+  // Resolve memberId if not provided (needed for checks and non-null relation constraint)
   let resolvedMemberId = memberId;
-  if (!resolvedMemberId) {
+  let isFlagged = false;
+
+  if (resolvedMemberId) {
+    try {
+      const match = await db.member.findUnique({
+        where: { id: resolvedMemberId },
+        select: { phoneInvalid: true },
+      });
+      if (match?.phoneInvalid) {
+        isFlagged = true;
+      }
+    } catch (err) {
+      console.error("sendSms - failed checking member invalid status:", err);
+    }
+  } else {
     try {
       const match = await db.member.findFirst({
         where: { phone: { contains: formattedPhone.slice(-9) } },
-        select: { id: true },
+        select: { id: true, phoneInvalid: true },
       });
       if (match) {
         resolvedMemberId = match.id;
+        if (match.phoneInvalid) {
+          isFlagged = true;
+        }
       } else {
         // Fallback to first admin or first member in DB
         const admin = await db.member.findFirst({
@@ -125,6 +124,39 @@ export async function sendSms(
       console.error("sendSms - Failed to resolve memberId:", dbErr.message);
       resolvedMemberId = 1; // Hard fallback
     }
+  }
+
+  // Skip sending if flagged as invalid
+  if (isFlagged) {
+    const skipMsg = `Skipping SMS send: phone number is flagged as invalid for member ID ${resolvedMemberId}`;
+    console.warn(skipMsg);
+    return { success: false, status: "Failed", error: "Phone number flagged as invalid" };
+  }
+
+  // Validate number format (639XXXXXXXXX - 12 digits)
+  if (!/^639[0-9]{9}$/.test(formattedPhone)) {
+    const errorMsg = `Invalid Philippine mobile number format: ${to} (formatted: ${formattedPhone})`;
+    console.error(`sendSms - Validation failed: ${errorMsg}`);
+    
+    // Automatically flag this phone number as invalid on the member record
+    if (resolvedMemberId && resolvedMemberId !== 1) {
+      await db.member.update({
+        where: { id: resolvedMemberId },
+        data: { phoneInvalid: true },
+      }).catch((dbErr) => console.error(`Failed to flag invalid phone for member ID ${resolvedMemberId}:`, dbErr));
+    }
+
+    // Log failure in database
+    await logToDb({
+      phone: formattedPhone || to,
+      message: sanitizedMessage || message,
+      status: "Failed",
+      error: errorMsg,
+      memberId: resolvedMemberId,
+      reminderId,
+    });
+
+    return { success: false, status: "Failed", error: errorMsg };
   }
 
   const email = process.env.ITEXMO_EMAIL;

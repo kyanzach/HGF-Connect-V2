@@ -78,10 +78,16 @@ export async function PATCH(
   }
 
   if (isAdmin || isSelf) {
-    if (body.phone !== undefined)
-      updateData.phone = body.phone
+    if (body.phone !== undefined) {
+      const normalizedPhone = body.phone
         ? body.phone.replace(/\D/g, "").replace(/^0/, "+63").slice(0, 13)
         : null;
+      updateData.phone = normalizedPhone;
+      // If phone number is updated/changed, remove the invalid flag so we attempt sending again
+      if (normalizedPhone !== existingMember.phone) {
+        updateData.phoneInvalid = false;
+      }
+    }
     if (body.address !== undefined) updateData.address = body.address;
     if (body.gender !== undefined) updateData.gender = body.gender;
     if (body.birthdate !== undefined)
