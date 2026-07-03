@@ -208,6 +208,30 @@ export default function UnifiedHeader() {
       {/* ── Notification toast popup ── */}
       {toast && <NotificationToast toast={toast} onClose={() => setToast(null)} />}
 
+      <style>{`
+        @media (max-width: 440px) {
+          .header-version-badge {
+            display: none !important;
+          }
+          .header-user-name {
+            display: none !important;
+          }
+          .header-user-arrow {
+            display: none !important;
+          }
+          .header-user-btn {
+            padding: 0.3rem !important;
+            gap: 0 !important;
+          }
+        }
+        @media (max-width: 380px) {
+          .header-topbar {
+            padding: 0 0.5rem !important;
+            gap: 0.25rem !important;
+          }
+        }
+      `}</style>
+
       <nav
         style={{
           background: PRIMARY,
@@ -220,6 +244,7 @@ export default function UnifiedHeader() {
       >
         {/* ── Top bar ────────────────────────────────────────────────── */}
         <div
+          className="header-topbar"
           style={{
             maxWidth: 500,
             margin: "0 auto",
@@ -242,7 +267,7 @@ export default function UnifiedHeader() {
             <span style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
               <span style={{ fontWeight: 800, fontSize: "0.9375rem" }}>HGF Connect</span>
             </span>
-            <span style={{ fontSize: "0.58rem", background: "rgba(255,255,255,0.2)",
+            <span className="header-version-badge" style={{ fontSize: "0.58rem", background: "rgba(255,255,255,0.2)",
               padding: "0.1rem 0.35rem", borderRadius: 999, fontWeight: 600,
               letterSpacing: "0.04em", color: "rgba(255,255,255,0.85)", flexShrink: 0 }}>
               BETA v{APP_VERSION}
@@ -262,6 +287,7 @@ export default function UnifiedHeader() {
               <div ref={dropRef} style={{ position: "relative" }}>
                 <button
                   onClick={() => { setDropOpen((o) => !o); setNavOpen(false); }}
+                  className="header-user-btn"
                   style={{
                     display: "flex", alignItems: "center", gap: "0.35rem",
                     background: "rgba(255,255,255,0.15)", border: "none",
@@ -282,10 +308,10 @@ export default function UnifiedHeader() {
                       : <span style={{ fontSize: "0.7rem", fontWeight: 800, color: "white" }}>{initials}</span>
                     }
                   </div>
-                  <span style={{ maxWidth: 70, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 1 }}>
+                  <span className="header-user-name" style={{ maxWidth: 70, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 1 }}>
                     {firstName}
                   </span>
-                  <span style={{ fontSize: "0.6rem", opacity: 0.75 }}>▾</span>
+                  <span className="header-user-arrow" style={{ fontSize: "0.6rem", opacity: 0.75 }}>▾</span>
                 </button>
 
                 {/* Dropdown */}

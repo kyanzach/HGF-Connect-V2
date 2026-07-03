@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.36.13] — 2026-07-03
+### Fixed
+- **Mobile Responsive Header Alignment**: Resolved a layout overflow bug on narrow mobile screens (under 440px) where the top navigation elements would stretch wider than the screen, pushing the hamburger menu off the right edge. On smaller viewports, the "BETA vX.X.X" badge and the user's name/arrow are now dynamically hidden, transforming the avatar button into a clean, compact round profile picture, ensuring uniform layout across all phone models.
+
 ## [v2.36.12] — 2026-07-03
 ### Added
 - **HGF Church Fallback Referrer**: Added automatic fallback to HGF Church system account for direct marketplace visitors. Generates custom `HGFCHURCHXX` coupon codes (zero-padded listing ID).
