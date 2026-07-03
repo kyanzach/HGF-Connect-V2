@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.36.5] — 2026-07-03
+### Added
+- **Prospect Submission Seller Notifications**: Configured `POST /api/marketplace/prospects` route to create an in-app notification and send an SMS alert to the listing seller when a new contact request prospect is submitted.
+- **Short Share Links & Formatting**: Refactored `ListingDetailClient.tsx` to unify share actions using the `hgfapp.link` short link domain, position the short link URL at the bottom of native share triggers, and use dynamic calculated discount percentages (e.g. `(58% OFF) reveal the discounted price!`) instead of static labels.
+
 ## [v2.36.4] — 2026-07-03
 ### Fixed
 - **Stale Discount State Cleanup**: Added a check to the client component mount `useEffect` to clear any stale revealed discount state in both local state and `localStorage` if the listing's active discount status becomes false (e.g. if the discount is set to 0 or removed).

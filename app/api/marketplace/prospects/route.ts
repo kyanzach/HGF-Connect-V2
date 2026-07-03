@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
         price: true,
         priceLabel: true,
         loveGiftAmount: true,
-        seller: { select: { firstName: true, lastName: true } },
+        seller: { select: { id: true, firstName: true, lastName: true, phone: true } },
       },
     });
     if (!listing || listing.id === 0) {
@@ -97,6 +97,29 @@ export async function POST(req: NextRequest) {
         prospectName.trim(),
         actionType as "reveal" | "contact"
       );
+    }
+
+    // Phase 10: notify seller if prospect wants to contact them (in-app + SMS)
+    if (actionType === "contact") {
+      // 1. In-app notification
+      await db.notification.create({
+        data: {
+          memberId: listing.seller.id,
+          type: "marketplace_prospect",
+          title: "🛍️ New Listing Prospect!",
+          body: `${prospectName.trim()} is interested in "${listing.title}" and requested to contact you. Tap to view details.`,
+          link: `/stewardshop/my-listings/${listing.id}/prospects`,
+        },
+      }).catch(err => console.error("Failed to create prospect notification:", err));
+
+      // 2. SMS alert (fire-and-forget, following Rule 14: clean prefixes connecting with connect.houseofgrace.ph/)
+      if (listing.seller.phone) {
+        const { sendSms } = await import("@/lib/sms");
+        const smsMessage = `Hi ${listing.seller.firstName}! You have a new prospect for your listing "${listing.title}". ${prospectName.trim()} (${prospectMobile?.trim() || "no phone provided"}) wants to purchase it. View details at connect.houseofgrace.ph/stewardshop/my-listings/${listing.id}/prospects. God bless!`;
+        
+        sendSms(listing.seller.phone, smsMessage, listing.seller.id, undefined, "HGF Connect")
+          .catch(err => console.error(`Failed to send prospect SMS to seller ID ${listing.seller.id}:`, err));
+      }
     }
 
     // Gate: only reveal discountedPrice AFTER prospect record saved (v1.1 §170)

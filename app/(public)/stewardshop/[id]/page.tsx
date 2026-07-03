@@ -48,6 +48,10 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const ogPriceFormatted = listing.ogPrice ? `₱${Number(listing.ogPrice).toLocaleString()}` : null;
   const struckPrice = ogPriceFormatted ? strikeText(ogPriceFormatted) : "";
 
+  const pct = listing.ogPrice && listing.discountedPrice
+    ? Math.round(((Number(listing.ogPrice) - Number(listing.discountedPrice)) / Number(listing.ogPrice)) * 100)
+    : 0;
+
   // ── Sharer-specific OG tags (v1.1 §26-31) ─────────────────────────────────
   if (ref) {
     const share = await db.listingShare.findFirst({
@@ -62,8 +66,8 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
       let descStr = `${sharerName} thinks you'll be interested and wanted to share this offer with you.`;
       
       if (hasDiscount) {
-        priceStr = `${struckPrice} (Reveal discount price - you won't believe the new price!)`;
-        descStr = `${sharerName} wants you to see this special deal! Reveal the discount price now.`;
+        priceStr = `${struckPrice} (${pct}% OFF) reveal the discounted price!`;
+        descStr = `${sharerName} wants you to see this special deal! (${pct}% OFF) reveal the discounted price now.`;
       }
 
       return {
@@ -91,8 +95,8 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   let descStr = cleanedDesc;
 
   if (hasDiscount) {
-    priceStr = `${struckPrice} (Reveal discount price - you won't believe the new price!)`;
-    descStr = `🔒 Special discount available! Reveal the discount price now (you won't believe the new price!). ${cleanedDesc}`;
+    priceStr = `${struckPrice} (${pct}% OFF) reveal the discounted price!`;
+    descStr = `🔒 Special discount available! (${pct}% OFF) reveal the discounted price now! ${cleanedDesc}`;
   }
 
   const defaultTitle = `${listing.title} — ${priceStr} | HGF Marketplace`;
@@ -245,6 +249,10 @@ export default async function ListingDetailPage({ params, searchParams }: Props)
   const videoUrl = videoMatch ? videoMatch[1] : null;
   const descriptionCleaned = cleanDescription(listing.description);
 
+  const discountPercent = listing.ogPrice && listing.discountedPrice
+    ? Math.round(((Number(listing.ogPrice) - Number(listing.discountedPrice)) / Number(listing.ogPrice)) * 100)
+    : 0;
+
   // Serialize — strip discountedPrice before sending to client (NEVER expose it here)
   const safeListingData = {
     id: listing.id,
@@ -255,6 +263,7 @@ export default async function ListingDetailPage({ params, searchParams }: Props)
     ogPrice: listing.ogPrice ? Number(listing.ogPrice) : null,
     // discountedPrice deliberately OMITTED — only returned after prospect submit (v1.1 §170)
     hasDiscount: !!(listing.discountedPrice && listing.ogPrice && Number(listing.discountedPrice) > 0 && Number(listing.discountedPrice) < Number(listing.ogPrice)),
+    discountPercent,
     priceLabel: listing.priceLabel,
     conditionType: listing.conditionType,
     locationArea: listing.locationArea,

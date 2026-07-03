@@ -234,12 +234,14 @@ function OwnerSharePanel({
   listingId,
   title,
   hasDiscount,
-  ogPrice
+  ogPrice,
+  discountPercent
 }: {
   listingId: number;
   title: string;
   hasDiscount: boolean;
   ogPrice: number | null;
+  discountPercent: number;
 }) {
   const [copied, setCopied] = useState(false);
   const cleanTitle = title
@@ -263,13 +265,25 @@ function OwnerSharePanel({
   }
 
   function shareNative() {
+    const ogPriceStr = ogPrice ? `₱${ogPrice.toLocaleString()}` : "";
+    const pct = discountPercent || 0;
+    const messageBody = hasDiscount && ogPriceStr
+      ? `Check out my listing: ${title} — ${strikeText(ogPriceStr)} (${pct}% OFF) reveal the discounted price! 🎁`
+      : `Check out my listing on StewardShop! 🎁`;
+    const fullShareText = `${messageBody}\n\n${shareLink}`;
+
     if (navigator.share) {
-      const ogPriceStr = ogPrice ? `₱${ogPrice.toLocaleString()}` : "";
-      const text = hasDiscount && ogPriceStr
-        ? `Check out my listing: ${title} — ${strikeText(ogPriceStr)} (reveal discount price) 🎁`
-        : `Check out my listing on StewardShop! 🎁`;
-      navigator.share({ title, text, url: shareLink }).catch(() => {});
-    } else { copyLink(); }
+      navigator.share({ title: title, text: fullShareText }).catch(() => {});
+    } else {
+      try {
+        navigator.clipboard.writeText(fullShareText);
+      } catch {
+        const input = document.createElement("input"); input.value = fullShareText;
+        document.body.appendChild(input); input.select(); document.execCommand("copy"); document.body.removeChild(input);
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    }
   }
 
   return (
@@ -312,7 +326,7 @@ const CONDITION_LABELS: Record<string, string> = {
 interface ListingData {
   id: number; title: string; description: string | null;
   listingType: string; category: string | null;
-  ogPrice: number | null; hasDiscount: boolean;
+  ogPrice: number | null; hasDiscount: boolean; discountPercent?: number;
   priceLabel: string | null; conditionType: string | null;
   locationArea: string | null; loveGiftAmount: number;
   viewCount: number; createdAt: string;
@@ -465,7 +479,8 @@ function SharePanel({
   setShareLink,
   setShareCode,
   hasDiscount,
-  ogPrice
+  ogPrice,
+  discountPercent
 }: {
   listingId: number;
   loveGiftAmount: number;
@@ -476,6 +491,7 @@ function SharePanel({
   setShareCode: (code: string | null) => void;
   hasDiscount: boolean;
   ogPrice: number | null;
+  discountPercent: number;
 }) {
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -502,13 +518,27 @@ function SharePanel({
 
   function shareNative() {
     if (!shareLink) return;
+    const ogPriceStr = ogPrice ? `₱${ogPrice.toLocaleString()}` : "";
+    const pct = discountPercent || 0;
+
+    const messageBody = hasDiscount && ogPriceStr
+      ? `Check out this listing: ${title} — ${strikeText(ogPriceStr)} (${pct}% OFF) reveal the discounted price! 🎁`
+      : `Check out this listing on StewardShop! 🎁`;
+
+    const fullShareText = `${messageBody}\n\n${shareLink}`;
+
     if (navigator.share) {
-      const ogPriceStr = ogPrice ? `₱${ogPrice.toLocaleString()}` : "";
-      const text = hasDiscount && ogPriceStr
-        ? `Check out this listing: ${title} — ${strikeText(ogPriceStr)} (reveal discount price) 🎁`
-        : `Check out this listing on StewardShop! 🎁`;
-      navigator.share({ title, text, url: shareLink }).catch(() => {});
-    } else { copyLink(); }
+      navigator.share({ title: title, text: fullShareText }).catch(() => {});
+    } else {
+      try {
+        navigator.clipboard.writeText(fullShareText);
+      } catch {
+        const input = document.createElement("input"); input.value = fullShareText;
+        document.body.appendChild(input); input.select(); document.execCommand("copy"); document.body.removeChild(input);
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    }
   }
 
   return (
@@ -575,25 +605,37 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
   }, [listing.id, listing.isLoggedIn, listing.isOwner]);
 
   const handleHeaderShare = useCallback(async () => {
-    const finalUrl = shareLink || (typeof window !== "undefined" ? window.location.origin + `/stewardshop/${listing.id}` : `https://connect.houseofgrace.ph/stewardshop/${listing.id}`);
+    const cleanTitle = listing.title
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .trim()
+      .replace(/\s+/g, "-")
+      .slice(0, 40)
+      .replace(/-+$/, "");
+    const slug = cleanTitle || String(listing.id);
+    const finalUrl = shareLink || `https://hgfapp.link/s/${slug}`;
+
     const ogPriceStr = listing.ogPrice ? `₱${listing.ogPrice.toLocaleString()}` : "";
-    const text = listing.hasDiscount && ogPriceStr
-      ? `Check out this listing: ${listing.title} — ${strikeText(ogPriceStr)} (reveal discount price) 🎁`
+    const pct = listing.discountPercent || 0;
+
+    const messageBody = listing.hasDiscount && ogPriceStr
+      ? `Check out this listing: ${listing.title} — ${strikeText(ogPriceStr)} (${pct}% OFF) reveal the discounted price! 🎁`
       : `Check out this listing: ${listing.title}${ogPriceStr ? ` — ${ogPriceStr}` : ""} 🎁`;
+
+    const fullShareText = `${messageBody}\n\n${finalUrl}`;
 
     if (navigator.share) {
       navigator.share({
         title: listing.title,
-        text: text,
-        url: finalUrl
+        text: fullShareText
       }).catch(() => {});
     } else {
       try {
-        await navigator.clipboard.writeText(finalUrl);
+        await navigator.clipboard.writeText(fullShareText);
         setHeaderCopied(true);
         setTimeout(() => setHeaderCopied(false), 2000);
       } catch {
-        const input = document.createElement("input"); input.value = finalUrl;
+        const input = document.createElement("input"); input.value = fullShareText;
         document.body.appendChild(input); input.select(); document.execCommand("copy"); document.body.removeChild(input);
         setHeaderCopied(true);
         setTimeout(() => setHeaderCopied(false), 2000);
@@ -955,6 +997,7 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
                 setShareCode={setShareCode}
                 hasDiscount={listing.hasDiscount}
                 ogPrice={listing.ogPrice}
+                discountPercent={listing.discountPercent || 0}
               />
             )}
 
@@ -965,6 +1008,7 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
                 title={listing.title}
                 hasDiscount={listing.hasDiscount}
                 ogPrice={listing.ogPrice}
+                discountPercent={listing.discountPercent || 0}
               />
             )}
           </>
