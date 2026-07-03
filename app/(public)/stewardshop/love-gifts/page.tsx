@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Love Gifts — Share & Bless | HGF Marketplace",
+  title: "Love Gifts — Share & Bless | HGF StewardShop",
   description: "Discover how HGF Connect's Love Gift program works. Share listings with your community and earn a blessing for every confirmed sale.",
 };
 

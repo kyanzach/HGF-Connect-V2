@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.36.6] — 2026-07-03
+### Changed
+- **StewardShop Branding Suffix**: Renamed title suffix from `HGF Marketplace` to `HGF StewardShop` across public listing detail routes and love gifts page metadata.
+
 ## [v2.36.5] — 2026-07-03
 ### Added
 - **Prospect Submission Seller Notifications**: Configured `POST /api/marketplace/prospects` route to create an in-app notification and send an SMS alert to the listing seller when a new contact request prospect is submitted.

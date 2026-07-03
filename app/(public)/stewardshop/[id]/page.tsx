@@ -71,7 +71,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
       }
 
       return {
-        title: `${sharerName} shared: ${listing.title} — ${priceStr} | HGF Marketplace`,
+        title: `${sharerName} shared: ${listing.title} — ${priceStr} | HGF StewardShop`,
         description: descStr,
         openGraph: {
           title: `${sharerName} shared: ${listing.title} — ${priceStr}`,
@@ -99,7 +99,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     descStr = `🔒 Special discount available! (${pct}% OFF) reveal the discounted price now! ${cleanedDesc}`;
   }
 
-  const defaultTitle = `${listing.title} — ${priceStr} | HGF Marketplace`;
+  const defaultTitle = `${listing.title} — ${priceStr} | HGF StewardShop`;
 
   return {
     title: defaultTitle,
