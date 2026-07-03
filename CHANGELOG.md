@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.36.4] — 2026-07-03
+### Fixed
+- **Stale Discount State Cleanup**: Added a check to the client component mount `useEffect` to clear any stale revealed discount state in both local state and `localStorage` if the listing's active discount status becomes false (e.g. if the discount is set to 0 or removed).
+
 ## [v2.36.3] — 2026-07-03
 ### Added
 - **Listing Description Markdown Parsing**: Added a basic Markdown-like parser (`renderFormattedText`) in the listing detail page to render headers (`#`, `##`, `###`), bold formatting (`**text**`), bullet lists (`*`, `-`), and line breaks beautifully instead of rendering raw markdown tags.

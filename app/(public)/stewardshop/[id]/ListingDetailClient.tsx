@@ -634,16 +634,17 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
 
   // Load persisted reveal from localStorage on mount (non-owners only)
   useEffect(() => {
-    if (listing.isOwner) {
+    if (listing.isOwner || !listing.hasDiscount) {
       // Owner should never see reveal data — clear any stale entries
       try { localStorage.removeItem(localKey); } catch { /* ignore */ }
+      setRevealed(null);
       return;
     }
     try {
       const stored = localStorage.getItem(localKey);
       if (stored) setRevealed(JSON.parse(stored) as RevealedState);
     } catch { /* ignore */ }
-  }, [localKey, listing.isOwner]);
+  }, [localKey, listing.isOwner, listing.hasDiscount]);
 
   const sellerName = `${listing.seller.firstName} ${listing.seller.lastName}`;
   const sellerInitials = `${listing.seller.firstName[0]}${listing.seller.lastName?.[0] ?? ""}`;
