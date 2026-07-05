@@ -60,7 +60,7 @@ export async function POST(req: Request) {
 
       // Shorten area to first section before parenthesis list
       const areaShort = registration.area.split(" (")[0];
-      const smsText = `HGF LIFE Group: New signup. Name: ${registration.fullName}, Age: ${registration.age}, Phone: ${registration.phone}, Area: ${areaShort}. Details: connect.houseofgrace.ph/admin/lifegroup`;
+      const smsText = `HGF LIFE Group: New signup. Name: ${registration.fullName}, Age: ${registration.age}, Phone: ${registration.phone}, Area: ${areaShort}. Details: connect.houseofgrace.ph/admin/lifegroup. "Let's go and make disciple, let's do life together!"`;
 
       const { sendSms } = await import("@/lib/sms");
       for (const leader of leaders) {

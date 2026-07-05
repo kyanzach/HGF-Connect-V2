@@ -90,7 +90,7 @@ export async function PATCH(
     if (sendNotificationSms && updated.assignedLeader && updated.assignedLeader.phone) {
       try {
         const areaShort = updated.area.split(" (")[0];
-        const smsText = `HGF LIFE Group: You are appointed to handle cell group request for ${updated.fullName} (${updated.age}yo, Phone: ${updated.phone}, Area: ${areaShort}). Details: connect.houseofgrace.ph/admin/lifegroup`;
+        const smsText = `HGF LIFE Group: You are appointed to handle cell group request for ${updated.fullName} (${updated.age}yo, Phone: ${updated.phone}, Area: ${areaShort}). Details: connect.houseofgrace.ph/admin/lifegroup. "Let's go and make disciple, let's do life together!"`;
         const { sendSms } = await import("@/lib/sms");
         await sendSms(updated.assignedLeader.phone, smsText, updated.assignedLeader.id);
       } catch (smsError) {
