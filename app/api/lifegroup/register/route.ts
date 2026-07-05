@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { fullName, age, area } = body;
+    const { fullName, age, phone, area } = body;
 
     // Validation
     if (!fullName || typeof fullName !== "string" || !fullName.trim()) {
@@ -19,6 +19,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Please enter a valid age." }, { status: 400 });
     }
 
+    if (!phone || typeof phone !== "string" || !phone.trim()) {
+      return NextResponse.json({ error: "Contact mobile number is required." }, { status: 400 });
+    }
+
     if (!area || typeof area !== "string" || !area.trim()) {
       return NextResponse.json({ error: "Area selection is required." }, { status: 400 });
     }
@@ -30,6 +34,7 @@ export async function POST(req: Request) {
       data: {
         fullName: fullName.trim(),
         age: parsedAge,
+        phone: phone.trim(),
         area: area.trim(),
       },
     });
@@ -53,7 +58,9 @@ export async function POST(req: Request) {
         select: { id: true, phone: true }
       });
 
-      const smsText = `HGF LIFE Group: New registrant ${registration.fullName} (${registration.age} yo) from ${registration.area}. Check details at connect.houseofgrace.ph/admin/lifegroup`;
+      // Shorten area to first section before parenthesis list
+      const areaShort = registration.area.split(" (")[0];
+      const smsText = `HGF LIFE Group: New signup. Name: ${registration.fullName}, Age: ${registration.age}, Phone: ${registration.phone}, Area: ${areaShort}. Details: connect.houseofgrace.ph/admin/lifegroup`;
 
       const { sendSms } = await import("@/lib/sms");
       for (const leader of leaders) {

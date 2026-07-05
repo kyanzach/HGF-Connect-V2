@@ -25,7 +25,7 @@ export async function PATCH(
     }
 
     const body = await req.json();
-    const { fullName, age, area, status, assignedLeaderId, sendNotificationSms } = body;
+    const { fullName, age, phone, area, status, assignedLeaderId, sendNotificationSms } = body;
 
     const updateData: any = {};
     if (fullName !== undefined) {
@@ -41,6 +41,13 @@ export async function PATCH(
         return NextResponse.json({ error: "Invalid age value." }, { status: 400 });
       }
       updateData.age = parsedAge;
+    }
+
+    if (phone !== undefined) {
+      if (typeof phone !== "string" || !phone.trim()) {
+        return NextResponse.json({ error: "Phone number is required." }, { status: 400 });
+      }
+      updateData.phone = phone.trim();
     }
 
     if (area !== undefined) {
@@ -82,7 +89,8 @@ export async function PATCH(
     // Send SMS notification if appointed and requested
     if (sendNotificationSms && updated.assignedLeader && updated.assignedLeader.phone) {
       try {
-        const smsText = `HGF LIFE Group: You are appointed to handle cell group request for ${updated.fullName} (${updated.age} yo) from ${updated.area}. Details: connect.houseofgrace.ph/admin/lifegroup`;
+        const areaShort = updated.area.split(" (")[0];
+        const smsText = `HGF LIFE Group: You are appointed to handle cell group request for ${updated.fullName} (${updated.age}yo, Phone: ${updated.phone}, Area: ${areaShort}). Details: connect.houseofgrace.ph/admin/lifegroup`;
         const { sendSms } = await import("@/lib/sms");
         await sendSms(updated.assignedLeader.phone, smsText, updated.assignedLeader.id);
       } catch (smsError) {

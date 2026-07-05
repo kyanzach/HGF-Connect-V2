@@ -8,6 +8,7 @@ const PRIMARY = "#4eb1cb";
 export default function JoinFormClient() {
   const [fullName, setFullName] = useState("");
   const [age, setAge] = useState("");
+  const [phone, setPhone] = useState("");
   const [areaOption, setAreaOption] = useState("");
   const [otherArea, setOtherArea] = useState("");
   const [loading, setLoading] = useState(false);
@@ -20,6 +21,7 @@ export default function JoinFormClient() {
 
     if (!fullName.trim()) return setError("Please enter your full name.");
     if (!age) return setError("Please enter your age.");
+    if (!phone.trim()) return setError("Please enter your contact mobile number.");
     if (!areaOption) return setError("Please select your area.");
 
     const finalArea = areaOption === "Others" ? otherArea : areaOption;
@@ -35,6 +37,7 @@ export default function JoinFormClient() {
         body: JSON.stringify({
           fullName,
           age: parseInt(age, 10),
+          phone: phone.trim(),
           area: finalArea,
         }),
       });
@@ -136,6 +139,22 @@ export default function JoinFormClient() {
                 required
                 min="1"
                 max="120"
+                style={{ width: "100%", padding: "0.75rem 1rem", borderRadius: "10px", border: "1px solid #cbd5e1", fontSize: "0.9375rem", outline: "none", boxSizing: "border-box", transition: "border-color 0.2s" }}
+              />
+            </div>
+
+            {/* Mobile Number */}
+            <div>
+              <label htmlFor="phone" style={{ display: "block", fontSize: "0.8125rem", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.5rem" }}>
+                Mobile Number
+              </label>
+              <input
+                id="phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="e.g. 09171234567"
+                required
                 style={{ width: "100%", padding: "0.75rem 1rem", borderRadius: "10px", border: "1px solid #cbd5e1", fontSize: "0.9375rem", outline: "none", boxSizing: "border-box", transition: "border-color 0.2s" }}
               />
             </div>

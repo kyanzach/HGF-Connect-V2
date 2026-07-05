@@ -15,6 +15,7 @@ type Registration = {
   id: number;
   fullName: string;
   age: number;
+  phone: string;
   area: string;
   createdAt: string;
   status: string;
@@ -37,7 +38,7 @@ export default function LifeGroupAdminClient({
 
   // Edit State
   const [editingRegistrant, setEditingRegistrant] = useState<Registration | null>(null);
-  const [editForm, setEditForm] = useState({ fullName: "", age: "", areaOption: "", otherArea: "" });
+  const [editForm, setEditForm] = useState({ fullName: "", age: "", phone: "", areaOption: "", otherArea: "" });
   const [editError, setEditError] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
 
@@ -160,7 +161,6 @@ export default function LifeGroupAdminClient({
   // Selector drop change
   const handleSelectLeader = (id: number, leaderIdStr: string) => {
     if (!leaderIdStr) {
-      // Direct save without SMS confirmation
       handleAssignLeader(id, "", false);
       return;
     }
@@ -204,6 +204,7 @@ export default function LifeGroupAdminClient({
     setEditForm({
       fullName: r.fullName,
       age: String(r.age),
+      phone: r.phone || "",
       areaOption: opt,
       otherArea: spec
     });
@@ -219,6 +220,7 @@ export default function LifeGroupAdminClient({
 
     if (!editForm.fullName.trim()) return setEditError("Full name is required.");
     if (!editForm.age.trim() || isNaN(parseInt(editForm.age))) return setEditError("Please enter a valid age.");
+    if (!editForm.phone.trim()) return setEditError("Mobile number is required.");
     if (!editForm.areaOption) return setEditError("Please select an area.");
 
     const finalArea = editForm.areaOption === "Others" ? editForm.otherArea : editForm.areaOption;
@@ -234,6 +236,7 @@ export default function LifeGroupAdminClient({
         body: JSON.stringify({
           fullName: editForm.fullName,
           age: parseInt(editForm.age, 10),
+          phone: editForm.phone,
           area: finalArea
         })
       });
@@ -280,11 +283,12 @@ export default function LifeGroupAdminClient({
 
   // UTF-8 CSV Export
   const handleExportCSV = () => {
-    const headers = ["Date Registered", "Full Name", "Age", "Area", "Status", "Assigned Leader"];
+    const headers = ["Date Registered", "Full Name", "Age", "Phone", "Area", "Status", "Assigned Leader"];
     const rows = filtered.map((r) => [
       new Date(r.createdAt).toLocaleDateString("en-PH", { year: "numeric", month: "2-digit", day: "2-digit" }),
       r.fullName,
       r.age,
+      r.phone,
       r.area,
       r.status,
       r.assignedLeader ? `${r.assignedLeader.firstName} ${r.assignedLeader.lastName}` : "Unassigned"
@@ -460,6 +464,7 @@ export default function LifeGroupAdminClient({
                   <th style={{ padding: "1rem", color: "#475569", fontWeight: 700 }}>Date Registered</th>
                   <th style={{ padding: "1rem", color: "#475569", fontWeight: 700 }}>Full Name</th>
                   <th style={{ padding: "1rem", color: "#475569", fontWeight: 700 }}>Age</th>
+                  <th style={{ padding: "1rem", color: "#475569", fontWeight: 700 }}>Mobile Number</th>
                   <th style={{ padding: "1rem", color: "#475569", fontWeight: 700 }}>Area</th>
                   <th style={{ padding: "1rem", color: "#475569", fontWeight: 700 }}>Status</th>
                   <th style={{ padding: "1rem", color: "#475569", fontWeight: 700 }}>Assigned Pastor / Leader</th>
@@ -477,6 +482,9 @@ export default function LifeGroupAdminClient({
                     </td>
                     <td style={{ padding: "1rem", color: "#0f172a" }}>
                       {r.age}
+                    </td>
+                    <td style={{ padding: "1rem", color: "#0f172a" }}>
+                      {r.phone || "—"}
                     </td>
                     <td style={{ padding: "1rem", color: "#475569" }}>
                       {r.area}
@@ -604,10 +612,11 @@ export default function LifeGroupAdminClient({
                 </span>
               </div>
 
-              {/* Registrant Name and Age */}
+              {/* Registrant Name, Age, and Phone */}
               <div style={{ marginBottom: "0.5rem" }}>
                 <h4 style={{ fontSize: "1rem", fontWeight: 700, color: "#0f172a", margin: 0 }}>{r.fullName}</h4>
                 <p style={{ fontSize: "0.8125rem", color: "#475569", margin: "0.15rem 0 0" }}>Age: {r.age}</p>
+                <p style={{ fontSize: "0.8125rem", color: "#475569", margin: "0.15rem 0 0" }}>Phone: {r.phone || "—"}</p>
               </div>
 
               {/* Area location detail block */}
@@ -822,6 +831,19 @@ export default function LifeGroupAdminClient({
                   type="number"
                   value={editForm.age}
                   onChange={(e) => setEditForm(prev => ({ ...prev, age: e.target.value }))}
+                  required
+                  style={{ width: "100%", padding: "0.625rem 0.875rem", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "0.9rem", outline: "none" }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "0.8125rem", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.35rem" }}>
+                  Mobile Number
+                </label>
+                <input
+                  type="tel"
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
                   required
                   style={{ width: "100%", padding: "0.625rem 0.875rem", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "0.9rem", outline: "none" }}
                 />
