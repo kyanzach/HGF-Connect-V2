@@ -9,6 +9,7 @@ import { triggerLogout } from "@/lib/logout";
 const NAV = [
   { label: "Dashboard", href: "/admin", icon: "📊" },
   { label: "Members", href: "/admin/members", icon: "👥", usherAllowed: true },
+  { label: "Life Group", href: "/admin/lifegroup", icon: "👥", usherAllowed: true },
   { label: "Review", href: "/admin/review", icon: "✅", usherAllowed: true },
   { label: "Events", href: "/admin/events", icon: "📅", usherAllowed: true },
   { label: "Testimonies", href: "/admin/testimonies", icon: "🙌", usherAllowed: true },

@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.37.1] — 2026-07-05
+### Added
+- **Admin Sidebar Integration**: Registered the "Life Group" page link in the left-hand sidebar menu (`AdminSidebar.tsx`) for quick and continuous access across all administrative panels.
+
 ## [v2.37.0] — 2026-07-05
 ### Added
 - **Public LIFE Group Registration Form**: Created a public access signup form page `/lifegroup/join` collecting name, age, and area (including central, north, south/west, and custom other details) with a premium confirmation view.
