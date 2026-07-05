@@ -1292,3 +1292,13 @@ model MultimediaSopTask {
   @@map("multimedia_sop_tasks")
 }
 
+model LifeGroupRegistration {
+  id        Int      @id @default(autoincrement())
+  fullName  String   @map("full_name") @db.VarChar(100)
+  age       Int
+  area      String   @db.VarChar(150)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  @@map("lifegroup_registrations")
+}
+

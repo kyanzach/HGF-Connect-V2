@@ -255,6 +255,7 @@ export default async function AdminDashboardPage() {
           <ActionButton href="/admin/review" icon="✅" label="Review Pending" color="#f59e0b" />
           <ActionButton href="/api/auth/sso/attendance" icon="📟" label="Attendance Kiosk" color="#3b82f6" />
           <ActionButton href="/admin/stewardshop/love-gifts" icon="❤️" label="Love Gifts" color="#ef4444" />
+          <ActionButton href="/admin/lifegroup" icon="👥" label="LIFE Groups" color="#4eb1cb" />
         </div>
       </div>
 

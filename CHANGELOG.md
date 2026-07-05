@@ -5,6 +5,13 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.37.0] — 2026-07-05
+### Added
+- **Public LIFE Group Registration Form**: Created a public access signup form page `/lifegroup/join` collecting name, age, and area (including central, north, south/west, and custom other details) with a premium confirmation view.
+- **LIFE Group Admin dashboard**: Built an admin review control interface `/admin/lifegroup` to view, filter, and search registrants with full CSV/excel download capabilities.
+- **Sanctuary Screen QR Code Modal**: Added a projection modal in the admin page displaying a scan-to-join QR code for easy screen projection during Sunday services.
+- **Database Schema**: Added the `lifegroup_registrations` model mapping to `schema.prisma`.
+
 ## [v2.36.16] — 2026-07-03
 ### Changed
 - **Location Area Presentation Layout**: Extracted the location badge from the inline tags row into its own dedicated block line container. Displays on its own line with flex-start alignment and light container borders to wrap long addresses cleanly without stretching the tags flow.
