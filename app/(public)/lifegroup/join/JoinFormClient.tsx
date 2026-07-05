@@ -14,6 +14,9 @@ export default function JoinFormClient() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [copiedInvite, setCopiedInvite] = useState(false);
+
+  const inviteText = `I'd like to invite you to join a LIFE Group with me!\nIt's a wonderful space to grow in faith, find encouragement, and do LIFE together with a loving community. Let's walk this journey together!\n\nRegister here:\nhttps://connect.houseofgrace.ph/lifegroup/join`;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,6 +82,42 @@ export default function JoinFormClient() {
               <span><strong>Next Step:</strong> You will be added to a local community group.</span>
             </div>
           </div>
+
+          {/* Share with loved ones / friends */}
+          <div style={{ background: "#f0fdf4", border: "1px solid #dcfce7", borderRadius: "16px", padding: "1.25rem 1rem", textAlign: "left", marginBottom: "1.5rem" }}>
+            <h4 style={{ fontSize: "0.875rem", fontWeight: 800, color: "#166534", margin: "0 0 0.5rem", display: "flex", alignItems: "center", gap: "6px" }}>
+              <span>📢</span> Share the Blessing!
+            </h4>
+            <p style={{ color: "#166534", fontSize: "0.8125rem", lineHeight: 1.5, margin: "0 0 0.75rem" }}>
+              Invite your friends and family to join a LIFE Group too! Copy this message and send it to them:
+            </p>
+            <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: "8px", padding: "0.75rem", fontSize: "0.8rem", color: "#334155", fontStyle: "italic", whiteSpace: "pre-line", marginBottom: "0.75rem", lineHeight: 1.4 }}>
+              {inviteText}
+            </div>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(inviteText);
+                setCopiedInvite(true);
+                setTimeout(() => setCopiedInvite(false), 2000);
+              }}
+              style={{
+                width: "100%",
+                background: copiedInvite ? "#15803d" : "#16a34a",
+                color: "white",
+                border: "none",
+                borderRadius: "8px",
+                padding: "0.625rem",
+                fontSize: "0.8125rem",
+                fontWeight: 700,
+                cursor: "pointer",
+                transition: "all 0.2s",
+                outline: "none"
+              }}
+            >
+              {copiedInvite ? "✅ Copied Invitation!" : "📋 Copy Invitation Message"}
+            </button>
+          </div>
+
           <Link href="/" style={{ display: "inline-block", background: PRIMARY, color: "white", textDecoration: "none", padding: "0.75rem 1.5rem", borderRadius: "10px", fontWeight: 700, fontSize: "0.875rem", width: "100%", boxSizing: "border-box", transition: "background 0.2s" }}>
             Back to Home
           </Link>

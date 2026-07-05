@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.37.6] — 2026-07-05
+### Added
+- **LIFE Group Invitations**: Integrated an interactive invite-sharing block on the signup success screen, encouraging users to share and copy customizable messages with loved ones.
+- **Open Graph Optimization**: Added Open Graph and Twitter Card tags referencing a custom Filipino cozy cafe LIFE Group Open Graph banner.
+
 ## [v2.37.5] — 2026-07-05
 ### Added
 - **Click-to-Copy Form Link**: Transformed the static link in the LIFE Group QR presentation modal into an interactive, one-click copy button with instant state feedback.
