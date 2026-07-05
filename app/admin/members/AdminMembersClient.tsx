@@ -76,6 +76,57 @@ export default function AdminMembersClient({
     error: string;
   }>({ open: false, name: "", username: "", loading: false, copied: false, error: "" });
 
+  const [ministryManager, setMinistryManager] = useState<{
+    open: boolean; memberId: number; memberName: string; selectedIds: Set<number>; loading: boolean; error?: string;
+  } | null>(null);
+
+  const openMinistryManager = (memberId: number, memberName: string, currentMinistries: any[]) => {
+    const ids = new Set<number>(currentMinistries.map(m => m.ministryId || m.ministry?.id).filter(Boolean));
+    setMinistryManager({
+      open: true,
+      memberId,
+      memberName,
+      selectedIds: ids,
+      loading: false
+    });
+  };
+
+  const saveMinistries = async () => {
+    if (!ministryManager) return;
+    setMinistryManager(prev => prev ? { ...prev, loading: true, error: "" } : null);
+    try {
+      const res = await fetch(`/api/members/${ministryManager.memberId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ministryIds: Array.from(ministryManager.selectedIds)
+        })
+      });
+      if (res.ok) {
+        const updatedList = ministries.filter(m => ministryManager.selectedIds.has(m.id));
+        setMembers(prev => prev.map(m => {
+          if (m.id === ministryManager.memberId) {
+            return {
+              ...m,
+              ministries: updatedList.map(min => ({
+                ministry: { name: min.name },
+                ministryId: min.id
+              }))
+            } as any;
+          }
+          return m;
+        }));
+        setMinistryManager(null);
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setMinistryManager(prev => prev ? { ...prev, loading: false, error: errData.error || "Failed to save ministries." } : null);
+      }
+    } catch (err) {
+      console.error(err);
+      setMinistryManager(prev => prev ? { ...prev, loading: false, error: "An error occurred while saving." } : null);
+    }
+  };
+
   async function changeStatus(id: number, newStatus: string) {
     setUpdatingStatusIds(prev => ({ ...prev, [id]: true }));
     try {
@@ -695,8 +746,32 @@ Thank you and God bless!`;
                     </td>
                     <td style={{ padding: "0.75rem 1rem" }}><span style={{ fontSize: "0.75rem", fontWeight: 700, color: ROLE_COLOR[m.role] ?? "#64748b" }}>{m.role}</span></td>
                     <td style={{ padding: "0.75rem 1rem" }}>
-                      <div style={{ display: "flex", gap: "0.25rem", flexWrap: "wrap" }}>
-                        {m.ministries.slice(0, 2).map((mm, j) => <span key={j} style={{ fontSize: "0.7rem", background: P, color: "white", padding: "0.15rem 0.4rem", borderRadius: "4px" }}>{mm.ministry.name}</span>)}
+                      <div style={{ display: "flex", gap: "0.25rem", flexWrap: "wrap", alignItems: "center" }}>
+                        {m.ministries.map((mm, j) => (
+                          <span key={j} style={{ fontSize: "0.7rem", background: P, color: "white", padding: "0.15rem 0.4rem", borderRadius: "4px" }}>
+                            {mm.ministry?.name || "Ministry"}
+                          </span>
+                        ))}
+                        {isAdmin && (
+                          <button
+                            onClick={() => openMinistryManager(m.id, `${m.firstName} ${m.lastName}`, m.ministries)}
+                            style={{
+                              background: "#f1f5f9",
+                              color: "#475569",
+                              border: "1px dashed #cbd5e1",
+                              borderRadius: "4px",
+                              padding: "0.1rem 0.35rem",
+                              fontSize: "0.65rem",
+                              fontWeight: 700,
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center"
+                            }}
+                            title="Manage Ministries"
+                          >
+                            + Manage
+                          </button>
+                        )}
                       </div>
                     </td>
                     <td style={{ padding: "0.75rem 1rem" }}>
@@ -831,6 +906,23 @@ Thank you and God bless!`;
                     {mm.ministry.name}
                   </span>
                 ))}
+                {isAdmin && (
+                  <button
+                    onClick={() => openMinistryManager(m.id, `${m.firstName} ${m.lastName}`, m.ministries)}
+                    style={{
+                      background: "#f1f5f9",
+                      color: "#475569",
+                      border: "1px dashed #cbd5e1",
+                      borderRadius: "4px",
+                      padding: "0.15rem 0.4rem",
+                      fontSize: "0.65rem",
+                      fontWeight: 700,
+                      cursor: "pointer"
+                    }}
+                  >
+                    + Manage
+                  </button>
+                )}
               </div>
 
               {/* Attendance Activity bar */}
@@ -995,6 +1087,130 @@ Thank you and God bless!`;
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {ministryManager && ministryManager.open && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: "rgba(15, 23, 42, 0.6)",
+          backdropFilter: "blur(8px)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 9999,
+          padding: "1rem"
+        }}>
+          <div style={{
+            background: "white",
+            borderRadius: "20px",
+            padding: "2rem",
+            maxWidth: "400px",
+            width: "100%",
+            boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)",
+            position: "relative"
+          }}>
+            <button
+              onClick={() => setMinistryManager(null)}
+              style={{
+                position: "absolute",
+                top: "1.25rem",
+                right: "1.25rem",
+                background: "#f1f5f9",
+                border: "none",
+                borderRadius: "50%",
+                width: "30px",
+                height: "30px",
+                fontSize: "0.875rem",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#64748b"
+              }}
+            >
+              ✕
+            </button>
+
+            <h3 style={{ fontSize: "1.1rem", fontWeight: 800, color: "#0f172a", marginBottom: "0.25rem" }}>
+              Manage Ministries
+            </h3>
+            <p style={{ color: "#64748b", fontSize: "0.85rem", marginBottom: "1.25rem" }}>
+              Assign or remove ministries for <strong>{ministryManager.memberName}</strong>
+            </p>
+
+            {ministryManager.error && (
+              <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "8px", padding: "0.5rem 0.75rem", fontSize: "0.8rem", color: "#b91c1c", marginBottom: "1rem", fontWeight: 500 }}>
+                ⚠️ {ministryManager.error}
+              </div>
+            )}
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", maxHeight: "250px", overflowY: "auto", padding: "2px", marginBottom: "1.5rem" }}>
+              {ministries.map(min => {
+                const isChecked = ministryManager.selectedIds.has(min.id);
+                return (
+                  <label key={min.id} style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.875rem", color: "#334155", cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => {
+                        const newIds = new Set(ministryManager.selectedIds);
+                        if (isChecked) {
+                          newIds.delete(min.id);
+                        } else {
+                          newIds.add(min.id);
+                        }
+                        setMinistryManager(prev => prev ? { ...prev, selectedIds: newIds } : null);
+                      }}
+                      style={{ width: "16px", height: "16px", accentColor: P }}
+                    />
+                    <span>{min.name}</span>
+                  </label>
+                );
+              })}
+            </div>
+
+            <div style={{ display: "flex", gap: "0.75rem" }}>
+              <button
+                onClick={() => setMinistryManager(null)}
+                style={{
+                  flex: 1,
+                  background: "#f1f5f9",
+                  color: "#475569",
+                  border: "none",
+                  borderRadius: "8px",
+                  padding: "0.625rem",
+                  fontSize: "0.875rem",
+                  fontWeight: 700,
+                  cursor: "pointer"
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveMinistries}
+                disabled={ministryManager.loading}
+                style={{
+                  flex: 1,
+                  background: P,
+                  color: "white",
+                  border: "none",
+                  borderRadius: "8px",
+                  padding: "0.625rem",
+                  fontSize: "0.875rem",
+                  fontWeight: 700,
+                  cursor: ministryManager.loading ? "not-allowed" : "pointer",
+                  opacity: ministryManager.loading ? 0.7 : 1
+                }}
+              >
+                {ministryManager.loading ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
           </div>
         </div>
       )}

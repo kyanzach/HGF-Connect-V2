@@ -5,7 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v2.37.1] — 2026-07-05
+## [v2.37.2] — 2026-07-05
+### Added
+- **LIFE Group Admin Actions**: Added full edit, delete, and pastor/leader appointment capabilities. Built inline dropdown assignments referencing active moderators/admins (pastors).
+- **LIFE Group Analytics Dashboard**: Extended stats with total signups, action required (pending assignment), appointed counts, and automatic area distribution segments.
+- **Inline Ministry Selection**: Integrated a "+ Manage" checklist modal overlay on both desktop table and mobile card views in the Members admin page for instantaneous ministry assignments.
 ### Added
 - **Admin Sidebar Integration**: Registered the "Life Group" page link in the left-hand sidebar menu (`AdminSidebar.tsx`) for quick and continuous access across all administrative panels.
 

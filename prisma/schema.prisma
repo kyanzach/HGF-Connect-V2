@@ -62,6 +62,7 @@ model Member {
   statusChangedBy       MemberStatusHistory[] @relation("StatusChangedBy")
   smsLogs               SmsLog[]
   appLogs               AppLog[]
+  lifeGroupAppointments LifeGroupRegistration[] @relation("LifeGroupLeader")
   marketplaceListings   MarketplaceListing[]  @relation("ListingSeller")
   marketplaceMessagesSent     MarketplaceMessage[] @relation("MessageSender")
   marketplaceMessagesReceived MarketplaceMessage[] @relation("MessageReceiver")
@@ -1293,11 +1294,14 @@ model MultimediaSopTask {
 }
 
 model LifeGroupRegistration {
-  id        Int      @id @default(autoincrement())
-  fullName  String   @map("full_name") @db.VarChar(100)
-  age       Int
-  area      String   @db.VarChar(150)
-  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  id               Int      @id @default(autoincrement())
+  fullName         String   @map("full_name") @db.VarChar(100)
+  age              Int
+  area             String   @db.VarChar(150)
+  createdAt        DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  status           String   @default("pending") @db.VarChar(20)
+  assignedLeaderId Int?     @map("assigned_leader_id")
+  assignedLeader   Member?  @relation("LifeGroupLeader", fields: [assignedLeaderId], references: [id], onDelete: SetNull)
 
   @@map("lifegroup_registrations")
 }

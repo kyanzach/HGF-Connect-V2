@@ -19,7 +19,26 @@ export async function GET() {
 
   const registrations = await db.lifeGroupRegistration.findMany({
     orderBy: { createdAt: "desc" },
+    include: {
+      assignedLeader: {
+        select: { id: true, firstName: true, lastName: true }
+      }
+    }
   });
 
-  return NextResponse.json({ registrations });
+  // Fetch candidate leaders (pastors/moderators/admins)
+  const leaders = await db.member.findMany({
+    where: {
+      role: { in: ["admin", "moderator"] },
+      status: "approved"
+    },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true
+    },
+    orderBy: { firstName: "asc" }
+  });
+
+  return NextResponse.json({ registrations, leaders });
 }

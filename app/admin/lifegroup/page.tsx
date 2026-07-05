@@ -12,11 +12,36 @@ export default async function LifeGroupAdminPage() {
     redirect("/login");
   }
 
-  const registrations = await db.lifeGroupRegistration.findMany({
-    orderBy: { createdAt: "desc" },
-  });
+  const [registrations, leaders] = await Promise.all([
+    db.lifeGroupRegistration.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        assignedLeader: {
+          select: { id: true, firstName: true, lastName: true }
+        }
+      }
+    }),
+    db.member.findMany({
+      where: {
+        role: { in: ["admin", "moderator"] },
+        status: "approved"
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true
+      },
+      orderBy: { firstName: "asc" }
+    })
+  ]);
 
-  const serialized = JSON.parse(JSON.stringify(registrations));
+  const serializedRegistrations = JSON.parse(JSON.stringify(registrations));
+  const serializedLeaders = JSON.parse(JSON.stringify(leaders));
 
-  return <LifeGroupAdminClient initialRegistrations={serialized} />;
+  return (
+    <LifeGroupAdminClient
+      initialRegistrations={serializedRegistrations}
+      candidateLeaders={serializedLeaders}
+    />
+  );
 }

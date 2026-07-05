@@ -1,0 +1,120 @@
+import { NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { auth } from "@/lib/auth";
+
+export async function PATCH(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await auth();
+    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const member = await db.member.findUnique({
+      where: { id: parseInt(session.user.id) },
+      select: { role: true },
+    });
+    if (!member || !["admin", "moderator", "usher"].includes(member.role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const { id: idStr } = await params;
+    const registrationId = parseInt(idStr, 10);
+    if (isNaN(registrationId)) {
+      return NextResponse.json({ error: "Invalid registration ID." }, { status: 400 });
+    }
+
+    const body = await req.json();
+    const { fullName, age, area, status, assignedLeaderId } = body;
+
+    const updateData: any = {};
+    if (fullName !== undefined) {
+      if (typeof fullName !== "string" || !fullName.trim()) {
+        return NextResponse.json({ error: "Full name is required." }, { status: 400 });
+      }
+      updateData.fullName = fullName.trim();
+    }
+
+    if (age !== undefined) {
+      const parsedAge = parseInt(String(age), 10);
+      if (isNaN(parsedAge) || parsedAge <= 0 || parsedAge > 120) {
+        return NextResponse.json({ error: "Invalid age value." }, { status: 400 });
+      }
+      updateData.age = parsedAge;
+    }
+
+    if (area !== undefined) {
+      if (typeof area !== "string" || !area.trim()) {
+        return NextResponse.json({ error: "Area value is required." }, { status: 400 });
+      }
+      updateData.area = area.trim();
+    }
+
+    if (status !== undefined) {
+      if (typeof status !== "string" || !status.trim()) {
+        return NextResponse.json({ error: "Status value is required." }, { status: 400 });
+      }
+      updateData.status = status.trim();
+    }
+
+    if (assignedLeaderId !== undefined) {
+      if (assignedLeaderId === null) {
+        updateData.assignedLeaderId = null;
+      } else {
+        const leaderId = parseInt(String(assignedLeaderId), 10);
+        if (isNaN(leaderId)) {
+          return NextResponse.json({ error: "Invalid leader ID." }, { status: 400 });
+        }
+        updateData.assignedLeaderId = leaderId;
+      }
+    }
+
+    const updated = await db.lifeGroupRegistration.update({
+      where: { id: registrationId },
+      data: updateData,
+      include: {
+        assignedLeader: {
+          select: { id: true, firstName: true, lastName: true }
+        }
+      }
+    });
+
+    return NextResponse.json({ success: true, registration: updated });
+  } catch (error) {
+    console.error("Failed to update LIFE Group registration:", error);
+    return NextResponse.json({ error: "Failed to update registration." }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await auth();
+    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const member = await db.member.findUnique({
+      where: { id: parseInt(session.user.id) },
+      select: { role: true },
+    });
+    if (!member || !["admin", "moderator", "usher"].includes(member.role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const { id: idStr } = await params;
+    const registrationId = parseInt(idStr, 10);
+    if (isNaN(registrationId)) {
+      return NextResponse.json({ error: "Invalid registration ID." }, { status: 400 });
+    }
+
+    await db.lifeGroupRegistration.delete({
+      where: { id: registrationId }
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Failed to delete LIFE Group registration:", error);
+    return NextResponse.json({ error: "Failed to delete registration." }, { status: 500 });
+  }
+}
