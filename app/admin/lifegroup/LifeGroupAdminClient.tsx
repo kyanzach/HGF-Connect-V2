@@ -35,6 +35,13 @@ export default function LifeGroupAdminClient({
   const [areaFilter, setAreaFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText("https://connect.houseofgrace.ph/lifegroup/join");
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   // Edit State
   const [editingRegistrant, setEditingRegistrant] = useState<Registration | null>(null);
@@ -1026,9 +1033,30 @@ export default function LifeGroupAdminClient({
               />
             </div>
 
-            <div style={{ background: "#f0fdfa", border: "1px solid #ccfbf1", borderRadius: "12px", padding: "0.75rem 1rem", fontSize: "0.8125rem", color: "#0f766e", fontWeight: 500, marginBottom: "1.5rem" }}>
-              🔗 <strong>Form Link:</strong> <span style={{ textDecoration: "underline" }}>connect.houseofgrace.ph/lifegroup/join</span>
-            </div>
+            <button
+              onClick={handleCopyLink}
+              style={{
+                width: "100%",
+                background: copied ? "#ecfdf5" : "#f0fdfa",
+                border: copied ? "1px solid #a7f3d0" : "1px solid #ccfbf1",
+                borderRadius: "12px",
+                padding: "0.75rem 1rem",
+                fontSize: "0.8125rem",
+                color: copied ? "#047857" : "#0f766e",
+                fontWeight: 500,
+                marginBottom: "1.5rem",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+                transition: "all 0.2s ease-in-out",
+                outline: "none"
+              }}
+            >
+              <span>{copied ? "✅ Copied to Clipboard!" : "🔗 Click to Copy Form Link:"}</span>
+              {!copied && <span style={{ textDecoration: "underline", fontWeight: 700 }}>connect.houseofgrace.ph/lifegroup/join</span>}
+            </button>
 
             <button
               onClick={() => setQrModalOpen(false)}
