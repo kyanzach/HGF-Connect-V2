@@ -38,7 +38,7 @@ export default function LifeGroupAdminClient({
   const [copied, setCopied] = useState(false);
 
   const handleCopyLink = () => {
-    navigator.clipboard.writeText("https://connect.houseofgrace.ph/lifegroup/join");
+    navigator.clipboard.writeText("connect.houseofgrace.ph/lifegroup/join");
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

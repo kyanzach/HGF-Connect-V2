@@ -16,7 +16,7 @@ export default function JoinFormClient() {
   const [success, setSuccess] = useState(false);
   const [copiedInvite, setCopiedInvite] = useState(false);
 
-  const inviteText = `I'd like to invite you to join a LIFE Group with me!\nIt's a wonderful space to grow in faith, find encouragement, and do LIFE together with a loving community. Let's walk this journey together!\n\nRegister here:\nhttps://connect.houseofgrace.ph/lifegroup/join`;
+  const inviteText = `I'd like to invite you to join a LIFE Group with me!\nIt's a wonderful space to grow in faith, find encouragement, and do LIFE together with a loving community. Let's walk this journey together!\n\nRegister here:\nconnect.houseofgrace.ph/lifegroup/join`;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

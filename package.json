@@ -1,6 +1,6 @@
 {
   "name": "hgfconnect",
-  "version": "2.37.6",
+  "version": "2.37.7",
   "private": true,
   "scripts": {
     "dev": "next dev",
