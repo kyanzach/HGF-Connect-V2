@@ -25,7 +25,7 @@ export async function PATCH(
     }
 
     const body = await req.json();
-    const { fullName, age, area, status, assignedLeaderId } = body;
+    const { fullName, age, area, status, assignedLeaderId, sendNotificationSms } = body;
 
     const updateData: any = {};
     if (fullName !== undefined) {
@@ -74,10 +74,21 @@ export async function PATCH(
       data: updateData,
       include: {
         assignedLeader: {
-          select: { id: true, firstName: true, lastName: true }
+          select: { id: true, firstName: true, lastName: true, phone: true }
         }
       }
     });
+
+    // Send SMS notification if appointed and requested
+    if (sendNotificationSms && updated.assignedLeader && updated.assignedLeader.phone) {
+      try {
+        const smsText = `HGF LIFE Group: You are appointed to handle cell group request for ${updated.fullName} (${updated.age} yo) from ${updated.area}. Details: connect.houseofgrace.ph/admin/lifegroup`;
+        const { sendSms } = await import("@/lib/sms");
+        await sendSms(updated.assignedLeader.phone, smsText, updated.assignedLeader.id);
+      } catch (smsError) {
+        console.error("Failed to send appointment notification SMS:", smsError);
+      }
+    }
 
     return NextResponse.json({ success: true, registration: updated });
   } catch (error) {

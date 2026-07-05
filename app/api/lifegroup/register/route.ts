@@ -34,6 +34,37 @@ export async function POST(req: Request) {
       },
     });
 
+    // Notify pastors/leaders via SMS (only once there is a new registration)
+    try {
+      const leaders = await db.member.findMany({
+        where: {
+          OR: [
+            { firstName: "Ryan", lastName: "Paco" },
+            { firstName: "Karen Joan Tan", lastName: "Paco" },
+            { firstName: "Shalom Love Joy", lastName: "Baltazar" },
+            { firstName: "William", lastName: "Del Carmen" },
+            { firstName: "Jun-jun", lastName: "Baltazar" },
+            { firstName: "Rina", lastName: "Del Carmen" },
+            { firstName: "Lilybeth", lastName: "Gabonada" },
+            { firstName: "Andrea Nicole", lastName: "Gabonada" }
+          ],
+          phone: { not: null }
+        },
+        select: { id: true, phone: true }
+      });
+
+      const smsText = `HGF LIFE Group: New registrant ${registration.fullName} (${registration.age} yo) from ${registration.area}. Check details at connect.houseofgrace.ph/admin/lifegroup`;
+
+      const { sendSms } = await import("@/lib/sms");
+      for (const leader of leaders) {
+        if (leader.phone) {
+          await sendSms(leader.phone, smsText, leader.id);
+        }
+      }
+    } catch (smsError) {
+      console.error("Failed to send signup notification SMS:", smsError);
+    }
+
     return NextResponse.json({ success: true, id: registration.id }, { status: 201 });
   } catch (error) {
     console.error("Failed to register LIFE Group membership:", error);

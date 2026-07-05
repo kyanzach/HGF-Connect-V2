@@ -5,6 +5,12 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.37.3] — 2026-07-05
+### Added
+- **LIFE Group SMS Alerts**: Integrated automatic SMS alerts to the 8 chosen pastors/leaders upon new public cell group registrations.
+- **Appointment Confirmation SMS**: Added a ConfirmModal trigger on the admin page to send notification SMS to the pastor upon appointment.
+- **Mobile Card View**: Built a responsive mobile card list view inside `LifeGroupAdminClient` to provide a premium layout on smartphones.
+
 ## [v2.37.2] — 2026-07-05
 ### Added
 - **LIFE Group Admin Actions**: Added full edit, delete, and pastor/leader appointment capabilities. Built inline dropdown assignments referencing active moderators/admins (pastors).

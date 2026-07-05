@@ -45,6 +45,15 @@ export default function LifeGroupAdminClient({
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Appointment Confirmation State
+  const [appointmentConfirm, setAppointmentConfirm] = useState<{
+    open: boolean;
+    registrationId: number;
+    registrantName: string;
+    leaderId: string;
+    leaderName: string;
+  } | null>(null);
+
   // Extract unique areas for filtering dropdown
   const uniqueAreas = useMemo(() => {
     const areas = new Set<string>();
@@ -107,7 +116,7 @@ export default function LifeGroupAdminClient({
   }, [registrations]);
 
   // Actions: Assign Leader
-  const handleAssignLeader = async (id: number, leaderIdStr: string) => {
+  const handleAssignLeader = async (id: number, leaderIdStr: string, sendNotificationSms: boolean) => {
     const leaderId = leaderIdStr ? parseInt(leaderIdStr, 10) : null;
     const newStatus = leaderId ? "appointed" : "pending";
 
@@ -133,7 +142,8 @@ export default function LifeGroupAdminClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           assignedLeaderId: leaderId,
-          status: newStatus
+          status: newStatus,
+          sendNotificationSms
         })
       });
 
@@ -145,6 +155,35 @@ export default function LifeGroupAdminClient({
       // Revert on failure
       setRegistrations(previous);
     }
+  };
+
+  // Selector drop change
+  const handleSelectLeader = (id: number, leaderIdStr: string) => {
+    if (!leaderIdStr) {
+      // Direct save without SMS confirmation
+      handleAssignLeader(id, "", false);
+      return;
+    }
+
+    const reg = registrations.find(r => r.id === id);
+    const leader = candidateLeaders.find(l => String(l.id) === leaderIdStr);
+    if (reg && leader) {
+      setAppointmentConfirm({
+        open: true,
+        registrationId: id,
+        registrantName: reg.fullName,
+        leaderId: leaderIdStr,
+        leaderName: `${leader.firstName} ${leader.lastName}`
+      });
+    }
+  };
+
+  // Submit appointment confirmation
+  const confirmAppointment = async () => {
+    if (!appointmentConfirm) return;
+    const { registrationId, leaderId } = appointmentConfirm;
+    setAppointmentConfirm(null);
+    await handleAssignLeader(registrationId, leaderId, true);
   };
 
   // Actions: Edit Init
@@ -403,8 +442,8 @@ export default function LifeGroupAdminClient({
         </div>
       </div>
 
-      {/* Table */}
-      <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: "12px", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
+      {/* ── DESKTOP VIEW ── */}
+      <div className="desktop-view" style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: "12px", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
         {filtered.length === 0 ? (
           <div style={{ padding: "4rem 2rem", textAlign: "center" }}>
             <div style={{ fontSize: "2.5rem", marginBottom: "0.75rem" }}>📋</div>
@@ -454,11 +493,10 @@ export default function LifeGroupAdminClient({
                         {r.status === "appointed" ? "Appointed" : "Pending"}
                       </span>
                     </td>
-                    {/* Leader assignment select */}
                     <td style={{ padding: "1rem" }}>
                       <select
                         value={r.assignedLeaderId || ""}
-                        onChange={(e) => handleAssignLeader(r.id, e.target.value)}
+                        onChange={(e) => handleSelectLeader(r.id, e.target.value)}
                         style={{
                           padding: "0.35rem 0.625rem",
                           borderRadius: "8px",
@@ -478,7 +516,6 @@ export default function LifeGroupAdminClient({
                         ))}
                       </select>
                     </td>
-                    {/* Edit & Delete Buttons */}
                     <td style={{ padding: "1rem", textAlign: "center" }}>
                       <div style={{ display: "inline-flex", gap: "0.375rem" }}>
                         <button
@@ -528,6 +565,180 @@ export default function LifeGroupAdminClient({
           </div>
         )}
       </div>
+
+      {/* ── MOBILE VIEW (CARDS) ── */}
+      <div className="mobile-view" style={{ display: "none" }}>
+        {filtered.length === 0 ? (
+          <div style={{ padding: "3rem 1rem", textAlign: "center", background: "white", border: "1px solid #e2e8f0", borderRadius: "12px" }}>
+            <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>📋</div>
+            <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "#0f172a" }}>No registrations found</h3>
+            <p style={{ color: "#64748b", fontSize: "0.8rem", marginTop: "0.25rem" }}>Try adjusting filters.</p>
+          </div>
+        ) : (
+          filtered.map(r => (
+            <div
+              key={r.id}
+              style={{
+                background: "white",
+                border: "1px solid #e2e8f0",
+                borderRadius: "16px",
+                padding: "1.25rem",
+                marginBottom: "1rem",
+                boxShadow: "0 1px 2px rgba(0,0,0,0.02)"
+              }}
+            >
+              {/* Card Header: Date & Status Badge */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+                <span style={{ fontSize: "0.75rem", color: "#64748b" }}>
+                  {new Date(r.createdAt).toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" })}
+                </span>
+                <span style={{
+                  fontSize: "0.7rem",
+                  fontWeight: 700,
+                  padding: "0.15rem 0.5rem",
+                  borderRadius: "999px",
+                  background: r.status === "appointed" ? "#ecfdf5" : "#fef3c7",
+                  color: r.status === "appointed" ? "#059669" : "#d97706"
+                }}>
+                  {r.status === "appointed" ? "Appointed" : "Pending"}
+                </span>
+              </div>
+
+              {/* Registrant Name and Age */}
+              <div style={{ marginBottom: "0.5rem" }}>
+                <h4 style={{ fontSize: "1rem", fontWeight: 700, color: "#0f172a", margin: 0 }}>{r.fullName}</h4>
+                <p style={{ fontSize: "0.8125rem", color: "#475569", margin: "0.15rem 0 0" }}>Age: {r.age}</p>
+              </div>
+
+              {/* Area location detail block */}
+              <div style={{ fontSize: "0.8125rem", color: "#475569", background: "#f8fafc", padding: "0.5rem 0.75rem", borderRadius: "8px", marginBottom: "1rem", lineHeight: 1.4 }}>
+                📍 {r.area}
+              </div>
+
+              {/* Leader Selector */}
+              <div style={{ marginBottom: "1rem" }}>
+                <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "0.25rem" }}>
+                  Assigned Pastor / Leader
+                </label>
+                <select
+                  value={r.assignedLeaderId || ""}
+                  onChange={(e) => handleSelectLeader(r.id, e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "0.5rem 0.75rem",
+                    borderRadius: "8px",
+                    border: "1px solid #cbd5e1",
+                    fontSize: "0.85rem",
+                    background: "white",
+                    outline: "none",
+                    cursor: "pointer",
+                    fontWeight: r.assignedLeaderId ? 600 : 400,
+                    color: r.assignedLeaderId ? "#0f172a" : "#64748b"
+                  }}
+                >
+                  <option value="">Unassigned</option>
+                  {candidateLeaders.map(l => (
+                    <option key={l.id} value={l.id}>{l.firstName} {l.lastName}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Card Footer: Edit / Delete Actions */}
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", borderTop: "1px solid #f1f5f9", paddingTop: "0.75rem" }}>
+                <button
+                  onClick={() => startEdit(r)}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    padding: "0.4rem 0.8rem",
+                    borderRadius: "8px",
+                    border: "none",
+                    background: "#eff6ff",
+                    color: "#2563eb",
+                    fontSize: "0.8rem",
+                    fontWeight: 600,
+                    cursor: "pointer"
+                  }}
+                >
+                  📝 Edit Info
+                </button>
+                <button
+                  onClick={() => setDeleteConfirmId(r.id)}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    padding: "0.4rem 0.8rem",
+                    borderRadius: "8px",
+                    border: "none",
+                    background: "#fef2f2",
+                    color: "#ef4444",
+                    fontSize: "0.8rem",
+                    fontWeight: 600,
+                    cursor: "pointer"
+                  }}
+                >
+                  🗑️ Delete
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Appointment Confirmation Modal (SMS sending consent) */}
+      {appointmentConfirm && appointmentConfirm.open && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: "rgba(15, 23, 42, 0.6)",
+          backdropFilter: "blur(8px)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 9999,
+          padding: "1rem"
+        }}>
+          <div style={{
+            background: "white",
+            borderRadius: "20px",
+            padding: "2rem",
+            maxWidth: "400px",
+            width: "100%",
+            textAlign: "center",
+            boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)"
+          }}>
+            <div style={{ fontSize: "2.5rem", marginBottom: "0.75rem" }}>📱</div>
+            <h3 style={{ fontSize: "1.25rem", fontWeight: 800, color: "#0f172a", marginBottom: "0.5rem" }}>
+              Confirm Appointment
+            </h3>
+            <p style={{ color: "#64748b", fontSize: "0.875rem", marginBottom: "1.5rem", lineHeight: 1.5 }}>
+              Are you sure you want to appoint <strong>{appointmentConfirm.leaderName}</strong> to handle cell group request of <strong>{appointmentConfirm.registrantName}</strong>?
+              <br /><br />
+              An SMS notification will be sent to the leader immediately.
+            </p>
+
+            <div style={{ display: "flex", gap: "0.75rem" }}>
+              <button
+                onClick={() => setAppointmentConfirm(null)}
+                style={{ flex: 1, padding: "0.75rem", background: "#f1f5f9", color: "#475569", border: "none", borderRadius: "8px", fontWeight: 700, cursor: "pointer" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmAppointment}
+                style={{ flex: 1, padding: "0.75rem", background: PRIMARY, color: "white", border: "none", borderRadius: "8px", fontWeight: 700, cursor: "pointer" }}
+              >
+                Confirm & Send SMS
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Registrant Info Modal */}
       {editingRegistrant && (
@@ -670,7 +881,7 @@ export default function LifeGroupAdminClient({
         </div>
       )}
 
-      {/* Delete Confirmation Modal (Connect standard modal format) */}
+      {/* Delete Confirmation Modal */}
       {deleteConfirmId && (
         <div style={{
           position: "fixed",
@@ -816,6 +1027,18 @@ export default function LifeGroupAdminClient({
           </div>
         </div>
       )}
+
+      {/* Style block for responsive columns */}
+      <style>{`
+        @media (max-width: 767px) {
+          .desktop-view {
+            display: none !important;
+          }
+          .mobile-view {
+            display: block !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
