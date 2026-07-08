@@ -44,23 +44,41 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { sermonText, sermonDate } = body;
+    const { sermonText, sermonDate, eventId } = body;
 
     if (!sermonDate) {
       return NextResponse.json({ error: "Sermon date is required" }, { status: 400 });
     }
-    if (!sermonText || !sermonText.trim()) {
-      return NextResponse.json({ error: "Sermon notes or transcript script is required" }, { status: 400 });
+
+    let sourceText = sermonText;
+    let transcriptSource = "manual";
+
+    if ((!sourceText || !sourceText.trim()) && eventId) {
+      const event = await db.event.findUnique({
+        where: { id: eventId },
+        select: { commentary: true },
+      });
+      if (event && event.commentary && event.commentary.trim()) {
+        sourceText = event.commentary;
+        transcriptSource = "slides";
+      }
+    }
+
+    if (!sourceText || !sourceText.trim()) {
+      return NextResponse.json(
+        { error: "Sermon notes are required, or link an event with uploaded slides to generate from slides." },
+        { status: 400 }
+      );
     }
 
     // Generate quiz via AI
-    const result = await generateQuiz(sermonText, sermonDate);
+    const result = await generateQuiz(sourceText, sermonDate);
 
     return NextResponse.json({
       success: true,
-      transcriptSource: "manual",
+      transcriptSource,
       videoId: null,
-      transcriptLength: sermonText.length,
+      transcriptLength: sourceText.length,
       title: result.title,
       announcementCaption: result.announcementCaption,
       questions: result.questions,

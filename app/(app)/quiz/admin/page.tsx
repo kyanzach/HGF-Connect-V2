@@ -281,8 +281,16 @@ export default function QuizAdminPage() {
       setGenError("No physical Sunday Service event found to link the sermon to. Please add a Sunday Service event first.");
       return;
     }
-    if (!sermonText || !sermonText.trim()) {
-      setGenError("Please paste the sermon notes or transcript script first");
+
+    const slides = linkedEvent.presentationSlides;
+    const hasSlides = slides
+      ? (Array.isArray(slides)
+          ? slides.length > 0
+          : JSON.parse(JSON.stringify(slides)).length > 0)
+      : false;
+
+    if (!hasSlides && (!sermonText || !sermonText.trim())) {
+      setGenError("Please paste the sermon notes / transcript script or select an event with slides first.");
       return;
     }
 
@@ -314,7 +322,7 @@ export default function QuizAdminPage() {
       const res = await fetch("/api/quiz/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sermonText, sermonDate }),
+        body: JSON.stringify({ sermonText, sermonDate, eventId: linkedEvent.id }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -774,16 +782,20 @@ export default function QuizAdminPage() {
           style={S.input}
         />
 
-        <label style={S.label}>Sermon Notes / Script / Transcript</label>
+        <label style={S.label}>Sermon Notes / Script / Transcript (Optional if Event Slides exist)</label>
         <textarea
           value={sermonText}
           onChange={(e) => setSermonText(e.target.value)}
-          placeholder="Paste the full sermon script, notes, or copied transcript here..."
+          placeholder={
+            linkedEvent?.presentationSlides
+              ? "Paste sermon notes here, or leave blank to automatically generate the quiz from the uploaded slides..."
+              : "Paste the full sermon script, notes, or copied transcript here..."
+          }
           rows={12}
           style={S.textarea}
         />
         <p style={{ color: "#a0aec0", fontSize: "0.8rem", marginTop: "4px" }}>
-          Provide the sermon notes or copy-pasted transcript. Bisaya, Tagalog, and English are all accepted.
+          Provide the sermon notes or copy-pasted transcript. Bisaya, Tagalog, and English are all accepted. If slides are uploaded for this event, you can leave this blank to generate the quiz directly from the slides.
         </p>
 
         {genError && <div style={S.error}>{genError}</div>}

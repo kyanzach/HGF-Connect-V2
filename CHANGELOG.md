@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.39.4] — 2026-07-09
+### Added
+- **Slide-Based Quiz Generation**: Made the manual sermon notes input text optional on the Quiz Admin page. If slides are uploaded for the linked Sunday service event, the AI generator automatically falls back to generating progressive quiz challenges using the event's slide OCR commentary summary, streamlining weekly quiz creation.
+
 ## [v2.39.3] — 2026-07-09
 ### Fixed
 - **Deleted Event Feed Fallback**: Added a text-parsing fallback mechanism to event posts that refers to deleted/missing database event records. This extracts the date from the post text itself (e.g., `🗓️ Sunday, July 5, 2026`) and rewrites the header prefix from "New Event" to "Event" if that date has passed, fixing past events that remained marked as "New Event" after their DB event record was recreated or deleted.
