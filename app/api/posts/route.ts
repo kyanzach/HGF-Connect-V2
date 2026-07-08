@@ -190,6 +190,7 @@ export async function GET(request: Request) {
       if (p.type === PostType.EVENT && p.content) {
         try {
           const match = p.content.match(/\[event:(\d+)\]/);
+          let handled = false;
           if (match) {
             const eventId = parseInt(match[1]);
             const dbEvent = eventMap.get(eventId);
@@ -219,6 +220,23 @@ export async function GET(request: Request) {
 
               updatedContent = feedContent;
               updatedImageUrl = dbEvent.coverPhoto ? `uploads/events/${dbEvent.coverPhoto}` : null;
+              handled = true;
+            }
+          }
+
+          if (!handled) {
+            // Fallback: parse date from content text if DB event is missing or deleted
+            const dateMatch = p.content.match(/🗓️\s*([^\n]+)/);
+            if (dateMatch) {
+              try {
+                const eventDateObj = new Date(dateMatch[1]);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                eventDateObj.setHours(0, 0, 0, 0);
+                if (eventDateObj.getTime() < today.getTime()) {
+                  updatedContent = p.content.replace("📅 New Event:", "📅 Event:");
+                }
+              } catch {}
             }
           }
         } catch {}
