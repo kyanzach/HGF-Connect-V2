@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.37.9] — 2026-07-08
+### Fixed
+- **AI Sermon Casing Normalization**: Added cleanup rules to the background AI sermon processor's system prompt to normalize garbled or mixed-casing text (e.g. "jOHN 3:16" or "thE lamb") caused by non-standard PDF font map decodings.
+
 ## [v2.37.8] — 2026-07-08
 ### Fixed
 - **Sermon Upload Worker Resolution**: Resolved presentation (PDF/PPTX) upload stalling issue caused by Webpack/Turbopack dynamic worker module resolution failures inside the server-side Next.js bundle by specifying an absolute Tesseract.js `workerPath` and `cachePath`. Also optimized thread pools by instantiating and reusing a single Tesseract worker across each slide batch.

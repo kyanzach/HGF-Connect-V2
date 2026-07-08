@@ -143,6 +143,8 @@ export async function processPresentation(
 Analyze the following extracted text from the sermon slides.
 Create a beautiful, inspiring, and structured commentary/blog post about this sermon/resources.
 
+Normalize and correct any garbled text or scrambled/reversed letter casing from the input (e.g., if you see "jOHN 3:16" or "thE lamb OF GOD", correct it to "John 3:16" or "The Lamb of God"). Do not propagate messy casing or raw PDF formatting errors into your output.
+
 Provide:
 1. Title: An engaging, faith-filled title.
 2. Overview: A warm, 2-3 sentence summary of the core message.
