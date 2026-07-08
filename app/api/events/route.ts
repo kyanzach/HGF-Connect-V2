@@ -132,8 +132,15 @@ export async function POST(request: NextRequest) {
       const timeStartFormatted = formatTimeTo12Hour(startTime);
       const timeEndFormatted = endTime ? formatTimeTo12Hour(endTime) : "";
 
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const eventDateObj = new Date(eventDate);
+      eventDateObj.setHours(0, 0, 0, 0);
+      const isPastEvent = eventDateObj.getTime() < today.getTime();
+      const titlePrefix = isPastEvent ? "Event" : "New Event";
+
       const feedContent = [
-        `📅 New Event: ${title}`,
+        `📅 ${titlePrefix}: ${title}`,
         `🗓️ ${eventDateFormatted}`,
         `🕒 ${timeStartFormatted}${timeEndFormatted ? ` – ${timeEndFormatted}` : ""}`,
         location ? `📍 ${location}` : null,
@@ -156,7 +163,7 @@ export async function POST(request: NextRequest) {
         actorId: parseInt(session.user.id),
         type: "new_post",
         title: `House of Grace Fellowship shared an event`,
-        body: `⛪ New Event: ${title}`,
+        body: `⛪ ${titlePrefix}: ${title}`,
         link: "/church",
       });
     } catch (postError) {

@@ -201,8 +201,15 @@ export async function GET(request: Request) {
               const timeStartFormatted = formatTimeTo12Hour(dbEvent.startTime);
               const timeEndFormatted = dbEvent.endTime ? formatTimeTo12Hour(dbEvent.endTime) : "";
 
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              const eventDateObj = new Date(dbEvent.eventDate);
+              eventDateObj.setHours(0, 0, 0, 0);
+              const isPastEvent = eventDateObj.getTime() < today.getTime();
+              const titlePrefix = isPastEvent ? "Event" : "New Event";
+
               const feedContent = [
-                `📅 New Event: ${dbEvent.title}`,
+                `📅 ${titlePrefix}: ${dbEvent.title}`,
                 `🗓️ ${eventDateFormatted}`,
                 `🕒 ${timeStartFormatted}${timeEndFormatted ? ` – ${timeEndFormatted}` : ""}`,
                 dbEvent.location ? `📍 ${dbEvent.location}` : null,

@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.39.2] — 2026-07-09
+### Changed
+- **Past Event Feed Normalization**: Configured the Social Feed posts and database notification routers to dynamically detect if an event has already occurred. Past events are now correctly prefixed as "Event:" instead of "New Event:", preventing user confusion when slides are updated after the service.
+
 ## [v2.39.1] — 2026-07-09
 ### Changed
 - **Sleek Segmented Tab UI**: Upgraded the simple text buttons on the event attendance analytics dashboard into a segmented control track (light slate grey track with white elevated active pills, drop-shadows, and smooth micro-animations) to make them look distinct and interactive instead of resembling static text.
