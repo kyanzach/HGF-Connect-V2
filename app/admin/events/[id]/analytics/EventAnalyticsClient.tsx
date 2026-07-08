@@ -91,6 +91,7 @@ export default function EventAnalyticsClient({
   attendance,
   members,
 }: EventAnalyticsClientProps) {
+  const [localEvent, setLocalEvent] = useState<EventRow>(event);
   const [activeTab, setActiveTab] = useState<"overview" | "attendees" | "absent" | "returned" | "outreach">("overview");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedOutreach, setSelectedOutreach] = useState<number[]>([]);
@@ -110,14 +111,83 @@ export default function EventAnalyticsClient({
     success: "",
   });
 
-  const eventTime = useMemo(() => new Date(event.eventDate).getTime(), [event]);
+  const [unrecordedModal, setUnrecordedModal] = useState({
+    open: false,
+    loading: false,
+    error: "",
+  });
+
+  const isUnrecorded = useMemo(() => {
+    return localEvent.description?.startsWith("[ATTENDANCE_UNRECORDED]") || false;
+  }, [localEvent.description]);
+
+  const displayDescription = useMemo(() => {
+    if (!localEvent.description) return "";
+    if (localEvent.description.startsWith("[ATTENDANCE_UNRECORDED]")) {
+      return localEvent.description.replace("[ATTENDANCE_UNRECORDED]", "").trim();
+    }
+    return localEvent.description;
+  }, [localEvent.description]);
+
+  const isFutureEvent = useMemo(() => {
+    try {
+      const now = new Date();
+      const datePart = localEvent.eventDate.split("T")[0];
+      const todayString = now.toISOString().split("T")[0];
+      if (datePart > todayString) return true;
+      if (datePart < todayString) return false;
+      
+      let timePart = "00:00:00";
+      if (localEvent.startTime) {
+        if (localEvent.startTime.includes("T")) {
+          timePart = localEvent.startTime.split("T")[1].replace("Z", "");
+        } else {
+          timePart = localEvent.startTime;
+        }
+      }
+      const eventTimeLocal = new Date(`${datePart}T${timePart}`);
+      return eventTimeLocal.getTime() > now.getTime();
+    } catch {
+      return new Date(localEvent.eventDate).getTime() > Date.now();
+    }
+  }, [localEvent.eventDate, localEvent.startTime]);
+
+  const eventTime = useMemo(() => new Date(localEvent.eventDate).getTime(), [localEvent]);
 
   // 1. Segment members based on attendance
   const attendeeIds = useMemo(() => new Set(attendance.map((a) => a.memberId).filter(Boolean)), [attendance]);
 
+  const getMemberAutoSegment = (m: Member): "active" | "inactive" | "guests" | "archived" => {
+    if (m.status === "archived") return "archived";
+    if (m.status === "active") return "active";
+    if (m.status === "inactive") return "inactive";
+    if (m.status === "guest") return "guests";
+
+    const records = m.attendance || [];
+    if (records.length <= 1) return "guests";
+
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const dates = records.map(a => a.attendanceDate ? new Date(a.attendanceDate).getTime() : 0);
+    const latest = Math.max(...dates);
+    if (latest >= thirtyDaysAgo.getTime()) return "active";
+    return "inactive";
+  };
+
   const segmentedData = useMemo(() => {
-    // Actives/Approved
-    const activePool = members.filter((m) => ["active", "approved"].includes(m.status));
+    if (isUnrecorded || isFutureEvent) {
+      return {
+        totalActives: 0,
+        attendedActives: [],
+        absentActives: [],
+        returnedInactives: [],
+        guests: [],
+        outreachCandidates: [],
+      };
+    }
+
+    // Actives/Approved using identical auto-segmentation mapping
+    const activePool = members.filter((m) => getMemberAutoSegment(m) === "active");
     
     // Attended Actives
     const attendedActives = activePool.filter((m) => attendeeIds.has(m.id));
@@ -125,11 +195,14 @@ export default function EventAnalyticsClient({
     // Absent Actives
     const absentActives = activePool.filter((m) => !attendeeIds.has(m.id));
 
-    // Returned Inactives (marked inactive in db, but attended this event)
-    const returnedInactives = members.filter((m) => m.status === "inactive" && attendeeIds.has(m.id));
+    // Returned Inactives (marked inactive in db/auto, but attended this event)
+    const returnedInactives = members.filter((m) => getMemberAutoSegment(m) === "inactive" && attendeeIds.has(m.id));
 
-    // Guests (marked guest in db, or new first-time visit)
-    const guests = attendance.filter((a) => !a.member || a.member.status === "guest" || a.isFirstVisit);
+    // Guests (marked guest in db/auto, or new first-time visit)
+    const guests = attendance.filter((a) => {
+      if (!a.member) return true;
+      return getMemberAutoSegment(a.member) === "guests" || a.isFirstVisit;
+    });
 
     // Calculate consecutive absences for absent active members
     const absentWithAbsenceData = absentActives.map((m) => {
@@ -158,7 +231,7 @@ export default function EventAnalyticsClient({
     });
 
     // Outreach candidates: Absent actives who missed >= 3 weeks, OR any inactive member who didn't attend
-    const inactiveAbsentees = members.filter((m) => m.status === "inactive" && !attendeeIds.has(m.id));
+    const inactiveAbsentees = members.filter((m) => getMemberAutoSegment(m) === "inactive" && !attendeeIds.has(m.id));
     
     const chronicAbsentees = absentWithAbsenceData.filter((candidate) => candidate.weeksAbsent >= 3);
 
@@ -291,10 +364,45 @@ export default function EventAnalyticsClient({
     );
   };
 
+  const handleToggleUnrecorded = async () => {
+    setUnrecordedModal(prev => ({ ...prev, loading: true, error: "" }));
+    try {
+      const updatedDescription = isUnrecorded
+        ? (localEvent.description || "").replace("[ATTENDANCE_UNRECORDED]", "").trim()
+        : `[ATTENDANCE_UNRECORDED]${localEvent.description || ""}`;
+
+      const res = await fetch(`/api/events/${localEvent.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          description: updatedDescription,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setLocalEvent(prev => ({
+          ...prev,
+          description: updatedDescription,
+        }));
+        setUnrecordedModal({ open: false, loading: false, error: "" });
+      } else {
+        setUnrecordedModal(prev => ({ ...prev, loading: false, error: data.error || "Failed to update event status." }));
+      }
+    } catch {
+      setUnrecordedModal(prev => ({ ...prev, loading: false, error: "Network error occurred." }));
+    }
+  };
+
   // Math formatting helper
   const attendanceRate = segmentedData.totalActives > 0
     ? Math.round((segmentedData.attendedActives.length / segmentedData.totalActives) * 100)
     : 0;
+
+  const disabledStyle = isFutureEvent || isUnrecorded ? {
+    opacity: 0.55,
+    pointerEvents: "none" as const,
+    userSelect: "none" as const,
+  } : {};
 
   return (
     <div className="event-analytics-container" style={{ padding: "1.5rem 2rem", maxWidth: "1200px", margin: "0 auto" }}>
@@ -319,7 +427,7 @@ export default function EventAnalyticsClient({
           📊 Event Attendance Analytics
         </h1>
         <p style={{ color: "#64748b", fontSize: "0.875rem", margin: "0.25rem 0 0" }}>
-          Comprehensive statistics, absence tracking, and pastoral care follow-up for <strong>{event.title}</strong>
+          Comprehensive statistics, absence tracking, and pastoral care follow-up for <strong>{localEvent.title}</strong>
         </p>
       </div>
 
@@ -337,26 +445,81 @@ export default function EventAnalyticsClient({
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1.25rem" }}>
           <div>
             <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase" }}>Event Title</span>
-            <h2 style={{ fontSize: "1.25rem", margin: "0.25rem 0", color: "#f8fafc" }}>{event.title}</h2>
+            <h2 style={{ fontSize: "1.25rem", margin: "0.25rem 0", color: "#f8fafc" }}>{localEvent.title}</h2>
           </div>
           <div>
             <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase" }}>Event Type</span>
-            <p style={{ margin: "0.25rem 0", color: "#f1f5f9", fontWeight: 600 }}>{TYPE_LABELS[event.eventType] || event.eventType}</p>
+            <p style={{ margin: "0.25rem 0", color: "#f1f5f9", fontWeight: 600 }}>{TYPE_LABELS[localEvent.eventType] || localEvent.eventType}</p>
           </div>
           <div>
             <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase" }}>Speaker / Host</span>
-            <p style={{ margin: "0.25rem 0", color: "#f1f5f9", fontWeight: 600 }}>{event.speaker || "None / N/A"}</p>
+            <p style={{ margin: "0.25rem 0", color: "#f1f5f9", fontWeight: 600 }}>{localEvent.speaker || "None / N/A"}</p>
           </div>
           <div>
             <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase" }}>Event Date & Time</span>
             <p style={{ margin: "0.25rem 0", color: "#f1f5f9", fontSize: "0.875rem" }}>
-              {fmtDate(event.eventDate)} · {fmtTime(event.startTime)}
+              {fmtDate(localEvent.eventDate)} · {fmtTime(localEvent.startTime)}
             </p>
           </div>
         </div>
+        {displayDescription && (
+          <div style={{ borderTop: "1px solid rgba(255,255,255,0.15)", marginTop: "1rem", paddingTop: "0.75rem" }}>
+            <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase" }}>Description</span>
+            <p style={{ margin: "0.25rem 0 0", color: "#e2e8f0", fontSize: "0.875rem" }}>{displayDescription}</p>
+          </div>
+        )}
       </div>
 
-      {/* KPI Cards Row */}
+      {/* ────────────────── STATUS BANNERS ────────────────── */}
+      {isFutureEvent && (
+        <div style={{ background: "#eff6ff", border: "1.5px solid #bfdbfe", borderRadius: "12px", padding: "1rem 1.25rem", marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "0.75rem", color: "#1e40af" }}>
+          <span style={{ fontSize: "1.5rem" }}>📅</span>
+          <div>
+            <h4 style={{ margin: 0, fontWeight: 700, fontSize: "0.9rem", color: "#1e3a8a" }}>Scheduled Future Event</h4>
+            <p style={{ margin: "0.15rem 0 0", fontSize: "0.825rem", color: "#3b82f6" }}>
+              This event is scheduled for the future ({fmtDate(localEvent.eventDate)} at {fmtTime(localEvent.startTime)}) and has not occurred yet. Attendance metrics, active absentees list, and pastoral follow-up outreach tools are currently disabled.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {isUnrecorded && (
+        <div style={{ background: "#f8fafc", border: "1.5px solid #cbd5e1", borderRadius: "12px", padding: "1rem 1.25rem", marginBottom: "1.5rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", color: "#334155" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            <span style={{ fontSize: "1.5rem" }}>🚫</span>
+            <div>
+              <h4 style={{ margin: 0, fontWeight: 700, fontSize: "0.9rem", color: "#1e293b" }}>Attendance Unrecorded</h4>
+              <p style={{ margin: "0.15rem 0 0", fontSize: "0.825rem", color: "#64748b" }}>
+                This event has been marked as having unrecorded attendance logs (e.g. ushers forgot to log, or internet was down). Active members are not flagged as absent, and follow-up outreach is disabled.
+              </p>
+            </div>
+          </div>
+          <button onClick={() => setUnrecordedModal({ open: true, loading: false, error: "" })} style={{ padding: "0.5rem 0.875rem", border: "1.5px solid #cbd5e1", background: "white", borderRadius: "8px", color: "#475569", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer", transition: "all 0.2s ease" }}>
+            🔄 Restore Status
+          </button>
+        </div>
+      )}
+
+      {!isFutureEvent && attendance.length === 0 && !isUnrecorded && (
+        <div style={{ background: "#fffbeb", border: "1.5px solid #fde68a", borderRadius: "12px", padding: "1rem 1.25rem", marginBottom: "1.5rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", color: "#92400e" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            <span style={{ fontSize: "1.5rem" }}>⚠️</span>
+            <div>
+              <h4 style={{ margin: 0, fontWeight: 700, fontSize: "0.9rem", color: "#78350f" }}>No Attendance Logged</h4>
+              <p style={{ margin: "0.15rem 0 0", fontSize: "0.825rem", color: "#b45309" }}>
+                It looks like no attendance check-ins were recorded for this past event. If this was an oversight (e.g., ushers forgot, internet issues, or service canceled), you can mark this event as "Attendance Unrecorded" to avoid falsely flagging members as absent.
+              </p>
+            </div>
+          </div>
+          <button onClick={() => setUnrecordedModal({ open: true, loading: false, error: "" })} style={{ padding: "0.5rem 0.875rem", border: "none", background: "#f59e0b", color: "white", borderRadius: "8px", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
+            ⚠️ Mark Unrecorded
+          </button>
+        </div>
+      )}
+
+      {/* Main Stats and Tabs (greyed out/disabled if future or unrecorded) */}
+      <div style={disabledStyle}>
+        {/* KPI Cards Row */}
       <div
         style={{
           display: "grid",
@@ -850,6 +1013,7 @@ export default function EventAnalyticsClient({
           </div>
         </div>
       )}
+      </div>
 
       {/* ────────────────── SMS DIALOG MODAL ────────────────── */}
       {smsModal.open && (
@@ -953,6 +1117,22 @@ export default function EventAnalyticsClient({
           </div>
         </div>
       )}
+
+      {/* ────────────────── UNRECORDED CONFIRMATION MODAL ────────────────── */}
+      <ConfirmModal
+        open={unrecordedModal.open}
+        title={isUnrecorded ? "Restore Attendance Status" : "Mark as Attendance Unrecorded?"}
+        message={
+          isUnrecorded
+            ? "Are you sure you want to restore attendance tracking for this event? Members who did not attend will be flagged as absent, and follow-ups will be re-enabled."
+            : "Are you sure you want to mark this event as having unrecorded attendance? This will exclude active members from being falsely flagged as absent, and disable all follow-up outreach for this event."
+        }
+        confirmLabel={isUnrecorded ? "Restore" : "Confirm"}
+        confirmColor={isUnrecorded ? P : "#f59e0b"}
+        loading={unrecordedModal.loading}
+        onConfirm={handleToggleUnrecorded}
+        onCancel={() => setUnrecordedModal(prev => ({ ...prev, open: false, error: "" }))}
+      />
 
       {/* Media styling responsive queries */}
       <style>{`

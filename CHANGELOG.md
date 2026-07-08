@@ -5,6 +5,13 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.39.0] — 2026-07-09
+### Added
+- **Dynamic Search & Filtering**: Added a real-time text filter bar to the `/admin/events` list, permitting lookup of events by title, speaker, location, and description.
+- **Dynamic Member Auto-Segmentation Alignment**: Integrated the dynamic auto-segmentation algorithm into the Event Attendance Analytics dashboard to evaluate and align active/inactive/guest counts exactly with the general admin dashboard.
+- **Attendance Unrecorded Detection & Toggling**: Introduced automated "No Attendance Logged" notices for past events with zero logs. Added a "Mark as Attendance Unrecorded" button and a modal confirmation mechanism that marks events as unrecorded in the database (stored under a `[ATTENDANCE_UNRECORDED]` description prefix), preventing false absentee notifications and follow-up alerts.
+- **Future Scheduled Event Notices**: Implemented visual notifications and greyed-out visual styles to denote future/pending events and prevent premature follow-up tracking or SMS dispatches.
+
 ## [v2.38.0] — 2026-07-08
 ### Added
 - **Event Attendance Analytics Dashboard**: Designed and implemented a comprehensive analytics dashboard at `/admin/events/[id]/analytics` for detailed event-based tracking. Includes counts of active attendees, returned inactive members, new guests, and active absentees.

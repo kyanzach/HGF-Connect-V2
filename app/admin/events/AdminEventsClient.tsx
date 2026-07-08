@@ -153,7 +153,21 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
     confirmColor: string; loading: boolean; onConfirm: () => void;
   }>({ open: false, title: "", message: "", confirmLabel: "Confirm", confirmColor: "#ef4444", loading: false, onConfirm: () => {} });
 
-  const filtered = useMemo(() => typeFilter === "all" ? events : events.filter(e => e.eventType === typeFilter), [events, typeFilter]);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filtered = useMemo(() => {
+    let result = typeFilter === "all" ? events : events.filter(e => e.eventType === typeFilter);
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(e => 
+        (e.title || "").toLowerCase().includes(q) ||
+        (e.speaker || "").toLowerCase().includes(q) ||
+        (e.description || "").toLowerCase().includes(q) ||
+        (e.location || "").toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [events, typeFilter, searchQuery]);
 
   function openAdd() { 
     setEditing(null); 
@@ -335,6 +349,25 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
       </div>
 
       {err && <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "8px", padding: "0.75rem 1rem", marginBottom: "1rem", color: "#ef4444", fontSize: "0.85rem", fontWeight: 600 }}>{err} <button onClick={() => setErr("")} style={{ float: "right", background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontWeight: 700 }}>✕</button></div>}
+
+      {/* Search Bar */}
+      <div style={{ marginBottom: "1.5rem", maxWidth: "450px" }}>
+        <input
+          type="text"
+          placeholder="🔍 Search events by title, speaker, location..."
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          style={{
+            width: "100%",
+            padding: "0.625rem 0.875rem",
+            border: "1.5px solid #e2e8f0",
+            borderRadius: "8px",
+            outline: "none",
+            fontSize: "0.875rem",
+            boxSizing: "border-box"
+          }}
+        />
+      </div>
 
       <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.25rem", flexWrap: "wrap" }}>
         {["all", ...EVENT_TYPES].map(t => (
