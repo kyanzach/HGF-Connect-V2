@@ -5,6 +5,12 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.38.0] — 2026-07-08
+### Added
+- **Event Attendance Analytics Dashboard**: Designed and implemented a comprehensive analytics dashboard at `/admin/events/[id]/analytics` for detailed event-based tracking. Includes counts of active attendees, returned inactive members, new guests, and active absentees.
+- **Pastoral Follow-up & SMS Outreach**: Created dynamic segments to calculate consecutive member absences (e.g. absent for 3+ weeks). Added single-member and multi-select bulk SMS follow-up capabilities directly integrated into the dashboard using standard SMS protocols (no raw protocols in text).
+- **Admin Events KPI widgets**: Injected summary metrics cards at the top of the `/admin/events` list, showing total events, Sunday services, active presentations, and monthly activity counts.
+
 ## [v2.37.12] — 2026-07-08
 ### Fixed
 - **Memory Optimization for Large PDF Uploads**: Introduced a 20MB file size threshold check inside `lib/presentationProcessor.ts`. Large PDF presentations exceeding 20MB now bypass the memory-heavy `pdf-parse` text extraction step, preventing Out-Of-Memory (OOM) crashes and CPU thread blocks on the droplet.

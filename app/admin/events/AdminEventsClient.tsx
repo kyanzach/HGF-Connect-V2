@@ -72,6 +72,17 @@ const toHHMM = (t: string | null) => {
 
 export default function AdminEventsClient({ events: initial }: { events: EventRow[] }) {
   const [events, setEvents] = useState(initial);
+  const stats = useMemo(() => {
+    const total = events.length;
+    const sundayServices = events.filter(e => e.eventType === "sunday_service").length;
+    const thisMonth = events.filter(e => {
+      const d = new Date(e.eventDate);
+      const now = new Date();
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    }).length;
+    const withSlides = events.filter(e => e.presentationFile).length;
+    return { total, sundayServices, thisMonth, withSlides };
+  }, [events]);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<EventRow | null>(null);
   const [saving, setSaving] = useState(false);
@@ -333,6 +344,38 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
         ))}
       </div>
 
+      {/* KPI Stats widgets row */}
+      <div className="events-kpis-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
+        <div style={{ background: "white", borderRadius: "12px", border: "1px solid #e2e8f0", padding: "1rem 1.25rem", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", display: "flex", alignItems: "center", gap: "1rem" }}>
+          <div style={{ width: 42, height: 42, borderRadius: "8px", background: "#3b82f615", color: "#3b82f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.25rem" }}>📅</div>
+          <div>
+            <span style={{ display: "block", fontSize: "0.75rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>Total Events</span>
+            <span style={{ fontSize: "1.25rem", fontWeight: 800, color: "#0f172a" }}>{stats.total}</span>
+          </div>
+        </div>
+        <div style={{ background: "white", borderRadius: "12px", border: "1px solid #e2e8f0", padding: "1rem 1.25rem", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", display: "flex", alignItems: "center", gap: "1rem" }}>
+          <div style={{ width: 42, height: 42, borderRadius: "8px", background: `${P}15`, color: P, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.25rem" }}>⛪</div>
+          <div>
+            <span style={{ display: "block", fontSize: "0.75rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>Sunday Services</span>
+            <span style={{ fontSize: "1.25rem", fontWeight: 800, color: "#0f172a" }}>{stats.sundayServices}</span>
+          </div>
+        </div>
+        <div style={{ background: "white", borderRadius: "12px", border: "1px solid #e2e8f0", padding: "1rem 1.25rem", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", display: "flex", alignItems: "center", gap: "1rem" }}>
+          <div style={{ width: 42, height: 42, borderRadius: "8px", background: "#10b98115", color: "#10b981", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.25rem" }}>📈</div>
+          <div>
+            <span style={{ display: "block", fontSize: "0.75rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>This Month</span>
+            <span style={{ fontSize: "1.25rem", fontWeight: 800, color: "#0f172a" }}>{stats.thisMonth}</span>
+          </div>
+        </div>
+        <div style={{ background: "white", borderRadius: "12px", border: "1px solid #e2e8f0", padding: "1rem 1.25rem", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", display: "flex", alignItems: "center", gap: "1rem" }}>
+          <div style={{ width: 42, height: 42, borderRadius: "8px", background: "#8b5cf615", color: "#8b5cf6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.25rem" }}>📽️</div>
+          <div>
+            <span style={{ display: "block", fontSize: "0.75rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>Presentations</span>
+            <span style={{ fontSize: "1.25rem", fontWeight: 800, color: "#0f172a" }}>{stats.withSlides}</span>
+          </div>
+        </div>
+      </div>
+
       {/* Edit/Add Modal */}
       {showModal && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 999, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}>
@@ -500,6 +543,7 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
               {ev.description && <p style={{ fontSize: "0.8rem", color: "#94a3b8", margin: "0.25rem 0 0" }}>{ev.description}</p>}
             </div>
             <div className="event-actions" style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
+              <a href={`/admin/events/${ev.id}/analytics`} style={{ padding: "0.375rem 0.75rem", border: "1.5px solid #6366f130", background: "#6366f110", color: "#6366f1", borderRadius: "6px", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>📊 Stats</a>
               <a href={`/event/${ev.id}`} target="_blank" rel="noopener noreferrer" style={{ padding: "0.375rem 0.75rem", border: "1.5px solid #10b98130", background: "#10b98110", color: "#10b981", borderRadius: "6px", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer", textDecoration: "none" }}>View</a>
               <button onClick={() => openEdit(ev)} style={{ padding: "0.375rem 0.75rem", border: `1.5px solid ${P}30`, background: `${P}10`, color: P, borderRadius: "6px", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer" }}>Edit</button>
               <button onClick={() => promptDelete(ev.id, ev.title)} style={{ padding: "0.375rem 0.75rem", border: "1.5px solid #fee2e2", background: "#fef2f2", color: "#ef4444", borderRadius: "6px", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer" }}>Delete</button>
