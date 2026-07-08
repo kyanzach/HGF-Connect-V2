@@ -53,13 +53,19 @@ export async function processPresentation(
       pdfPath = path.join(tempDir, convertedPdfFile);
     }
 
-    // 1.5 Attempt to extract native text layer from PDF
+    // 1.5 Attempt to extract native text layer from PDF (if file size is < 20MB)
     let extractedText = "";
     try {
-      onProgress?.(25, "Extracting native sermon text...");
-      const pdfBuffer = await fs.readFile(pdfPath);
-      const pdfData = await pdfParse(pdfBuffer);
-      extractedText = pdfData.text || "";
+      const stats = await fs.stat(pdfPath);
+      const sizeMB = stats.size / (1024 * 1024);
+      if (sizeMB > 20) {
+        console.warn(`[presentationProcessor] PDF file size is ${sizeMB.toFixed(2)}MB (> 20MB). Skipping native text extraction to prevent OOM.`);
+      } else {
+        onProgress?.(25, "Extracting native sermon text...");
+        const pdfBuffer = await fs.readFile(pdfPath);
+        const pdfData = await pdfParse(pdfBuffer);
+        extractedText = pdfData.text || "";
+      }
     } catch (err) {
       console.error("Failed to extract native text:", err);
     }

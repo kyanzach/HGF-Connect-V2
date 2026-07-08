@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.37.12] — 2026-07-08
+### Fixed
+- **Memory Optimization for Large PDF Uploads**: Introduced a 20MB file size threshold check inside `lib/presentationProcessor.ts`. Large PDF presentations exceeding 20MB now bypass the memory-heavy `pdf-parse` text extraction step, preventing Out-Of-Memory (OOM) crashes and CPU thread blocks on the droplet.
+
 ## [v2.37.11] — 2026-07-08
 ### Fixed
 - **CSS Grid Column Overflow**: Replaced `2fr 1fr` columns with `minmax(0, 2fr) minmax(0, 1fr)` inside `MultimediaDashboardClient.tsx` to prevent wide children from expanding grid boundaries and creating a horizontal scrollbar.
