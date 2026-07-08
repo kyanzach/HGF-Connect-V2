@@ -579,36 +579,52 @@ export default function EventAnalyticsClient({
         </div>
       </div>
 
-      {/* Tabs list */}
-      <div style={{ display: "flex", gap: "0.5rem", borderBottom: "1.5px solid #e2e8f0", marginBottom: "1.5rem", flexWrap: "wrap", paddingBottom: "0.5rem" }}>
+      {/* Tabs list (Styled as a modern segmented tab control) */}
+      <div style={{
+        display: "flex",
+        gap: "0.25rem",
+        padding: "0.375rem",
+        background: "#f1f5f9",
+        borderRadius: "12px",
+        marginBottom: "1.5rem",
+        flexWrap: "wrap",
+        border: "1px solid #e2e8f0"
+      }}>
         {[
           { key: "overview", label: "📊 Overview" },
           { key: "attendees", label: `✅ Attendees (${attendance.length})` },
           { key: "absent", label: `❌ Absent Actives (${segmentedData.absentActives.length})` },
           { key: "returned", label: `🎉 Returned Inactives (${segmentedData.returnedInactives.length})` },
           { key: "outreach", label: `💬 Follow-up Outreach (${segmentedData.outreachCandidates.length})` },
-        ].map((t) => (
-          <button
-            key={t.key}
-            onClick={() => {
-              setActiveTab(t.key as any);
-              setSearchQuery("");
-            }}
-            style={{
-              padding: "0.5rem 1rem",
-              borderRadius: "8px",
-              border: "none",
-              background: activeTab === t.key ? `${P}15` : "transparent",
-              color: activeTab === t.key ? P : "#64748b",
-              fontWeight: 700,
-              fontSize: "0.875rem",
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-            }}
-          >
-            {t.label}
-          </button>
-        ))}
+        ].map((t) => {
+          const isActive = activeTab === t.key;
+          return (
+            <button
+              key={t.key}
+              onClick={() => {
+                setActiveTab(t.key as any);
+                setSearchQuery("");
+              }}
+              style={{
+                padding: "0.5rem 1rem",
+                borderRadius: "8px",
+                border: "none",
+                background: isActive ? "white" : "transparent",
+                color: isActive ? P : "#64748b",
+                fontWeight: 700,
+                fontSize: "0.875rem",
+                cursor: "pointer",
+                transition: "all 0.15s ease-in-out",
+                boxShadow: isActive ? "0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04)" : "none",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.375rem",
+              }}
+            >
+              {t.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Search Input for Data lists */}

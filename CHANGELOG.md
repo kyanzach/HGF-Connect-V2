@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.39.1] — 2026-07-09
+### Changed
+- **Sleek Segmented Tab UI**: Upgraded the simple text buttons on the event attendance analytics dashboard into a segmented control track (light slate grey track with white elevated active pills, drop-shadows, and smooth micro-animations) to make them look distinct and interactive instead of resembling static text.
+
 ## [v2.39.0] — 2026-07-09
 ### Added
 - **Dynamic Search & Filtering**: Added a real-time text filter bar to the `/admin/events` list, permitting lookup of events by title, speaker, location, and description.
