@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.37.11] — 2026-07-08
+### Fixed
+- **CSS Grid Column Overflow**: Replaced `2fr 1fr` columns with `minmax(0, 2fr) minmax(0, 1fr)` inside `MultimediaDashboardClient.tsx` to prevent wide children from expanding grid boundaries and creating a horizontal scrollbar.
+- **Server Font Installation**: Provisioned Microsoft Core Fonts and Noto Core Fonts on the production server to resolve font-substitution formatting and alignment clutter during LibreOffice conversions.
+
 ## [v2.37.10] — 2026-07-08
 ### Changed
 - **Dynamic Post Image Formatting**: Enhanced single-photo feed post rendering in `PostCard.tsx` to display full portrait and landscape images dynamically (similar to Facebook) instead of cropping them to a fixed 200px box.
