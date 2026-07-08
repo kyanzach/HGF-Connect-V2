@@ -78,6 +78,22 @@ export async function DELETE(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const { id: idStr } = await params;
-  await db.event.delete({ where: { id: parseInt(idStr) } });
+  const id = parseInt(idStr);
+
+  try {
+    // Clean up any linked feed posts referencing this event ID
+    await db.post.deleteMany({
+      where: {
+        type: "EVENT",
+        content: {
+          contains: `[event:${id}]`,
+        },
+      },
+    });
+  } catch (postDelErr) {
+    console.error("Failed to delete linked event posts:", postDelErr);
+  }
+
+  await db.event.delete({ where: { id } });
   return NextResponse.json({ success: true });
 }

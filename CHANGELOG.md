@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.39.5] — 2026-07-09
+### Fixed
+- **Cascade Deletion of Event Feed Posts**: Configured the `DELETE /api/events/[id]` API handler to dynamically delete any linked feed posts (matching the `[event:${id}]` bracket code in post content) when an event is deleted. This prevents orphaned event posts from displaying on the community feed wall when duplicate or misconfigured events are deleted.
+- **Production Database Cleanup**: Executed a script on the production database to purge all existing orphaned event posts (successfully deleted posts ID 142 and ID 91).
+
 ## [v2.39.4] — 2026-07-09
 ### Added
 - **Slide-Based Quiz Generation**: Made the manual sermon notes input text optional on the Quiz Admin page. If slides are uploaded for the linked Sunday service event, the AI generator automatically falls back to generating progressive quiz challenges using the event's slide OCR commentary summary, streamlining weekly quiz creation.
