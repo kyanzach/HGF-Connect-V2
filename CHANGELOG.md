@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.37.8] — 2026-07-08
+### Fixed
+- **Sermon Upload Worker Resolution**: Resolved presentation (PDF/PPTX) upload stalling issue caused by Webpack/Turbopack dynamic worker module resolution failures inside the server-side Next.js bundle by specifying an absolute Tesseract.js `workerPath` and `cachePath`. Also optimized thread pools by instantiating and reusing a single Tesseract worker across each slide batch.
+
 ## [v2.37.7] — 2026-07-05
 ### Changed
 - **Protocol Stripping**: Removed `https://` from all copied and shared invite URLs to prevent carrier/telco SMS filter blocks.

@@ -26,6 +26,8 @@ Next.js 16 (App Router) + TypeScript + Prisma (MySQL) + PM2. Server: DO Droplet 
 12. NEVER use native system dialogs** (`alert()`, `confirm()`, `prompt()`) — use modals instead
 13. Avoid mobile bottom-dock overlap: Always toggle the `hgf-modal-open` class on `document.body` when mounting/unmounting or opening/closing bottom sheets (like reactions or comments modals).
 14. Never use protocols (http, https, //) or www in URLs inside SMS messages as telcos restrict them. Use clean prefixes starting with connect.houseofgrace.ph/ (e.g. connect.houseofgrace.ph/login).
+15. Always configure absolute paths for Tesseract.js workers (workerPath) and avoid relative or dynamic loader paths, as Webpack/Turbopack bundling in Next.js will break dynamic requires (stuck at 5% / /ROOT/ error).
+
 
 ## Schema Gotchas
 - `@db.Time` fields → Prisma returns ISO strings like `1970-01-01T01:05:00.000Z`, use `toHHMM()` / `fmtTime()`

@@ -7,7 +7,7 @@ import pptxgen from "pptxgenjs";
 import { randomUUID } from "crypto";
 import axios from "axios";
 import pdfParse from "pdf-parse";
-import Tesseract from "tesseract.js";
+import { createWorker } from "tesseract.js";
 
 const execAsync = promisify(exec);
 
@@ -95,24 +95,42 @@ export async function processPresentation(
     if (textLength < 50) {
       onProgress?.(45, "Native text layer insufficient. Performing local OCR on slide images...");
       let ocrText = "";
-      // Limit OCR to first 16 pages to prevent process timeouts on large slide decks
-      const maxOcrPages = Math.min(jpegFiles.length, 16);
-      for (let i = 0; i < maxOcrPages; i++) {
-        const file = jpegFiles[i];
-        try {
-          onProgress?.(
-            45 + Math.floor((i / maxOcrPages) * 15),
-            `Running local OCR on slide ${i + 1} of ${maxOcrPages}...`
-          );
-          const { data: { text } } = await Tesseract.recognize(file.fullPath, "eng");
-          if (text && text.trim()) {
-            ocrText += `\n--- Slide ${i + 1} ---\n${text.trim()}\n`;
-          }
-        } catch (ocrErr) {
-          console.error(`OCR failed for slide ${i + 1}:`, ocrErr);
-        }
+
+      let worker: any = null;
+      try {
+        worker = await createWorker("eng", 1, {
+          workerPath: path.join(process.cwd(), "node_modules", "tesseract.js", "src", "worker-script", "node", "index.js"),
+          cachePath: path.join(process.cwd(), "tmp")
+        });
+      } catch (workerErr) {
+        console.error("Failed to create Tesseract worker:", workerErr);
       }
-      extractedText = ocrText;
+
+      if (worker) {
+        // Limit OCR to first 16 pages to prevent process timeouts on large slide decks
+        const maxOcrPages = Math.min(jpegFiles.length, 16);
+        for (let i = 0; i < maxOcrPages; i++) {
+          const file = jpegFiles[i];
+          try {
+            onProgress?.(
+              45 + Math.floor((i / maxOcrPages) * 15),
+              `Running local OCR on slide ${i + 1} of ${maxOcrPages}...`
+            );
+            const { data: { text } } = await worker.recognize(file.fullPath);
+            if (text && text.trim()) {
+              ocrText += `\n--- Slide ${i + 1} ---\n${text.trim()}\n`;
+            }
+          } catch (ocrErr) {
+            console.error(`OCR failed for slide ${i + 1}:`, ocrErr);
+          }
+        }
+        try {
+          await worker.terminate();
+        } catch (termErr) {
+          console.error("Failed to terminate Tesseract worker:", termErr);
+        }
+        extractedText = ocrText;
+      }
     }
 
     // 3.6 Generate AI commentary using extracted text
