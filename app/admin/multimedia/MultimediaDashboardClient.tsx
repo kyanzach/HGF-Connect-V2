@@ -428,7 +428,7 @@ export default function MultimediaDashboardClient({
   };
 
   return (
-    <div style={{ padding: "2rem 2.5rem", fontFamily: "Inter, sans-serif" }}>
+    <div className="multimedia-container" style={{ padding: "2rem 2.5rem", fontFamily: "Inter, sans-serif" }}>
       {/* Header Banner */}
       <div
         style={{
@@ -798,6 +798,7 @@ export default function MultimediaDashboardClient({
               }}
             >
               <div
+                className="slides-header-wrap"
                 style={{
                   display: "flex",
                   justifyContent: "space-between",
@@ -1286,6 +1287,23 @@ export default function MultimediaDashboardClient({
         @media (max-width: 991px) {
           .dashboard-grid {
             grid-template-columns: 1fr !important;
+          }
+          .multimedia-container {
+            padding: 1.5rem 1rem !important;
+          }
+        }
+        @media (max-width: 576px) {
+          .multimedia-container {
+            padding: 1rem 0.75rem !important;
+          }
+          .slides-header-wrap {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            text-align: center !important;
+          }
+          .slides-header-wrap a {
+            width: 100% !important;
+            justify-content: center !important;
           }
         }
       `}</style>

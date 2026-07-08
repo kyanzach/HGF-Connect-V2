@@ -1087,17 +1087,23 @@ export default function PostCard({ post }: PostCardProps) {
                         const src = photo.photoPath.startsWith("http") || photo.photoPath.startsWith("/")
                           ? photo.photoPath
                           : `/uploads/posts/${photo.photoPath}`;
+                        const isSingle = post.photos!.length === 1;
                         return (
                           <div
                             key={photo.id || i}
                             style={{
                               flexShrink: 0,
-                              width: post.photos!.length === 1 ? "100%" : "260px",
-                              height: "200px",
+                              width: isSingle ? "100%" : "260px",
+                              height: isSingle ? "auto" : "200px",
+                              maxHeight: isSingle ? "500px" : undefined,
                               borderRadius: "12px",
                               overflow: "hidden",
                               border: "1px solid #f1f5f9",
                               position: "relative",
+                              background: isSingle ? "#f8fafc" : undefined,
+                              display: isSingle ? "flex" : undefined,
+                              justifyContent: isSingle ? "center" : undefined,
+                              alignItems: isSingle ? "center" : undefined,
                             }}
                           >
                             <img
@@ -1105,8 +1111,9 @@ export default function PostCard({ post }: PostCardProps) {
                               alt={`Post photo ${i + 1}`}
                               style={{
                                 width: "100%",
-                                height: "100%",
-                                objectFit: "cover",
+                                height: isSingle ? "auto" : "100%",
+                                maxHeight: isSingle ? "500px" : "100%",
+                                objectFit: isSingle ? "contain" : "cover",
                                 cursor: "zoom-in",
                               }}
                               loading="lazy"

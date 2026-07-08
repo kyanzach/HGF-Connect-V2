@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.37.10] — 2026-07-08
+### Changed
+- **Dynamic Post Image Formatting**: Enhanced single-photo feed post rendering in `PostCard.tsx` to display full portrait and landscape images dynamically (similar to Facebook) instead of cropping them to a fixed 200px box.
+- **Multimedia Admin Mobile Optimizations**: Restructured the layout and container padding on the Multimedia Pre-service Operations page to scale correctly and prevent horizontal scrolling or cut-off download buttons on smaller phone displays.
+
 ## [v2.37.9] — 2026-07-08
 ### Fixed
 - **AI Sermon Casing Normalization**: Added cleanup rules to the background AI sermon processor's system prompt to normalize garbled or mixed-casing text (e.g. "jOHN 3:16" or "thE lamb") caused by non-standard PDF font map decodings.
