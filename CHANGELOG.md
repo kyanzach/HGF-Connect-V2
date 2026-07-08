@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v2.39.1] — 2026-07-09
 ### Changed
 - **Sleek Segmented Tab UI**: Upgraded the simple text buttons on the event attendance analytics dashboard into a segmented control track (light slate grey track with white elevated active pills, drop-shadows, and smooth micro-animations) to make them look distinct and interactive instead of resembling static text.
+- **Legacy Attendance App Enhancements**: Integrated a helpful reminder notice into the zero-records report view inside `reports_widget.php` on the server. Added instructions suggesting manual logging using the **Log Attendance / Add Member to Event** tool, and updated the section title to clarify functionality.
 
 ## [v2.39.0] — 2026-07-09
 ### Added
