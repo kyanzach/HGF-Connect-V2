@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.39.6] — 2026-07-12
+### Fixed
+- **Punctuation-Insensitive Verse Ordering**: Modified the `SCRIPTURE_ORDERING` challenge validation in the quiz submission handler (`app/api/quiz/submit/route.ts`) to be punctuation-insensitive. It now normalizes both the correct segments and user segments (by stripping all non-alphanumeric characters) before checking the arrangement. This resolves grading errors caused by trailing periods or punctuation mismatched between question answers and draggable options in the database.
+- **Database Credit Correction**: Corrected a user's previous correct verse builder submission (Submission ID 29) on the database that was graded as incorrect due to a trailing period discrepancy.
+
 ## [v2.39.5] — 2026-07-09
 ### Fixed
 - **Cascade Deletion of Event Feed Posts**: Configured the `DELETE /api/events/[id]` API handler to dynamically delete any linked feed posts (matching the `[event:${id}]` bracket code in post content) when an event is deleted. This prevents orphaned event posts from displaying on the community feed wall when duplicate or misconfigured events are deleted.

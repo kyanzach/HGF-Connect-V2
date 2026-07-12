@@ -111,8 +111,14 @@ export async function POST(request: Request) {
         } catch {
           userOrder = userAnswer.split(" | ").map((s) => s.trim().toLowerCase());
         }
-        isCorrect = correctOrder.length === userOrder.length &&
-          correctOrder.every((c, i) => userOrder[i] === c);
+
+        // Normalize text to ignore punctuation and spacing mismatches
+        const normalize = (str: string) => str.replace(/[^\p{L}\p{N}]/gu, "").toLowerCase();
+        const cleanCorrect = correctOrder.map(normalize);
+        const cleanUser = userOrder.map(normalize);
+
+        isCorrect = cleanCorrect.length === cleanUser.length &&
+          cleanCorrect.every((c, i) => cleanUser[i] === c);
         aiFeedback = isCorrect
           ? "You arranged the verse perfectly! 🧩"
           : "Not quite the right order. Keep studying the Word!";
