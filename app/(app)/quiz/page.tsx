@@ -655,7 +655,9 @@ export default function MemberQuizPage() {
                       textAlign: "center",
                     }}
                   >
-                    📥 Download Sermon Slide Deck (.pptx)
+                    {quiz.presentationFile.toLowerCase().endsWith(".pdf")
+                      ? "📥 Download Sermon Slide Deck (.pdf)"
+                      : "📥 Download Sermon Slide Deck (.pptx)"}
                   </a>
                 )}
               </div>

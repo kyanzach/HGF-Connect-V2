@@ -34,6 +34,10 @@ export async function processPresentation(
   await fs.mkdir(slidesDir, { recursive: true });
 
   const ext = path.extname(filePath).toLowerCase();
+  const finalFilename = `${uuid}${ext}`;
+  const finalDestPath = path.join(uploadDir, finalFilename);
+  await fs.copyFile(filePath, finalDestPath);
+
   let pdfPath = filePath;
 
   try {
@@ -231,15 +235,9 @@ Keep the tone encouraging, warm, and faith-based (in standard English, but frien
       slidePaths.push(`/uploads/presentations/slides/${slideFilename}`);
     }
 
-    // 5. Compile the new optimized PPTX presentation
-    onProgress?.(92, "Compiling final compressed slide deck...");
-    const pptxFilename = `${uuid}-compressed.pptx`;
-    const pptxDestPath = path.join(uploadDir, pptxFilename);
-    await pptx.writeFile({ fileName: pptxDestPath });
-
     onProgress?.(100, "Optimization complete!");
     return {
-      presentationFile: `/uploads/presentations/${pptxFilename}`,
+      presentationFile: `/uploads/presentations/${finalFilename}`,
       presentationOriginalName: originalName,
       presentationSlides: slidePaths,
       commentary,

@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.39.8] — 2026-07-15
+### Changed
+- **Preserved Original Presentation Files**: Updated `lib/presentationProcessor.ts` to copy and return the original uploaded presentation file (be it `.pptx` or `.pdf`) to the public downloads folder, rather than replacing it with a JPEG-only `.pptx` file. This preserves all native text layers, fonts, shapes, and formatting, allowing the multimedia team to edit the presentation or copy scriptures natively.
+- **Dynamic Download Extension Badges**: Configured all presentation download buttons on the public resources, member quiz, and multimedia dashboard pages to dynamically render (.pdf) or (.pptx) labels matching the preserved file type.
+
 ## [v2.39.7] — 2026-07-15
 ### Fixed
 - **Presentation Download File Extension Mismatch**: Resolved issue where downloading sermon presentations (PPTX) originally uploaded as PDFs resulted in a file with a `.pdf` extension. The dashboard download link now dynamically normalizes the `download` filename to ensure it always ends with `.pptx`.

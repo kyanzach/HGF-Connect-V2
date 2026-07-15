@@ -820,15 +820,7 @@ export default function MultimediaDashboardClient({
                 {event.presentationFile && (
                   <a
                     href={event.presentationFile}
-                    download={(() => {
-                      const orig = event.presentationOriginalName;
-                      if (!orig) return "presentation.pptx";
-                      const lastDot = orig.lastIndexOf(".");
-                      if (lastDot === -1) return `${orig}.pptx`;
-                      const ext = orig.substring(lastDot).toLowerCase();
-                      if (ext === ".pptx") return orig;
-                      return orig.substring(0, lastDot) + ".pptx";
-                    })()}
+                    download={event.presentationOriginalName || "presentation.pptx"}
                     style={{
                       background: P,
                       color: "white",
@@ -843,7 +835,9 @@ export default function MultimediaDashboardClient({
                       boxShadow: "0 4px 12px rgba(78, 177, 203, 0.2)",
                     }}
                   >
-                    📥 Download Compressed PPTX
+                    {event.presentationFile.toLowerCase().endsWith(".pdf")
+                      ? "📥 Download Original PDF"
+                      : "📥 Download Original PPTX"}
                   </a>
                 )}
               </div>
