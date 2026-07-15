@@ -5,6 +5,10 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.39.7] — 2026-07-15
+### Fixed
+- **Presentation Download File Extension Mismatch**: Resolved issue where downloading sermon presentations (PPTX) originally uploaded as PDFs resulted in a file with a `.pdf` extension. The dashboard download link now dynamically normalizes the `download` filename to ensure it always ends with `.pptx`.
+
 ## [v2.39.6] — 2026-07-12
 ### Fixed
 - **Punctuation-Insensitive Verse Ordering**: Modified the `SCRIPTURE_ORDERING` challenge validation in the quiz submission handler (`app/api/quiz/submit/route.ts`) to be punctuation-insensitive. It now normalizes both the correct segments and user segments (by stripping all non-alphanumeric characters) before checking the arrangement. This resolves grading errors caused by trailing periods or punctuation mismatched between question answers and draggable options in the database.

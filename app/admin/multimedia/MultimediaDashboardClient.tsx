@@ -820,7 +820,15 @@ export default function MultimediaDashboardClient({
                 {event.presentationFile && (
                   <a
                     href={event.presentationFile}
-                    download={event.presentationOriginalName || "presentation.pptx"}
+                    download={(() => {
+                      const orig = event.presentationOriginalName;
+                      if (!orig) return "presentation.pptx";
+                      const lastDot = orig.lastIndexOf(".");
+                      if (lastDot === -1) return `${orig}.pptx`;
+                      const ext = orig.substring(lastDot).toLowerCase();
+                      if (ext === ".pptx") return orig;
+                      return orig.substring(0, lastDot) + ".pptx";
+                    })()}
                     style={{
                       background: P,
                       color: "white",
