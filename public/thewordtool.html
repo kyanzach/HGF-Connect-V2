@@ -1796,7 +1796,32 @@
   let savedToServer = false;
   let fileHandle = null;
   let isDirty = false;
-  const folderPasswords = {};
+  const folderPasswords = new Proxy({}, {
+    get(target, key) {
+      try {
+        const stored = JSON.parse(sessionStorage.getItem('hgf_folder_passwords')) || {};
+        return stored[key];
+      } catch {
+        return undefined;
+      }
+    },
+    set(target, key, value) {
+      try {
+        const stored = JSON.parse(sessionStorage.getItem('hgf_folder_passwords')) || {};
+        stored[key] = value;
+        sessionStorage.setItem('hgf_folder_passwords', JSON.stringify(stored));
+      } catch {}
+      return true;
+    },
+    deleteProperty(target, key) {
+      try {
+        const stored = JSON.parse(sessionStorage.getItem('hgf_folder_passwords')) || {};
+        delete stored[key];
+        sessionStorage.setItem('hgf_folder_passwords', JSON.stringify(stored));
+      } catch {}
+      return true;
+    }
+  });
 
   // Restore service type preference
   const savedServiceType = localStorage.getItem(SERVICE_TYPE_KEY);
@@ -2213,7 +2238,15 @@
     if (folderPasswords[folder]) body.password = folderPasswords[folder];
     try {
       const res = await fetch(SCRIPTS_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      if (res.status === 403) { delete folderPasswords[folder]; showToast('❌ Wrong password', true); return; }
+      if (res.status === 403) { 
+        delete folderPasswords[folder]; 
+        showToast('❌ Password required to save', true);
+        openFM('save');
+        showPasswordPrompt(folder, () => {
+          saveToServerFolder(folder, name);
+        });
+        return; 
+      }
       if (!res.ok) throw new Error();
       currentFileName = name; currentFolder = folder; savedToServer = true; isDirty = false;
       setSavePref(name, 'server', folder);

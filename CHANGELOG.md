@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.41.1] — 2026-08-12
+### Fixed
+- **Refresh Password Retention**: Replaced the local in-memory folder password cache with a `sessionStorage`-backed Proxy to preserve authenticated folder passwords across page refreshes.
+- **Auto-Prompt on Save Failure**: Configured the server save handler to immediately trigger the File Manager's password authentication prompt on 403 (unauthorized/password needed) responses, allowing seamless re-saving.
+
 ## [v2.41.0] — 2026-08-12
 ### Added
 - **Highlight Font Size Adjustment**: Integrated Font Increase (`▲ Font`) and Decrease (`▼ Font`) buttons in the editor toolbar to scale highlight sizes dynamically.
