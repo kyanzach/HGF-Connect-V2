@@ -232,3 +232,9 @@ When a page crashes or shows errors:
 - **Tesseract.js Worker Resolution Fix (v2.37.8)**:
   - **Issue**: Presentation uploads (PDF/PPTX) got stuck at 5% because Next.js Webpack/Turbopack bundling rewrote dynamic `require` statements of the Tesseract.js Node worker module to placeholder paths (like `/ROOT/node_modules/...`), which crashed with `MODULE_NOT_FOUND` in production.
   - **Fix**: Configured absolute `workerPath` and `cachePath` in Tesseract's `createWorker` options using paths built from `process.cwd()` to prevent dynamic loading failures. Reused a single Tesseract worker instance across a batch of slide images to optimize processing speed and avoid thread leaks.
+
+### 2026-08-12
+- **Exclude System/Placeholder Accounts from SMS Campaigns (v2.42.2)**:
+  - **Issue**: Testing/placeholder accounts (specifically members with first name `"HGF"` or phone number `"09000000000"`) were receiving batched event reminders and SMS campaigns.
+  - **Fix**: Added explicit exclusions in the SMS reminder check generation route to omit these system testing entities from campaigns at all times.
+

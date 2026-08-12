@@ -226,6 +226,10 @@ export async function POST(request: NextRequest) {
       // Filter out guests (either overridden to guest, or dynamic guests with ≤1 attendance)
       // Keep active + inactive members (or manual overrides) for re-engagement
       const members = allMembers.filter(m => {
+        // Exclude system/testing entries and placeholder accounts
+        if (m.phone === "09000000000" || m.phone?.trim() === "09000000000" || m.firstName?.toUpperCase() === "HGF") {
+          return false;
+        }
         if (m.status === "guest") return false;
         if (m.status === "active" || m.status === "inactive") return true;
         return (m._count?.attendance ?? 0) > 1;
