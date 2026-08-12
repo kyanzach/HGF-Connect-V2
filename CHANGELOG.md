@@ -5,6 +5,12 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.40.0] — 2026-08-12
+### Added
+- **Editor Text Highlighter**: Added a text highlighter context toast that displays near the cursor on text selection in "THE WORD" scripture delivery tool, with options to highlight words with Yellow, Green, or Red background (keeping text white and bold) and a toggle for bold/unbold.
+- **Custom Color Picker Toolbar Tool**: Integrated a custom color picker marker in the main toolbar, allowing pastors to choose any custom color via a native color input and apply it to their selected text.
+- **Prompter Selection Normalization**: Configured CSS resets in the prompter scroll view to bypass `.word-marker` highlights, ensuring highlighted words appear identical in both editor and prompter modes.
+
 ## [v2.39.8] — 2026-07-15
 ### Changed
 - **Preserved Original Presentation Files**: Updated `lib/presentationProcessor.ts` to copy and return the original uploaded presentation file (be it `.pptx` or `.pdf`) to the public downloads folder, rather than replacing it with a JPEG-only `.pptx` file. This preserves all native text layers, fonts, shapes, and formatting, allowing the multimedia team to edit the presentation or copy scriptures natively.

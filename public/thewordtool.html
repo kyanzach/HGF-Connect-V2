@@ -460,14 +460,14 @@
   /* Force override any pasted inline styles */
   #prompter-scroll p,
   #prompter-scroll div:not(#prompter-scroll),
-  #prompter-scroll span,
+  #prompter-scroll span:not(.word-marker),
   #prompter-scroll li {
     font-size: clamp(28px, 4vw, 48px) !important;
     line-height: 1.6 !important;
     background-color: transparent !important;
   }
   
-  #prompter-scroll span {
+  #prompter-scroll span:not(.word-marker) {
     color: inherit !important;
   }
 
@@ -714,6 +714,29 @@
 
   .ctrl-btn.mark-btn { font-size: 13px; }
   .ctrl-btn.mark-btn.has-mark { background: #ef4444; color: #fff; }
+
+  /* ── Highlighter Word Marker ── */
+  .word-marker {
+    border-radius: 4px;
+    padding: 0 4px;
+    color: #ffffff !important;
+  }
+  #prompter-scroll .word-marker {
+    border-radius: 6px;
+    padding: 2px 6px;
+    display: inline;
+    color: #ffffff !important;
+  }
+  .tb-color-picker-wrapper {
+    transition: border-color 0.12s;
+  }
+  .tb-color-picker-wrapper:hover {
+    border-color: #555 !important;
+  }
+  #btn-apply-custom-highlight:hover {
+    color: #fff !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+  }
 
   /* ── History Panel ── */
   #history-panel {
@@ -1612,6 +1635,17 @@
     <div class="tb-sep"></div>
     <button class="tb-btn" data-cmd="hr" title="Horizontal line">― HR</button>
     <button class="tb-btn" data-cmd="removeFormat" title="Clear formatting">✕</button>
+    <div class="tb-sep"></div>
+    <div class="tb-color-picker-wrapper" style="display: inline-flex; align-items: center; background: #2a2a2a; border-radius: 5px; overflow: hidden; border: 1px solid #333; height: 28px;">
+      <button class="tb-btn" id="btn-apply-custom-highlight" style="border: none; border-radius: 0; background: transparent; padding: 6px 10px; font-size: 13px; color: #ccc; cursor: pointer;" title="Highlight selection with current custom color">
+        🎨 Highlight
+      </button>
+      <div style="width: 1px; height: 16px; background: #444;"></div>
+      <div style="position: relative; width: 24px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+        <div id="custom-color-indicator" style="width: 12px; height: 12px; border-radius: 50%; background: #ef4444; border: 1px solid #fff;"></div>
+        <input type="color" id="custom-highlight-color" style="position: absolute; opacity: 0; left: 0; top: 0; width: 100%; height: 100%; cursor: pointer;" value="#ef4444" title="Choose color">
+      </div>
+    </div>
   </div>
 
   <div id="script-editor" contenteditable="true" spellcheck="false"></div>
@@ -2393,6 +2427,295 @@
     editor.focus();
     document.execCommand('redo');
   });
+
+  // ── Text Highlighter & Custom Color Marker ──
+  let selectionToast = null;
+
+  function applyMarker(color, isBold) {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed) return;
+    const range = sel.getRangeAt(0);
+
+    // Check if selection is entirely within an existing marker
+    let parent = range.commonAncestorContainer;
+    if (parent.nodeType === Node.TEXT_NODE) {
+      parent = parent.parentNode;
+    }
+    const existingMarker = parent.closest('.word-marker');
+
+    if (existingMarker && range.toString().trim() === existingMarker.innerText.trim()) {
+      if (color) existingMarker.style.backgroundColor = color;
+      if (isBold !== undefined) {
+        existingMarker.style.fontWeight = isBold ? 'bold' : 'normal';
+      }
+      isDirty = true;
+      updateTitle();
+      syncDraft();
+      return;
+    }
+
+    const frag = range.cloneContents();
+    const tmp = document.createElement('div');
+    tmp.appendChild(frag);
+
+    // Clean up any inner/nested markers to avoid duplicate tags
+    const nested = tmp.querySelectorAll('.word-marker');
+    nested.forEach(n => {
+      const pNode = n.parentNode;
+      while (n.firstChild) {
+        pNode.insertBefore(n.firstChild, n);
+      }
+      pNode.removeChild(n);
+    });
+
+    const span = document.createElement('span');
+    span.className = 'word-marker';
+    span.style.backgroundColor = color || '#ef4444';
+    span.style.color = '#ffffff';
+    span.style.fontWeight = isBold ? 'bold' : 'normal';
+    span.innerHTML = tmp.innerHTML;
+
+    range.deleteContents();
+    range.insertNode(span);
+
+    // Re-select the span contents
+    sel.removeAllRanges();
+    const newRange = document.createRange();
+    newRange.selectNodeContents(span);
+    sel.addRange(newRange);
+
+    isDirty = true;
+    updateTitle();
+    syncDraft();
+  }
+
+  function clearMarker() {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed) return;
+    const range = sel.getRangeAt(0);
+
+    let parent = range.commonAncestorContainer;
+    if (parent.nodeType === Node.TEXT_NODE) {
+      parent = parent.parentNode;
+    }
+    const existingMarker = parent.closest('.word-marker');
+
+    if (existingMarker) {
+      const pNode = existingMarker.parentNode;
+      while (existingMarker.firstChild) {
+        pNode.insertBefore(existingMarker.firstChild, existingMarker);
+      }
+      pNode.removeChild(existingMarker);
+    } else {
+      const frag = range.cloneContents();
+      const tmp = document.createElement('div');
+      tmp.appendChild(frag);
+      const markers = tmp.querySelectorAll('.word-marker');
+      markers.forEach(m => {
+        const pNode = m.parentNode;
+        while (m.firstChild) {
+          pNode.insertBefore(m.firstChild, m);
+        }
+        pNode.removeChild(m);
+      });
+      range.deleteContents();
+      const tempFrag = document.createRange().createContextualFragment(tmp.innerHTML);
+      range.insertNode(tempFrag);
+    }
+
+    isDirty = true;
+    updateTitle();
+    syncDraft();
+  }
+
+  function toggleBoldState() {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed) return;
+    const range = sel.getRangeAt(0);
+
+    let parent = range.commonAncestorContainer;
+    if (parent.nodeType === Node.TEXT_NODE) {
+      parent = parent.parentNode;
+    }
+    const existingMarker = parent.closest('.word-marker');
+
+    if (existingMarker) {
+      const isBold = existingMarker.style.fontWeight === 'bold';
+      existingMarker.style.fontWeight = isBold ? 'normal' : 'bold';
+    } else {
+      applyMarker(null, true);
+    }
+    isDirty = true;
+    updateTitle();
+    syncDraft();
+  }
+
+  function createSelectionToast() {
+    if (selectionToast) return selectionToast;
+
+    selectionToast = document.createElement('div');
+    selectionToast.id = 'editor-selection-toast';
+    selectionToast.style.cssText = `
+      position: absolute;
+      display: none;
+      background: #1e1e1e;
+      border: 1px solid #444;
+      border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+      padding: 6px 10px;
+      z-index: 1000;
+      align-items: center;
+      gap: 8px;
+      pointer-events: auto;
+    `;
+
+    selectionToast.innerHTML = `
+      <button class="toast-color-btn" data-color="#eab308" style="width: 20px; height: 20px; border-radius: 50%; background: #eab308; border: 1px solid #fff; cursor: pointer; padding: 0;" title="Yellow Marker"></button>
+      <button class="toast-color-btn" data-color="#22c55e" style="width: 20px; height: 20px; border-radius: 50%; background: #22c55e; border: 1px solid #fff; cursor: pointer; padding: 0;" title="Green Marker"></button>
+      <button class="toast-color-btn" data-color="#ef4444" style="width: 20px; height: 20px; border-radius: 50%; background: #ef4444; border: 1px solid #fff; cursor: pointer; padding: 0;" title="Red Marker"></button>
+      <div style="width: 1px; height: 16px; background: #444;"></div>
+      <button id="toast-bold-btn" style="background: #2a2a2a; border: 1px solid #444; color: #fff; border-radius: 4px; padding: 2px 8px; font-size: 12px; cursor: pointer; font-weight: bold; height: 22px; line-height: 1;" title="Toggle Bold">Bold</button>
+      <button id="toast-clear-btn" style="background: #2a2a2a; border: 1px solid #444; color: #aaa; border-radius: 4px; padding: 2px 6px; font-size: 12px; cursor: pointer; height: 22px; line-height: 1;" title="Clear Marker">✕</button>
+    `;
+
+    document.body.appendChild(selectionToast);
+
+    selectionToast.querySelectorAll('.toast-color-btn').forEach(btn => {
+      btn.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        const color = btn.dataset.color;
+        applyMarker(color, true);
+        hideSelectionToast();
+      });
+    });
+
+    document.getElementById('toast-bold-btn').addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      toggleBoldState();
+      updateToastState();
+    });
+
+    document.getElementById('toast-clear-btn').addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      clearMarker();
+      hideSelectionToast();
+    });
+
+    return selectionToast;
+  }
+
+  function updateToastState() {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed) return;
+    const range = sel.getRangeAt(0);
+    let parent = range.commonAncestorContainer;
+    if (parent.nodeType === Node.TEXT_NODE) {
+      parent = parent.parentNode;
+    }
+    const existingMarker = parent.closest('.word-marker');
+    const boldBtn = document.getElementById('toast-bold-btn');
+    if (!boldBtn) return;
+
+    if (existingMarker) {
+      const isBold = existingMarker.style.fontWeight === 'bold';
+      boldBtn.textContent = isBold ? 'Unbold' : 'Bold';
+      boldBtn.style.background = isBold ? '#2563eb' : '#2a2a2a';
+    } else {
+      boldBtn.textContent = 'Bold';
+      boldBtn.style.background = '#2a2a2a';
+    }
+  }
+
+  function handleSelectionChange(mouseEvent) {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || sel.toString().trim() === '') {
+      hideSelectionToast();
+      return;
+    }
+
+    const range = sel.getRangeAt(0);
+    const editorEl = document.getElementById('script-editor');
+    if (!editorEl.contains(range.commonAncestorContainer)) {
+      hideSelectionToast();
+      return;
+    }
+
+    const toast = createSelectionToast();
+    toast.style.display = 'flex';
+
+    let x = 0;
+    let y = 0;
+
+    if (mouseEvent && mouseEvent.clientX) {
+      x = mouseEvent.clientX;
+      y = mouseEvent.clientY - 45;
+    } else {
+      const rect = range.getBoundingClientRect();
+      x = rect.left + rect.width / 2;
+      y = rect.top - 45;
+    }
+
+    const toastRect = toast.getBoundingClientRect();
+    const toastWidth = toastRect.width || 180;
+    const toastHeight = toastRect.height || 36;
+
+    const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+
+    let posX = x + scrollLeft - toastWidth / 2;
+    let posY = y + scrollTop;
+
+    if (posX < 10) posX = 10;
+    if (posX + toastWidth > window.innerWidth - 10) {
+      posX = window.innerWidth - toastWidth - 10;
+    }
+    if (posY < 10) posY = 10;
+
+    toast.style.left = posX + 'px';
+    toast.style.top = posY + 'px';
+    updateToastState();
+  }
+
+  function hideSelectionToast() {
+    if (selectionToast) {
+      selectionToast.style.display = 'none';
+    }
+  }
+
+  document.getElementById('script-editor').addEventListener('mouseup', (e) => {
+    setTimeout(() => {
+      handleSelectionChange(e);
+    }, 10);
+  });
+
+  document.addEventListener('mousedown', (e) => {
+    if (selectionToast && !selectionToast.contains(e.target) && e.target !== document.getElementById('script-editor')) {
+      hideSelectionToast();
+    }
+  });
+
+  // Custom color picker tool wiring
+  const customColorInput = document.getElementById('custom-highlight-color');
+  const customColorIndicator = document.getElementById('custom-color-indicator');
+  const applyCustomBtn = document.getElementById('btn-apply-custom-highlight');
+
+  if (customColorInput && customColorIndicator && applyCustomBtn) {
+    customColorInput.addEventListener('input', (e) => {
+      const color = e.target.value;
+      customColorIndicator.style.backgroundColor = color;
+      const sel = window.getSelection();
+      if (sel && !sel.isCollapsed) {
+        applyMarker(color, true);
+      }
+    });
+
+    applyCustomBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      editor.focus();
+      const color = customColorInput.value;
+      applyMarker(color, true);
+    });
+  }
 
   // ══════════════════════════════════════
   //  PROMPTER
