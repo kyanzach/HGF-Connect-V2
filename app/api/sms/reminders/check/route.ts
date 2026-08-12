@@ -122,15 +122,43 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        const scheduledTimeStr = times[item.type];
-        const scheduledDate = new Date(scheduledTimeStr);
+        let scheduledTimeStr = times[item.type];
+        let scheduledDate = new Date(scheduledTimeStr);
+        let useUrgent = false;
 
-        // Only schedule if reminder is in the future
-        if (scheduledDate > manilaTime) {
+        // Auto-detect late event creation: if same-day reminder is in the past,
+        // but the event starts in less than 12 hours (and is in the future),
+        // we trigger an immediate 'urgent' style reminder mapped to same_day.
+        if (item.type === "same_day" && scheduledDate <= manilaTime) {
+          const evDate = new Date(event.eventDate);
+          const eventStartManila = new Date(
+            evDate.getFullYear(),
+            evDate.getMonth(),
+            evDate.getDate(),
+            stHours,
+            stMinutes
+          );
+          const hoursLeft = (eventStartManila.getTime() - manilaTime.getTime()) / (1000 * 60 * 60);
+          if (hoursLeft > 0 && hoursLeft < 12) {
+            useUrgent = true;
+            // Backdate slightly (5 seconds in the past) to ensure it gets selected in the same cron run
+            scheduledDate = new Date(manilaTime.getTime() - 5000);
+          }
+        }
+
+        // Only schedule if reminder is in the future or we are triggering a late urgent fallback
+        if (scheduledDate > manilaTime || useUrgent) {
           // Get templates & bible verse pools
-          const versePool = BIBLE_VERSES[typeKey]?.[item.type] || BIBLE_VERSES.other[item.type];
+          // (Urgent template falls back to same_day verse pool since there is no urgent verse pool)
+          const versePool = useUrgent
+            ? (BIBLE_VERSES[typeKey]?.same_day || BIBLE_VERSES.other.same_day)
+            : (BIBLE_VERSES[typeKey]?.[item.type] || BIBLE_VERSES.other[item.type]);
+          
           const randomVerse = versePool[Math.floor(Math.random() * versePool.length)];
-          const template = TEMPLATES[typeKey]?.[item.type] || TEMPLATES.other[item.type];
+          
+          const template = useUrgent
+            ? (TEMPLATES[typeKey]?.urgent || TEMPLATES.other.urgent)
+            : (TEMPLATES[typeKey]?.[item.type] || TEMPLATES.other[item.type]);
 
           // Build message text (leave {name} placeholder for per-member customization)
           const message = template
@@ -150,7 +178,7 @@ export async function POST(request: NextRequest) {
             }
           });
 
-          logs.push(`  Created ${item.type} reminder scheduled for ${scheduledTimeStr}`);
+          logs.push(`  Created ${item.type} reminder${useUrgent ? " (URGENT template)" : ""} scheduled for ${scheduledDate.toISOString()}`);
         } else {
           logs.push(`  Skipped ${item.type} reminder: scheduled time (${scheduledTimeStr}) is in the past.`);
         }
