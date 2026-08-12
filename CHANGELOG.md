@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.42.0] — 2026-08-12
+### Added
+- **Sermon Duration Predictor**: Created a real-time speech/preaching duration calculator widget in the editor header. It realistically predicts the duration in minutes/seconds using word count (at 110 WPM preaching pace) combined with emphasis pauses (1.5s per highlighted word/phrase), heading transitions (2.0s per H1/H2), and scripture blocks or cues (3.0s per blockquote/cue).
+- **Service Target Alerts**: Evaluates estimated duration against service target limits (20-30 minutes for Grace Night, 35-40 minutes for Sunday Service) and displays a color-coded status badge ("Good", "Short", "Too Long").
+
 ## [v2.41.1] — 2026-08-12
 ### Fixed
 - **Refresh Password Retention**: Replaced the local in-memory folder password cache with a `sessionStorage`-backed Proxy to preserve authenticated folder passwords across page refreshes.
