@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.41.0] — 2026-08-12
+### Added
+- **Highlight Font Size Adjustment**: Integrated Font Increase (`▲ Font`) and Decrease (`▼ Font`) buttons in the editor toolbar to scale highlight sizes dynamically.
+- **Font Sizing Keyboard Shortcuts**: Added keyboard shortcuts to adjust text highlight sizing (`Option+Command+Up/Down Arrow` on macOS, and `Ctrl+Up/Down Arrow` on Windows/Linux).
+
 ## [v2.40.1] — 2026-08-12
 ### Added
 - **Preset Blue Highlight**: Added Blue (`#2563eb`) to the list of quick preset colors in the editor context selection toast.
