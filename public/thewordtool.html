@@ -2573,6 +2573,7 @@
       <button class="toast-color-btn" data-color="#eab308" style="width: 20px; height: 20px; border-radius: 50%; background: #eab308; border: 1px solid #fff; cursor: pointer; padding: 0;" title="Yellow Marker"></button>
       <button class="toast-color-btn" data-color="#22c55e" style="width: 20px; height: 20px; border-radius: 50%; background: #22c55e; border: 1px solid #fff; cursor: pointer; padding: 0;" title="Green Marker"></button>
       <button class="toast-color-btn" data-color="#ef4444" style="width: 20px; height: 20px; border-radius: 50%; background: #ef4444; border: 1px solid #fff; cursor: pointer; padding: 0;" title="Red Marker"></button>
+      <button class="toast-color-btn" data-color="#2563eb" style="width: 20px; height: 20px; border-radius: 50%; background: #2563eb; border: 1px solid #fff; cursor: pointer; padding: 0;" title="Blue Marker"></button>
       <div style="width: 1px; height: 16px; background: #444;"></div>
       <button id="toast-bold-btn" style="background: #2a2a2a; border: 1px solid #444; color: #fff; border-radius: 4px; padding: 2px 8px; font-size: 12px; cursor: pointer; font-weight: bold; height: 22px; line-height: 1;" title="Toggle Bold">Bold</button>
       <button id="toast-clear-btn" style="background: #2a2a2a; border: 1px solid #444; color: #aaa; border-radius: 4px; padding: 2px 6px; font-size: 12px; cursor: pointer; height: 22px; line-height: 1;" title="Clear Marker">✕</button>
@@ -2715,6 +2716,69 @@
       const color = customColorInput.value;
       applyMarker(color, true);
     });
+  }
+
+  // Intercept Enter key at the end of a highlighted word-marker to prevent highlight overflow
+  editor.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const sel = window.getSelection();
+      if (!sel || !sel.rangeCount) return;
+      const range = sel.getRangeAt(0);
+      let node = range.startContainer;
+      if (node.nodeType === Node.TEXT_NODE) {
+        node = node.parentNode;
+      }
+      const marker = node.closest('.word-marker');
+      if (marker) {
+        const atEnd = (sel.isCollapsed && isSelectionAtEndOfNode(sel, marker));
+        if (atEnd) {
+          e.preventDefault();
+          insertParagraphAfterNode(marker);
+        }
+      }
+    }
+  });
+
+  function isSelectionAtEndOfNode(sel, node) {
+    if (!sel || !sel.rangeCount) return false;
+    const range = sel.getRangeAt(0);
+    try {
+      const checkRange = document.createRange();
+      checkRange.selectNodeContents(node);
+      checkRange.setStart(range.endContainer, range.endOffset);
+      return checkRange.toString().trim() === '';
+    } catch (err) {
+      return false;
+    }
+  }
+
+  function insertParagraphAfterNode(node) {
+    let blockParent = node;
+    while (blockParent && blockParent.parentNode && blockParent.parentNode !== editor) {
+      blockParent = blockParent.parentNode;
+    }
+
+    const newP = document.createElement('p');
+    newP.innerHTML = '<br>';
+
+    if (blockParent && blockParent.parentNode === editor) {
+      editor.insertBefore(newP, blockParent.nextSibling);
+    } else {
+      node.parentNode.insertBefore(newP, node.nextSibling);
+    }
+
+    const sel = window.getSelection();
+    if (sel) {
+      const newRange = document.createRange();
+      newRange.selectNodeContents(newP);
+      newRange.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(newRange);
+    }
+
+    isDirty = true;
+    updateTitle();
+    syncDraft();
   }
 
   // ══════════════════════════════════════

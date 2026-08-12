@@ -5,6 +5,12 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.40.1] — 2026-08-12
+### Added
+- **Preset Blue Highlight**: Added Blue (`#2563eb`) to the list of quick preset colors in the editor context selection toast.
+### Fixed
+- **Highlight Overflow on Enter**: Implemented an Enter key handler in the rich editor to prevent highlight styling from leaking into new paragraphs when pressing Enter at the end of a highlighted section.
+
 ## [v2.40.0] — 2026-08-12
 ### Added
 - **Editor Text Highlighter**: Added a text highlighter context toast that displays near the cursor on text selection in "THE WORD" scripture delivery tool, with options to highlight words with Yellow, Green, or Red background (keeping text white and bold) and a toggle for bold/unbold.
