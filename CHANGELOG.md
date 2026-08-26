@@ -5,6 +5,11 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.43.1] — 2026-08-26
+### Fixed / Enhanced
+- **AI Gateway Resilience & Error Recovery (`lib/ai.ts`)**: Added multi-layered JSON parser (`extractJsonFromText`) that extracts valid JSON objects and arrays even if surrounded by conversational preamble or markdown fences.
+- **OpenAI Prompt Validation & Automatic 400 Retry**: Added automatic injection of the `JSON` keyword to system prompts when using `response_format: { type: "json_object" }` to prevent OpenAI 400 Bad Request errors, and built an automatic fallback retry mechanism without strict response format if rejected.
+
 ## [v2.43.0] — 2026-08-26
 ### Changed / Added
 - **OpenAI Migration & AI Gateway Replacement**: Migrated all AI features across the application from the discontinued Straico gateway to native OpenAI Chat Completions (`https://api.openai.com/v1/chat/completions`).
