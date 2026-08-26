@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { notifyAllMembers } from "@/lib/notify";
-import axios from "axios";
+import { callOpenAIJson } from "@/lib/ai";
 
 const SYSTEM_PROMPT = `You are a helpful assistant for a Christian church application (House of Grace Fellowship).
 Your task is to analyze a testimony or praise report written in Bisaya (Cebuano) or English.
@@ -19,34 +19,23 @@ Output the result strictly as a JSON object with this format (no extra text):
 
 async function autoProcessTestimony(content: string) {
   try {
-    const prompt = `${SYSTEM_PROMPT}\n\nTestimony to process:\n"${content}"`;
-    const response = await axios.post(
-      "https://api.straico.com/v1/prompt/completion",
+    const fallback = {
+      translatedContent: content,
+      category: "Other",
+      tags: [],
+    };
+
+    const parsed = await callOpenAIJson(
       {
-        models: [process.env.STRAICO_MODEL ?? "openai/gpt-4o-mini"],
-        message: prompt,
+        systemPrompt: SYSTEM_PROMPT,
+        userPrompt: `Testimony to process:\n"${content}"`,
+        model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
+        temperature: 0.5,
+        timeoutMs: 25000,
       },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.STRAICO_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        timeout: 25000,
-      }
+      fallback
     );
 
-    const model = process.env.STRAICO_MODEL ?? "openai/gpt-4o-mini";
-    const completions = response.data?.data?.completions;
-    const rawReply =
-      completions?.[model]?.completion?.choices?.[0]?.message?.content ||
-      response.data?.completion?.choices?.[0]?.message?.content ||
-      response.data?.data?.completion?.choices?.[0]?.message?.content ||
-      "";
-
-    if (!rawReply) return null;
-
-    const cleaned = rawReply.replace(/```json\n?|\n?```/g, "").trim();
-    const parsed = JSON.parse(cleaned);
     return {
       translatedContent: parsed.translatedContent || content,
       category: parsed.category || "Other",

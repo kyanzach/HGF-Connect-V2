@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import axios from "axios";
+import { callOpenAIJson } from "@/lib/ai";
+
+export const dynamic = "force-dynamic";
 
 const SYSTEM_PROMPT = `You are HGF Connect AI, a devoted assistant for House of Grace church members.
 
@@ -17,58 +19,42 @@ OUTPUT FORMAT — respond with strictly this JSON (no extra text):
   "verseRef": "Book Chapter:Verse"
 }`;
 
+interface CaptionResponse {
+  caption: string;
+  suggestedVerse: string;
+  verseRef: string;
+}
+
 export async function POST(request: Request) {
   try {
-    const { imageBase64, extractedText } = await request.json();
+    const { extractedText } = await request.json();
 
     const userContent = extractedText
       ? `The devotional contains this text: "${extractedText}". Generate a caption and suggest a relevant Bible verse.`
       : "Generate an encouraging devotional caption and suggest a relevant Bible verse for a member who shared their devotional photo.";
 
-    const prompt = `${SYSTEM_PROMPT}\n\nUser request: ${userContent}`;
+    const fallback: CaptionResponse = {
+      caption: "What a beautiful devotional thought! Keep seeking God daily. 🙏",
+      suggestedVerse: '"For I know the plans I have for you," declares the Lord.',
+      verseRef: "Jeremiah 29:11",
+    };
 
-    const response = await axios.post(
-      "https://api.straico.com/v1/prompt/completion",
+    const parsed = await callOpenAIJson<CaptionResponse>(
       {
-        models: [process.env.STRAICO_MODEL ?? "openai/gpt-4o-mini"],
-        message: prompt,
+        systemPrompt: SYSTEM_PROMPT,
+        userPrompt: userContent,
+        model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
+        temperature: 0.7,
+        timeoutMs: 20000,
       },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.STRAICO_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        timeout: 20000,
-      }
+      fallback
     );
 
-    // 3 fallback extraction paths (Straico format can vary)
-    const model = process.env.STRAICO_MODEL ?? "openai/gpt-4o-mini";
-    const completions = response.data?.data?.completions;
-    let rawReply =
-      completions?.[model]?.completion?.choices?.[0]?.message?.content ||
-      response.data?.completion?.choices?.[0]?.message?.content ||
-      response.data?.data?.completion?.choices?.[0]?.message?.content ||
-      "";
-
-    // Parse JSON response
-    let caption = "What a beautiful devotional thought! Keep seeking God daily. 🙏";
-    let suggestedVerse = '"For I know the plans I have for you," declares the Lord.';
-    let verseRef = "Jeremiah 29:11";
-
-    try {
-      // Strip markdown code fences if present
-      const cleaned = rawReply.replace(/```json\n?|\n?```/g, "").trim();
-      const parsed = JSON.parse(cleaned);
-      caption = parsed.caption || caption;
-      suggestedVerse = parsed.suggestedVerse || suggestedVerse;
-      verseRef = parsed.verseRef || verseRef;
-    } catch {
-      // AI didn't return JSON — extract what we can
-      if (rawReply) caption = rawReply.substring(0, 200);
-    }
-
-    return NextResponse.json({ caption, suggestedVerse, verseRef });
+    return NextResponse.json({
+      caption: parsed.caption || fallback.caption,
+      suggestedVerse: parsed.suggestedVerse || fallback.suggestedVerse,
+      verseRef: parsed.verseRef || fallback.verseRef,
+    });
   } catch (error: any) {
     console.error("[api/ai/caption]", error?.message);
     // Always return a graceful fallback — never a 500

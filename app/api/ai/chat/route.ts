@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import axios from "axios";
+import { callOpenAI } from "@/lib/ai";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -258,26 +258,35 @@ export async function POST(request: Request) {
       }
 
       const memberName = `${session.user.firstName ?? ""} ${session.user.lastName ?? ""}`.trim() || "Friend";
-      const historyContext = conversationHistory?.length
-        ? "\n\nPREVIOUS CONVERSATION:\n" + conversationHistory.slice(-5).map((m: { role: string; content: string }) => `${m.role === "user" ? "Member" : "AI"}: ${m.content}`).join("\n")
-        : "";
-
       const knowledgeText = await getDynamicChurchKnowledge();
-      const prompt = `${buildSystemPrompt(memberName, knowledgeText)}${historyContext}\n\nMember asks: "${message}"`;
+      const systemPrompt = buildSystemPrompt(memberName, knowledgeText);
 
-      const response = await axios.post(
-        "https://api.straico.com/v1/prompt/completion",
-        { models: [process.env.STRAICO_MODEL ?? "openai/gpt-4o-mini"], message: prompt },
-        { headers: { Authorization: `Bearer ${process.env.STRAICO_API_KEY}`, "Content-Type": "application/json" }, timeout: 20000 }
-      );
+      const openAiMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+        { role: "system", content: systemPrompt },
+      ];
 
-      const model = process.env.STRAICO_MODEL ?? "openai/gpt-4o-mini";
-      const completions = response.data?.data?.completions;
-      const reply =
-        completions?.[model]?.completion?.choices?.[0]?.message?.content ||
-        response.data?.completion?.choices?.[0]?.message?.content ||
-        response.data?.data?.completion?.choices?.[0]?.message?.content ||
-        "I'm having a bit of trouble right now. Please try again in a moment. 🙏";
+      if (conversationHistory?.length) {
+        conversationHistory.slice(-6).forEach((m: { role: string; content: string }) => {
+          openAiMessages.push({
+            role: m.role === "user" ? "user" : "assistant",
+            content: m.content,
+          });
+        });
+      }
+
+      openAiMessages.push({ role: "user", content: message });
+
+      let reply = "I'm having a bit of trouble right now. Please try again in a moment. 🙏";
+      try {
+        reply = await callOpenAI({
+          messages: openAiMessages,
+          model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
+          temperature: 0.7,
+          timeoutMs: 25000,
+        });
+      } catch (aiErr) {
+        console.error("[api/ai/chat] AI completion failed:", (aiErr as Error).message);
+      }
 
       // Save AI reply — best-effort (§5.4: DB failure must never block the response)
       try { if (convId) await saveMessage(convId, memberId, "assistant", reply); } catch { /* degraded OK */ }

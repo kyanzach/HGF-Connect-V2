@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import axios from "axios";
+import { callOpenAIJson } from "@/lib/ai";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +17,12 @@ Output the result strictly as a JSON object with this format (no extra text):
   "tags": ["tag1", "tag2"]
 }`;
 
+interface ProcessedTestimony {
+  translatedContent: string;
+  category: string;
+  tags: string[];
+}
+
 export async function POST(request: Request) {
   const session = await auth();
   if (!session) {
@@ -30,39 +36,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Content is required" }, { status: 400 });
     }
 
-    const prompt = `${SYSTEM_PROMPT}\n\nTestimony to process:\n"${content}"`;
+    const fallback: ProcessedTestimony = {
+      translatedContent: content,
+      category: "Other",
+      tags: [],
+    };
 
-    const response = await axios.post(
-      "https://api.straico.com/v1/prompt/completion",
+    const parsed = await callOpenAIJson<ProcessedTestimony>(
       {
-        models: [process.env.STRAICO_MODEL ?? "openai/gpt-4o-mini"],
-        message: prompt,
+        systemPrompt: SYSTEM_PROMPT,
+        userPrompt: `Testimony to process:\n"${content}"`,
+        model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
+        temperature: 0.5,
+        timeoutMs: 25000,
       },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.STRAICO_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        timeout: 30000,
-      }
+      fallback
     );
-
-    // Extract reply — 3 fallback paths (Straico response format can vary)
-    const model = process.env.STRAICO_MODEL ?? "openai/gpt-4o-mini";
-    const completions = response.data?.data?.completions;
-    const rawReply =
-      completions?.[model]?.completion?.choices?.[0]?.message?.content ||
-      response.data?.completion?.choices?.[0]?.message?.content ||
-      response.data?.data?.completion?.choices?.[0]?.message?.content ||
-      "";
-
-    if (!rawReply) {
-      throw new Error("No text returned from Straico API");
-    }
-
-    // Parse JSON — strip markdown code fences if present
-    const cleaned = rawReply.replace(/```json\n?|\n?```/g, "").trim();
-    const parsed = JSON.parse(cleaned);
 
     return NextResponse.json({
       translatedContent: parsed.translatedContent || content,

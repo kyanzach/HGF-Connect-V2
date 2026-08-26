@@ -1,14 +1,14 @@
 /**
  * lib/quiz-helpers.ts — Quiz for Christ AI prompt builders + utility functions
  *
- * - generateQuizPrompt: builds the Straico prompt for quiz generation
+ * - generateQuiz: builds two-phase OpenAI prompt for quiz generation
  * - gradeEssay: AI-powered semantic grading (Bisaya/Tagalog/English)
  * - getDayNumber / canAccessDay: drip schedule logic
  * - getRewardTier: score → tier mapping
  */
 
-import axios from "axios";
 import { formatDate } from "./utils";
+import { callOpenAI, callOpenAIJson } from "./ai";
 
 // ── Day schedule constants ───────────────────────────────────────────────────
 // 0 = Sun, 1 = Mon, 2 = Tue, 3 = Wed, 4 = Thu, 5 = Fri, 6 = Sat
@@ -53,8 +53,6 @@ export function canAccessDay(targetDay: number, currentDay: number): boolean {
  */
 export function getQuizWeekEnd(sermonDate: Date | string): Date {
   const sermon = new Date(sermonDate);
-  // sermonDate is Sunday. Quiz week ends the FOLLOWING Sunday at 23:59:59 Manila.
-  // That's sermonDate + 7 days (next Sunday) at end of day Manila time.
   const weekEndManila = new Date(sermon);
   weekEndManila.setDate(weekEndManila.getDate() + 7); // next Sunday
   weekEndManila.setHours(23, 59, 59, 999);
@@ -73,22 +71,15 @@ export function isQuizWeekExpired(sermonDate: Date | string): boolean {
 
 /**
  * Get the quiz day number (1–7) relative to the quiz's actual week.
- * Returns the day number based on how many days have passed since the sermon date,
- * rather than using the current weekday — this prevents day regression on the next Monday.
- *
- * Returns 0 if before the quiz week, or 8+ if after (expired).
  */
 export function getQuizDayForDate(sermonDate: Date | string, now?: Date): number {
   const sermon = new Date(sermonDate);
-  // Get current date in Manila timezone
   const current = now || new Date();
   const manilaStr = current.toLocaleDateString("en-US", { timeZone: "Asia/Manila" });
   const manilaDate = new Date(manilaStr);
-  // Sermon date (Sunday) — quiz week day 1 is the next day (Monday)
   const sermonDay = new Date(sermon.toLocaleDateString("en-US"));
   const diffMs = manilaDate.getTime() - sermonDay.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  // diffDays: 0=sermon Sunday, 1=Monday(Day1), 2=Tuesday(Day2), ... 7=next Sunday(Day7)
   return diffDays; // 1=Day1, 2=Day2, ..., 7=Day7, 8+=expired
 }
 
@@ -106,41 +97,6 @@ export const REWARD_DISPLAY: Record<string, { label: string; description: string
   GOOD:        { label: "👏 Good Job!",      description: "🎁 Prize: TBA — to be announced this Sunday!" },
   PARTICIPANT: { label: "🙏 Keep Growing!",  description: "Keep studying the Word. Every quiz brings you closer to God!" },
 };
-
-// ── Straico API helper ───────────────────────────────────────────────────────
-async function callStraico(prompt: string, modelName?: string): Promise<string> {
-  const model = modelName ?? process.env.STRAICO_MODEL ?? "openai/gpt-4o-mini";
-  const response = await axios.post(
-    "https://api.straico.com/v1/prompt/completion",
-    {
-      models: [model],
-      message: prompt,
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${process.env.STRAICO_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      timeout: 90000, // quiz generation with model switching can take a while
-    }
-  );
-
-  const completions = response.data?.data?.completions;
-  const rawReply =
-    completions?.[model]?.completion?.choices?.[0]?.message?.content ||
-    response.data?.completion?.choices?.[0]?.message?.content ||
-    response.data?.data?.completion?.choices?.[0]?.message?.content ||
-    "";
-
-  if (!rawReply) throw new Error("No text returned from Straico API");
-  return rawReply;
-}
-
-// ── Extract JSON from AI response (strips markdown fences) ───────────────────
-function extractJson(text: string): any {
-  const cleaned = text.replace(/```json\n?|\n?```/g, "").trim();
-  return JSON.parse(cleaned);
-}
 
 // ── Generate quiz prompt ─────────────────────────────────────────────────────
 export async function generateQuiz(
@@ -162,7 +118,7 @@ export async function generateQuiz(
   const formattedSermonDate = formatDate(sermonDate);
 
   // PHASE 1: Clean and format raw transcript using the cheap model
-  const cheapModel = process.env.STRAICO_CHEAP_MODEL ?? "openai/gpt-4o-mini";
+  const cheapModel = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
 
   const cleanPrompt = `You are a sermon transcription assistant for House of Grace Fellowship.
 Analyze the following raw, unformatted sermon transcript. It contains a mix of English (~70%) and Tagalog/Bisaya (~30%).
@@ -176,25 +132,30 @@ CRITICAL RULES:
 
 SERMON DATE: ${formattedSermonDate}
 RAW TRANSCRIPT:
-""
+"""
 ${rawTranscript}
-""`;
+"""`;
 
   console.log(`[quiz-helpers] Starting Phase 1: Clean up via ${cheapModel}...`);
-  const cleanSummary = await callStraico(cleanPrompt, cheapModel);
+  const cleanSummary = await callOpenAI({
+    userPrompt: cleanPrompt,
+    model: cheapModel,
+    temperature: 0.3,
+    timeoutMs: 90000,
+  });
   console.log(`[quiz-helpers] Phase 1 complete. Summary length: ${cleanSummary.length} chars.`);
 
   // PHASE 2: Generate the quiz from the summary using the smart model
-  const smartModel = process.env.STRAICO_SMART_MODEL ?? process.env.STRAICO_MODEL ?? "openai/gpt-4o";
+  const smartModel = process.env.OPENAI_SMART_MODEL ?? process.env.OPENAI_MODEL ?? "gpt-4o-mini";
 
   const quizPrompt = `You are an AI assistant for House of Grace Fellowship, a Christian church.
 You are creating a weekly "Quiz for Christ" based on a Sunday sermon.
 
 SERMON DATE: ${formattedSermonDate}
 SERMON SUMMARY:
-""
+"""
 ${cleanSummary}
-""
+"""
 
 TASK: Generate THREE things from this sermon summary:
 
@@ -265,16 +226,24 @@ OUTPUT FORMAT — Strictly valid JSON, no extra text:
       "options": [...],
       "hint": "...",
       "explanation": "..."
-    },
-    ...
+    }
   ]
 }`;
 
   console.log(`[quiz-helpers] Starting Phase 2: Quiz generation via ${smartModel}...`);
-  const reply = await callStraico(quizPrompt, smartModel);
-  console.log(`[quiz-helpers] Phase 2 complete. Reply length: ${reply.length} chars.`);
+  const quizData = await callOpenAIJson<{
+    title: string;
+    announcementCaption: string;
+    questions: any[];
+  }>({
+    userPrompt: quizPrompt,
+    model: smartModel,
+    temperature: 0.5,
+    timeoutMs: 90000,
+  });
+  console.log(`[quiz-helpers] Phase 2 complete. Received ${quizData?.questions?.length ?? 0} questions.`);
 
-  return extractJson(reply);
+  return quizData;
 }
 
 // ── Grade essay / short answer (AI semantic grading) ─────────────────────────
@@ -302,8 +271,12 @@ OUTPUT — Strictly valid JSON:
 }`;
 
   try {
-    const reply = await callStraico(prompt);
-    return extractJson(reply);
+    return await callOpenAIJson<{ isCorrect: boolean; feedback: string }>({
+      userPrompt: prompt,
+      model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
+      temperature: 0.3,
+      timeoutMs: 20000,
+    });
   } catch (error: any) {
     console.error("[quiz-helpers] Essay grading failed:", error?.message);
     // Fallback: be generous, mark as correct with a note

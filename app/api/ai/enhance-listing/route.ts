@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import axios from "axios";
+import { callOpenAI } from "@/lib/ai";
 
 export const dynamic = "force-dynamic";
 
@@ -20,37 +20,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Title is required to enhance description" }, { status: 400 });
     }
 
-    const model = process.env.STRAICO_MODEL ?? "openai/gpt-4o-mini";
-    const apiKey = process.env.STRAICO_API_KEY;
+    let systemPrompt = "";
+    let userPrompt = "";
 
-    if (!apiKey) {
-      return NextResponse.json({ error: "AI service not configured" }, { status: 500 });
-    }
-
-    let prompt = "";
     if (target === "title") {
-      prompt = `You are a professional copywriter for a church community marketplace called HGF StewardShop.
-The user wants to list an item:
-Current Title: "${title.trim()}"
-Listing Type: "${listingType || "sale"}"
-Category: "${category || "Other"}"
-Condition: "${conditionType || "good"}"
-
-Your task is to write a catchy, professional, clean title for this listing. It should:
+      systemPrompt = `You are a professional copywriter for a church community marketplace called HGF StewardShop.
+Your task is to write a catchy, professional, clean title for a listing.
+Rules:
 1. Be concise (max 6-9 words).
 2. Highlight the key brand, item name, or service clearly.
 3. Be optimized for clickability and clarity.
 4. Return ONLY the polished title. Do not include any introductory remarks, explanations, quotes, or markdown styling.`;
-    } else {
-      prompt = `You are a professional copywriter for a church community marketplace called HGF StewardShop.
-The user wants to list an item:
-Title: "${title.trim()}"
-Current Description: "${(description || "").trim()}"
+
+      userPrompt = `Current Title: "${title.trim()}"
 Listing Type: "${listingType || "sale"}"
 Category: "${category || "Other"}"
-Condition: "${conditionType || "good"}"
-
-Your task is to write a beautifully formatted, structured, compelling description for this listing.
+Condition: "${conditionType || "good"}"`;
+    } else {
+      systemPrompt = `You are a professional copywriter for a church community marketplace called HGF StewardShop.
+Your task is to write a beautifully formatted, structured, compelling description for a listing.
 If the current description is very brief, expand on it naturally using typical details for this kind of item/service (like size, condition, features).
 Structure it cleanly using emojis and bullet points:
 - A catchy introductory sentence
@@ -62,33 +50,21 @@ Rules:
 1. Return ONLY the enhanced description. Do not include any introductory remarks, metadata, HTML tags, warnings, or explanatory notes.
 2. Keep the tone friendly, honest, and helpful.
 3. If a Facebook video link or tags like [video:...] are present in the current description, preserve them exactly at the bottom of the output.`;
+
+      userPrompt = `Title: "${title.trim()}"
+Current Description: "${(description || "").trim()}"
+Listing Type: "${listingType || "sale"}"
+Category: "${category || "Other"}"
+Condition: "${conditionType || "good"}"`;
     }
 
-    const response = await axios.post(
-      "https://api.straico.com/v1/prompt/completion",
-      {
-        models: [model],
-        message: prompt,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        timeout: 25000,
-      }
-    );
-
-    const completions = response.data?.data?.completions;
-    const enhancedContent =
-      completions?.[model]?.completion?.choices?.[0]?.message?.content ||
-      response.data?.completion?.choices?.[0]?.message?.content ||
-      response.data?.data?.completion?.choices?.[0]?.message?.content ||
-      "";
-
-    if (!enhancedContent) {
-      throw new Error("Empty completion returned from AI service");
-    }
+    const enhancedContent = await callOpenAI({
+      systemPrompt,
+      userPrompt,
+      model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
+      temperature: 0.7,
+      timeoutMs: 25000,
+    });
 
     let cleaned = enhancedContent.trim();
     // Clean outer quotes if any

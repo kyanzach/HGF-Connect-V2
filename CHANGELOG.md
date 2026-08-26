@@ -5,6 +5,13 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.43.0] — 2026-08-26
+### Changed / Added
+- **OpenAI Migration & AI Gateway Replacement**: Migrated all AI features across the application from the discontinued Straico gateway to native OpenAI Chat Completions (`https://api.openai.com/v1/chat/completions`).
+- **Centralized AI Architecture (`lib/ai.ts`)**: Built a unified helper function `callOpenAI` and `callOpenAIJson` with native OpenAI message handling (`system`, `user`, `assistant`), automatic model normalization, and robust JSON fallback handling.
+- **Cost-Optimized Model Allocation**: Standardized 95%+ of operations to `gpt-4o-mini` (at $0.15/1M input tokens) for fast sub-second replies and high cost savings across Church Chatbot, Devotional Captions, Verse Suggester, Testimony Polishing/Translation, StewardShop Listing Enhancer, and Sermon Presentation Commentary. Phase 2 Quiz Generation uses `OPENAI_SMART_MODEL` (defaults to `gpt-4o-mini` with optional `gpt-4o` upgrade).
+- **Updated API Endpoints & Scripts**: Upgraded `/api/ai/chat`, `/api/ai/caption`, `/api/ai/verse`, `/api/ai/improve-testimony`, `/api/ai/process-testimony`, `/api/ai/enhance-listing`, `/api/testimonies`, `lib/quiz-helpers.ts`, `lib/presentationProcessor.ts`, and `scripts/re-process-commentary.mjs`.
+
 ## [v2.42.1] — 2026-08-12
 ### Fixed
 - **Late Event Reminders Support**: Updated the reminder generation cron API `/api/sms/reminders/check` to automatically detect when a new event is created late (after the standard 7:00 AM same-day reminder slot, but less than 12 hours before the event starts). In this scenario, it generates and immediately sends an "urgent" reminder message using the event type's urgent SMS template.

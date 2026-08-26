@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import axios from "axios";
+import { callOpenAI } from "@/lib/ai";
 
 export const dynamic = "force-dynamic";
 
@@ -38,34 +38,13 @@ CRITICAL RULES:
 4. Return ONLY the rewritten, polished testimony. Do not include any introductory remarks, warnings, or explanatory notes.
 5. Do NOT wrap the response in quotation marks (such as double or single quotes).`;
 
-    const prompt = `${systemPrompt}\n\nText to improve:\n"${content.trim()}"`;
-
-    const response = await axios.post(
-      "https://api.straico.com/v1/prompt/completion",
-      {
-        models: [process.env.STRAICO_MODEL ?? "openai/gpt-4o-mini"],
-        message: prompt,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.STRAICO_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        timeout: 25000,
-      }
-    );
-
-    const model = process.env.STRAICO_MODEL ?? "openai/gpt-4o-mini";
-    const completions = response.data?.data?.completions;
-    const improvedContent =
-      completions?.[model]?.completion?.choices?.[0]?.message?.content ||
-      response.data?.completion?.choices?.[0]?.message?.content ||
-      response.data?.data?.completion?.choices?.[0]?.message?.content ||
-      "";
-
-    if (!improvedContent) {
-      throw new Error("Empty completion returned");
-    }
+    const improvedContent = await callOpenAI({
+      systemPrompt,
+      userPrompt: `Text to improve:\n"${content.trim()}"`,
+      model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
+      temperature: 0.7,
+      timeoutMs: 25000,
+    });
 
     let cleaned = improvedContent.trim();
     const quoteChars = ["\"", "'", "“", "”", "‘", "’"];

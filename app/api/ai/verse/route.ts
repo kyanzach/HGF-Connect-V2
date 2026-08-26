@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import axios from "axios";
+import { callOpenAIJson } from "@/lib/ai";
+
+export const dynamic = "force-dynamic";
 
 const SYSTEM_PROMPT = `You are HGF Connect AI, a helpful assistant for House of Grace church members.
 
@@ -13,50 +15,40 @@ OUTPUT FORMAT — respond with strictly this JSON (no extra text):
   "context": "One sentence on why this verse applies"
 }`;
 
+interface VerseResponse {
+  verse: string;
+  reference: string;
+  context: string;
+}
+
 export async function POST(request: Request) {
   try {
     const { topic, text } = await request.json();
     const userInput = topic || text || "faith and encouragement";
-    const prompt = `${SYSTEM_PROMPT}\n\nSuggest a relevant Bible verse for this topic or text: "${userInput}"`;
+    const userPrompt = `Suggest a relevant Bible verse for this topic or text: "${userInput}"`;
 
-    const response = await axios.post(
-      "https://api.straico.com/v1/prompt/completion",
+    const fallback: VerseResponse = {
+      verse: '"I can do all things through Christ who strengthens me."',
+      reference: "Philippians 4:13",
+      context: "God gives us strength for every challenge.",
+    };
+
+    const parsed = await callOpenAIJson<VerseResponse>(
       {
-        models: [process.env.STRAICO_MODEL ?? "openai/gpt-4o-mini"],
-        message: prompt,
+        systemPrompt: SYSTEM_PROMPT,
+        userPrompt,
+        model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
+        temperature: 0.7,
+        timeoutMs: 20000,
       },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.STRAICO_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        timeout: 20000,
-      }
+      fallback
     );
 
-    const model = process.env.STRAICO_MODEL ?? "openai/gpt-4o-mini";
-    const completions = response.data?.data?.completions;
-    let rawReply =
-      completions?.[model]?.completion?.choices?.[0]?.message?.content ||
-      response.data?.completion?.choices?.[0]?.message?.content ||
-      response.data?.data?.completion?.choices?.[0]?.message?.content ||
-      "";
-
-    let verse = '"The Lord is my shepherd; I shall not want."';
-    let reference = "Psalm 23:1";
-    let context = "God provides for all our needs.";
-
-    try {
-      const cleaned = rawReply.replace(/```json\n?|\n?```/g, "").trim();
-      const parsed = JSON.parse(cleaned);
-      verse = parsed.verse || verse;
-      reference = parsed.reference || reference;
-      context = parsed.context || context;
-    } catch {
-      if (rawReply) verse = rawReply.substring(0, 300);
-    }
-
-    return NextResponse.json({ verse, reference, context });
+    return NextResponse.json({
+      verse: parsed.verse || fallback.verse,
+      reference: parsed.reference || fallback.reference,
+      context: parsed.context || fallback.context,
+    });
   } catch (error: any) {
     console.error("[api/ai/verse]", error?.message);
     return NextResponse.json({

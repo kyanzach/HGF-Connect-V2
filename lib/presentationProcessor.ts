@@ -5,9 +5,9 @@ import fs from "fs/promises";
 import sharp from "sharp";
 import pptxgen from "pptxgenjs";
 import { randomUUID } from "crypto";
-import axios from "axios";
 import pdfParse from "pdf-parse";
 import { createWorker } from "tesseract.js";
+import { callOpenAI } from "./ai";
 
 const execAsync = promisify(exec);
 
@@ -164,30 +164,15 @@ Provide:
 FORMAT: Respond in clean, standard Markdown (no JSON wrapper, no markdown code fences like \`\`\`markdown, just the raw markdown content directly).
 Keep the tone encouraging, warm, and faith-based (in standard English, but friendly to a Filipino church audience).`;
 
-        const prompt = `${systemPrompt}\n\nExtracted Sermon Content:\n"${extractedText}"`;
+        const prompt = `Extracted Sermon Content:\n"${extractedText}"`;
 
-        const straicoModel = process.env.STRAICO_MODEL || "openai/gpt-4o-mini";
-        const response = await axios.post(
-          "https://api.straico.com/v1/prompt/completion",
-          {
-            models: [straicoModel],
-            message: prompt,
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${process.env.STRAICO_API_KEY}`,
-              "Content-Type": "application/json",
-            },
-            timeout: 25000,
-          }
-        );
-
-        const completions = response.data?.data?.completions;
-        const rawReply =
-          completions?.[straicoModel]?.completion?.choices?.[0]?.message?.content ||
-          response.data?.completion?.choices?.[0]?.message?.content ||
-          response.data?.data?.completion?.choices?.[0]?.message?.content ||
-          "";
+        const rawReply = await callOpenAI({
+          systemPrompt,
+          userPrompt: prompt,
+          model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
+          temperature: 0.7,
+          timeoutMs: 30000,
+        });
 
         if (rawReply) {
           commentary = rawReply.replace(/```markdown\n?|```html\n?|```\n?/g, "").trim();
