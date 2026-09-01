@@ -5,6 +5,13 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.43.2] — 2026-09-01
+### Fixed
+- **Highlight Formatting & Undo/Redo in The Word Editor (`public/thewordtool.html`)**:
+  - Fixed selection wrapping when selecting vertically across paragraphs/block boundaries or margins. The highlighter now wraps inner inline text rather than enclosing parent block containers inside `<span>` tags, preventing DOM splitting that caused empty highlight capsules/slivers (`|`) above and below text.
+  - Added `.word-marker:empty { display: none !important; }` CSS rule as a defensive safeguard against empty highlight artifacts.
+  - Replaced manual direct DOM node insertion with `document.execCommand('insertHTML', ...)` across `applyMarker`, `clearMarker`, `toggleBoldState`, and `adjustFontSize`. This registers all highlighting, clearing, bold toggling, and font size resizing directly into the browser's native Undo/Redo stack so `Ctrl+Z` / `Cmd+Z` and the toolbar Undo button revert edits reliably.
+
 ## [v2.43.1] — 2026-08-26
 ### Fixed / Enhanced
 - **AI Gateway Resilience & Error Recovery (`lib/ai.ts`)**: Added multi-layered JSON parser (`extractJsonFromText`) that extracts valid JSON objects and arrays even if surrounded by conversational preamble or markdown fences.

@@ -756,6 +756,9 @@
     padding: 0 4px;
     color: #ffffff !important;
   }
+  .word-marker:empty {
+    display: none !important;
+  }
   #prompter-scroll .word-marker {
     border-radius: 6px;
     padding: 2px 6px;
@@ -2508,35 +2511,8 @@
   // ── Text Highlighter & Custom Color Marker ──
   let selectionToast = null;
 
-  function applyMarker(color, isBold) {
-    const sel = window.getSelection();
-    if (!sel || sel.isCollapsed) return;
-    const range = sel.getRangeAt(0);
-
-    // Check if selection is entirely within an existing marker
-    let parent = range.commonAncestorContainer;
-    if (parent.nodeType === Node.TEXT_NODE) {
-      parent = parent.parentNode;
-    }
-    const existingMarker = parent.closest('.word-marker');
-
-    if (existingMarker && range.toString().trim() === existingMarker.innerText.trim()) {
-      if (color) existingMarker.style.backgroundColor = color;
-      if (isBold !== undefined) {
-        existingMarker.style.fontWeight = isBold ? 'bold' : 'normal';
-      }
-      isDirty = true;
-      updateTitle();
-      syncDraft();
-      return;
-    }
-
-    const frag = range.cloneContents();
-    const tmp = document.createElement('div');
-    tmp.appendChild(frag);
-
-    // Clean up any inner/nested markers to avoid duplicate tags
-    const nested = tmp.querySelectorAll('.word-marker');
+  function unwrapNestedMarkers(container) {
+    const nested = container.querySelectorAll('.word-marker');
     nested.forEach(n => {
       const pNode = n.parentNode;
       while (n.firstChild) {
@@ -2544,23 +2520,69 @@
       }
       pNode.removeChild(n);
     });
+  }
 
-    const span = document.createElement('span');
-    span.className = 'word-marker';
-    span.style.backgroundColor = color || '#ef4444';
-    span.style.color = '#ffffff';
-    span.style.fontWeight = isBold ? 'bold' : 'normal';
-    span.innerHTML = tmp.innerHTML;
+  function createMarkerHtml(content, color, isBold, fontSize) {
+    const bg = color || '#ef4444';
+    const fw = isBold ? 'bold' : 'normal';
+    const fs = fontSize ? ` font-size: ${fontSize};` : '';
+    return `<span class="word-marker" style="background-color: ${bg}; color: #ffffff; font-weight: ${fw};${fs}">${content}</span>`;
+  }
 
-    range.deleteContents();
-    range.insertNode(span);
+  function applyMarker(color, isBold) {
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return;
+    const range = sel.getRangeAt(0);
 
-    // Re-select the span contents
-    sel.removeAllRanges();
-    const newRange = document.createRange();
-    newRange.selectNodeContents(span);
-    sel.addRange(newRange);
+    // Check if selection is within an existing marker or collapsed inside one
+    let parent = range.commonAncestorContainer;
+    if (parent.nodeType === Node.TEXT_NODE) {
+      parent = parent.parentNode;
+    }
+    const existingMarker = parent.closest('.word-marker');
 
+    if (existingMarker && (sel.isCollapsed || range.toString().trim() === existingMarker.innerText.trim())) {
+      const markerRange = document.createRange();
+      markerRange.selectNode(existingMarker);
+      sel.removeAllRanges();
+      sel.addRange(markerRange);
+
+      const newColor = color || existingMarker.style.backgroundColor || '#ef4444';
+      const newBold = isBold !== undefined ? isBold : (existingMarker.style.fontWeight === 'bold');
+      const newFs = existingMarker.style.fontSize || '';
+      const newHtml = createMarkerHtml(existingMarker.innerHTML, newColor, newBold, newFs);
+      document.execCommand('insertHTML', false, newHtml);
+      isDirty = true;
+      updateTitle();
+      syncDraft();
+      return;
+    }
+
+    if (sel.isCollapsed) return;
+
+    const frag = range.cloneContents();
+    const tmp = document.createElement('div');
+    tmp.appendChild(frag);
+    unwrapNestedMarkers(tmp);
+
+    const blockElements = tmp.querySelectorAll('p, h1, h2, h3, blockquote, div, li');
+    let finalHtml = '';
+
+    if (blockElements.length > 0) {
+      blockElements.forEach(block => {
+        const text = block.textContent || '';
+        if (text.trim().length > 0) {
+          block.innerHTML = createMarkerHtml(block.innerHTML, color, isBold);
+        }
+      });
+      finalHtml = tmp.innerHTML;
+    } else {
+      const text = tmp.textContent || '';
+      if (text.trim().length === 0) return;
+      finalHtml = createMarkerHtml(tmp.innerHTML, color, isBold);
+    }
+
+    document.execCommand('insertHTML', false, finalHtml);
     isDirty = true;
     updateTitle();
     syncDraft();
@@ -2568,7 +2590,7 @@
 
   function clearMarker() {
     const sel = window.getSelection();
-    if (!sel || sel.isCollapsed) return;
+    if (!sel || !sel.rangeCount) return;
     const range = sel.getRangeAt(0);
 
     let parent = range.commonAncestorContainer;
@@ -2577,27 +2599,18 @@
     }
     const existingMarker = parent.closest('.word-marker');
 
-    if (existingMarker) {
-      const pNode = existingMarker.parentNode;
-      while (existingMarker.firstChild) {
-        pNode.insertBefore(existingMarker.firstChild, existingMarker);
-      }
-      pNode.removeChild(existingMarker);
-    } else {
+    if (existingMarker && (sel.isCollapsed || range.toString().trim() === existingMarker.innerText.trim())) {
+      const markerRange = document.createRange();
+      markerRange.selectNode(existingMarker);
+      sel.removeAllRanges();
+      sel.addRange(markerRange);
+      document.execCommand('insertHTML', false, existingMarker.innerHTML);
+    } else if (!sel.isCollapsed) {
       const frag = range.cloneContents();
       const tmp = document.createElement('div');
       tmp.appendChild(frag);
-      const markers = tmp.querySelectorAll('.word-marker');
-      markers.forEach(m => {
-        const pNode = m.parentNode;
-        while (m.firstChild) {
-          pNode.insertBefore(m.firstChild, m);
-        }
-        pNode.removeChild(m);
-      });
-      range.deleteContents();
-      const tempFrag = document.createRange().createContextualFragment(tmp.innerHTML);
-      range.insertNode(tempFrag);
+      unwrapNestedMarkers(tmp);
+      document.execCommand('insertHTML', false, tmp.innerHTML);
     }
 
     isDirty = true;
@@ -2607,7 +2620,7 @@
 
   function toggleBoldState() {
     const sel = window.getSelection();
-    if (!sel || sel.isCollapsed) return;
+    if (!sel || !sel.rangeCount) return;
     const range = sel.getRangeAt(0);
 
     let parent = range.commonAncestorContainer;
@@ -2616,10 +2629,20 @@
     }
     const existingMarker = parent.closest('.word-marker');
 
-    if (existingMarker) {
+    if (existingMarker && (sel.isCollapsed || range.toString().trim() === existingMarker.innerText.trim())) {
       const isBold = existingMarker.style.fontWeight === 'bold';
-      existingMarker.style.fontWeight = isBold ? 'normal' : 'bold';
-    } else {
+      const markerRange = document.createRange();
+      markerRange.selectNode(existingMarker);
+      sel.removeAllRanges();
+      sel.addRange(markerRange);
+      const newHtml = createMarkerHtml(
+        existingMarker.innerHTML,
+        existingMarker.style.backgroundColor,
+        !isBold,
+        existingMarker.style.fontSize
+      );
+      document.execCommand('insertHTML', false, newHtml);
+    } else if (!sel.isCollapsed) {
       applyMarker(null, true);
     }
     isDirty = true;
@@ -2861,7 +2884,7 @@
   // ── Adjust Font Size of Highlights ──
   function adjustFontSize(direction) {
     const sel = window.getSelection();
-    if (!sel || sel.isCollapsed) return;
+    if (!sel || !sel.rangeCount) return;
     const range = sel.getRangeAt(0);
 
     let parent = range.commonAncestorContainer;
@@ -2870,11 +2893,10 @@
     }
     let marker = parent.closest('.word-marker');
 
-    if (!marker) {
-      // If selection is not already a marker, create a transparent marker wrapper
+    if (!marker && !sel.isCollapsed) {
       applyMarker('transparent', true);
       const newSel = window.getSelection();
-      if (newSel && !newSel.isCollapsed) {
+      if (newSel && newSel.rangeCount) {
         const newRange = newSel.getRangeAt(0);
         let newParent = newRange.commonAncestorContainer;
         if (newParent.nodeType === Node.TEXT_NODE) {
@@ -2902,7 +2924,19 @@
         if (sizeValue < 0.6) sizeValue = 0.6;
       }
 
-      marker.style.fontSize = sizeValue.toFixed(1) + 'em';
+      const newFontSize = sizeValue.toFixed(1) + 'em';
+      const markerRange = document.createRange();
+      markerRange.selectNode(marker);
+      sel.removeAllRanges();
+      sel.addRange(markerRange);
+      const newHtml = createMarkerHtml(
+        marker.innerHTML,
+        marker.style.backgroundColor,
+        marker.style.fontWeight === 'bold',
+        newFontSize
+      );
+      document.execCommand('insertHTML', false, newHtml);
+
       isDirty = true;
       updateTitle();
       syncDraft();
