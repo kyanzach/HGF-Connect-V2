@@ -5,6 +5,13 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.43.3] — 2026-09-01
+### Fixed
+- **Format Preservation in The Word Editor (`public/thewordtool.html`)**:
+  - Implemented recursive DOM tree highlighting (`applyHighlightToNode`) that traverses block containers and inline wrappers without unwrap-stripping them.
+  - Existing custom font sizes (e.g. `1.6em`), underlines (`<u>`), italics (`<i>`), bold tags (`<b>`/`<strong>`), blockquotes, stage cues (`<div class="cue">`), headings, and lists are fully preserved when text is highlighted or re-highlighted with any color.
+  - Clone-based in-place updates for `toggleBoldState` and `adjustFontSize` preserve all surrounding and inner styles.
+
 ## [v2.43.2] — 2026-09-01
 ### Fixed
 - **Highlight Formatting & Undo/Redo in The Word Editor (`public/thewordtool.html`)**:
