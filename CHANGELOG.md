@@ -5,6 +5,12 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.44.1] — 2026-09-02
+### Changed / Enhanced
+- **Updated Pastor Titles in Speaker Selection (`app/admin/events/AdminEventsClient.tsx`)**:
+  - Added official `Ptr.` / `Ptra.` titles to all ordained church pastors: `Ptr. Ryan Paco`, `Ptra. Karen Paco`, `Ptr. Jun-jun Baltazar`, `Ptra. Rina Del Carmen`, and `Ptra. Lilybeth Gabonada`.
+  - Maintained `Caryn Pepito` as member/speaker without pastor title as specified.
+
 ## [v2.44.0] — 2026-09-02
 ### Added / Enhanced
 - **Smart Logged-in Speaker Auto-Detection (`app/admin/events/AdminEventsClient.tsx`)**:

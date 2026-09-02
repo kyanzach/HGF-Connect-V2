@@ -73,12 +73,12 @@ const toHHMM = (t: string | null) => {
 export const PRIMARY_SPEAKERS = [
   { label: "Ptra. Shalom Love Joy Baltazar", short: "Ptra. Shalom", aliases: ["shalom", "baltazar"] },
   { label: "Ptr. William Del Carmen", short: "Ptr. William", aliases: ["william", "carmen"] },
-  { label: "Lilybeth Gabonada", short: "Beth G.", aliases: ["lilybeth", "beth", "gabonada", "lilyg"] },
-  { label: "Ryan Paco", short: "Ryan P.", aliases: ["ryan", "paco"] },
-  { label: "Karen Paco", short: "Karen P.", aliases: ["karen", "tan"] },
-  { label: "Jun-jun Baltazar", short: "Jun-jun B.", aliases: ["jun-jun", "jun", "junbaltazar"] },
+  { label: "Ptra. Lilybeth Gabonada", short: "Ptra. Beth G.", aliases: ["lilybeth", "beth", "gabonada", "lilyg"] },
+  { label: "Ptr. Ryan Paco", short: "Ptr. Ryan", aliases: ["ryan", "paco"] },
+  { label: "Ptra. Karen Paco", short: "Ptra. Karen", aliases: ["karen", "tan"] },
+  { label: "Ptr. Jun-jun Baltazar", short: "Ptr. Jun-jun", aliases: ["jun-jun", "jun", "junbaltazar"] },
+  { label: "Ptra. Rina Del Carmen", short: "Ptra. Rina", aliases: ["rina", "rinagirl"] },
   { label: "Caryn Pepito", short: "Caryn P.", aliases: ["caryn", "pepito"] },
-  { label: "Rina Del Carmen", short: "Rina D.", aliases: ["rina", "rinagirl"] },
   { label: "Bishop Joel M. Montes", short: "Bishop Joel", aliases: ["joel", "montes"] },
 ];
 
