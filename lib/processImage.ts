@@ -1,11 +1,12 @@
 import sharp from "sharp";
 
-export type ImagePurpose = "profile" | "cover" | "listing";
+export type ImagePurpose = "profile" | "cover" | "listing" | "event_cover";
 
 const CONFIGS = {
-  profile: { width: 400,  height: 400,       fit: "cover"  as const, quality: 85 },
-  cover:   { width: 1200, height: 400,        fit: "cover"  as const, quality: 80 },
-  listing: { width: 1200, height: undefined,  fit: "inside" as const, quality: 80 },
+  profile:     { width: 400,  height: 400,       fit: "cover"  as const, quality: 85 },
+  cover:       { width: 1200, height: 400,       fit: "cover"  as const, quality: 80 },
+  listing:     { width: 1200, height: undefined, fit: "inside" as const, quality: 80 },
+  event_cover: { width: 1920, height: undefined, fit: "inside" as const, quality: 85 },
 };
 
 export interface ProcessedImage {

@@ -5,6 +5,14 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.44.2] — 2026-09-02
+### Enhanced
+- **High-Resolution Event Cover Upload & Zero-Disk-Bloat WebP Compression (`app/api/events/upload/route.ts`, `lib/processImage.ts`)**:
+  - Expanded event cover upload limit from 5MB up to 100MB to fully accommodate maximum-quality exports directly from Canva and graphic design tools.
+  - Integrated in-memory Sharp WebP processing (`event_cover` purpose: up to 1920px width, 85% WebP quality).
+  - Automatically discards raw uncompressed uploads from memory without ever writing giant PNG/JPG files to server disk, reducing file footprint by ~95-99% while maintaining crisp display quality.
+  - Added 100MB file size validation to client handler in `AdminEventsClient.tsx`.
+
 ## [v2.44.1] — 2026-09-02
 ### Changed / Enhanced
 - **Updated Pastor Titles in Speaker Selection (`app/admin/events/AdminEventsClient.tsx`)**:

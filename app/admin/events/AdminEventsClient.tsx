@@ -298,6 +298,10 @@ export default function AdminEventsClient({
   }
 
   async function handleCoverUpload(file: File) {
+    if (file.size > 100 * 1024 * 1024) {
+      setErr("Image too large. Maximum allowed size is 100MB.");
+      return;
+    }
     setUploading(true);
     setErr("");
     const fd = new FormData();
