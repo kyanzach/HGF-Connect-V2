@@ -18,5 +18,16 @@ export default async function AdminEventsPage() {
   // Serialize Date objects to ISO strings — Next.js cannot pass Date across server→client boundary
   const serialized = JSON.parse(JSON.stringify(events));
 
-  return <AdminEventsClient events={serialized} />;
+  return (
+    <AdminEventsClient
+      events={serialized}
+      currentUser={{
+        id: Number(session.user.id),
+        firstName: session.user.firstName || "",
+        lastName: session.user.lastName || "",
+        username: session.user.username || "",
+        name: session.user.name || "",
+      }}
+    />
+  );
 }

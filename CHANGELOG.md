@@ -5,6 +5,15 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.44.0] — 2026-09-02
+### Added / Enhanced
+- **Smart Logged-in Speaker Auto-Detection (`app/admin/events/AdminEventsClient.tsx`)**:
+  - Automatically detects the logged-in pastor/admin creating the event and pre-selects their official preacher title and name (e.g. `Ptr. William Del Carmen`, `Ptra. Shalom Love Joy Baltazar`, `Lilybeth Gabonada`, `Ryan Paco`, `Karen Paco`, `Jun-jun Baltazar`, `Caryn Pepito`, `Rina Del Carmen`).
+- **Interactive Speaker Quick-Select & Autocomplete**:
+  - Added 1-tap quick pill selector badges for all primary pastors and church leaders.
+  - Retained datalist autocomplete and manual custom input support for any visiting guest speaker or other community members.
+  - Passed `currentUser` session context from `app/admin/events/page.tsx` into `AdminEventsClient`.
+
 ## [v2.43.3] — 2026-09-01
 ### Fixed
 - **Format Preservation in The Word Editor (`public/thewordtool.html`)**:

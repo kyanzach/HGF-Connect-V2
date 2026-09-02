@@ -70,7 +70,50 @@ const toHHMM = (t: string | null) => {
   return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "UTC" });
 };
 
-export default function AdminEventsClient({ events: initial }: { events: EventRow[] }) {
+export const PRIMARY_SPEAKERS = [
+  { label: "Ptra. Shalom Love Joy Baltazar", short: "Ptra. Shalom", aliases: ["shalom", "baltazar"] },
+  { label: "Ptr. William Del Carmen", short: "Ptr. William", aliases: ["william", "carmen"] },
+  { label: "Lilybeth Gabonada", short: "Beth G.", aliases: ["lilybeth", "beth", "gabonada", "lilyg"] },
+  { label: "Ryan Paco", short: "Ryan P.", aliases: ["ryan", "paco"] },
+  { label: "Karen Paco", short: "Karen P.", aliases: ["karen", "tan"] },
+  { label: "Jun-jun Baltazar", short: "Jun-jun B.", aliases: ["jun-jun", "jun", "junbaltazar"] },
+  { label: "Caryn Pepito", short: "Caryn P.", aliases: ["caryn", "pepito"] },
+  { label: "Rina Del Carmen", short: "Rina D.", aliases: ["rina", "rinagirl"] },
+  { label: "Bishop Joel M. Montes", short: "Bishop Joel", aliases: ["joel", "montes"] },
+];
+
+export function detectDefaultSpeaker(user?: { firstName?: string; lastName?: string; username?: string; name?: string } | null): string {
+  if (!user) return "Ptr. William Del Carmen";
+  const first = (user.firstName || "").toLowerCase();
+  const last = (user.lastName || "").toLowerCase();
+  const uname = (user.username || "").toLowerCase();
+  const full = `${first} ${last} ${uname}`.trim();
+
+  for (const s of PRIMARY_SPEAKERS) {
+    if (s.aliases.some((a) => a && full.includes(a.toLowerCase()))) {
+      return s.label;
+    }
+  }
+
+  if (user.firstName && user.lastName) {
+    return `${user.firstName} ${user.lastName}`.trim();
+  }
+  return user.name || "Ptr. William Del Carmen";
+}
+
+export default function AdminEventsClient({
+  events: initial,
+  currentUser,
+}: {
+  events: EventRow[];
+  currentUser?: {
+    id?: number;
+    firstName?: string;
+    lastName?: string;
+    username?: string;
+    name?: string;
+  } | null;
+}) {
   const [events, setEvents] = useState(initial);
   const stats = useMemo(() => {
     const total = events.length;
@@ -172,7 +215,23 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
   function openAdd() { 
     setEditing(null); 
     setErr("");
-    setForm({ title: "", description: "", eventDate: "", startTime: "", endTime: "", location: "", eventType: "sunday_service", status: "scheduled", coverPhoto: "", presentationFile: "", presentationOriginalName: "", presentationSlides: [], speaker: "", commentary: "" }); 
+    const defaultSpeaker = detectDefaultSpeaker(currentUser);
+    setForm({ 
+      title: "", 
+      description: "", 
+      eventDate: "", 
+      startTime: "", 
+      endTime: "", 
+      location: "", 
+      eventType: "sunday_service", 
+      status: "scheduled", 
+      coverPhoto: "", 
+      presentationFile: "", 
+      presentationOriginalName: "", 
+      presentationSlides: [], 
+      speaker: defaultSpeaker, 
+      commentary: "" 
+    }); 
     setShowModal(true); 
   }
   
@@ -444,8 +503,67 @@ export default function AdminEventsClient({ events: initial }: { events: EventRo
                   </select></div>
               </div>
               <div style={{ marginTop: "0.75rem" }}>
-                <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b" }}>Speaker</label>
-                <input style={inp} value={form.speaker} onChange={e => setForm(f => ({ ...f, speaker: e.target.value }))} placeholder="Guest or Pastor name" />
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.3rem" }}>
+                  <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b" }}>
+                    Speaker / Preacher
+                  </label>
+                  {form.speaker && (
+                    <button
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, speaker: "" }))}
+                      style={{ border: "none", background: "none", color: "#94a3b8", fontSize: "0.7rem", cursor: "pointer", textDecoration: "underline", padding: 0 }}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+
+                {/* Quick 1-Tap Speaker Selector Pills */}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem", marginBottom: "0.45rem" }}>
+                  {PRIMARY_SPEAKERS.map(s => {
+                    const isSelected = form.speaker.trim().toLowerCase() === s.label.toLowerCase();
+                    return (
+                      <button
+                        key={s.label}
+                        type="button"
+                        onClick={() => setForm(f => ({ ...f, speaker: s.label }))}
+                        style={{
+                          padding: "0.22rem 0.55rem",
+                          borderRadius: "999px",
+                          fontSize: "0.72rem",
+                          fontWeight: isSelected ? 700 : 500,
+                          border: isSelected ? "1.5px solid #0284c7" : "1px solid #cbd5e1",
+                          background: isSelected ? "#e0f2fe" : "#f8fafc",
+                          color: isSelected ? "#0369a1" : "#475569",
+                          cursor: "pointer",
+                          transition: "all 0.15s ease",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "0.2rem",
+                        }}
+                      >
+                        {isSelected && <span style={{ fontSize: "0.65rem" }}>✓</span>}
+                        {s.short}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Autocomplete Input with datalist + Custom Type support */}
+                <div style={{ position: "relative" }}>
+                  <input
+                    list="speaker-suggestions"
+                    style={inp}
+                    value={form.speaker}
+                    onChange={e => setForm(f => ({ ...f, speaker: e.target.value }))}
+                    placeholder="Select from above or type any speaker/guest name..."
+                  />
+                  <datalist id="speaker-suggestions">
+                    {PRIMARY_SPEAKERS.map(s => (
+                      <option key={s.label} value={s.label} />
+                    ))}
+                  </datalist>
+                </div>
               </div>
               {/* Cover Photo */}
               <div style={{ marginTop: "0.75rem" }}>
