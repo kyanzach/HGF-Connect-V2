@@ -53,6 +53,22 @@ export async function POST(request: NextRequest) {
 
     logs.push(`Found ${upcomingEvents.length} scheduled event(s) to check.`);
 
+    // Load custom reminder verses from church_settings if configured
+    let activeBibleVerses = BIBLE_VERSES;
+    try {
+      const customVersesSetting = await db.churchSetting.findUnique({
+        where: { key: "sms_reminder_verses" },
+      });
+      if (customVersesSetting?.value) {
+        const parsed = JSON.parse(customVersesSetting.value);
+        if (parsed && typeof parsed === "object") {
+          activeBibleVerses = { ...BIBLE_VERSES, ...parsed };
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load custom reminder verses from church_settings:", e);
+    }
+
     for (const event of upcomingEvents) {
       // Check if reminders already exist for this event
       const reminderCount = await db.smsReminder.count({
@@ -151,8 +167,8 @@ export async function POST(request: NextRequest) {
           // Get templates & bible verse pools
           // (Urgent template falls back to same_day verse pool since there is no urgent verse pool)
           const versePool = useUrgent
-            ? (BIBLE_VERSES[typeKey]?.same_day || BIBLE_VERSES.other.same_day)
-            : (BIBLE_VERSES[typeKey]?.[item.type] || BIBLE_VERSES.other[item.type]);
+            ? (activeBibleVerses[typeKey]?.same_day || activeBibleVerses.other?.same_day || BIBLE_VERSES.other.same_day)
+            : (activeBibleVerses[typeKey]?.[item.type] || activeBibleVerses.other?.[item.type] || BIBLE_VERSES.other[item.type]);
           
           const randomVerse = versePool[Math.floor(Math.random() * versePool.length)];
           

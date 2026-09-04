@@ -5,6 +5,17 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.46.0] — 2026-09-04
+### Added / Enhanced
+- **SMS Command Hub, Reminder Verses Pool Manager & Birthday SMS Automation (`app/admin/sms/`, `app/api/admin/sms/settings/`, `app/api/birthdays/check/route.ts`, `app/api/sms/reminders/check/route.ts`)**:
+  - Converted `/admin/sms` into a tabbed SMS Command Hub featuring **Activity Logs**, **Reminder Scripture Verses**, and **Birthday SMS**.
+  - **Reminder Verses Randomization Manager**: Church leaders can now view, add new Scripture verses, edit, or remove verses across all event categories (Sunday Service, Prayer Meeting, Bible Study, Special Events) and reminder timing intervals (5-day, 3-day, 1-day, same-day).
+  - **Automated Birthday SMS**: Integrated daily morning automated SMS greetings for celebrants with custom message templates, placeholder tags (`{firstName}`, `{lastName}`, `{verseText}`, `{verseRef}`), and an expanding pool of blessing verses.
+  - Added live preview, character counter, and "Send Test Preview SMS" button for admins.
+- **Resources Slide Lightbox Mobile Safe-Area & Close Button Fix (`components/ImageLightbox.tsx`)**:
+  - Fixed full-screen slide viewer close button positioning with generous `env(safe-area-inset-top)` and `env(safe-area-inset-right)` clearance.
+  - Enhanced close button with high-contrast 44px round touch target (`rgba(15, 23, 42, 0.88)`), preventing collision with phone battery indicators, Dynamic Island, and status bar icons.
+
 ## [v2.45.0] — 2026-09-04
 ### Added / Enhanced
 - **Guaranteed PPTX Presentation Conversion (`lib/presentationProcessor.ts`)**:

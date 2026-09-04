@@ -1,19 +1,11 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { sendSms } from "@/lib/sms";
+import { DEFAULT_BIRTHDAY_TEMPLATE, DEFAULT_BIRTHDAY_VERSES } from "@/app/api/admin/sms/settings/route";
 
 export const dynamic = "force-dynamic";
 
-// Collection of encouraging scripture verses for birthdays
-const BIRTHDAY_VERSES = [
-  { ref: "Psalm 139:13-14", text: "For you created my inmost being; you knit me together in my mother's womb. I praise you because I am fearfully and wonderfully made." },
-  { ref: "Numbers 6:24-26", text: "The Lord bless you and keep you; the Lord make his face shine on you and be gracious to you; the Lord turn his face toward you and give you peace." },
-  { ref: "Ephesians 2:10", text: "For we are God's handiwork, created in Christ Jesus to do good works, which God prepared in advance for us to do." },
-  { ref: "Jeremiah 29:11", text: "For I know the plans I have for you, declares the Lord, plans to prosper you and not to harm you, plans to give you hope and a future." },
-  { ref: "Psalm 20:4", text: "May he give you the desire of your heart and make all your plans succeed." },
-  { ref: "Psalm 37:4", text: "Take delight in the Lord, and he will give you the desires of your heart." },
-  { ref: "3 John 1:2", text: "Dear friend, I pray that you may enjoy good health and that all may go well with you, even as your soul is getting along well." },
-  { ref: "Proverbs 9:11", text: "For through wisdom your days will be many, and years will be added to your life." }
-];
+const BIRTHDAY_VERSES = DEFAULT_BIRTHDAY_VERSES;
 
 export async function POST(request: Request) {
   // ── Auth: Cron secret ──
@@ -31,6 +23,28 @@ export async function POST(request: Request) {
     const currentMonth = manilaDate.getMonth() + 1; // 1-12
     const currentDay = manilaDate.getDate(); // 1-31
 
+    // Load custom birthday SMS configuration & verses from church_settings
+    let birthdaySmsConfig = { enabled: true, template: DEFAULT_BIRTHDAY_TEMPLATE };
+    let birthdayVersesPool = BIRTHDAY_VERSES;
+    try {
+      const settingsList = await db.churchSetting.findMany({
+        where: { key: { in: ["sms_birthday_settings", "sms_birthday_verses"] } }
+      });
+      for (const s of settingsList) {
+        if (s.key === "sms_birthday_settings" && s.value) {
+          birthdaySmsConfig = { ...birthdaySmsConfig, ...JSON.parse(s.value) };
+        }
+        if (s.key === "sms_birthday_verses" && s.value) {
+          const parsed = JSON.parse(s.value);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            birthdayVersesPool = parsed;
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load birthday SMS settings:", err);
+    }
+
     // Fetch all active members with a birthday
     const activeMembers = await db.member.findMany({
       where: { status: { notIn: ["pending", "archived"] } },
@@ -38,6 +52,7 @@ export async function POST(request: Request) {
         id: true,
         firstName: true,
         lastName: true,
+        phone: true,
         profilePicture: true,
         coverPhoto: true,
         birthdate: true,
@@ -150,8 +165,8 @@ export async function POST(request: Request) {
       });
 
       if (!existingDaily) {
-        // Pick a deterministic verse based on the celebrant's ID
-        const verse = BIRTHDAY_VERSES[celebrant.id % BIRTHDAY_VERSES.length];
+        // Pick a deterministic verse from the active birthday verse pool
+        const verse = birthdayVersesPool[celebrant.id % birthdayVersesPool.length];
 
         const message = `🎉 Wishing a very Happy and Blessed Birthday to our dear ${celebrant.firstName}! 🎂🎈\n\nOn this special day, we praise God for the gift of your life and the unique blessing you are to our church family. May the Lord guide your steps, keep you in His perfect peace, and shower you with His abundant grace in this new year of your life!\n\nWe celebrate you today on behalf of your family here at House of Grace Fellowship! ❤️`;
 
@@ -182,6 +197,41 @@ export async function POST(request: Request) {
           }
         });
         reports.push(`Daily birthday post published for ${celebrant.firstName} ${celebrant.lastName}`);
+
+        // ── 3. Dispatch Birthday SMS if enabled ──
+        if (birthdaySmsConfig.enabled && celebrant.phone) {
+          const isTestingPhone = celebrant.phone === "09000000000" || celebrant.firstName.toUpperCase().startsWith("HGF");
+          if (!isTestingPhone) {
+            try {
+              // Prevent duplicate birthday SMS today
+              const existingSms = await db.smsLog.findFirst({
+                where: {
+                  memberId: celebrant.id,
+                  sentAt: { gte: startOfDayUTC },
+                  message: { contains: "Birthday" }
+                }
+              });
+
+              if (!existingSms) {
+                let smsMessage = birthdaySmsConfig.template || DEFAULT_BIRTHDAY_TEMPLATE;
+                smsMessage = smsMessage
+                  .replace(/{firstName}/g, celebrant.firstName)
+                  .replace(/{lastName}/g, celebrant.lastName)
+                  .replace(/{verseText}/g, verse.text)
+                  .replace(/{verseRef}/g, verse.ref);
+
+                const smsRes = await sendSms(celebrant.phone, smsMessage, celebrant.id);
+                if (smsRes.success) {
+                  reports.push(`Birthday SMS delivered to ${celebrant.firstName} (${celebrant.phone})`);
+                } else {
+                  reports.push(`Birthday SMS failed for ${celebrant.firstName}: ${smsRes.error}`);
+                }
+              }
+            } catch (smsErr: any) {
+              console.error(`Birthday SMS dispatch error for member #${celebrant.id}:`, smsErr?.message);
+            }
+          }
+        }
       }
     }
 

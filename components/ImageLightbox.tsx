@@ -233,14 +233,15 @@ export default function ImageLightbox({
         </div>
       )}
 
-      {/* Top Controls */}
+      {/* Top Controls with safe-area notch and battery clearance */}
       <div
         style={{
           position: "absolute",
-          top: "calc(24px + env(safe-area-inset-top, 0px))",
-          right: "20px",
+          top: "max(18px, calc(env(safe-area-inset-top, 0px) + 16px))",
+          right: "max(16px, calc(env(safe-area-inset-right, 0px) + 16px))",
           display: "flex",
-          gap: "12px",
+          alignItems: "center",
+          gap: "10px",
           zIndex: 20001,
         }}
         onMouseDown={(e) => e.stopPropagation()}
@@ -248,69 +249,78 @@ export default function ImageLightbox({
       >
         {/* Zoom Controls */}
         <button
+          type="button"
           onClick={zoomOut}
           disabled={scale === 1}
           style={{
             width: "40px",
             height: "40px",
             borderRadius: "50%",
-            border: "none",
-            background: "rgba(255, 255, 255, 0.15)",
+            border: "1px solid rgba(255, 255, 255, 0.2)",
+            background: "rgba(15, 23, 42, 0.75)",
             color: "white",
-            fontSize: "1.2rem",
+            fontSize: "1.1rem",
             cursor: scale === 1 ? "not-allowed" : "pointer",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            transition: "background 0.2s",
+            transition: "background 0.2s, opacity 0.2s",
             outline: "none",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
+            opacity: scale === 1 ? 0.4 : 1,
+            boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
+            backdropFilter: "blur(4px)",
           }}
           title="Zoom Out"
         >
           ➖
         </button>
         <button
+          type="button"
           onClick={zoomIn}
           disabled={scale === 5}
           style={{
             width: "40px",
             height: "40px",
             borderRadius: "50%",
-            border: "none",
-            background: "rgba(255, 255, 255, 0.15)",
+            border: "1px solid rgba(255, 255, 255, 0.2)",
+            background: "rgba(15, 23, 42, 0.75)",
             color: "white",
-            fontSize: "1.2rem",
+            fontSize: "1.1rem",
             cursor: scale === 5 ? "not-allowed" : "pointer",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            transition: "background 0.2s",
+            transition: "background 0.2s, opacity 0.2s",
             outline: "none",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
+            opacity: scale === 5 ? 0.4 : 1,
+            boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
+            backdropFilter: "blur(4px)",
           }}
           title="Zoom In"
         >
           ➕
         </button>
         <button
+          type="button"
           onClick={onClose}
+          aria-label="Close Fullscreen View"
           style={{
-            width: "40px",
-            height: "40px",
+            width: "44px",
+            height: "44px",
             borderRadius: "50%",
-            border: "none",
-            background: "rgba(255, 255, 255, 0.25)",
+            border: "1.5px solid rgba(255, 255, 255, 0.35)",
+            background: "rgba(15, 23, 42, 0.88)",
             color: "white",
-            fontSize: "1.2rem",
-            fontWeight: "bold",
+            fontSize: "1.25rem",
+            fontWeight: 800,
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            transition: "background 0.2s",
+            transition: "all 0.2s ease",
             outline: "none",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
+            boxShadow: "0 4px 14px rgba(0,0,0,0.6)",
+            backdropFilter: "blur(6px)",
           }}
           title="Close"
         >
