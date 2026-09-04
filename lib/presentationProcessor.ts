@@ -34,9 +34,8 @@ export async function processPresentation(
   await fs.mkdir(slidesDir, { recursive: true });
 
   const ext = path.extname(filePath).toLowerCase();
-  const finalFilename = `${uuid}${ext}`;
+  const finalFilename = `${uuid}.pptx`;
   const finalDestPath = path.join(uploadDir, finalFilename);
-  await fs.copyFile(filePath, finalDestPath);
 
   let pdfPath = filePath;
 
@@ -220,10 +219,22 @@ Keep the tone encouraging, warm, and faith-based (in standard English, but frien
       slidePaths.push(`/uploads/presentations/slides/${slideFilename}`);
     }
 
+    // 5. Generate and save final PPTX file (or preserve native PPTX upload)
+    if (ext === ".pptx") {
+      await fs.copyFile(filePath, finalDestPath);
+    } else {
+      onProgress?.(95, "Generating final PPTX presentation...");
+      await pptx.writeFile({ fileName: finalDestPath });
+    }
+
+    const finalOriginalName = originalName.toLowerCase().endsWith(".pptx")
+      ? originalName
+      : `${originalName.replace(/\.[^/.]+$/, "")}.pptx`;
+
     onProgress?.(100, "Optimization complete!");
     return {
       presentationFile: `/uploads/presentations/${finalFilename}`,
-      presentationOriginalName: originalName,
+      presentationOriginalName: finalOriginalName,
       presentationSlides: slidePaths,
       commentary,
     };

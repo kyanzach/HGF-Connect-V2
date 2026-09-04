@@ -5,6 +5,21 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.45.0] — 2026-09-04
+### Added / Enhanced
+- **Guaranteed PPTX Presentation Conversion (`lib/presentationProcessor.ts`)**:
+  - Configured `pptxgen` to always generate and save a widescreen 16:9 `.pptx` presentation to disk whenever a `.pdf` is uploaded from Canva or other tools.
+  - Formatted `presentationOriginalName` and `presentationFile` to ensure downloadable assets in the multimedia dashboard always provide a standardized PowerPoint file ready for ProPresenter.
+- **Multimedia Dashboard Mobile & iPad Optimization (`app/admin/multimedia/MultimediaDashboardClient.tsx`)**:
+  - Implemented responsive single-column layout stack on tablets and mobile screens (`<= 1024px`).
+  - Constrained slide preview height (`maxHeight: min(50vh, 460px)`) so it does not dominate mobile viewports.
+  - Added touch swipe gesture navigation (swipe left for next slide, swipe right for previous slide) and floating tap navigation arrows (`‹` / `›`) on mobile/tablet.
+  - Added full-width responsive download button with `📥 Download Presentation (PPTX)` label.
+- **Admin Sidebar Touch Gestures & Drawer Overlay (`components/layout/AdminSidebar.tsx`, `app/admin/layout.tsx`)**:
+  - On mobile (`< 768px`), converted sidebar into a full-height slide-over drawer with backdrop blur.
+  - Added touch gestures: swipe left on the sidebar to slide it closed, and swipe right from the left screen edge (0–35px) to reveal the sidebar.
+  - Added floating menu tab for quick 1-tap access on mobile, backdrop tap-to-dismiss, and automatic close on route changes.
+
 ## [v2.44.2] — 2026-09-02
 ### Enhanced
 - **High-Resolution Event Cover Upload & Zero-Disk-Bloat WebP Compression (`app/api/events/upload/route.ts`, `lib/processImage.ts`)**:

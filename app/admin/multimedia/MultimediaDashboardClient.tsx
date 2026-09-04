@@ -60,6 +60,33 @@ export default function MultimediaDashboardClient({
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, isPast: false });
   const [currentTime, setCurrentTime] = useState("");
 
+  // Touch swipe support for mobile slide preview
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const [touchEndX, setTouchEndX] = useState<number | null>(null);
+
+  const handleSlideTouchStart = (e: React.TouchEvent) => {
+    setTouchStartX(e.targetTouches[0].clientX);
+    setTouchEndX(null);
+  };
+
+  const handleSlideTouchMove = (e: React.TouchEvent) => {
+    setTouchEndX(e.targetTouches[0].clientX);
+  };
+
+  const handleSlideTouchEnd = () => {
+    if (touchStartX === null || touchEndX === null) return;
+    const diff = touchStartX - touchEndX;
+    if (diff > 40) {
+      // Swiped left -> Next slide
+      setActiveSlide((prev) => (prev < slides.length - 1 ? prev + 1 : prev));
+    } else if (diff < -40) {
+      // Swiped right -> Previous slide
+      setActiveSlide((prev) => (prev > 0 ? prev - 1 : prev));
+    }
+    setTouchStartX(null);
+    setTouchEndX(null);
+  };
+
   // Role permissions
   const currentUserId = parseInt(session?.user?.id || "0", 10);
   const isLeader = ["admin", "moderator"].includes(session?.user?.role || "");
@@ -835,9 +862,7 @@ export default function MultimediaDashboardClient({
                       boxShadow: "0 4px 12px rgba(78, 177, 203, 0.2)",
                     }}
                   >
-                    {event.presentationFile.toLowerCase().endsWith(".pdf")
-                      ? "📥 Download Original PDF"
-                      : "📥 Download Original PPTX"}
+                    📥 Download Presentation (PPTX)
                   </a>
                 )}
               </div>
@@ -878,8 +903,12 @@ export default function MultimediaDashboardClient({
               ) : (
                 <div>
                   <div
+                    onTouchStart={handleSlideTouchStart}
+                    onTouchMove={handleSlideTouchMove}
+                    onTouchEnd={handleSlideTouchEnd}
                     style={{
                       width: "100%",
+                      maxHeight: "min(50vh, 460px)",
                       aspectRatio: "16/9",
                       borderRadius: "12px",
                       background: "#0f172a",
@@ -887,29 +916,104 @@ export default function MultimediaDashboardClient({
                       border: "1px solid #e2e8f0",
                       marginBottom: "0.75rem",
                       position: "relative",
+                      touchAction: "pan-y",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
                     }}
                   >
                     <img
                       src={slides[activeSlide]}
                       alt={`Slide ${activeSlide + 1}`}
                       style={{
-                        width: "100%",
-                        height: "100%",
+                        maxWidth: "100%",
+                        maxHeight: "100%",
                         objectFit: "contain",
                         display: "block",
+                        userSelect: "none",
                       }}
                     />
+
+                    {/* Floating Previous Arrow Button */}
+                    {activeSlide > 0 && (
+                      <button
+                        type="button"
+                        aria-label="Previous Slide"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveSlide((prev) => prev - 1);
+                        }}
+                        style={{
+                          position: "absolute",
+                          left: "0.5rem",
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          background: "rgba(15, 23, 42, 0.7)",
+                          color: "white",
+                          border: "1px solid rgba(255,255,255,0.2)",
+                          borderRadius: "50%",
+                          width: "36px",
+                          height: "36px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "1.25rem",
+                          cursor: "pointer",
+                          zIndex: 3,
+                          backdropFilter: "blur(4px)",
+                          boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+                        }}
+                      >
+                        ‹
+                      </button>
+                    )}
+
+                    {/* Floating Next Arrow Button */}
+                    {activeSlide < slides.length - 1 && (
+                      <button
+                        type="button"
+                        aria-label="Next Slide"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveSlide((prev) => prev + 1);
+                        }}
+                        style={{
+                          position: "absolute",
+                          right: "0.5rem",
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          background: "rgba(15, 23, 42, 0.7)",
+                          color: "white",
+                          border: "1px solid rgba(255,255,255,0.2)",
+                          borderRadius: "50%",
+                          width: "36px",
+                          height: "36px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "1.25rem",
+                          cursor: "pointer",
+                          zIndex: 3,
+                          backdropFilter: "blur(4px)",
+                          boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+                        }}
+                      >
+                        ›
+                      </button>
+                    )}
+
                     <div
                       style={{
                         position: "absolute",
                         bottom: "0.75rem",
                         right: "0.75rem",
-                        background: "rgba(0,0,0,0.6)",
+                        background: "rgba(0,0,0,0.65)",
                         color: "white",
                         padding: "0.25rem 0.5rem",
                         borderRadius: "4px",
                         fontSize: "0.75rem",
                         fontWeight: 600,
+                        backdropFilter: "blur(4px)",
                       }}
                     >
                       Slide {activeSlide + 1} of {slides.length}
@@ -922,6 +1026,7 @@ export default function MultimediaDashboardClient({
                       gap: "0.5rem",
                       overflowX: "auto",
                       paddingBottom: "0.5rem",
+                      WebkitOverflowScrolling: "touch",
                     }}
                   >
                     {slides.map((slide, idx) => (
@@ -1286,26 +1391,30 @@ export default function MultimediaDashboardClient({
 
       {/* Embedded CSS style overrides for layouts */}
       <style jsx global>{`
-        @media (max-width: 991px) {
+        @media (max-width: 1024px) {
           .dashboard-grid {
             grid-template-columns: 1fr !important;
+            gap: 1.25rem !important;
           }
           .multimedia-container {
-            padding: 1.5rem 1rem !important;
+            padding: 1.25rem 1rem !important;
           }
         }
-        @media (max-width: 576px) {
+        @media (max-width: 640px) {
           .multimedia-container {
-            padding: 1rem 0.75rem !important;
+            padding: 0.875rem 0.5rem !important;
+            padding-top: max(0.875rem, env(safe-area-inset-top)) !important;
           }
           .slides-header-wrap {
             flex-direction: column !important;
             align-items: stretch !important;
-            text-align: center !important;
+            gap: 0.5rem !important;
           }
           .slides-header-wrap a {
             width: 100% !important;
             justify-content: center !important;
+            text-align: center !important;
+            padding: 0.625rem 1rem !important;
           }
         }
       `}</style>

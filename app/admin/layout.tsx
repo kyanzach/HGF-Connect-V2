@@ -13,9 +13,9 @@ export default async function AdminLayout({
   }
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "#f8fafc" }}>
+    <div style={{ display: "flex", minHeight: "100vh", background: "#f8fafc", position: "relative" }}>
       <AdminSidebar session={session} />
-      <main style={{ flex: 1, overflow: "auto", paddingTop: "env(safe-area-inset-top, 0px)" }}>{children}</main>
+      <main style={{ flex: 1, minWidth: 0, width: "100%", overflow: "auto", paddingTop: "env(safe-area-inset-top, 0px)" }}>{children}</main>
     </div>
   );
 }
