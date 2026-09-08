@@ -5,6 +5,20 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.49.1] — 2026-09-08
+### Added / Enhanced
+- **Advanced Sorting & Duplicate Grouping in Review History (`/admin/review`, `AdminReviewClient.tsx`)**:
+  - **7 Flexible Sort Options**:
+    - 📅 **Newest to Oldest** (`createdAt: desc`)
+    - 📅 **Oldest to Newest** (`createdAt: asc`)
+    - ⚠️ **Potential Duplicates First** (groups duplicate pairs/clusters together alphabetically by name & phone)
+    - 🔤 **Name (A → Z)** (`firstName: asc, lastName: asc`)
+    - 🔤 **Name (Z → A)** (`firstName: desc, lastName: desc`)
+    - 👥 **Member Type** (Family Member, Growing Friend, New Friend)
+    - 🎂 **Age Group** (Adult, Youth, Kids)
+  - **1-Click Duplicate Grouping Action**: Added an interactive **"🔍 Group & View Duplicates"** button in the duplicate warning banner to immediately view and compare matching records side-by-side.
+  - **API Sorting Backend**: Updated `GET /api/admin/review/history` to support all sorting keys and direct duplicate-only / duplicate-first filtering.
+
 ## [v2.49.0] — 2026-09-08
 ### Added / Enhanced
 - **Action Review Queue History Tab (`/admin/review`, `AdminReviewClient.tsx`)**:

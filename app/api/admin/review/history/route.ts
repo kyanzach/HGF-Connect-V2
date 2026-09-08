@@ -16,6 +16,8 @@ export async function GET(request: NextRequest) {
   const search = (searchParams.get("search") || "").trim();
   const typeFilter = searchParams.get("type") || "all"; // "all" | "registrations" | "ministries"
   const statusFilter = searchParams.get("status") || "all"; // "all" | "active" | "approved" | "pending" | "inactive"
+  const sort = searchParams.get("sort") || "newest"; // "newest" | "oldest" | "duplicates" | "name_asc" | "name_desc" | "type" | "age"
+  const duplicatesOnly = searchParams.get("duplicatesOnly") === "true" || sort === "duplicates";
   const skip = (page - 1) * limit;
 
   try {
@@ -42,13 +44,22 @@ export async function GET(request: NextRequest) {
         ];
       }
 
+      let orderBy: any = { requestedAt: "desc" };
+      if (sort === "oldest") {
+        orderBy = { requestedAt: "asc" };
+      } else if (sort === "name_asc") {
+        orderBy = { member: { firstName: "asc" } };
+      } else if (sort === "name_desc") {
+        orderBy = { member: { firstName: "desc" } };
+      }
+
       const [total, records] = await Promise.all([
         db.memberMinistry.count({ where }),
         db.memberMinistry.findMany({
           where,
           skip,
           take: limit,
-          orderBy: { requestedAt: "desc" },
+          orderBy,
           include: {
             member: {
               select: {
@@ -104,7 +115,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Otherwise: Query Member Registrations (or all member records)
+    // ── Member Registrations ──
     const memberWhere: any = {};
     if (statusFilter !== "all") {
       if (statusFilter === "active") {
@@ -126,13 +137,99 @@ export async function GET(request: NextRequest) {
       ];
     }
 
+    // Identify all duplicates across the database
+    const [allDupPhones, allDupEmails, allNameGroups] = await Promise.all([
+      db.member.groupBy({
+        by: ["phone"],
+        where: {
+          phone: { not: null },
+          AND: [
+            { phone: { not: "" } },
+            { phone: { not: "09000000000" } },
+          ],
+        },
+        _count: { id: true },
+        having: { id: { _count: { gt: 1 } } },
+      }),
+      db.member.groupBy({
+        by: ["email"],
+        where: {
+          email: { not: null },
+          AND: [{ email: { not: "" } }],
+        },
+        _count: { id: true },
+        having: { id: { _count: { gt: 1 } } },
+      }),
+      db.$queryRaw<Array<{ first_name: string; last_name: string; cnt: number }>>`
+        SELECT first_name, last_name, COUNT(*) as cnt
+        FROM members
+        WHERE first_name IS NOT NULL AND first_name != ''
+        GROUP BY LOWER(TRIM(first_name)), LOWER(TRIM(last_name))
+        HAVING cnt > 1
+      `.catch(() => [] as Array<{ first_name: string; last_name: string; cnt: number }>),
+    ]);
+
+    const dupPhoneList = allDupPhones.map((g) => g.phone).filter(Boolean) as string[];
+    const dupEmailList = allDupEmails.map((g) => g.email).filter(Boolean) as string[];
+    const dupPhoneSet = new Set(dupPhoneList);
+    const dupEmailSet = new Set(dupEmailList);
+    const dupNameSet = new Set(allNameGroups.map((g) => `${g.first_name.trim().toLowerCase()} ${g.last_name.trim().toLowerCase()}`));
+
+    // If duplicatesOnly or sort === 'duplicates', filter specifically for duplicates
+    if (duplicatesOnly) {
+      const dupConditions: any[] = [];
+      if (dupPhoneList.length > 0) {
+        dupConditions.push({ phone: { in: dupPhoneList } });
+      }
+      if (dupEmailList.length > 0) {
+        dupConditions.push({ email: { in: dupEmailList } });
+      }
+      if (allNameGroups.length > 0) {
+        dupConditions.push({
+          OR: allNameGroups.map((g) => ({
+            firstName: { equals: g.first_name },
+            lastName: { equals: g.last_name },
+          })),
+        });
+      }
+
+      if (dupConditions.length > 0) {
+        if (memberWhere.OR) {
+          memberWhere.AND = [{ OR: memberWhere.OR }, { OR: dupConditions }];
+          delete memberWhere.OR;
+        } else {
+          memberWhere.OR = dupConditions;
+        }
+      } else {
+        // No duplicates exist
+        memberWhere.id = -1;
+      }
+    }
+
+    // Determine sorting
+    let orderBy: any = { createdAt: "desc" };
+    if (sort === "oldest") {
+      orderBy = { createdAt: "asc" };
+    } else if (sort === "name_asc") {
+      orderBy = [{ firstName: "asc" }, { lastName: "asc" }, { createdAt: "desc" }];
+    } else if (sort === "name_desc") {
+      orderBy = [{ firstName: "desc" }, { lastName: "desc" }, { createdAt: "desc" }];
+    } else if (sort === "type") {
+      orderBy = [{ type: "asc" }, { firstName: "asc" }, { createdAt: "desc" }];
+    } else if (sort === "age") {
+      orderBy = [{ ageGroup: "asc" }, { firstName: "asc" }, { createdAt: "desc" }];
+    } else if (sort === "duplicates") {
+      // Group duplicates together by first & last name, then phone, then createdAt
+      orderBy = [{ firstName: "asc" }, { lastName: "asc" }, { phone: "asc" }, { createdAt: "desc" }];
+    }
+
     const [total, members] = await Promise.all([
       db.member.count({ where: memberWhere }),
       db.member.findMany({
         where: memberWhere,
         skip,
         take: limit,
-        orderBy: { createdAt: "desc" },
+        orderBy,
         select: {
           id: true,
           firstName: true,
@@ -154,62 +251,18 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
-    // Check duplicate registrations in database for the fetched items
-    const phones = members.map((m) => m.phone).filter((p): p is string => Boolean(p && p.trim() && p !== "09000000000"));
-    const emails = members.map((m) => m.email).filter((e): e is string => Boolean(e && e.trim()));
-
-    const [duplicatePhones, duplicateEmails, allMembersWithName] = await Promise.all([
-      phones.length > 0
-        ? db.member.groupBy({
-            by: ["phone"],
-            where: { phone: { in: phones } },
-            _count: { id: true },
-            having: { id: { _count: { gt: 1 } } },
-          })
-        : [],
-      emails.length > 0
-        ? db.member.groupBy({
-            by: ["email"],
-            where: { email: { in: emails } },
-            _count: { id: true },
-            having: { id: { _count: { gt: 1 } } },
-          })
-        : [],
-      members.length > 0
-        ? db.member.findMany({
-            where: {
-              OR: members.map((m) => ({
-                firstName: { equals: m.firstName },
-                lastName: { equals: m.lastName },
-              })),
-            },
-            select: { id: true, firstName: true, lastName: true },
-          })
-        : [],
-    ]);
-
-    const dupPhoneSet = new Set(duplicatePhones.map((g) => g.phone));
-    const dupEmailSet = new Set(duplicateEmails.map((g) => g.email));
-
-    // Count name frequencies
-    const nameCounts: Record<string, number> = {};
-    for (const m of allMembersWithName) {
-      const key = `${m.firstName.trim().toLowerCase()} ${m.lastName.trim().toLowerCase()}`;
-      nameCounts[key] = (nameCounts[key] || 0) + 1;
-    }
-
     const items = members.map((m) => {
       const reasons: string[] = [];
       const fullNameKey = `${m.firstName.trim().toLowerCase()} ${m.lastName.trim().toLowerCase()}`;
 
       if (m.phone && dupPhoneSet.has(m.phone)) {
-        reasons.push("Duplicate Phone Number");
+        reasons.push("Matching Phone");
       }
       if (m.email && dupEmailSet.has(m.email)) {
-        reasons.push("Duplicate Email Address");
+        reasons.push("Matching Email");
       }
-      if ((nameCounts[fullNameKey] || 0) > 1) {
-        reasons.push("Duplicate Full Name");
+      if (dupNameSet.has(fullNameKey)) {
+        reasons.push("Matching Name");
       }
 
       return {

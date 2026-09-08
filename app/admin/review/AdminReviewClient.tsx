@@ -68,6 +68,7 @@ export default function AdminReviewClient({
   const [historySearch, setHistorySearch] = useState("");
   const [historyType, setHistoryType] = useState<"all" | "registrations" | "ministries">("all");
   const [historyStatus, setHistoryStatus] = useState<"all" | "active" | "pending" | "inactive">("all");
+  const [historySort, setHistorySort] = useState<"newest" | "oldest" | "duplicates" | "name_asc" | "name_desc" | "type" | "age">("newest");
   
   const [confirmModal, setConfirmModal] = useState<{
     open: boolean; title: string; message: string | React.ReactNode; confirmLabel: string;
@@ -83,6 +84,7 @@ export default function AdminReviewClient({
         limit: "50",
         type: historyType,
         status: historyStatus,
+        sort: historySort,
         search: historySearch.trim(),
       });
       const res = await fetch(`/api/admin/review/history?${params.toString()}`);
@@ -97,7 +99,7 @@ export default function AdminReviewClient({
     } finally {
       setHistoryLoading(false);
     }
-  }, [historyPage, historyType, historyStatus, historySearch]);
+  }, [historyPage, historyType, historyStatus, historySort, historySearch]);
 
   useEffect(() => {
     if (activeTab === "history") {
@@ -574,6 +576,33 @@ export default function AdminReviewClient({
                 <option value="inactive">📁 Inactive / Archived</option>
               </select>
 
+              {/* Sorting Filter */}
+              <select
+                value={historySort}
+                onChange={(e) => {
+                  setHistorySort(e.target.value as any);
+                  setHistoryPage(1);
+                }}
+                style={{
+                  padding: "0.55rem 0.875rem",
+                  borderRadius: "8px",
+                  border: "1.5px solid #cbd5e1",
+                  fontSize: "0.875rem",
+                  background: "white",
+                  color: "#334155",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                <option value="newest">📅 Newest to Oldest</option>
+                <option value="oldest">📅 Oldest to Newest</option>
+                <option value="duplicates">⚠️ Potential Duplicates First</option>
+                <option value="name_asc">🔤 Name (A → Z)</option>
+                <option value="name_desc">🔤 Name (Z → A)</option>
+                <option value="type">👥 Member Type</option>
+                <option value="age">🎂 Age Group</option>
+              </select>
+
               {/* Refresh Button */}
               <button
                 onClick={() => fetchHistory()}
@@ -598,11 +627,32 @@ export default function AdminReviewClient({
 
             {/* Duplicate Notice Banner */}
             {duplicateItemsCount > 0 && (
-              <div style={{ background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: "8px", padding: "0.6rem 0.875rem", display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.825rem", color: "#991b1b" }}>
-                <span>⚠️</span>
-                <span>
-                  <strong>{duplicateItemsCount} potential double entries</strong> detected on this page (matching phone, email, or full name). You can use the <strong>Delete</strong> or <strong>Revert</strong> action to manage them.
-                </span>
+              <div style={{ background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: "8px", padding: "0.65rem 0.875rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem", fontSize: "0.825rem", color: "#991b1b", flexWrap: "wrap" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <span style={{ fontSize: "1rem" }}>⚠️</span>
+                  <span>
+                    <strong>{duplicateItemsCount} potential double entries</strong> detected on this page (matching phone, email, or full name).
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    setHistorySort(historySort === "duplicates" ? "newest" : "duplicates");
+                    setHistoryPage(1);
+                  }}
+                  style={{
+                    padding: "0.35rem 0.75rem",
+                    borderRadius: "6px",
+                    border: "1px solid #ef4444",
+                    background: historySort === "duplicates" ? "#ef4444" : "white",
+                    color: historySort === "duplicates" ? "white" : "#b91c1c",
+                    fontWeight: 700,
+                    fontSize: "0.775rem",
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                  }}
+                >
+                  {historySort === "duplicates" ? "✓ Grouped by Duplicates (Reset)" : "🔍 Group & View Duplicates"}
+                </button>
               </div>
             )}
           </div>
