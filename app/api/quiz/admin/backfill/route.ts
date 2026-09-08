@@ -47,18 +47,17 @@ export async function POST() {
     const currentDay = getDayNumber();
     const backfilledDays: number[] = [];
 
-    // Loop through past/current days that should have posts (Day 2 to currentDay)
+    // Loop through past/current days that should have posts (Day 1 to currentDay)
     for (const dayInfo of QUIZ_DAYS) {
-      // Mondays (Day 1) are handled by the main announcement post.
-      if (dayInfo.dayNumber === 1 || dayInfo.dayNumber > currentDay) {
+      if (dayInfo.dayNumber > currentDay) {
         continue;
       }
 
       const question = quiz.questions.find((q) => q.dayNumber === dayInfo.dayNumber);
       if (!question) continue;
 
-      // Skip if already posted
-      if (question.feedPostId) continue;
+      // Skip if already posted as a daily post
+      if (question.feedPostId && question.feedPostId !== quiz.announcementPostId) continue;
 
       const typeInfo = QUIZ_TYPE_LABELS[dayInfo.type];
 

@@ -112,60 +112,58 @@ export async function POST(request: Request) {
       });
     }
 
-    // ── Auto-Backfill Daily Challenges for Late Publications ──
+    // ── Create Daily Challenge Posts (Day 1 up to currentDay) ──
     const quizRelativeDay = getQuizDayForDate(quiz.sermonDate);
-    const currentDay = Math.min(Math.max(quizRelativeDay, 0), 7);
+    const currentDay = Math.min(Math.max(quizRelativeDay, 1), 7);
 
-    if (currentDay >= 2) {
-      for (let dNum = 2; dNum <= currentDay; dNum++) {
-        const dayInfo = QUIZ_DAYS.find((d) => d.dayNumber === dNum);
-        if (!dayInfo) continue;
+    for (let dNum = 1; dNum <= currentDay; dNum++) {
+      const dayInfo = QUIZ_DAYS.find((d) => d.dayNumber === dNum);
+      if (!dayInfo) continue;
 
-        const question = quiz.questions.find((q) => q.dayNumber === dNum);
-        if (!question || question.feedPostId) continue;
+      const question = quiz.questions.find((q) => q.dayNumber === dNum);
+      if (!question || (question.feedPostId && question.feedPostId !== post.id)) continue;
 
-        const typeInfo = QUIZ_TYPE_LABELS[dayInfo.type];
+      const typeInfo = QUIZ_TYPE_LABELS[dayInfo.type];
 
-        // Create feed post for the backfilled day
-        const dailyPostContent = [
-          `🧠 Day ${dayInfo.dayNumber} Quiz is LIVE! 🧠`,
-          "",
-          `Topic: "${quiz.title}"`,
-          "",
-          `${typeInfo.emoji} Today's Challenge: ${typeInfo.label}`,
-          `⚡ Difficulty: ${typeInfo.difficulty}`,
-          "",
-          `Let's test our understanding of Sunday's sermon and study the Word together! Tap the play button below to launch today's game and earn points.`,
-        ].join("\n");
+      // Create feed post for the day
+      const dailyPostContent = [
+        `🧠 Day ${dayInfo.dayNumber} Quiz is LIVE! 🧠`,
+        "",
+        `Topic: "${quiz.title}"`,
+        "",
+        `${typeInfo.emoji} Today's Challenge: ${typeInfo.label}`,
+        `⚡ Difficulty: ${typeInfo.difficulty}`,
+        "",
+        `Let's test our understanding of Sunday's sermon and study the Word together! Tap the play button below to launch today's game and earn points.`,
+      ].join("\n");
 
-        const dailyPost = await db.post.create({
-          data: {
-            authorId: memberId,
-            type: "QUIZ_DAILY",
-            content: dailyPostContent,
-            visibility: "MEMBERS_ONLY",
-          },
+      const dailyPost = await db.post.create({
+        data: {
+          authorId: memberId,
+          type: "QUIZ_DAILY",
+          content: dailyPostContent,
+          visibility: "MEMBERS_ONLY",
+        },
+      });
+
+      // Link post to question
+      await db.quizQuestion.update({
+        where: { id: question.id },
+        data: { feedPostId: dailyPost.id },
+      });
+
+      // Fire daily notifications to active members (only for today's challenge)
+      if (dNum === currentDay && activeMembers.length > 0) {
+        await db.notification.createMany({
+          data: activeMembers.map((m) => ({
+            memberId: m.id,
+            type: "quiz_daily" as const,
+            title: `🧠 Day ${dayInfo.dayNumber}: ${typeInfo.label}`,
+            body: `Today's Quiz for Christ challenge is ready! Can you get it right?`,
+            link: `/quiz?day=${dayInfo.dayNumber}`,
+            actorId: memberId,
+          })),
         });
-
-        // Link post to question
-        await db.quizQuestion.update({
-          where: { id: question.id },
-          data: { feedPostId: dailyPost.id },
-        });
-
-        // Fire daily notifications to active members
-        if (activeMembers.length > 0) {
-          await db.notification.createMany({
-            data: activeMembers.map((m) => ({
-              memberId: m.id,
-              type: "quiz_daily" as const,
-              title: `🧠 Day ${dayInfo.dayNumber}: ${typeInfo.label}`,
-              body: `Today's Quiz for Christ challenge is ready! Can you get it right?`,
-              link: `/quiz?day=${dayInfo.dayNumber}`,
-              actorId: memberId,
-            })),
-          });
-        }
       }
     }
 
