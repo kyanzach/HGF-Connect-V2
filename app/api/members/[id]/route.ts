@@ -204,10 +204,24 @@ export async function PATCH(
 
 
 
+  if (updateData.status && updateData.status !== existingMember.status) {
+    updateData.statusChangedAt = new Date();
+    await db.memberStatusHistory.create({
+      data: {
+        memberId: id,
+        oldStatus: existingMember.status as any,
+        newStatus: updateData.status as any,
+        changedById: parseInt(session.user.id),
+        changedAt: new Date(),
+        reason: `Status changed to ${updateData.status} by ${session.user.firstName} ${session.user.lastName}`,
+      },
+    }).catch(e => console.error("Error creating status history:", e));
+  }
+
   const updated = await db.member.update({ where: { id }, data: updateData });
 
-  // If status changes to approved (from pending), send welcome SMS notification
-  if (updateData.status === "approved" && existingMember && existingMember.status === "pending" && existingMember.phone) {
+  // If status changes to active/approved (from pending), send welcome SMS notification
+  if ((updateData.status === "active" || updateData.status === "approved") && existingMember && existingMember.status === "pending" && existingMember.phone) {
     const { sendSms } = await import("@/lib/sms");
     const smsMessage = `Hi ${existingMember.firstName}! Great news! 🥳\n\nYour registration with HGF Connect has been approved. Welcome to our community!\n\nYou can now access your account at connect.houseofgrace.ph.\n\nGod bless!`;
     
@@ -233,6 +247,31 @@ export async function DELETE(
     return NextResponse.json({ error: "Cannot delete your own account" }, { status: 400 });
   }
 
+  const targetMember = await db.member.findUnique({
+    where: { id },
+    select: { firstName: true, lastName: true },
+  });
+
+  if (!targetMember) {
+    return NextResponse.json({ error: "Member not found" }, { status: 404 });
+  }
+
   await db.member.delete({ where: { id } });
+
+  await db.appLog.create({
+    data: {
+      appSection: "Member Management",
+      pageTitle: "Review / Members",
+      actionType: "DELETE_MEMBER",
+      description: `Member registration permanently deleted for ${targetMember.firstName} ${targetMember.lastName} (ID: ${id}) by ${session.user.firstName} ${session.user.lastName}`,
+      performedById: parseInt(session.user.id),
+      performedByName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+      performedByRole: session.user.role as any,
+      targetType: "member_deletion",
+      targetId: id,
+      targetName: `${targetMember.firstName} ${targetMember.lastName}`,
+    },
+  }).catch(e => console.error("Error logging member deletion:", e));
+
   return NextResponse.json({ success: true });
 }

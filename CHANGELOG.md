@@ -5,6 +5,28 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.49.0] — 2026-09-08
+### Added / Enhanced
+- **Action Review Queue History Tab (`/admin/review`, `AdminReviewClient.tsx`)**:
+  - Added a dedicated **"📜 Review History"** tab alongside Registrations and Ministry Requests.
+  - **Full History with 50-Item Pagination**: Lists all past registration and ministry review requests from the beginning with pagination (50 items per page), First/Previous/Next/Last controls, and total record counts.
+  - **Live Search & Filter System**: Real-time debounce search by full name, phone number, email, and invited by, with category (`Registrations`, `Ministry Requests`) and status (`All`, `Active/Approved`, `Pending`, `Inactive`) filters.
+  - **Double Entry & Duplicate Detection**: Automatically identifies records sharing the same phone number, email address, or full name, marking them with an eye-catching `⚠️ Double Entry` badge with match reasons.
+  - **New Action Controls on Review History**:
+    - **↩️ Revert to Pending**: Reverts approved or inactive member registrations and ministry requests back to Pending status, returning them to the active review queue with full `ConfirmModal` safety.
+    - **🚫 Cancel / Inactivate**: Deactivates mistakenly created or obsolete registrations and ministry assignments.
+    - **🗑️ Delete Record**: Permanently and cleanly deletes duplicate registrations or mistaken entries from the database with audit logging and destructive confirmation dialogs.
+    - **👁️ View Profile**: 1-click link to view full member profile details.
+- **Backend API Routes (`/api/admin/review/history`, `/api/ministries/review`, `/api/members/[id]`)**:
+  - Implemented `GET /api/admin/review/history` supporting 50-item pagination, multi-field search, status filtering, and duplicate analysis.
+  - Added `action: "revert"`, `"cancel"`, and `"delete"` to `POST /api/ministries/review` with automatic `Member.ministryInvolvement` synchronization and `AppLog` tracking.
+  - Updated `PATCH /api/members/[id]` to log status transitions to `MemberStatusHistory` and send approval welcome SMS on activation.
+  - Updated `DELETE /api/members/[id]` with `AppLog` audit logging for member deletion.
+- **Attendance App Service Worker & AJAX Cache Fix (`attendance/sw.js`, `get_attendance_report.php`)**:
+  - **Service Worker Cache-First Bug Resolved**: Fixed an issue where `sw.js` in the Attendance PWA cached dynamic `/ajax/` GET requests (including `get_attendance_report.php` and `get_quick_stats.php`), causing same-day attendance reports to serve stale morning snapshots and hide recently checked-in attendees until subsequent days.
+  - Updated `sw.js` to strictly bypass cache for all dynamic `/ajax/` routes (Network-Only) and bumped cache to `hog-attendance-v2`.
+  - Added `Cache-Control: no-store, no-cache, must-revalidate, max-age=0` headers to live report endpoints.
+
 ## [v2.48.0] — 2026-09-08
 ### Added / Enhanced
 - **Smart Glasses & Teleprompter Export Tool in THE WORD (`public/thewordtool.html`)**:

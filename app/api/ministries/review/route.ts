@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { id, action } = body;
 
-    if (!id || !action || !["approve", "deny"].includes(action)) {
+    if (!id || !action || !["approve", "deny", "revert", "cancel", "delete"].includes(action)) {
       return NextResponse.json({ error: "Invalid parameters" }, { status: 400 });
     }
 
@@ -86,13 +86,17 @@ export async function POST(request: NextRequest) {
           console.error("Failed to send welcome SMS for ministry approval:", smsErr);
         }
       }
-    } else if (action === "deny") {
-      // 1. Delete pending request record
-      await db.memberMinistry.delete({
+    } else if (action === "revert") {
+      // Revert status to pending
+      await db.memberMinistry.update({
         where: { id: Number(id) },
+        data: {
+          status: "pending",
+          approvedById: null,
+          approvedAt: null,
+        },
       });
 
-      // 2. Update member's flat ministryInvolvement string (legacy compat)
       const finalMemberMinistries = await db.memberMinistry.findMany({
         where: { memberId: member.id, status: { in: ["active", "pending"] } },
         select: { ministryId: true },
@@ -104,13 +108,79 @@ export async function POST(request: NextRequest) {
         data: { ministryInvolvement: ministryInvolvementStr },
       });
 
-      // 3. Log the rejection
       await db.appLog.create({
         data: {
           appSection: "Ministry Management",
           pageTitle: "Review Actions",
-          actionType: "DENY_MINISTRY",
-          description: `Ministry request denied for ${member.firstName} ${member.lastName} to join ${ministry.name} by ${session.user.firstName} ${session.user.lastName}`,
+          actionType: "REVERT_MINISTRY",
+          description: `Ministry request reverted to pending for ${member.firstName} ${member.lastName} in ${ministry.name} by ${session.user.firstName} ${session.user.lastName}`,
+          performedById: parseInt(session.user.id),
+          performedByName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+          performedByRole: session.user.role as any,
+          targetType: "member_ministry_revert",
+          targetId: Number(id),
+          targetName: `${member.firstName} ${member.lastName} - ${ministry.name}`,
+        },
+      });
+    } else if (action === "cancel") {
+      // Mark as inactive
+      await db.memberMinistry.update({
+        where: { id: Number(id) },
+        data: {
+          status: "inactive",
+        },
+      });
+
+      const finalMemberMinistries = await db.memberMinistry.findMany({
+        where: { memberId: member.id, status: { in: ["active", "pending"] } },
+        select: { ministryId: true },
+      });
+      const ministryInvolvementStr = finalMemberMinistries.map(m => m.ministryId).join(",");
+
+      await db.member.update({
+        where: { id: member.id },
+        data: { ministryInvolvement: ministryInvolvementStr },
+      });
+
+      await db.appLog.create({
+        data: {
+          appSection: "Ministry Management",
+          pageTitle: "Review Actions",
+          actionType: "CANCEL_MINISTRY",
+          description: `Ministry request cancelled/inactivated for ${member.firstName} ${member.lastName} in ${ministry.name} by ${session.user.firstName} ${session.user.lastName}`,
+          performedById: parseInt(session.user.id),
+          performedByName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+          performedByRole: session.user.role as any,
+          targetType: "member_ministry_cancel",
+          targetId: Number(id),
+          targetName: `${member.firstName} ${member.lastName} - ${ministry.name}`,
+        },
+      });
+    } else if (action === "deny" || action === "delete") {
+      // Delete request record
+      await db.memberMinistry.delete({
+        where: { id: Number(id) },
+      });
+
+      // Update member's flat ministryInvolvement string (legacy compat)
+      const finalMemberMinistries = await db.memberMinistry.findMany({
+        where: { memberId: member.id, status: { in: ["active", "pending"] } },
+        select: { ministryId: true },
+      });
+      const ministryInvolvementStr = finalMemberMinistries.map(m => m.ministryId).join(",");
+
+      await db.member.update({
+        where: { id: member.id },
+        data: { ministryInvolvement: ministryInvolvementStr },
+      });
+
+      // Log the rejection/deletion
+      await db.appLog.create({
+        data: {
+          appSection: "Ministry Management",
+          pageTitle: "Review Actions",
+          actionType: action === "delete" ? "DELETE_MINISTRY_REQUEST" : "DENY_MINISTRY",
+          description: `Ministry request ${action === "delete" ? "deleted" : "denied"} for ${member.firstName} ${member.lastName} to join ${ministry.name} by ${session.user.firstName} ${session.user.lastName}`,
           performedById: parseInt(session.user.id),
           performedByName: `${session.user.firstName} ${session.user.lastName}`.trim(),
           performedByRole: session.user.role as any,
