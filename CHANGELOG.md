@@ -5,6 +5,23 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.48.0] — 2026-09-08
+### Added / Enhanced
+- **Smart Glasses & Teleprompter Export Tool in THE WORD (`public/thewordtool.html`)**:
+  - Added dedicated **"📤 Export"** button in the top sticky file bar.
+  - **Even Realities G1 / G2 & Eyewear Smart Teleprompter Optimization**:
+    - **Metadata Stripping**: Automatically removes non-spoken document metadata headers (Sermon Series, Format, Preaching Style, Structure) which would clutter the glasses HUD or confuse AI speech-tracking.
+    - **Stage & AV Cue Stripping**: Strips stage directions, visual slide graphics, and sticky headline cue markers, retaining only spoken text and scriptures.
+    - **Post-Sermon & Prep Notes Stripping**: Excludes breakout session questions and speaker preparation notes for an uninterrupted preaching flow.
+    - **Even G2 HUD-Safe Text Cleaner**: Normalizes ASCII quotes (`"`, `'`), dashes (`--`), and strips emojis/unsupported Unicode symbols to prevent red character highlights on the 576×136 monochrome waveguide display.
+    - **Configurable Export Options**: Live toggle checkboxes for Series/Metadata, Stage Cues, Post-Sermon Notes, HUD Safe formatting, Section Headings, and Slide Markers (`[SLIDE X]`).
+  - **Live Export Preview & Metrics**:
+    - Real-time text preview box showing the exact cleaned export text.
+    - Live statistics: Word count, Character count, and Estimated Speaking Duration (~130 words/min).
+  - **1-Tap Actions**:
+    - **📋 Copy to Clipboard**: Instant 1-tap copy for pasting directly into the Even Realities companion app.
+    - **💾 Download .txt File**: Downloads a standardized `.txt` file ready to import into the Even Realities teleprompter.
+
 ## [v2.47.0] — 2026-09-08
 ### Added / Enhanced
 - **Markdown (.md) Sermon Source Importer in THE WORD Tool (`public/thewordtool.html`)**:

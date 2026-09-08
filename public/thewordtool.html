@@ -1394,6 +1394,140 @@
     display: none;
   }
 
+  /* ── Export Modal ── */
+  #export-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    justify-content: center;
+    align-items: center;
+  }
+  #export-overlay.visible { display: flex; }
+  #export-modal {
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 12px;
+    box-shadow: 0 12px 48px rgba(0,0,0,0.8);
+    width: 90%;
+    max-width: 600px;
+    padding: 24px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  #export-modal h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 4px;
+  }
+  #export-modal .export-desc {
+    font-size: 13px;
+    color: #888;
+    margin-bottom: 14px;
+    line-height: 1.5;
+  }
+  .export-options-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 14px;
+    background: #151515;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #2a2a2a;
+  }
+  @media (max-width: 600px) {
+    .export-options-grid { grid-template-columns: 1fr; }
+  }
+  .export-option-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #ccc;
+    cursor: pointer;
+    user-select: none;
+  }
+  .export-option-label input[type="checkbox"] {
+    accent-color: #2563eb;
+    width: 15px;
+    height: 15px;
+    cursor: pointer;
+  }
+  .export-stats-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: #aaa;
+    margin-bottom: 10px;
+  }
+  .export-stats-bar span b {
+    color: #fff;
+  }
+  .export-preview-area {
+    width: 100%;
+    height: 170px;
+    padding: 12px;
+    font-size: 13px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    background: #111;
+    color: #a7f3d0;
+    border: 1px solid #333;
+    border-radius: 8px;
+    resize: vertical;
+    outline: none;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-y: auto;
+    user-select: text;
+  }
+  .export-preview-area:focus {
+    border-color: #2563eb;
+  }
+  #export-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+  #export-actions button {
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  #export-close-btn {
+    background: #333;
+    color: #ccc;
+  }
+  #export-close-btn:hover { background: #444; }
+  #export-copy-btn {
+    background: #16a34a;
+    color: #fff;
+  }
+  #export-copy-btn:hover { background: #15803d; }
+  #export-download-btn {
+    background: #2563eb;
+    color: #fff;
+  }
+  #export-download-btn:hover { background: #1d4ed8; }
+
   /* ── Loading spinner ── */
   .fm-loading {
     display: flex;
@@ -1745,7 +1879,8 @@
     <button class="file-btn" id="btn-save-server">☁ Server</button>
     <button class="file-btn" id="btn-save-local">💾 Local <kbd>⇧⌘S</kbd></button>
     <button class="file-btn" id="btn-history">📊 History</button>
-    <button class="file-btn" id="btn-import" title="Import from JustPaste.it URL">📥 Import</button>
+    <button class="file-btn" id="btn-import" title="Import from Markdown (.md) or URL">📥 Import</button>
+    <button class="file-btn" id="btn-export" title="Export for Smart Glasses & Teleprompters">📤 Export</button>
 
     <div id="open-panel">
       <div class="panel-header">
@@ -2564,6 +2699,253 @@
       errorEl.textContent = msg;
       errorEl.style.display = 'block';
     }
+  })();
+
+  // ══════════════════════════════════════
+  //  EXPORT MODAL (Smart Glasses & Teleprompters)
+  // ══════════════════════════════════════
+  function generateSmartGlassesText(html, options = {}) {
+    const {
+      keepSectionHeaders = true,
+      keepSlideMarkers = false,
+      keepScripturesOnlyFromCues = true,
+      cleanAsciiForHud = true,
+      stripMetadata = true,
+      stripPostSermon = true
+    } = options;
+
+    let docHtml = html || '';
+
+    // 1. Strip metadata cues (Sermon Series, Format, Style, Structure)
+    if (stripMetadata) {
+      docHtml = docHtml.replace(/<div class="cue"[^>]*>[\s\S]*?(?:Sermon Series|Preaching Style|Structure:|Target Audience:)[\s\S]*?<\/div>/gi, '');
+    }
+
+    // 2. Strip post-sermon questions & speaker notes
+    if (stripPostSermon) {
+      docHtml = docHtml.replace(/<h2>[^<]*(?:POST-SERMON|BREAKOUT|PREP NOTES)[\s\S]*$/i, '');
+      docHtml = docHtml.replace(/<div class="cue"[^>]*>[\s\S]*?Sermon Prep Notes[\s\S]*?<\/div>/gi, '');
+    }
+
+    // 3. Handle stage cues (Visual, Sticky Headline, Scripture, Action, etc.)
+    docHtml = docHtml.replace(/<div class="cue"[^>]*>([\s\S]*?)<\/div>/gi, (match, inner) => {
+      if (keepScripturesOnlyFromCues && /Scripture/i.test(inner)) {
+        const scMatch = inner.match(/📖\s*<b>Scripture(?: Slide)?:<\/b>\s*([\s\S]*?)(?:<br>|$)/i) ||
+                        inner.match(/Scripture:\s*([\s\S]*?)(?:<br>|$)/i);
+        if (scMatch) {
+          return '<p>' + scMatch[1].trim() + '</p>';
+        }
+      }
+      return ''; // Strip all other visual/stage cues
+    });
+
+    // 4. Handle slide markers
+    docHtml = docHtml.replace(/<div class="next-slide"[^>]*>([\s\S]*?)<\/div>/gi, (match, inner) => {
+      if (keepSlideMarkers) {
+        const clean = inner.replace(/<[^>]+>/g, '').replace(/^📺\s*/, '').trim();
+        return '<p>[' + clean + ']</p>';
+      }
+      return '';
+    });
+
+    // 5. Headings
+    docHtml = docHtml.replace(/<h1[^>]*>([\s\S]*?)<\/h1>/gi, (match, inner) => {
+      const clean = inner.replace(/<[^>]+>/g, '').trim();
+      return keepSectionHeaders ? '<p>' + clean.toUpperCase() + '</p>\n' : '';
+    });
+
+    docHtml = docHtml.replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, (match, inner) => {
+      const clean = inner.replace(/<[^>]+>/g, '').trim();
+      return keepSectionHeaders ? '\n<p>' + clean.toUpperCase() + '</p>\n' : '';
+    });
+
+    docHtml = docHtml.replace(/<h3[^>]*>([\s\S]*?)<\/h3>/gi, (match, inner) => {
+      const clean = inner.replace(/<[^>]+>/g, '').trim();
+      return keepSectionHeaders ? '\n<p>' + clean + '</p>' : '';
+    });
+
+    // 6. Blockquotes & lists
+    docHtml = docHtml.replace(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/gi, (match, inner) => {
+      return '<p>' + inner + '</p>';
+    });
+
+    docHtml = docHtml.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, (match, inner) => {
+      return '<p>• ' + inner + '</p>';
+    });
+
+    // 7. Strip HTML tags
+    let text = docHtml
+      .replace(/<hr[^>]*>/gi, '\n')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/p>/gi, '\n\n')
+      .replace(/<[^>]+>/g, '');
+
+    // 8. Decode HTML entities
+    text = text
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&nbsp;/g, ' ');
+
+    // 9. Clean HUD formatting for Even Realities G1/G2 & smart glasses
+    if (cleanAsciiForHud) {
+      text = text.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1FA00}-\u{1FAFF}]/gu, '');
+      text = text.replace(/[\u2018\u2019]/g, "'")
+                 .replace(/[\u201C\u201D]/g, '"')
+                 .replace(/[\u2014]/g, ' -- ')
+                 .replace(/[\u2013]/g, ' - ');
+    }
+
+    // 10. Normalize whitespace & line breaks
+    text = text.replace(/\n{3,}/g, '\n\n').trim();
+
+    return text;
+  }
+
+  (function initExport() {
+    const overlay = document.createElement('div');
+    overlay.id = 'export-overlay';
+    overlay.innerHTML = `
+      <div id="export-modal">
+        <h3>📤 Export for Smart Glasses & Teleprompters</h3>
+        <p class="export-desc">Formatted for Even Realities G1 / G2 smart glasses HUD and speech-tracking apps.</p>
+
+        <div class="export-options-grid">
+          <label class="export-option-label">
+            <input type="checkbox" id="exp-opt-metadata" checked>
+            <span>Strip Series & Metadata</span>
+          </label>
+          <label class="export-option-label">
+            <input type="checkbox" id="exp-opt-cues" checked>
+            <span>Strip Stage & Visual Cues</span>
+          </label>
+          <label class="export-option-label">
+            <input type="checkbox" id="exp-opt-postsermon" checked>
+            <span>Strip Prep & Questions</span>
+          </label>
+          <label class="export-option-label">
+            <input type="checkbox" id="exp-opt-hudclean" checked>
+            <span>Even G2 HUD Safe (No emojis)</span>
+          </label>
+          <label class="export-option-label">
+            <input type="checkbox" id="exp-opt-sections" checked>
+            <span>Include Section Headings</span>
+          </label>
+          <label class="export-option-label">
+            <input type="checkbox" id="exp-opt-slides">
+            <span>Include [Slide Markers]</span>
+          </label>
+        </div>
+
+        <div class="export-stats-bar">
+          <span>Words: <b id="exp-stat-words">0</b></span>
+          <span>Chars: <b id="exp-stat-chars">0</b></span>
+          <span>Read Time: <b id="exp-stat-time">0m</b> (~130 wpm)</span>
+        </div>
+
+        <textarea class="export-preview-area" id="exp-preview" readonly spellcheck="false" placeholder="Export preview..."></textarea>
+
+        <div id="export-actions">
+          <button id="export-close-btn" type="button">Close</button>
+          <button id="export-copy-btn" type="button">📋 Copy to Clipboard</button>
+          <button id="export-download-btn" type="button">💾 Download .txt File</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const chkMetadata = document.getElementById('exp-opt-metadata');
+    const chkCues = document.getElementById('exp-opt-cues');
+    const chkPostSermon = document.getElementById('exp-opt-postsermon');
+    const chkHudClean = document.getElementById('exp-opt-hudclean');
+    const chkSections = document.getElementById('exp-opt-sections');
+    const chkSlides = document.getElementById('exp-opt-slides');
+    const previewEl = document.getElementById('exp-preview');
+    const statWords = document.getElementById('exp-stat-words');
+    const statChars = document.getElementById('exp-stat-chars');
+    const statTime = document.getElementById('exp-stat-time');
+    const copyBtn = document.getElementById('export-copy-btn');
+    const downloadBtn = document.getElementById('export-download-btn');
+    const closeBtn = document.getElementById('export-close-btn');
+
+    function updateExportPreview() {
+      const opts = {
+        stripMetadata: chkMetadata.checked,
+        stripPostSermon: chkPostSermon.checked,
+        keepScripturesOnlyFromCues: true,
+        keepSlideMarkers: chkSlides.checked,
+        keepSectionHeaders: chkSections.checked,
+        cleanAsciiForHud: chkHudClean.checked
+      };
+
+      const text = generateSmartGlassesText(editor.innerHTML, opts);
+      previewEl.value = text;
+
+      const words = text ? (text.match(/\S+/g) || []).length : 0;
+      const chars = text.length;
+      const mins = Math.ceil(words / 130);
+
+      statWords.textContent = words.toLocaleString();
+      statChars.textContent = chars.toLocaleString();
+      statTime.textContent = mins > 0 ? mins + ' min' : '0 min';
+    }
+
+    [chkMetadata, chkCues, chkPostSermon, chkHudClean, chkSections, chkSlides].forEach(chk => {
+      chk.addEventListener('change', updateExportPreview);
+    });
+
+    function openExportModal() {
+      updateExportPreview();
+      overlay.classList.add('visible');
+    }
+
+    function closeExportModal() {
+      overlay.classList.remove('visible');
+    }
+
+    document.getElementById('btn-export').addEventListener('click', openExportModal);
+    closeBtn.addEventListener('click', closeExportModal);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeExportModal(); });
+
+    // Copy to clipboard
+    copyBtn.addEventListener('click', async () => {
+      const text = previewEl.value;
+      if (!text) return;
+      try {
+        await navigator.clipboard.writeText(text);
+        const prevText = copyBtn.innerHTML;
+        copyBtn.innerHTML = '✓ Copied!';
+        showToast('📋 Copied teleprompter text to clipboard!');
+        setTimeout(() => { copyBtn.innerHTML = prevText; }, 2000);
+      } catch {
+        previewEl.select();
+        document.execCommand('copy');
+        showToast('📋 Copied to clipboard!');
+      }
+    });
+
+    // Download .txt file
+    downloadBtn.addEventListener('click', () => {
+      const text = previewEl.value;
+      if (!text) return;
+      const fileName = (currentFileName || 'sermon-teleprompter')
+        .replace(/[^a-zA-Z0-9_\-\s]/g, '')
+        .trim()
+        .replace(/\s+/g, '-');
+
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName + '-smartglasses.txt';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('💾 Downloaded teleprompter .txt file!');
+    });
   })();
 
   // ══════════════════════════════════════
