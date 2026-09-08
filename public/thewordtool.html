@@ -1218,8 +1218,10 @@
     border-radius: 12px;
     box-shadow: 0 12px 48px rgba(0,0,0,0.8);
     width: 90%;
-    max-width: 500px;
+    max-width: 540px;
     padding: 24px;
+    max-height: 90vh;
+    overflow-y: auto;
   }
   #import-modal h3 {
     font-size: 18px;
@@ -1230,8 +1232,116 @@
   #import-modal .import-desc {
     font-size: 13px;
     color: #888;
-    margin-bottom: 16px;
+    margin-bottom: 14px;
     line-height: 1.5;
+  }
+  .import-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+    background: #141414;
+    padding: 4px;
+    border-radius: 8px;
+    border: 1px solid #2a2a2a;
+  }
+  .import-tab {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #888;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.15s;
+    font-family: inherit;
+    text-align: center;
+  }
+  .import-tab:hover {
+    color: #eee;
+  }
+  .import-tab.active {
+    color: #fff;
+    background: #2563eb;
+  }
+  .import-tab-panel {
+    display: none;
+  }
+  .import-tab-panel.active {
+    display: block;
+  }
+  .import-dropzone {
+    border: 2px dashed #444;
+    border-radius: 8px;
+    padding: 20px 16px;
+    text-align: center;
+    background: #151515;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 12px;
+  }
+  .import-dropzone:hover, .import-dropzone.dragover {
+    border-color: #2563eb;
+    background: #192032;
+  }
+  .import-dropzone .dz-icon {
+    font-size: 28px;
+    margin-bottom: 6px;
+  }
+  .import-dropzone .dz-title {
+    font-size: 13px;
+    color: #eee;
+    font-weight: 600;
+  }
+  .import-dropzone .dz-sub {
+    font-size: 11px;
+    color: #777;
+    margin-top: 4px;
+  }
+  .import-selected-file {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #22c55e;
+    font-weight: 600;
+  }
+  .import-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    color: #555;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 12px 0;
+  }
+  .import-divider::before, .import-divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid #333;
+  }
+  .import-divider::before { margin-right: 10px; }
+  .import-divider::after { margin-left: 10px; }
+  .import-textarea {
+    width: 100%;
+    height: 110px;
+    padding: 10px 12px;
+    font-size: 13px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    background: #111;
+    color: #eee;
+    border: 1px solid #444;
+    border-radius: 8px;
+    resize: vertical;
+    outline: none;
+    line-height: 1.4;
+  }
+  .import-textarea:focus {
+    border-color: #2563eb;
+  }
+  .import-textarea::placeholder {
+    color: #555;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
   }
   #import-url-input {
     width: 100%;
@@ -1267,12 +1377,12 @@
     color: #ccc;
   }
   #import-cancel-btn:hover { background: #444; }
-  #import-fetch-btn {
+  #import-action-btn {
     background: #2563eb;
     color: #fff;
   }
-  #import-fetch-btn:hover { background: #1d4ed8; }
-  #import-fetch-btn:disabled {
+  #import-action-btn:hover { background: #1d4ed8; }
+  #import-action-btn:disabled {
     background: #333;
     color: #666;
     cursor: not-allowed;
@@ -1933,6 +2043,25 @@
   editor.addEventListener('paste', (e) => {
     e.preventDefault();
     let text = (e.originalEvent || e).clipboardData.getData('text/plain');
+    if (!text) return;
+
+    // Detect if pasted content is a structured markdown sermon
+    const isStructuredMarkdown = /(?:^|\n)(?:#{1,3}\s|\*\*(?:Visual|Sticky Headline|Sermon Series|Sermon Text|Format|Structure)|\d+\.\s|\-{3,}|\*{3,})/i.test(text);
+    const editorEmpty = !editor.innerText.trim() || editor.innerHTML === '<p><br></p>';
+
+    if (isStructuredMarkdown && editorEmpty) {
+      const converted = convertMarkdownToWordHtml(text);
+      editor.innerHTML = converted.html;
+      if (converted.title && (!currentFileName || currentFileName === 'Untitled')) {
+        currentFileName = converted.title;
+      }
+      isDirty = true;
+      updateTitle();
+      syncDraft();
+      showToast('📥 Markdown formatted & applied!');
+      return;
+    }
+
     // Clean up excessive blank lines: collapse 3+ consecutive newlines into 2
     text = text.replace(/\n{3,}/g, '\n\n');
     // Also collapse lines that are just whitespace between real content
@@ -1941,7 +2070,255 @@
   });
 
   // ══════════════════════════════════════
-  //  IMPORT FROM URL (JustPaste.it)
+  //  MARKDOWN SERMON PARSER & FORMATTER
+  // ══════════════════════════════════════
+  function parseInlineMd(text) {
+    if (!text) return '';
+    let s = text;
+    s = s.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+    s = s.replace(/___(.+?)___/g, '<strong><em>$1</em></strong>');
+    s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/__(.+?)__/g, '<strong>$1</strong>');
+    s = s.replace(/\*([^\*\n]+?)\*/g, '<em>$1</em>');
+    s = s.replace(/_([^_\n]+?)_/g, '<em>$1</em>');
+    s = s.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+    return s;
+  }
+
+  function stripMdTags(text) {
+    if (!text) return '';
+    return text
+      .replace(/^#+\s*/, '')
+      .replace(/\*\*(.+?)\*\*/g, '$1')
+      .replace(/__(.+?)__/g, '$1')
+      .replace(/\*([^\*\n]+?)\*/g, '$1')
+      .replace(/_([^_\n]+?)_/g, '$1')
+      .replace(/`([^`\n]+)`/g, '$1')
+      .trim();
+  }
+
+  function convertMarkdownToWordHtml(rawMd) {
+    if (!rawMd) return { html: '<p><br></p>', title: '' };
+    let md = rawMd.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\\n/g, '\n');
+    const lines = md.split('\n');
+    const output = [];
+    let extractedTitle = '';
+
+    let i = 0;
+    while (i < lines.length) {
+      let line = lines[i];
+      let trimmed = line.trim();
+
+      if (!trimmed) {
+        i++;
+        continue;
+      }
+
+      // 1. Title / H1 (# ...)
+      if (/^#\s+/.test(trimmed)) {
+        const rawTitle = trimmed.replace(/^#\s+/, '').trim();
+        const cleanTitle = stripMdTags(rawTitle.replace(/^Sermon Script:\s*/i, ''));
+        if (!extractedTitle) extractedTitle = cleanTitle || stripMdTags(rawTitle);
+        output.push('<h1>' + stripMdTags(rawTitle) + '</h1><p><br></p>');
+        i++;
+        continue;
+      }
+
+      // 2. Metadata lines at top (e.g. **Sermon Series:**, **Format:**, etc.)
+      if (/^(\*\*|[\*\-]\s+\*\*)(Sermon Series|Series|Format|Preaching Style|Style|Structure|Speaker|Date|Target Audience):\*\*/i.test(trimmed)) {
+        const metaLines = [];
+        while (i < lines.length) {
+          const cur = lines[i].trim();
+          if (!cur) { i++; continue; }
+          if (/^(\*\*|[\*\-]\s+\*\*)(Sermon Series|Series|Format|Preaching Style|Style|Structure|Speaker|Date|Target Audience):\*\*/i.test(cur)) {
+            metaLines.push(parseInlineMd(cur.replace(/^[\*\-]\s+/, '')));
+            i++;
+          } else {
+            break;
+          }
+        }
+        if (metaLines.length > 0) {
+          output.push('<div class="cue" contenteditable="true">' + metaLines.join('<br>') + '</div><p><br></p>');
+        }
+        continue;
+      }
+
+      // 3. Horizontal Rule (---, ***, ___)
+      if (/^(\-{3,}|\*{3,}|_{3,})$/.test(trimmed)) {
+        output.push('<hr><p><br></p>');
+        i++;
+        continue;
+      }
+
+      // 4. H2 Header (## ...)
+      if (/^##\s+/.test(trimmed)) {
+        const h2Text = trimmed.replace(/^##\s+/, '').trim();
+        output.push('<h2>' + stripMdTags(h2Text) + '</h2><p><br></p>');
+        i++;
+        continue;
+      }
+
+      // 5. H3 Slide / Header (### ...)
+      if (/^###\s+/.test(trimmed)) {
+        const h3Text = trimmed.replace(/^###\s+/, '').trim();
+        const cleanH3 = stripMdTags(h3Text);
+        if (/^Slide\s+\d+/i.test(cleanH3)) {
+          output.push('<div class="next-slide" contenteditable="false">📺 ' + cleanH3.toUpperCase() + '</div><p><br></p>');
+        } else {
+          output.push('<h3>' + parseInlineMd(h3Text) + '</h3><p><br></p>');
+        }
+        i++;
+        continue;
+      }
+
+      // 6. Slide Cues / Stage Directions
+      if (/^[\*\-]\s+\*\*(Visual|Sticky Headline|Text Slide|Scripture Slide|Scripture|Cue|Action|Video|Audio|Prop|Stage Direction):\*\*/i.test(trimmed)) {
+        const cueItems = [];
+        while (i < lines.length) {
+          const cur = lines[i].trim();
+          if (!cur) { i++; continue; }
+          const match = cur.match(/^[\*\-]\s+\*\*(Visual|Sticky Headline|Text Slide|Scripture Slide|Scripture|Cue|Action|Video|Audio|Prop|Stage Direction):\*\*\s*(.*)$/i);
+          if (match) {
+            const type = match[1];
+            const val = match[2];
+            let icon = '🎬';
+            if (/sticky headline/i.test(type)) icon = '📌';
+            else if (/text slide/i.test(type)) icon = '🖥️';
+            else if (/scripture/i.test(type)) icon = '📖';
+            cueItems.push(icon + ' <b>' + type + ':</b> ' + parseInlineMd(val));
+            i++;
+          } else {
+            break;
+          }
+        }
+        if (cueItems.length > 0) {
+          output.push('<div class="cue" contenteditable="true">' + cueItems.join('<br>') + '</div><p><br></p>');
+        }
+        continue;
+      }
+
+      // 7. Sermon Text Marker
+      if (/^[\*\-]?\s*\*\*Sermon Text:\*\*\s*$/i.test(trimmed)) {
+        i++;
+        continue;
+      }
+
+      // 8. Sermon Prep Notes for the Speaker
+      if (/^\*\*Sermon Prep Notes.*:\*\*/i.test(trimmed)) {
+        const noteTitle = trimmed;
+        i++;
+        const noteItems = [];
+        while (i < lines.length) {
+          const cur = lines[i].trim();
+          if (!cur) { i++; continue; }
+          if (/^[\*\-]\s+/.test(cur)) {
+            noteItems.push('<li>' + parseInlineMd(cur.replace(/^[\*\-]\s+/, '')) + '</li>');
+            i++;
+          } else if (/^(\-{3,}|##)/.test(cur)) {
+            break;
+          } else {
+            noteItems.push('<li>' + parseInlineMd(cur) + '</li>');
+            i++;
+          }
+        }
+        output.push('<div class="cue" contenteditable="true"><b>📝 ' + stripMdTags(noteTitle) + '</b><ul style="margin:8px 0 0 20px;">' + noteItems.join('') + '</ul></div><p><br></p>');
+        continue;
+      }
+
+      // 9. Ordered List (1. 2. 3.)
+      if (/^\d+\.\s+/.test(trimmed)) {
+        const listItems = [];
+        while (i < lines.length) {
+          const cur = lines[i].trim();
+          if (!cur) { i++; continue; }
+          if (/^\d+\.\s+/.test(cur)) {
+            let itemText = parseInlineMd(cur.replace(/^\d+\.\s+/, ''));
+            let j = i + 1;
+            while (j < lines.length) {
+              const nextCur = lines[j].trim();
+              if (!nextCur) { j++; continue; }
+              if (/^\d+\.\s+/.test(nextCur) || /^[\*\-]\s+/.test(nextCur) || /^(##|###|\-{3,})/.test(nextCur)) {
+                break;
+              }
+              if (nextCur.startsWith('*(') || lines[j].startsWith('   ') || lines[j].startsWith('\t')) {
+                itemText += '<br>' + parseInlineMd(nextCur);
+                j++;
+              } else {
+                break;
+              }
+            }
+            listItems.push('<li>' + itemText + '</li>');
+            i = j;
+          } else {
+            break;
+          }
+        }
+        if (listItems.length > 0) {
+          output.push('<ol>' + listItems.join('') + '</ol><p><br></p>');
+        }
+        continue;
+      }
+
+      // 10. Unordered List (* or -)
+      if (/^[\*\-]\s+/.test(trimmed)) {
+        const listItems = [];
+        while (i < lines.length) {
+          const cur = lines[i].trim();
+          if (!cur) { i++; continue; }
+          if (/^[\*\-]\s+/.test(cur)) {
+            if (/^[\*\-]\s+\*\*(Visual|Sticky Headline|Text Slide|Scripture Slide|Scripture|Cue|Sermon Text):\*\*/i.test(cur)) {
+              break;
+            }
+            listItems.push('<li>' + parseInlineMd(cur.replace(/^[\*\-]\s+/, '')) + '</li>');
+            i++;
+          } else {
+            break;
+          }
+        }
+        if (listItems.length > 0) {
+          output.push('<ul>' + listItems.join('') + '</ul><p><br></p>');
+        }
+        continue;
+      }
+
+      // 11. Blockquote (> ...)
+      if (/^>\s+/.test(trimmed)) {
+        const quoteLines = [];
+        while (i < lines.length) {
+          const cur = lines[i].trim();
+          if (!cur) { i++; continue; }
+          if (/^>\s+/.test(cur)) {
+            quoteLines.push(parseInlineMd(cur.replace(/^>\s+/, '')));
+            i++;
+          } else {
+            break;
+          }
+        }
+        if (quoteLines.length > 0) {
+          output.push('<blockquote>' + quoteLines.join('<br>') + '</blockquote><p><br></p>');
+        }
+        continue;
+      }
+
+      // 12. Regular Paragraph
+      const pLines = [parseInlineMd(trimmed)];
+      i++;
+      while (i < lines.length) {
+        const cur = lines[i];
+        const curTrimmed = cur.trim();
+        if (!curTrimmed) break;
+        if (/^(#|##|###|\-{3,}|\*{3,}|_{3,}|\d+\.\s+|[\*\-]\s+|>|\*\*Sermon Prep Notes|\*\*Sermon Series|\*\*Format)/.test(curTrimmed)) break;
+        pLines.push(parseInlineMd(curTrimmed));
+        i++;
+      }
+      output.push('<p>' + pLines.join(' ') + '</p>');
+    }
+
+    return { html: output.join(''), title: extractedTitle };
+  }
+
+  // ══════════════════════════════════════
+  //  IMPORT MODAL (Markdown & URL)
   // ══════════════════════════════════════
   (function initImport() {
     // Build overlay
@@ -1949,30 +2326,130 @@
     overlay.id = 'import-overlay';
     overlay.innerHTML = `
       <div id="import-modal">
-        <h3>📥 Import from URL</h3>
-        <p class="import-desc">Paste a JustPaste.it link to import the script directly.<br>Supports <b>justpaste.it</b> and <b>jpst.it</b> short links.</p>
-        <input id="import-url-input" type="url" placeholder="https://justpaste.it/xxxxx or https://jpst.it/xxxxx" autocomplete="off" />
+        <h3>📥 Import Script</h3>
+        <p class="import-desc">Import from Google NotebookLM, .md sermon files, or web sources.</p>
+        
+        <div class="import-tabs">
+          <button class="import-tab active" id="import-tab-md" type="button">📄 Markdown (.md)</button>
+          <button class="import-tab" id="import-tab-url" type="button">🔗 JustPaste.it URL</button>
+        </div>
+
+        <!-- Markdown Panel -->
+        <div class="import-tab-panel active" id="import-panel-md">
+          <div class="import-dropzone" id="import-dropzone">
+            <div class="dz-icon">📂</div>
+            <div class="dz-title">Click to browse or drop a .md file here</div>
+            <div class="dz-sub">Auto-formats slides, stage cues, sticky headlines, and scriptures</div>
+            <div class="import-selected-file" id="import-selected-file" style="display:none;"></div>
+          </div>
+          <input type="file" id="import-file-input" accept=".md,.markdown,.txt" style="display:none;" />
+          
+          <div class="import-divider">OR PASTE MARKDOWN TEXT</div>
+          
+          <textarea class="import-textarea" id="import-md-textarea" placeholder="Paste your Google Notebook / Markdown sermon here (#, ##, ### Slides, **Visual**, **Sermon Text**, etc.)..."></textarea>
+        </div>
+
+        <!-- URL Panel -->
+        <div class="import-tab-panel" id="import-panel-url">
+          <p class="import-desc" style="margin-top:0;">Paste a JustPaste.it link to import directly.<br>Supports <b>justpaste.it</b> and <b>jpst.it</b> short links.</p>
+          <input id="import-url-input" type="url" placeholder="https://justpaste.it/xxxxx or https://jpst.it/xxxxx" autocomplete="off" />
+        </div>
+
         <div id="import-error"></div>
         <div id="import-actions">
-          <button id="import-cancel-btn">Cancel</button>
-          <button id="import-fetch-btn">Import</button>
+          <button id="import-cancel-btn" type="button">Cancel</button>
+          <button id="import-action-btn" type="button">Format & Import</button>
         </div>
       </div>
     `;
     document.body.appendChild(overlay);
 
+    let activeTab = 'md';
+    let selectedFileContent = null;
+    let selectedFileName = null;
+
+    const tabMd = document.getElementById('import-tab-md');
+    const tabUrl = document.getElementById('import-tab-url');
+    const panelMd = document.getElementById('import-panel-md');
+    const panelUrl = document.getElementById('import-panel-url');
+    const dropzone = document.getElementById('import-dropzone');
+    const fileInputEl = document.getElementById('import-file-input');
+    const selectedFileEl = document.getElementById('import-selected-file');
+    const mdTextarea = document.getElementById('import-md-textarea');
     const urlInput = document.getElementById('import-url-input');
-    const fetchBtn = document.getElementById('import-fetch-btn');
+    const actionBtn = document.getElementById('import-action-btn');
     const cancelBtn = document.getElementById('import-cancel-btn');
     const errorEl = document.getElementById('import-error');
 
+    function switchTab(tab) {
+      activeTab = tab;
+      errorEl.style.display = 'none';
+      if (tab === 'md') {
+        tabMd.classList.add('active');
+        tabUrl.classList.remove('active');
+        panelMd.classList.add('active');
+        panelUrl.classList.remove('active');
+        actionBtn.textContent = 'Format & Import';
+      } else {
+        tabUrl.classList.add('active');
+        tabMd.classList.remove('active');
+        panelUrl.classList.add('active');
+        panelMd.classList.remove('active');
+        actionBtn.textContent = 'Import from URL';
+        setTimeout(() => urlInput.focus(), 50);
+      }
+    }
+
+    tabMd.addEventListener('click', () => switchTab('md'));
+    tabUrl.addEventListener('click', () => switchTab('url'));
+
+    // File drop & pick
+    dropzone.addEventListener('click', () => fileInputEl.click());
+
+    dropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropzone.classList.add('dragover');
+    });
+
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+        handleImportFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    fileInputEl.addEventListener('change', () => {
+      if (fileInputEl.files && fileInputEl.files[0]) {
+        handleImportFile(fileInputEl.files[0]);
+      }
+    });
+
+    function handleImportFile(file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        selectedFileContent = reader.result;
+        selectedFileName = file.name.replace(/\.(md|markdown|txt)$/i, '');
+        selectedFileEl.textContent = '✓ Selected: ' + file.name;
+        selectedFileEl.style.display = 'block';
+        errorEl.style.display = 'none';
+      };
+      reader.readAsText(file);
+    }
+
     function openImportModal() {
+      selectedFileContent = null;
+      selectedFileName = null;
+      selectedFileEl.style.display = 'none';
+      fileInputEl.value = '';
+      mdTextarea.value = '';
       urlInput.value = '';
       errorEl.style.display = 'none';
-      fetchBtn.disabled = false;
-      fetchBtn.textContent = 'Import';
+      actionBtn.disabled = false;
+      switchTab('md');
       overlay.classList.add('visible');
-      setTimeout(() => urlInput.focus(), 100);
     }
 
     function closeImportModal() {
@@ -1988,20 +2465,53 @@
       if (e.key === 'Escape') closeImportModal();
     });
 
-    fetchBtn.addEventListener('click', doImport);
+    actionBtn.addEventListener('click', doImport);
 
     async function doImport() {
+      errorEl.style.display = 'none';
+
+      if (activeTab === 'md') {
+        // Import from markdown file or textarea
+        let rawContent = selectedFileContent || mdTextarea.value.trim();
+        if (!rawContent) {
+          showImportError('Please select a .md file or paste markdown text.');
+          return;
+        }
+
+        if (isDirty && editor.innerText.trim()) {
+          if (!confirm('This will replace the current content with the formatted markdown. Continue?')) {
+            return;
+          }
+        }
+
+        const converted = convertMarkdownToWordHtml(rawContent);
+        editor.innerHTML = converted.html || '<p><br></p>';
+        if (converted.title) {
+          currentFileName = converted.title;
+        } else if (selectedFileName) {
+          currentFileName = selectedFileName;
+        }
+        isDirty = true;
+        savedToServer = false;
+        updateTitle();
+        syncDraft();
+        closeImportModal();
+        showToast('📥 Markdown imported & formatted!');
+        editor.focus();
+        return;
+      }
+
+      // Import from URL
       const url = urlInput.value.trim();
       if (!url) { showImportError('Please enter a URL.'); return; }
 
-      // Quick client-side validation
       if (!/^https?:\/\/(www\.)?(justpaste\.it|jpst\.it)\//i.test(url)) {
         showImportError('Only JustPaste.it and jpst.it URLs are supported.');
         return;
       }
 
-      fetchBtn.disabled = true;
-      fetchBtn.textContent = 'Importing…';
+      actionBtn.disabled = true;
+      actionBtn.textContent = 'Importing…';
       errorEl.style.display = 'none';
 
       try {
@@ -2014,13 +2524,11 @@
 
         if (!resp.ok || data.error) {
           showImportError(data.error || 'Import failed.');
-          fetchBtn.disabled = false;
-          fetchBtn.textContent = 'Import';
+          actionBtn.disabled = false;
+          actionBtn.textContent = 'Import from URL';
           return;
         }
 
-        // Insert content into editor
-        // Each line → <p>, empty lines → <p><br></p> for spacing
         const lines = data.content.split('\n');
         const html = lines
           .map(line => line.trim() ? '<p>' + line + '</p>' : '<p><br></p>')
@@ -2028,8 +2536,8 @@
 
         if (isDirty && editor.innerText.trim()) {
           if (!confirm('This will replace the current content. Continue?')) {
-            fetchBtn.disabled = false;
-            fetchBtn.textContent = 'Import';
+            actionBtn.disabled = false;
+            actionBtn.textContent = 'Import from URL';
             return;
           }
         }
@@ -2047,8 +2555,8 @@
         editor.focus();
       } catch (err) {
         showImportError('Network error. Please try again.');
-        fetchBtn.disabled = false;
-        fetchBtn.textContent = 'Import';
+        actionBtn.disabled = false;
+        actionBtn.textContent = 'Import from URL';
       }
     }
 
@@ -2394,13 +2902,33 @@
     if (isDirty && !confirm('You have unsaved changes. Open anyway?')) return;
     if (window.showOpenFilePicker) {
       try {
-        const opts = { types: [{ description: 'HTML files', accept: { 'text/html': ['.html', '.htm'] } }], multiple: false };
+        const opts = {
+          types: [{
+            description: 'Word & Markdown files',
+            accept: {
+              'text/html': ['.html', '.htm'],
+              'text/markdown': ['.md', '.markdown'],
+              'text/plain': ['.txt', '.md', '.markdown']
+            }
+          }],
+          multiple: false
+        };
         if (fileHandle) opts.startIn = fileHandle;
         const [handle] = await window.showOpenFilePicker(opts);
         fileHandle = handle; storeFileHandle(fileHandle);
         const file = await handle.getFile(); const text = await file.text();
-        currentFileName = file.name.replace(/\.html?$/i, '');
-        editor.innerHTML = text;
+
+        let loadedContent = text;
+        if (file.name.match(/\.(md|markdown)$/i) || (!text.includes('<p>') && (text.includes('# ') || text.includes('**') || text.includes('---')))) {
+          const converted = convertMarkdownToWordHtml(text);
+          loadedContent = converted.html;
+          currentFileName = converted.title || file.name.replace(/\.(md|markdown|html?|txt)$/i, '');
+          showToast('📥 Markdown formatted & loaded');
+        } else {
+          currentFileName = file.name.replace(/\.(html?|txt)$/i, '');
+        }
+
+        editor.innerHTML = loadedContent;
       } catch (e) { if (e.name === 'AbortError') return; throw e; }
     } else { fileInput.click(); return; }
     savedToServer = false; currentFolder = null; isDirty = false;
@@ -2408,16 +2936,24 @@
   }
 
   const fileInput = document.createElement('input');
-  fileInput.type = 'file'; fileInput.accept = '.html,.htm,.txt'; fileInput.style.display = 'none';
+  fileInput.type = 'file'; fileInput.accept = '.html,.htm,.txt,.md,.markdown'; fileInput.style.display = 'none';
   document.body.appendChild(fileInput);
   fileInput.addEventListener('change', () => {
     const file = fileInput.files[0]; if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
-      currentFileName = file.name.replace(/\.(html?|txt)$/i, '');
+      let loadedContent = reader.result;
+      if (file.name.match(/\.(md|markdown)$/i) || (!loadedContent.includes('<p>') && (loadedContent.includes('# ') || loadedContent.includes('**') || loadedContent.includes('---')))) {
+        const converted = convertMarkdownToWordHtml(loadedContent);
+        loadedContent = converted.html;
+        currentFileName = converted.title || file.name.replace(/\.(md|markdown|html?|txt)$/i, '');
+        showToast('📥 Markdown formatted & loaded');
+      } else {
+        currentFileName = file.name.replace(/\.(html?|txt)$/i, '');
+      }
       fileHandle = null; savedToServer = false; currentFolder = null;
-      editor.innerHTML = reader.result; isDirty = false;
-      updateTitle(); addToRecents(currentFileName, reader.result); syncDraft(); editor.focus();
+      editor.innerHTML = loadedContent; isDirty = false;
+      updateTitle(); addToRecents(currentFileName, editor.innerHTML); syncDraft(); editor.focus();
     };
     reader.readAsText(file); fileInput.value = '';
   });

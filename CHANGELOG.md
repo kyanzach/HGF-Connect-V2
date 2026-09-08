@@ -5,6 +5,24 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.47.0] — 2026-09-08
+### Added / Enhanced
+- **Markdown (.md) Sermon Source Importer in THE WORD Tool (`public/thewordtool.html`)**:
+  - Added full native support for importing sermons and scripts directly from Markdown (`.md`, `.markdown`) files and raw Markdown text (e.g. from Google NotebookLM, AI sermon generators, study notes).
+  - **Intelligent Sermon Layout Parsing**:
+    - `# Title` &rarr; Extracts clean title for document naming and renders styled `<h1>`.
+    - Metadata blocks (`**Sermon Series:**`, `**Format:**`, `**Preaching Style:**`, `**Structure:**`) &rarr; Auto-grouped into a purple prep stage cue box (`.cue`).
+    - `## Part/Section Headers` &rarr; Renders clean `<h2>` section headers.
+    - `### Slide X` &rarr; Auto-converted to teleprompter slide transition indicators (`<div class="next-slide">📺 SLIDE X</div>`).
+    - Stage cues (`* **Visual:**`, `* **Sticky Headline:**`, `* **Text Slide:**`, `* **Scripture Slide:**`, `* **Scripture:**`) &rarr; Auto-formatted with contextual icons (🎬, 📌, 🖥️, 📖) inside grouped `.cue` stage direction cards.
+    - Spoken sermon text (`* **Sermon Text:**`) &rarr; Seamlessly extracted into formatted `<p>` paragraphs with bold, italics, and quotes preserved.
+    - Post-sermon questions & notes (`1. ...`, `**Sermon Prep Notes:**`) &rarr; Structured into clean ordered lists and speaker prep note cards.
+  - **Tabbed Import Modal (`📥 Import`)**:
+    - **Tab 1: 📄 Markdown (.md)**: Includes an interactive drag-and-drop file dropzone, file browser, and direct raw text paste textarea.
+    - **Tab 2: 🔗 JustPaste.it URL**: Seamless JustPaste.it / jpst.it URL scraper.
+  - **Native File Open Integration**: Updated Open File dialog (`⌘O`) and file inputs to accept `.md` and `.markdown` files, auto-parsing them on load.
+  - **Smart Markdown Paste Detection**: Pasting structured markdown into the editor automatically converts it into the formatted teleprompter document.
+
 ## [v2.46.1] — 2026-09-08
 ### Added / Fixed
 - **Quick-Select Pastor Pills & Speaker Auto-Detect in Header Modal (`components/AddEventModal.tsx`)**:
