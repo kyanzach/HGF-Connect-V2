@@ -1,7 +1,9 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { useUpload } from "@/context/UploadContext";
+import { PRIMARY_SPEAKERS, detectDefaultSpeaker } from "@/app/admin/events/AdminEventsClient";
 
 const P = "#4EB1CB";
 const EVENT_TYPES = ["sunday_service", "prayer_meeting", "bible_study", "special_event", "grace_night", "other"];
@@ -18,6 +20,7 @@ interface Props {
 
 export default function AddEventModal({ open, onClose }: Props) {
   const router = useRouter();
+  const { data: session } = useSession();
   const { startUpload } = useUpload();
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
@@ -27,6 +30,15 @@ export default function AddEventModal({ open, onClose }: Props) {
     presentationFile: "", presentationOriginalName: "", presentationSlides: [] as string[],
     commentary: "",
   });
+
+  useEffect(() => {
+    if (open && !form.speaker && session?.user) {
+      const defaultSpeaker = detectDefaultSpeaker(session.user as any);
+      if (defaultSpeaker) {
+        setForm(f => ({ ...f, speaker: f.speaker || defaultSpeaker }));
+      }
+    }
+  }, [open, session]);
   const fileRef = useRef<HTMLInputElement>(null);
   const presInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -192,8 +204,68 @@ export default function AddEventModal({ open, onClose }: Props) {
           </div>
           <div style={{ marginTop: "0.75rem" }}><label style={lbl}>Location</label>
             <input style={inp} value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} placeholder="Venue name" /></div>
-          <div style={{ marginTop: "0.75rem" }}><label style={lbl}>Speaker</label>
-            <input style={inp} value={form.speaker} onChange={e => setForm(f => ({ ...f, speaker: e.target.value }))} placeholder="Guest or Pastor name" /></div>
+          {/* Speaker with 1-Tap Pills & Autocomplete */}
+          <div style={{ marginTop: "0.75rem" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.35rem" }}>
+              <label style={lbl}>Speaker / Pastor</label>
+              {form.speaker && (
+                <button
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, speaker: "" }))}
+                  style={{ background: "none", border: "none", color: "#64748b", fontSize: "0.7rem", cursor: "pointer", textDecoration: "underline" }}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
+            {/* Quick 1-Tap Speaker Selector Pills */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem", marginBottom: "0.45rem" }}>
+              {PRIMARY_SPEAKERS.map(s => {
+                const isSelected = form.speaker.trim().toLowerCase() === s.label.toLowerCase();
+                return (
+                  <button
+                    key={s.label}
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, speaker: s.label }))}
+                    style={{
+                      padding: "0.22rem 0.55rem",
+                      borderRadius: "999px",
+                      fontSize: "0.72rem",
+                      fontWeight: isSelected ? 700 : 500,
+                      border: isSelected ? "1.5px solid #0284c7" : "1px solid #cbd5e1",
+                      background: isSelected ? "#e0f2fe" : "#f8fafc",
+                      color: isSelected ? "#0369a1" : "#475569",
+                      cursor: "pointer",
+                      transition: "all 0.15s ease",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "0.2rem",
+                    }}
+                  >
+                    {isSelected && <span style={{ fontSize: "0.65rem" }}>✓</span>}
+                    {s.short}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Autocomplete Input with datalist + Custom Type support */}
+            <div style={{ position: "relative" }}>
+              <input
+                list="header-speaker-suggestions"
+                style={inp}
+                value={form.speaker}
+                onChange={e => setForm(f => ({ ...f, speaker: e.target.value }))}
+                placeholder="Select from above or type any speaker/guest name..."
+              />
+              <datalist id="header-speaker-suggestions">
+                {PRIMARY_SPEAKERS.map(s => (
+                  <option key={s.label} value={s.label} />
+                ))}
+              </datalist>
+            </div>
+          </div>
 
           {/* Cover Photo */}
           <div style={{ marginTop: "0.75rem" }}>

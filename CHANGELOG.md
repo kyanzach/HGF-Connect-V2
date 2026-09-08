@@ -5,6 +5,14 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.46.1] — 2026-09-08
+### Added / Fixed
+- **Quick-Select Pastor Pills & Speaker Auto-Detect in Header Modal (`components/AddEventModal.tsx`)**:
+  - Brought the 1-tap quick pastor pill badges (`Ptra. Shalom`, `Ptr. William`, `Ptra. Beth G.`, `Ptr. Ryan`, `Ptra. Karen`, `Ptr. Jun-jun`, `Ptra. Rina`, `Caryn P.`, `Bishop Joel`) into the global header's quick Add Event modal.
+  - Added automatic speaker detection of the logged-in pastor/admin via `useSession()` upon opening the modal.
+  - Added `datalist` autocomplete suggestions alongside custom typing support.
+  - Added a 1-tap "Clear" button to easily reset the speaker selection.
+
 ## [v2.46.0] — 2026-09-04
 ### Added / Enhanced
 - **SMS Command Hub, Reminder Verses Pool Manager & Birthday SMS Automation (`app/admin/sms/`, `app/api/admin/sms/settings/`, `app/api/birthdays/check/route.ts`, `app/api/sms/reminders/check/route.ts`)**:
