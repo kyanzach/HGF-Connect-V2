@@ -5,6 +5,12 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.49.4] — 2026-09-09
+### Added / Fixed
+- **SMS Hub & Activity Logs Real-Time Backfill (`/admin/sms`, `AdminSmsHubClient.tsx`, `page.tsx`)**:
+  - **Connected to `sms_logs` & Event Reminders**: Fixed the SMS Activity Logs tab on `/admin/sms` which was querying audit `app_logs` instead of the 35,000+ entries in the dedicated `sms_logs` table. Now loads real transmissions with recipient names, mobile numbers, event reminders, and gateway responses.
+  - **Live Search & Filter Toolbar**: Added instant debounce search (by recipient, phone number, event title, or message keyword) and status filter pills (`All`, `✓ Sent`, `✕ Failed`) with live count badges.
+
 ## [v2.49.3] — 2026-09-09
 ### Fixed
 - **The Word Tool List Formatting in Smart Glasses Export (`public/thewordtool.html`)**:

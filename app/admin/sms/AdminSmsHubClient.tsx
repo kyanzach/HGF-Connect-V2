@@ -42,6 +42,10 @@ const TIMING_WINDOWS = [
 export default function AdminSmsHubClient({ initialLogs, currentAdminPhone }: Props) {
   const [activeTab, setActiveTab] = useState<"logs" | "reminder_verses" | "birthday_sms">("logs");
 
+  // SMS Logs Search & Filter
+  const [logSearch, setLogSearch] = useState("");
+  const [logStatusFilter, setLogStatusFilter] = useState<"all" | "sent" | "failed">("all");
+
   // Settings State
   const [loadingSettings, setLoadingSettings] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
@@ -56,6 +60,24 @@ export default function AdminSmsHubClient({ initialLogs, currentAdminPhone }: Pr
   // Reminder Verses Filter
   const [selectedEventType, setSelectedEventType] = useState("sunday_service");
   const [selectedTiming, setSelectedTiming] = useState("fiveday");
+
+  // Filtered Logs
+  const filteredLogs = initialLogs.filter((log) => {
+    if (logStatusFilter === "sent" && !log.actionType.toLowerCase().includes("sent")) return false;
+    if (logStatusFilter === "failed" && !log.actionType.toLowerCase().includes("failed")) return false;
+    if (logSearch.trim()) {
+      const q = logSearch.toLowerCase();
+      const matchTarget = (log.targetName || "").toLowerCase().includes(q);
+      const matchDesc = (log.description || "").toLowerCase().includes(q);
+      const matchBy = (log.performedByName || "").toLowerCase().includes(q);
+      const matchAction = (log.actionType || "").toLowerCase().includes(q);
+      return matchTarget || matchDesc || matchBy || matchAction;
+    }
+    return true;
+  });
+
+  const totalSentCount = initialLogs.filter((l) => l.actionType.toLowerCase().includes("sent")).length;
+  const totalFailedCount = initialLogs.filter((l) => l.actionType.toLowerCase().includes("failed")).length;
 
   // Verse Add/Edit Modals
   const [verseModal, setVerseModal] = useState<{
@@ -403,15 +425,123 @@ export default function AdminSmsHubClient({ initialLogs, currentAdminPhone }: Pr
       {/* ── TAB 1: SMS ACTIVITY LOGS ── */}
       {activeTab === "logs" && (
         <div>
+          {/* Controls Bar: Search & Status Filter */}
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "1rem",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "1rem",
+              background: "white",
+              padding: "0.875rem 1.25rem",
+              borderRadius: "12px",
+              border: "1px solid #e2e8f0",
+            }}
+          >
+            <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flex: 1, minWidth: "260px" }}>
+              <input
+                type="text"
+                placeholder="🔍 Search logs by recipient, phone, event, message..."
+                value={logSearch}
+                onChange={(e) => setLogSearch(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "0.5rem 0.875rem",
+                  fontSize: "0.875rem",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "8px",
+                  outline: "none",
+                }}
+              />
+              {logSearch && (
+                <button
+                  type="button"
+                  onClick={() => setLogSearch("")}
+                  style={{
+                    border: "none",
+                    background: "#f1f5f9",
+                    color: "#64748b",
+                    borderRadius: "6px",
+                    padding: "0.4rem 0.6rem",
+                    cursor: "pointer",
+                    fontSize: "0.8rem",
+                  }}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            <div style={{ display: "flex", gap: "0.375rem", alignItems: "center" }}>
+              <button
+                type="button"
+                onClick={() => setLogStatusFilter("all")}
+                style={{
+                  padding: "0.35rem 0.75rem",
+                  fontSize: "0.8125rem",
+                  fontWeight: 600,
+                  borderRadius: "20px",
+                  border: "1px solid",
+                  borderColor: logStatusFilter === "all" ? PRIMARY : "#e2e8f0",
+                  background: logStatusFilter === "all" ? PRIMARY : "white",
+                  color: logStatusFilter === "all" ? "white" : "#64748b",
+                  cursor: "pointer",
+                }}
+              >
+                All ({initialLogs.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setLogStatusFilter("sent")}
+                style={{
+                  padding: "0.35rem 0.75rem",
+                  fontSize: "0.8125rem",
+                  fontWeight: 600,
+                  borderRadius: "20px",
+                  border: "1px solid",
+                  borderColor: logStatusFilter === "sent" ? "#16a34a" : "#e2e8f0",
+                  background: logStatusFilter === "sent" ? "#16a34a" : "white",
+                  color: logStatusFilter === "sent" ? "white" : "#16a34a",
+                  cursor: "pointer",
+                }}
+              >
+                ✓ Sent ({totalSentCount})
+              </button>
+              {totalFailedCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setLogStatusFilter("failed")}
+                  style={{
+                    padding: "0.35rem 0.75rem",
+                    fontSize: "0.8125rem",
+                    fontWeight: 600,
+                    borderRadius: "20px",
+                    border: "1px solid",
+                    borderColor: logStatusFilter === "failed" ? "#dc2626" : "#e2e8f0",
+                    background: logStatusFilter === "failed" ? "#dc2626" : "white",
+                    color: logStatusFilter === "failed" ? "white" : "#dc2626",
+                    cursor: "pointer",
+                  }}
+                >
+                  ✕ Failed ({totalFailedCount})
+                </button>
+              )}
+            </div>
+          </div>
+
           <div className="smslogs-desktop-table" style={{ background: "white", borderRadius: "12px", border: "1px solid #e2e8f0", overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
-            {initialLogs.length === 0 ? (
-              <div style={{ padding: "4rem", textAlign: "center", color: "#94a3b8" }}>No log entries recorded yet.</div>
+            {filteredLogs.length === 0 ? (
+              <div style={{ padding: "4rem", textAlign: "center", color: "#94a3b8" }}>
+                {initialLogs.length === 0 ? "No log entries recorded yet." : "No logs match your search/filter criteria."}
+              </div>
             ) : (
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
                   <thead>
                     <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-                      {["Time", "Action", "Description", "Performed By", "Target"].map((h) => (
+                      {["Time", "Status", "Recipient / Target", "Source / Event", "Message"].map((h) => (
                         <th key={h} style={{ padding: "0.75rem 1rem", textAlign: "left", fontWeight: 700, color: "#64748b", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.04em", whiteSpace: "nowrap" }}>
                           {h}
                         </th>
@@ -419,12 +549,12 @@ export default function AdminSmsHubClient({ initialLogs, currentAdminPhone }: Pr
                     </tr>
                   </thead>
                   <tbody>
-                    {initialLogs.map((log, i) => (
-                      <tr key={log.id} style={{ borderBottom: i < initialLogs.length - 1 ? "1px solid #f1f5f9" : "none" }}>
+                    {filteredLogs.map((log, i) => (
+                      <tr key={log.id} style={{ borderBottom: i < filteredLogs.length - 1 ? "1px solid #f1f5f9" : "none" }}>
                         <td style={{ padding: "0.75rem 1rem", whiteSpace: "nowrap", color: "#94a3b8", fontSize: "0.8rem" }}>
                           {new Date(log.createdAt).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "Asia/Manila" })}
                         </td>
-                        <td style={{ padding: "0.75rem 1rem" }}>
+                        <td style={{ padding: "0.75rem 1rem", whiteSpace: "nowrap" }}>
                           <span
                             style={{
                               fontSize: "0.7rem",
@@ -432,18 +562,22 @@ export default function AdminSmsHubClient({ initialLogs, currentAdminPhone }: Pr
                               textTransform: "uppercase",
                               padding: "0.2rem 0.5rem",
                               borderRadius: "4px",
-                              background: log.actionType.includes("failed") ? "#fee2e2" : "#f1f5f9",
-                              color: log.actionType.includes("failed") ? "#b91c1c" : "#475569",
+                              background: log.actionType.includes("failed") ? "#fee2e2" : "#dcfce7",
+                              color: log.actionType.includes("failed") ? "#b91c1c" : "#15803d",
                             }}
                           >
-                            {log.actionType}
+                            {log.actionType.includes("failed") ? "FAILED" : "SENT"}
                           </span>
                         </td>
-                        <td style={{ padding: "0.75rem 1rem", color: "#374151", maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        <td style={{ padding: "0.75rem 1rem", color: "#1e293b", fontWeight: 600, whiteSpace: "nowrap" }}>
+                          {log.targetName ?? "—"}
+                        </td>
+                        <td style={{ padding: "0.75rem 1rem", color: "#64748b", whiteSpace: "nowrap", fontSize: "0.8125rem" }}>
+                          {log.performedByName ?? "—"}
+                        </td>
+                        <td style={{ padding: "0.75rem 1rem", color: "#374151", maxWidth: 420, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "0.8125rem" }} title={log.description}>
                           {log.description}
                         </td>
-                        <td style={{ padding: "0.75rem 1rem", color: "#475569", whiteSpace: "nowrap" }}>{log.performedByName ?? "—"}</td>
-                        <td style={{ padding: "0.75rem 1rem", color: "#94a3b8", fontSize: "0.8rem" }}>{log.targetName ?? "—"}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -453,9 +587,9 @@ export default function AdminSmsHubClient({ initialLogs, currentAdminPhone }: Pr
           </div>
 
           {/* Mobile view card listing */}
-          {initialLogs.length > 0 && (
+          {filteredLogs.length > 0 && (
             <div className="smslogs-mobile-cards" style={{ display: "none", flexDirection: "column", gap: "1rem" }}>
-              {initialLogs.map((log) => (
+              {filteredLogs.map((log) => (
                 <div key={log.id} style={{ background: "white", borderRadius: "12px", border: "1px solid #e2e8f0", padding: "1rem" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
                     <span
@@ -465,22 +599,24 @@ export default function AdminSmsHubClient({ initialLogs, currentAdminPhone }: Pr
                         textTransform: "uppercase",
                         padding: "0.2rem 0.5rem",
                         borderRadius: "4px",
-                        background: log.actionType.includes("failed") ? "#fee2e2" : "#f1f5f9",
-                        color: log.actionType.includes("failed") ? "#b91c1c" : "#475569",
+                        background: log.actionType.includes("failed") ? "#fee2e2" : "#dcfce7",
+                        color: log.actionType.includes("failed") ? "#b91c1c" : "#15803d",
                       }}
                     >
-                      {log.actionType}
+                      {log.actionType.includes("failed") ? "FAILED" : "SENT"}
                     </span>
                     <span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>
                       {new Date(log.createdAt).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "Asia/Manila" })}
                     </span>
                   </div>
-                  <div style={{ fontSize: "0.875rem", color: "#374151", margin: "0.5rem 0", lineHeight: 1.4 }}>
+                  <div style={{ fontWeight: 600, color: "#1e293b", fontSize: "0.875rem" }}>
+                    {log.targetName ?? "—"}
+                  </div>
+                  <div style={{ fontSize: "0.8125rem", color: "#475569", margin: "0.5rem 0", lineHeight: 1.4 }}>
                     {log.description}
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid #f1f5f9", paddingTop: "0.5rem", marginTop: "0.5rem", fontSize: "0.75rem" }}>
-                    <span style={{ color: "#64748b" }}>By: <strong>{log.performedByName ?? "—"}</strong></span>
-                    <span style={{ color: "#94a3b8" }}>Target: {log.targetName ?? "—"}</span>
+                    <span style={{ color: "#64748b" }}>Source: <strong>{log.performedByName ?? "—"}</strong></span>
                   </div>
                 </div>
               ))}
