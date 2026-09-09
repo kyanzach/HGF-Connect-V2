@@ -2362,6 +2362,8 @@
 
       // 9. Ordered List (1. 2. 3.)
       if (/^\d+\.\s+/.test(trimmed)) {
+        const startNumMatch = trimmed.match(/^(\d+)\.\s+/);
+        const startVal = startNumMatch ? parseInt(startNumMatch[1], 10) : 1;
         const listItems = [];
         while (i < lines.length) {
           const cur = lines[i].trim();
@@ -2389,7 +2391,8 @@
           }
         }
         if (listItems.length > 0) {
-          output.push('<ol>' + listItems.join('') + '</ol><p><br></p>');
+          const startAttr = startVal > 1 ? ' start="' + startVal + '"' : '';
+          output.push('<ol' + startAttr + '>' + listItems.join('') + '</ol><p><br></p>');
         }
         continue;
       }
@@ -2797,8 +2800,25 @@
       return '<p>' + inner + '</p>';
     });
 
+    // Handle ordered lists <ol> (preserve numbered format: 1., 2., 3.)
+    docHtml = docHtml.replace(/<ol([^>]*)>([\s\S]*?)<\/ol>/gi, (match, attrs, inner) => {
+      const startMatch = (attrs || '').match(/start=["']?(\d+)["']?/i);
+      let num = startMatch ? parseInt(startMatch[1], 10) : 1;
+      return inner.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, (m, liInner) => {
+        return '<p>' + (num++) + '. ' + liInner.trim() + '</p>';
+      });
+    });
+
+    // Handle unordered lists <ul> (bullet dots: •)
+    docHtml = docHtml.replace(/<ul[^>]*>([\s\S]*?)<\/ul>/gi, (match, inner) => {
+      return inner.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, (m, liInner) => {
+        return '<p>• ' + liInner.trim() + '</p>';
+      });
+    });
+
+    // Fallback for any standalone <li>
     docHtml = docHtml.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, (match, inner) => {
-      return '<p>• ' + inner + '</p>';
+      return '<p>• ' + inner.trim() + '</p>';
     });
 
     // 7. Strip HTML tags

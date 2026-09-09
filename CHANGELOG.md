@@ -5,6 +5,12 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.49.3] — 2026-09-09
+### Fixed
+- **The Word Tool List Formatting in Smart Glasses Export (`public/thewordtool.html`)**:
+  - **Numbered List Formatting (`<ol>` → `1.`, `2.`, `3.`)**: Fixed a bug where all list items were converted to bullets (`•`). Now distinguishes `<ol>` and `<ul>`, preserving ordered lists as sequential numbers with support for `start` offsets.
+  - **Bullet List Formatting (`<ul>` → `•`)**: Preserves bullet dots for unordered lists.
+
 ## [v2.49.2] — 2026-09-09
 ### Fixed
 - **The Word Tool Smart Glasses Export Fixes (`public/thewordtool.html`)**:
