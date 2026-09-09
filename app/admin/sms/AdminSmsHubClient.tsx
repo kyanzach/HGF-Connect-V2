@@ -7,11 +7,18 @@ const PRIMARY = "#4EB1CB";
 
 interface LogEntry {
   id: number;
+  memberId?: number | null;
   actionType: string;
   description: string;
+  rawMessage?: string;
+  errorMessage?: string | null;
+  phoneNumber?: string;
   performedByName: string | null;
   targetName: string | null;
+  memberName?: string | null;
   createdAt: string;
+  eventId?: number | null;
+  eventTitle?: string | null;
 }
 
 interface VerseItem {
@@ -46,6 +53,13 @@ export default function AdminSmsHubClient({ initialLogs, currentAdminPhone }: Pr
   const [logSearch, setLogSearch] = useState("");
   const [logStatusFilter, setLogStatusFilter] = useState<"all" | "sent" | "failed">("all");
 
+  // SMS Details & Analytics Modal
+  const [detailLog, setDetailLog] = useState<LogEntry | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsData, setAnalyticsData] = useState<any | null>(null);
+  const [analyticsError, setAnalyticsError] = useState<string | null>(null);
+  const [copiedMsg, setCopiedMsg] = useState(false);
+
   // Settings State
   const [loadingSettings, setLoadingSettings] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
@@ -60,6 +74,33 @@ export default function AdminSmsHubClient({ initialLogs, currentAdminPhone }: Pr
   // Reminder Verses Filter
   const [selectedEventType, setSelectedEventType] = useState("sunday_service");
   const [selectedTiming, setSelectedTiming] = useState("fiveday");
+
+  // Open Log Details & fetch live analytics
+  const openLogDetails = async (log: LogEntry) => {
+    setDetailLog(log);
+    setAnalyticsLoading(true);
+    setAnalyticsData(null);
+    setAnalyticsError(null);
+    setCopiedMsg(false);
+
+    try {
+      const q = new URLSearchParams();
+      if (log.memberId) q.set("memberId", log.memberId.toString());
+      if (log.id) q.set("logId", log.id.toString());
+
+      const res = await fetch(`/api/admin/sms/analytics?${q.toString()}`);
+      if (!res.ok) {
+        throw new Error("Failed to load attendance analytics");
+      }
+      const data = await res.json();
+      setAnalyticsData(data);
+    } catch (err: any) {
+      console.error("openLogDetails error:", err);
+      setAnalyticsError(err.message || "Failed to load analytics");
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
 
   // Filtered Logs
   const filteredLogs = initialLogs.filter((log) => {
@@ -531,6 +572,11 @@ export default function AdminSmsHubClient({ initialLogs, currentAdminPhone }: Pr
             </div>
           </div>
 
+          {/* Quick Double-click Tip Banner */}
+          <div style={{ fontSize: "0.8125rem", color: "#64748b", marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <span>💡 <strong>Tip:</strong> Double-click any log row or click <strong>👁️ Details</strong> to view full formatted message text, recipient stats, and event attendance conversion analytics.</span>
+          </div>
+
           <div className="smslogs-desktop-table" style={{ background: "white", borderRadius: "12px", border: "1px solid #e2e8f0", overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
             {filteredLogs.length === 0 ? (
               <div style={{ padding: "4rem", textAlign: "center", color: "#94a3b8" }}>
@@ -541,7 +587,7 @@ export default function AdminSmsHubClient({ initialLogs, currentAdminPhone }: Pr
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
                   <thead>
                     <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-                      {["Time", "Status", "Recipient / Target", "Source / Event", "Message"].map((h) => (
+                      {["Time", "Status", "Recipient / Target", "Source / Event", "Message", "Action"].map((h) => (
                         <th key={h} style={{ padding: "0.75rem 1rem", textAlign: "left", fontWeight: 700, color: "#64748b", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.04em", whiteSpace: "nowrap" }}>
                           {h}
                         </th>
@@ -550,7 +596,18 @@ export default function AdminSmsHubClient({ initialLogs, currentAdminPhone }: Pr
                   </thead>
                   <tbody>
                     {filteredLogs.map((log, i) => (
-                      <tr key={log.id} style={{ borderBottom: i < filteredLogs.length - 1 ? "1px solid #f1f5f9" : "none" }}>
+                      <tr
+                        key={log.id}
+                        onDoubleClick={() => openLogDetails(log)}
+                        style={{
+                          borderBottom: i < filteredLogs.length - 1 ? "1px solid #f1f5f9" : "none",
+                          cursor: "pointer",
+                          transition: "background 0.1s ease",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                        title="Double-click to view formatted SMS text & attendance analytics"
+                      >
                         <td style={{ padding: "0.75rem 1rem", whiteSpace: "nowrap", color: "#94a3b8", fontSize: "0.8rem" }}>
                           {new Date(log.createdAt).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "Asia/Manila" })}
                         </td>
@@ -575,8 +632,32 @@ export default function AdminSmsHubClient({ initialLogs, currentAdminPhone }: Pr
                         <td style={{ padding: "0.75rem 1rem", color: "#64748b", whiteSpace: "nowrap", fontSize: "0.8125rem" }}>
                           {log.performedByName ?? "—"}
                         </td>
-                        <td style={{ padding: "0.75rem 1rem", color: "#374151", maxWidth: 420, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "0.8125rem" }} title={log.description}>
+                        <td style={{ padding: "0.75rem 1rem", color: "#374151", maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "0.8125rem" }} title={log.description}>
                           {log.description}
+                        </td>
+                        <td style={{ padding: "0.75rem 1rem", whiteSpace: "nowrap" }}>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openLogDetails(log);
+                            }}
+                            style={{
+                              padding: "0.3rem 0.65rem",
+                              borderRadius: "6px",
+                              border: "1px solid #cbd5e1",
+                              background: "#f8fafc",
+                              color: "#334155",
+                              fontSize: "0.75rem",
+                              fontWeight: 700,
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "0.35rem",
+                            }}
+                          >
+                            👁️ Details
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -590,7 +671,11 @@ export default function AdminSmsHubClient({ initialLogs, currentAdminPhone }: Pr
           {filteredLogs.length > 0 && (
             <div className="smslogs-mobile-cards" style={{ display: "none", flexDirection: "column", gap: "1rem" }}>
               {filteredLogs.map((log) => (
-                <div key={log.id} style={{ background: "white", borderRadius: "12px", border: "1px solid #e2e8f0", padding: "1rem" }}>
+                <div
+                  key={log.id}
+                  onClick={() => openLogDetails(log)}
+                  style={{ background: "white", borderRadius: "12px", border: "1px solid #e2e8f0", padding: "1rem", cursor: "pointer" }}
+                >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
                     <span
                       style={{
@@ -615,8 +700,9 @@ export default function AdminSmsHubClient({ initialLogs, currentAdminPhone }: Pr
                   <div style={{ fontSize: "0.8125rem", color: "#475569", margin: "0.5rem 0", lineHeight: 1.4 }}>
                     {log.description}
                   </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid #f1f5f9", paddingTop: "0.5rem", marginTop: "0.5rem", fontSize: "0.75rem" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #f1f5f9", paddingTop: "0.5rem", marginTop: "0.5rem", fontSize: "0.75rem" }}>
                     <span style={{ color: "#64748b" }}>Source: <strong>{log.performedByName ?? "—"}</strong></span>
+                    <span style={{ color: PRIMARY, fontWeight: 700 }}>👁️ View Analytics →</span>
                   </div>
                 </div>
               ))}
@@ -1242,6 +1328,306 @@ export default function AdminSmsHubClient({ initialLogs, currentAdminPhone }: Pr
                   Save Verse
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: SMS DETAILS & ATTENDANCE ANALYTICS ── */}
+      {detailLog && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15, 23, 42, 0.65)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+            padding: "1rem",
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setDetailLog(null);
+          }}
+        >
+          <div
+            style={{
+              background: "white",
+              borderRadius: "16px",
+              width: "100%",
+              maxWidth: "680px",
+              maxHeight: "90vh",
+              overflowY: "auto",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+              border: "1px solid #e2e8f0",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                padding: "1.25rem 1.5rem",
+                borderBottom: "1px solid #f1f5f9",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                background: "#f8fafc",
+                borderTopLeftRadius: "16px",
+                borderTopRightRadius: "16px",
+              }}
+            >
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <span style={{ fontSize: "1.25rem" }}>📱</span>
+                  <h3 style={{ fontSize: "1.125rem", fontWeight: 800, color: "#0f172a", margin: 0 }}>
+                    SMS Details & Attendance Analytics
+                  </h3>
+                </div>
+                <p style={{ margin: "0.25rem 0 0", fontSize: "0.8125rem", color: "#64748b" }}>
+                  Transmission record #{detailLog.id} • {detailLog.targetName}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDetailLog(null)}
+                style={{
+                  border: "none",
+                  background: "#e2e8f0",
+                  color: "#475569",
+                  width: "32px",
+                  height: "32px",
+                  borderRadius: "50%",
+                  cursor: "pointer",
+                  fontWeight: 700,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+              {/* Section 1: Formatted SMS Message */}
+              <div style={{ background: "#f8fafc", borderRadius: "12px", border: "1px solid #e2e8f0", padding: "1.25rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <span
+                      style={{
+                        fontSize: "0.75rem",
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        padding: "0.25rem 0.6rem",
+                        borderRadius: "6px",
+                        background: detailLog.actionType.includes("failed") ? "#fee2e2" : "#dcfce7",
+                        color: detailLog.actionType.includes("failed") ? "#b91c1c" : "#15803d",
+                      }}
+                    >
+                      {detailLog.actionType.includes("failed") ? "✕ FAILED" : "✓ SENT"}
+                    </span>
+                    <span style={{ fontSize: "0.8125rem", color: "#64748b" }}>
+                      Sent: {new Date(detailLog.createdAt).toLocaleString("en-PH", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", timeZone: "Asia/Manila" })}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const text = detailLog.rawMessage || detailLog.description;
+                      try {
+                        await navigator.clipboard.writeText(text);
+                        setCopiedMsg(true);
+                        setTimeout(() => setCopiedMsg(false), 2000);
+                      } catch {
+                        // fallback
+                      }
+                    }}
+                    style={{
+                      padding: "0.35rem 0.75rem",
+                      borderRadius: "6px",
+                      border: "1px solid #cbd5e1",
+                      background: "white",
+                      fontSize: "0.75rem",
+                      fontWeight: 700,
+                      color: copiedMsg ? "#16a34a" : "#475569",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {copiedMsg ? "✓ Copied!" : "📋 Copy Text"}
+                  </button>
+                </div>
+
+                {/* Formatted SMS text bubble with preserved line breaks */}
+                <div
+                  style={{
+                    background: "white",
+                    padding: "1rem",
+                    borderRadius: "8px",
+                    border: "1px solid #e2e8f0",
+                    fontSize: "0.875rem",
+                    color: "#1e293b",
+                    lineHeight: 1.55,
+                    whiteSpace: "pre-wrap",
+                    fontFamily: "inherit",
+                    wordBreak: "break-word",
+                  }}
+                >
+                  {detailLog.rawMessage || detailLog.description}
+                </div>
+
+                {detailLog.errorMessage && (
+                  <div style={{ marginTop: "0.75rem", padding: "0.6rem 0.75rem", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "6px", color: "#991b1b", fontSize: "0.8125rem" }}>
+                    ⚠️ <strong>Error details:</strong> {detailLog.errorMessage}
+                  </div>
+                )}
+              </div>
+
+              {/* Section 2: Attendance & Reminder Effectiveness Analytics */}
+              <div>
+                <h4 style={{ fontSize: "0.9375rem", fontWeight: 800, color: "#1e293b", margin: "0 0 0.75rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <span>📊</span> Member Attendance & SMS Effectiveness Analytics
+                </h4>
+
+                {analyticsLoading ? (
+                  <div style={{ padding: "2rem", textAlign: "center", color: "#64748b", background: "#f8fafc", borderRadius: "12px" }}>
+                    ⏳ Analyzing member transmission history & attendance correlation...
+                  </div>
+                ) : analyticsError ? (
+                  <div style={{ padding: "1rem", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "8px", color: "#991b1b", fontSize: "0.8125rem" }}>
+                    ⚠️ {analyticsError}
+                  </div>
+                ) : analyticsData ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                    {/* 4-Stat Metric Cards */}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "0.75rem" }}>
+                      <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "0.875rem" }}>
+                        <div style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: 600, textTransform: "uppercase" }}>📱 Lifetime SMS</div>
+                        <div style={{ fontSize: "1.25rem", fontWeight: 800, color: "#0f172a", marginTop: "0.25rem" }}>
+                          {analyticsData.totalSmsReceived}
+                        </div>
+                        <div style={{ fontSize: "0.7rem", color: "#16a34a", marginTop: "0.15rem" }}>
+                          {analyticsData.totalSmsSent} sent / {analyticsData.totalSmsFailed} failed
+                        </div>
+                      </div>
+
+                      <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "0.875rem" }}>
+                        <div style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: 600, textTransform: "uppercase" }}>⛪ Total Check-ins</div>
+                        <div style={{ fontSize: "1.25rem", fontWeight: 800, color: PRIMARY, marginTop: "0.25rem" }}>
+                          {analyticsData.totalAttendance}
+                        </div>
+                        <div style={{ fontSize: "0.7rem", color: "#64748b", marginTop: "0.15rem" }}>
+                          services attended
+                        </div>
+                      </div>
+
+                      <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "0.875rem" }}>
+                        <div style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: 600, textTransform: "uppercase" }}>🎯 Conversion Rate</div>
+                        <div style={{ fontSize: "1.25rem", fontWeight: 800, color: analyticsData.reminderConversion.conversionRatePercent >= 50 ? "#16a34a" : "#eab308", marginTop: "0.25rem" }}>
+                          {analyticsData.reminderConversion.conversionRatePercent}%
+                        </div>
+                        <div style={{ fontSize: "0.7rem", color: "#64748b", marginTop: "0.15rem" }}>
+                          {analyticsData.reminderConversion.totalEventsAttended} of {analyticsData.reminderConversion.totalEventsReminded} reminded
+                        </div>
+                      </div>
+
+                      <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "0.875rem" }}>
+                        <div style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: 600, textTransform: "uppercase" }}>📅 This Event</div>
+                        <div style={{ fontSize: "0.9375rem", fontWeight: 800, marginTop: "0.35rem" }}>
+                          {analyticsData.thisEventAttendance ? (
+                            analyticsData.thisEventAttendance.attended ? (
+                              <span style={{ color: "#16a34a" }}>✅ Attended</span>
+                            ) : analyticsData.thisEventAttendance.isFutureOrToday ? (
+                              <span style={{ color: PRIMARY }}>⏳ Scheduled</span>
+                            ) : (
+                              <span style={{ color: "#94a3b8" }}>✕ Absent</span>
+                            )
+                          ) : (
+                            <span style={{ color: "#94a3b8" }}>— General SMS</span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: "0.7rem", color: "#64748b", marginTop: "0.15rem" }}>
+                          {analyticsData.thisEventAttendance?.checkInTime ? `Checked in: ${analyticsData.thisEventAttendance.checkInTime}` : analyticsData.thisEventAttendance?.isFutureOrToday ? "Check-in pending" : "No event linked"}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Recent Attendance History Records */}
+                    <div style={{ background: "#f8fafc", borderRadius: "10px", border: "1px solid #e2e8f0", padding: "1rem" }}>
+                      <div style={{ fontSize: "0.8125rem", fontWeight: 700, color: "#334155", marginBottom: "0.5rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span>🕒 Recent Check-in History ({analyticsData.recentAttendance.length} records)</span>
+                        {analyticsData.member?.id && (
+                          <a
+                            href={`/admin/members?search=${encodeURIComponent(analyticsData.member.phone || analyticsData.member.firstName)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ color: PRIMARY, fontSize: "0.75rem", textDecoration: "none", fontWeight: 700 }}
+                          >
+                            👤 Open Member Profile →
+                          </a>
+                        )}
+                      </div>
+
+                      {analyticsData.recentAttendance.length === 0 ? (
+                        <div style={{ fontSize: "0.8125rem", color: "#94a3b8", textAlign: "center", padding: "1rem" }}>
+                          No recorded church attendance check-ins yet.
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                          {analyticsData.recentAttendance.map((rec: any) => (
+                            <div key={rec.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "white", padding: "0.5rem 0.75rem", borderRadius: "6px", border: "1px solid #f1f5f9", fontSize: "0.8125rem" }}>
+                              <div>
+                                <span style={{ fontWeight: 700, color: "#1e293b" }}>{rec.eventTitle}</span>
+                                {rec.isFirstVisit && (
+                                  <span style={{ marginLeft: "0.5rem", fontSize: "0.65rem", background: "#fef3c7", color: "#92400e", padding: "0.1rem 0.4rem", borderRadius: "4px", fontWeight: 700 }}>
+                                    FIRST VISIT
+                                  </span>
+                                )}
+                              </div>
+                              <div style={{ color: "#64748b", fontSize: "0.75rem" }}>
+                                {new Date(rec.date).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric", timeZone: "Asia/Manila" })}
+                                {rec.time ? ` at ${rec.time}` : ""}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div
+              style={{
+                padding: "1rem 1.5rem",
+                borderTop: "1px solid #f1f5f9",
+                background: "#f8fafc",
+                display: "flex",
+                justifyContent: "flex-end",
+                borderBottomLeftRadius: "16px",
+                borderBottomRightRadius: "16px",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setDetailLog(null)}
+                style={{
+                  padding: "0.5rem 1.25rem",
+                  borderRadius: "8px",
+                  border: "1px solid #cbd5e1",
+                  background: "white",
+                  color: "#334155",
+                  fontWeight: 700,
+                  fontSize: "0.875rem",
+                  cursor: "pointer",
+                }}
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

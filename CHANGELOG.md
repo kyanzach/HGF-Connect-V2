@@ -5,6 +5,18 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.50.0] — 2026-09-09
+### Added
+- **SMS Transmission Details & Attendance Analytics Modal (`/admin/sms`, `AdminSmsHubClient.tsx`, `/api/admin/sms/analytics`)**:
+  - **Double-Click & 1-Click Trigger**: Added row double-click and an `👁️ Details` action button to open an interactive analytics modal for any SMS transmission log.
+  - **Formatted Message Display**: Displays the full formatted SMS text with preserved line breaks and a 1-click **"📋 Copy Text"** button.
+  - **Member Attendance & Reminder Effectiveness Metrics**:
+    - 📱 **Lifetime SMS Received**: Total messages sent, successful deliveries, and failure counts.
+    - ⛪ **Total Check-ins**: Lifetime count of services and events attended by the member.
+    - 🎯 **Reminder-to-Attendance Conversion Rate**: Calculates percentage of past reminded events that the member actually attended.
+    - 📅 **This Event Attendance Status**: Live check-in detection showing whether the member attended the exact reminded event, check-in timestamp, or scheduled status.
+  - **Recent Attendance Timeline**: Displays the member's last 5 church check-ins with quick link to their directory profile.
+
 ## [v2.49.4] — 2026-09-09
 ### Added / Fixed
 - **SMS Hub & Activity Logs Real-Time Backfill (`/admin/sms`, `AdminSmsHubClient.tsx`, `page.tsx`)**:

@@ -49,11 +49,18 @@ export default async function AdminSmsPage() {
 
     return {
       id: log.id,
+      memberId: log.memberId,
       actionType: log.status.toLowerCase() === "sent" ? "sms_sent" : "sms_failed",
       description: log.errorMessage ? `[Error: ${log.errorMessage}] ${log.message}` : log.message,
+      rawMessage: log.message,
+      errorMessage: log.errorMessage,
+      phoneNumber: log.phoneNumber,
       performedByName: performedBy,
       targetName: target,
+      memberName: memberName,
       createdAt: log.sentAt.toISOString(),
+      eventId: log.reminder?.event ? 1 : null,
+      eventTitle: log.reminder?.event?.title ?? null,
     };
   });
 
