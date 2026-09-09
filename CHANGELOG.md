@@ -5,6 +5,16 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.51.0] — 2026-09-09
+### Added
+- **Embedded PPTX Video Extraction & Interactive Slide Player (`lib/presentationProcessor.ts`, `ResourcesClient.tsx`, `ImageLightbox.tsx`, `MultimediaDashboardClient.tsx`, `quiz/page.tsx`)**:
+  - **Automated PPTX Media Unpacking**: When PPTX presentations with embedded local video files (e.g. MP4/MOV videos inserted via PowerPoint) are uploaded, the processor inspects slide relationships (`slideN.xml.rels`) and unpacks embedded video files into `/public/uploads/presentations/videos/`.
+  - **Dual-Play Compatibility**:
+    - **Church Laptop / Sanctuary PC**: The original PPTX is preserved and downloaded with native PowerPoint video controls and audio intact.
+    - **Web & Mobile App (`/resources`, `/quiz`, `/admin/multimedia`)**: Specific slides containing video (e.g. Slide 22) render an interactive HTML5 video player (`<video controls>`) with audio and fullscreen playback.
+  - **Slide Badges & Lightbox Playback**: Displays `🎬 VIDEO` indicators on slide thumbnail strips and enables direct video playback inside the fullscreen `ImageLightbox`.
+  - **Admin & Multimedia Console**: Shows detected video counts on event forms and previews videos on the Pre-Service Operations dashboard.
+
 ## [v2.50.0] — 2026-09-09
 ### Added
 - **SMS Transmission Details & Attendance Analytics Modal (`/admin/sms`, `AdminSmsHubClient.tsx`, `/api/admin/sms/analytics`)**:

@@ -6,6 +6,8 @@ import { createPortal } from "react-dom";
 interface Props {
   src: string;
   alt?: string;
+  videoSrc?: string | null;
+  videoType?: string | null;
   onClose: () => void;
   onPrev?: () => void;
   onNext?: () => void;
@@ -16,6 +18,8 @@ interface Props {
 export default function ImageLightbox({
   src,
   alt = "Enlarged view",
+  videoSrc,
+  videoType = "video/mp4",
   onClose,
   onPrev,
   onNext,
@@ -400,27 +404,65 @@ export default function ImageLightbox({
         </button>
       )}
 
-      <img
-        ref={imgRef}
-        src={src}
-        alt={alt}
-        draggable={false}
-        style={{
-          maxWidth: "96%",
-          maxHeight: "86%",
-          objectFit: "contain",
-          userSelect: "none",
-          WebkitUserSelect: "none",
-          cursor: scale > 1 ? "grab" : "zoom-in",
-          transform: `translate(${panX}px, ${panY}px) scale(${scale})`,
-          transition: pinchDist.current !== null || isDragging.current ? "none" : "transform 0.15s ease-out",
-          display: "block",
-          margin: "0 auto",
-        }}
-        onClick={(e) => {
-          e.stopPropagation(); // prevent closing when clicking the image
-        }}
-      />
+      {videoSrc ? (
+        <div
+          style={{
+            maxWidth: "96%",
+            maxHeight: "86%",
+            width: "100%",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 20002,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <video
+            src={videoSrc}
+            poster={src}
+            controls
+            playsInline
+            autoPlay
+            style={{
+              maxWidth: "100%",
+              maxHeight: "80vh",
+              borderRadius: "12px",
+              boxShadow: "0 20px 40px rgba(0,0,0,0.8)",
+              background: "#000",
+              outline: "none",
+            }}
+          >
+            <source src={videoSrc} type={videoType || "video/mp4"} />
+            Your browser does not support playing this embedded video.
+          </video>
+          <div style={{ marginTop: "12px", color: "rgba(255,255,255,0.75)", fontSize: "0.8rem", fontWeight: 600 }}>
+            🎬 Embedded Slide Video Playback
+          </div>
+        </div>
+      ) : (
+        <img
+          ref={imgRef}
+          src={src}
+          alt={alt}
+          draggable={false}
+          style={{
+            maxWidth: "96%",
+            maxHeight: "86%",
+            objectFit: "contain",
+            userSelect: "none",
+            WebkitUserSelect: "none",
+            cursor: scale > 1 ? "grab" : "zoom-in",
+            transform: `translate(${panX}px, ${panY}px) scale(${scale})`,
+            transition: pinchDist.current !== null || isDragging.current ? "none" : "transform 0.15s ease-out",
+            display: "block",
+            margin: "0 auto",
+          }}
+          onClick={(e) => {
+            e.stopPropagation(); // prevent closing when clicking the image
+          }}
+        />
+      )}
 
       {/* Bottom Zoom Hint / Reset */}
       {scale > 1 && (

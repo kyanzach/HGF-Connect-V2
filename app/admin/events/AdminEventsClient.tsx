@@ -615,7 +615,7 @@ export default function AdminEventsClient({
                           {form.presentationOriginalName}
                         </p>
                         <p style={{ fontSize: "0.75rem", color: "#15803d", margin: 0 }}>
-                          ✅ Optimized & Compressed ({form.presentationSlides.length} slides)
+                          ✅ Optimized & Compressed ({form.presentationSlides.length} slides{form.presentationSlides.filter((s: any) => typeof s === "object" && s?.video).length > 0 ? ` • 🎬 ${form.presentationSlides.filter((s: any) => typeof s === "object" && s?.video).length} video` : ""})
                         </p>
                       </div>
                     </div>

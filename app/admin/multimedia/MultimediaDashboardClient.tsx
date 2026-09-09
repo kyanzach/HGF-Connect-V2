@@ -438,11 +438,27 @@ export default function MultimediaDashboardClient({
     }
   };
 
-  const slides: string[] = event?.presentationSlides
+  const rawSlides = event?.presentationSlides
     ? typeof event.presentationSlides === "string"
       ? JSON.parse(event.presentationSlides)
       : event.presentationSlides
     : [];
+
+  const slides: { image: string; video?: string | null; page: number }[] = (
+    Array.isArray(rawSlides) ? rawSlides : []
+  ).map((s: any, idx: number) => {
+    if (typeof s === "string") {
+      const img = s.startsWith("/") ? s : `/uploads/presentations/slides/${s}`;
+      return { image: img, video: null, page: idx + 1 };
+    }
+    const rawImg = s.image || s.url || "";
+    const img = rawImg.startsWith("/") ? rawImg : `/uploads/presentations/slides/${rawImg}`;
+    return {
+      image: img,
+      video: s.video || null,
+      page: s.page ?? (idx + 1),
+    };
+  });
 
   const inp: React.CSSProperties = {
     width: "100%",
@@ -922,17 +938,37 @@ export default function MultimediaDashboardClient({
                       justifyContent: "center",
                     }}
                   >
-                    <img
-                      src={slides[activeSlide]}
-                      alt={`Slide ${activeSlide + 1}`}
-                      style={{
-                        maxWidth: "100%",
-                        maxHeight: "100%",
-                        objectFit: "contain",
-                        display: "block",
-                        userSelect: "none",
-                      }}
-                    />
+                    {slides[activeSlide]?.video ? (
+                      <video
+                        key={slides[activeSlide].video}
+                        src={slides[activeSlide].video!}
+                        poster={slides[activeSlide].image}
+                        controls
+                        playsInline
+                        style={{
+                          maxWidth: "100%",
+                          maxHeight: "100%",
+                          objectFit: "contain",
+                          display: "block",
+                          outline: "none",
+                        }}
+                      >
+                        <source src={slides[activeSlide].video!} type="video/mp4" />
+                        Your browser does not support playing this embedded video.
+                      </video>
+                    ) : (
+                      <img
+                        src={slides[activeSlide]?.image}
+                        alt={`Slide ${activeSlide + 1}`}
+                        style={{
+                          maxWidth: "100%",
+                          maxHeight: "100%",
+                          objectFit: "contain",
+                          display: "block",
+                          userSelect: "none",
+                        }}
+                      />
+                    )}
 
                     {/* Floating Previous Arrow Button */}
                     {activeSlide > 0 && (
@@ -945,26 +981,26 @@ export default function MultimediaDashboardClient({
                         }}
                         style={{
                           position: "absolute",
-                          left: "0.5rem",
+                          left: "0.75rem",
                           top: "50%",
                           transform: "translateY(-50%)",
-                          background: "rgba(15, 23, 42, 0.7)",
+                          background: "rgba(15, 23, 42, 0.75)",
                           color: "white",
-                          border: "1px solid rgba(255,255,255,0.2)",
-                          borderRadius: "50%",
+                          border: "1px solid rgba(255, 255, 255, 0.2)",
                           width: "36px",
                           height: "36px",
+                          borderRadius: "50%",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          fontSize: "1.25rem",
                           cursor: "pointer",
-                          zIndex: 3,
                           backdropFilter: "blur(4px)",
+                          zIndex: 10,
+                          fontSize: "0.875rem",
                           boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
                         }}
                       >
-                        ‹
+                        ◀
                       </button>
                     )}
 
@@ -979,38 +1015,39 @@ export default function MultimediaDashboardClient({
                         }}
                         style={{
                           position: "absolute",
-                          right: "0.5rem",
+                          right: "0.75rem",
                           top: "50%",
                           transform: "translateY(-50%)",
-                          background: "rgba(15, 23, 42, 0.7)",
+                          background: "rgba(15, 23, 42, 0.75)",
                           color: "white",
-                          border: "1px solid rgba(255,255,255,0.2)",
-                          borderRadius: "50%",
+                          border: "1px solid rgba(255, 255, 255, 0.2)",
                           width: "36px",
                           height: "36px",
+                          borderRadius: "50%",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          fontSize: "1.25rem",
                           cursor: "pointer",
-                          zIndex: 3,
                           backdropFilter: "blur(4px)",
+                          zIndex: 10,
+                          fontSize: "0.875rem",
                           boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
                         }}
                       >
-                        ›
+                        ▶
                       </button>
                     )}
 
+                    {/* Slide Counter Overlay Badge */}
                     <div
                       style={{
                         position: "absolute",
                         bottom: "0.75rem",
                         right: "0.75rem",
-                        background: "rgba(0,0,0,0.65)",
+                        background: "rgba(15, 23, 42, 0.8)",
                         color: "white",
-                        padding: "0.25rem 0.5rem",
-                        borderRadius: "4px",
+                        padding: "0.25rem 0.6rem",
+                        borderRadius: "20px",
                         fontSize: "0.75rem",
                         fontWeight: 600,
                         backdropFilter: "blur(4px)",
@@ -1031,7 +1068,7 @@ export default function MultimediaDashboardClient({
                   >
                     {slides.map((slide, idx) => (
                       <div
-                        key={slide}
+                        key={slide.image || idx}
                         onClick={() => setActiveSlide(idx)}
                         style={{
                           width: "80px",
@@ -1043,9 +1080,27 @@ export default function MultimediaDashboardClient({
                           flexShrink: 0,
                           opacity: activeSlide === idx ? 1 : 0.75,
                           transition: "all 0.15s ease",
+                          position: "relative",
                         }}
                       >
-                        <img src={slide} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        <img src={slide.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        {slide.video && (
+                          <span
+                            style={{
+                              position: "absolute",
+                              bottom: "2px",
+                              left: "2px",
+                              background: "rgba(2, 132, 199, 0.9)",
+                              color: "white",
+                              fontSize: "0.55rem",
+                              padding: "1px 3px",
+                              borderRadius: "3px",
+                              fontWeight: 800,
+                            }}
+                          >
+                            🎬
+                          </span>
+                        )}
                       </div>
                     ))}
                   </div>

@@ -11,10 +11,17 @@ import { callOpenAI } from "./ai";
 
 const execAsync = promisify(exec);
 
+export interface SlideItem {
+  image: string;
+  video?: string | null;
+  videoType?: string | null;
+  page: number;
+}
+
 export interface ProcessedPresentation {
   presentationFile: string;
   presentationOriginalName: string;
-  presentationSlides: string[];
+  presentationSlides: SlideItem[];
   commentary?: string | null;
 }
 
@@ -27,22 +34,79 @@ export async function processPresentation(
   const tempDir = path.join(process.cwd(), "tmp", `pres-${uuid}`);
   const uploadDir = path.join(process.cwd(), "public", "uploads", "presentations");
   const slidesDir = path.join(uploadDir, "slides");
+  const videosDir = path.join(uploadDir, "videos");
 
   // Create necessary directories
   await fs.mkdir(tempDir, { recursive: true });
   await fs.mkdir(uploadDir, { recursive: true });
   await fs.mkdir(slidesDir, { recursive: true });
+  await fs.mkdir(videosDir, { recursive: true });
 
   const ext = path.extname(filePath).toLowerCase();
   const finalFilename = `${uuid}.pptx`;
   const finalDestPath = path.join(uploadDir, finalFilename);
 
   let pdfPath = filePath;
+  const slideMediaMap = new Map<number, { videoUrl: string; videoType: string }>();
 
   try {
-    // 1. If it's a PPTX file, convert it to PDF first using headless LibreOffice
+    // 1. If it's a PPTX file, inspect embedded media and convert to PDF
     if (ext === ".pptx") {
-      onProgress?.(15, "Converting presentation to PDF...");
+      onProgress?.(10, "Inspecting presentation for embedded videos & media...");
+      const unpackedDir = path.join(tempDir, "unpacked");
+      await fs.mkdir(unpackedDir, { recursive: true });
+
+      try {
+        await execAsync(`unzip -q -o "${filePath}" -d "${unpackedDir}"`);
+
+        // Inspect slide relationship files to map embedded videos to exact slide numbers
+        const relsDir = path.join(unpackedDir, "ppt", "slides", "_rels");
+        const relsFiles = await fs.readdir(relsDir).catch(() => [] as string[]);
+
+        for (const relFile of relsFiles) {
+          const match = relFile.match(/^slide(\d+)\.xml\.rels$/);
+          if (!match) continue;
+          const slideNum = parseInt(match[1], 10);
+
+          const relContent = await fs.readFile(path.join(relsDir, relFile), "utf8");
+          const relationshipRegex = /<Relationship\s+[^>]*Target="([^"]+)"[^>]*>/gi;
+          let m: RegExpExecArray | null;
+
+          while ((m = relationshipRegex.exec(relContent)) !== null) {
+            const target = m[1];
+            const targetExt = path.extname(target).toLowerCase();
+            const isVideoFile = [".mp4", ".mov", ".webm", ".m4v", ".avi", ".mkv"].includes(targetExt);
+
+            if (isVideoFile && target.includes("media/")) {
+              const mediaFilename = path.basename(target);
+              const sourceMediaPath = path.join(unpackedDir, "ppt", "media", mediaFilename);
+
+              try {
+                const stat = await fs.stat(sourceMediaPath);
+                if (stat.size > 0) {
+                  const videoDestFilename = `${uuid}-slide-${String(slideNum).padStart(3, "0")}${targetExt}`;
+                  const videoDestPath = path.join(videosDir, videoDestFilename);
+                  await fs.copyFile(sourceMediaPath, videoDestPath);
+
+                  const webVideoPath = `/uploads/presentations/videos/${videoDestFilename}`;
+                  slideMediaMap.set(slideNum, {
+                    videoUrl: webVideoPath,
+                    videoType: targetExt === ".webm" ? "video/webm" : "video/mp4",
+                  });
+                  console.log(`[presentationProcessor] Extracted embedded video for Slide ${slideNum}: ${webVideoPath}`);
+                  break;
+                }
+              } catch (statErr) {
+                console.warn(`[presentationProcessor] Could not read media file ${sourceMediaPath}:`, statErr);
+              }
+            }
+          }
+        }
+      } catch (unzipErr) {
+        console.error("Failed to unzip PPTX for media inspection:", unzipErr);
+      }
+
+      onProgress?.(20, "Converting presentation to PDF...");
       await execAsync(
         `soffice --headless --convert-to pdf --outdir "${tempDir}" "${filePath}"`
       );
@@ -64,7 +128,7 @@ export async function processPresentation(
       if (sizeMB > 20) {
         console.warn(`[presentationProcessor] PDF file size is ${sizeMB.toFixed(2)}MB (> 20MB). Skipping native text extraction to prevent OOM.`);
       } else {
-        onProgress?.(25, "Extracting native sermon text...");
+        onProgress?.(30, "Extracting native sermon text...");
         const pdfBuffer = await fs.readFile(pdfPath);
         const pdfData = await pdfParse(pdfBuffer);
         extractedText = pdfData.text || "";
@@ -74,7 +138,7 @@ export async function processPresentation(
     }
 
     // 2. Convert PDF pages to JPEGs using pdftoppm
-    onProgress?.(35, "Extracting pages as slide images...");
+    onProgress?.(40, "Extracting pages as slide images...");
     const pagePrefix = path.join(tempDir, "page");
     await execAsync(`pdftoppm -jpeg -r 150 "${pdfPath}" "${pagePrefix}"`);
 
@@ -102,7 +166,7 @@ export async function processPresentation(
     // 3.5 Perform local OCR if native text is insufficient (flattened slide deck)
     const textLength = extractedText.replace(/\s+/g, "").length;
     if (textLength < 50) {
-      onProgress?.(45, "Native text layer insufficient. Performing local OCR on slide images...");
+      onProgress?.(50, "Native text layer insufficient. Performing local OCR on slide images...");
       let ocrText = "";
 
       let worker: any = null;
@@ -122,7 +186,7 @@ export async function processPresentation(
           const file = jpegFiles[i];
           try {
             onProgress?.(
-              45 + Math.floor((i / maxOcrPages) * 15),
+              50 + Math.floor((i / maxOcrPages) * 15),
               `Running local OCR on slide ${i + 1} of ${maxOcrPages}...`
             );
             const { data: { text } } = await worker.recognize(file.fullPath);
@@ -146,7 +210,7 @@ export async function processPresentation(
     let commentary: string | null = null;
     if (extractedText.trim().length > 10) {
       try {
-        onProgress?.(65, "Generating AI sermon commentary...");
+        onProgress?.(70, "Generating AI sermon commentary...");
         
         const systemPrompt = `You are HGF Connect AI, a devoted pastoral assistant for House of Grace Fellowship.
 Analyze the following extracted text from the sermon slides.
@@ -181,7 +245,7 @@ Keep the tone encouraging, warm, and faith-based (in standard English, but frien
       }
     }
 
-    const slidePaths: string[] = [];
+    const slideItems: SlideItem[] = [];
     const pptx = new pptxgen();
     pptx.layout = "LAYOUT_16x9";
 
@@ -189,7 +253,7 @@ Keep the tone encouraging, warm, and faith-based (in standard English, but frien
     let idx = 0;
     for (const file of jpegFiles) {
       idx++;
-      const percent = Math.floor(45 + (idx / jpegFiles.length) * 45);
+      const percent = Math.floor(70 + (idx / jpegFiles.length) * 25);
       onProgress?.(percent, `Compressing & optimizing slide ${idx} of ${jpegFiles.length}...`);
 
       const slideFilename = `${uuid}-slide-${String(file.pageNum).padStart(3, "0")}.jpg`;
@@ -216,14 +280,22 @@ Keep the tone encouraging, warm, and faith-based (in standard English, but frien
         h: 5.625,
       });
 
-      slidePaths.push(`/uploads/presentations/slides/${slideFilename}`);
+      const webImagePath = `/uploads/presentations/slides/${slideFilename}`;
+      const media = slideMediaMap.get(file.pageNum);
+
+      slideItems.push({
+        image: webImagePath,
+        video: media ? media.videoUrl : null,
+        videoType: media ? media.videoType : null,
+        page: file.pageNum,
+      });
     }
 
     // 5. Generate and save final PPTX file (or preserve native PPTX upload)
     if (ext === ".pptx") {
       await fs.copyFile(filePath, finalDestPath);
     } else {
-      onProgress?.(95, "Generating final PPTX presentation...");
+      onProgress?.(96, "Generating final PPTX presentation...");
       await pptx.writeFile({ fileName: finalDestPath });
     }
 
@@ -235,7 +307,7 @@ Keep the tone encouraging, warm, and faith-based (in standard English, but frien
     return {
       presentationFile: `/uploads/presentations/${finalFilename}`,
       presentationOriginalName: finalOriginalName,
-      presentationSlides: slidePaths,
+      presentationSlides: slideItems,
       commentary,
     };
   } finally {
@@ -248,3 +320,4 @@ Keep the tone encouraging, warm, and faith-based (in standard English, but frien
     }
   }
 }
+

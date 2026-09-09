@@ -380,11 +380,18 @@ export default function MemberQuizPage() {
   const showClaimBox = progress?.isWeekComplete && progress.rewardTier === "PERFECT" && progress.rewardClaim?.claimStatus === "unclaimed";
 
   const slides = quiz?.presentationSlides;
-  const slidesArray = slides
-    ? (Array.isArray(slides)
-        ? slides
-        : JSON.parse(JSON.stringify(slides)))
-    : [];
+  const slidesArray: { image: string; video?: string | null; page: number }[] = (
+    slides ? (Array.isArray(slides) ? slides : JSON.parse(JSON.stringify(slides))) : []
+  ).map((s: any, idx: number) => {
+    if (typeof s === "string") {
+      const img = s.startsWith("/") ? s : `/uploads/presentations/slides/${s}`;
+      return { image: img, video: null, page: idx + 1 };
+    }
+    const rawImg = s.image || s.url || "";
+    const img = rawImg.startsWith("/") ? rawImg : `/uploads/presentations/slides/${rawImg}`;
+    return { image: img, video: s.video || null, page: s.page ?? (idx + 1) };
+  });
+  const currentSlide = slidesArray[activeSlide];
 
   const handlePrevSlide = () => {
     if (slidesArray.length === 0) return;
@@ -530,20 +537,36 @@ export default function MemberQuizPage() {
                     
                     {/* Aspect Ratio 16:9 Frame */}
                     <div style={{ position: "relative", width: "100%", paddingBottom: "56.25%", background: "#000", borderRadius: "12px", overflow: "hidden" }}>
-                      <img
-                        src={slidesArray[activeSlide].startsWith("/") ? slidesArray[activeSlide] : `/uploads/presentations/slides/${slidesArray[activeSlide]}`}
-                        alt={`Sermon slide ${activeSlide + 1}`}
-                        onClick={() => setLightboxSrc(slidesArray[activeSlide].startsWith("/") ? slidesArray[activeSlide] : `/uploads/presentations/slides/${slidesArray[activeSlide]}`)}
-                        style={{
-                          position: "absolute",
-                          top: 0,
-                          left: 0,
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "contain",
-                          cursor: "zoom-in",
-                        }}
-                      />
+                      {currentSlide?.video ? (
+                        <div style={{ position: "absolute", inset: 0, width: "100%", height: "100%", background: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <video
+                            key={currentSlide.video}
+                            src={currentSlide.video}
+                            poster={currentSlide.image}
+                            controls
+                            playsInline
+                            style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                          >
+                            <source src={currentSlide.video} type="video/mp4" />
+                            Your browser does not support playing this embedded video.
+                          </video>
+                        </div>
+                      ) : (
+                        <img
+                          src={currentSlide?.image}
+                          alt={`Sermon slide ${activeSlide + 1}`}
+                          onClick={() => setLightboxSrc(currentSlide?.image || "")}
+                          style={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "contain",
+                            cursor: "zoom-in",
+                          }}
+                        />
+                      )}
 
                       {/* Slide controls overlay */}
                       {slidesArray.length > 1 && (
@@ -598,7 +621,7 @@ export default function MemberQuizPage() {
                       )}
 
                       {/* Page Indicator Overlay */}
-                      <div style={{ position: "absolute", top: "8px", right: "8px", background: "rgba(0,0,0,0.6)", color: "#fff", padding: "4px 8px", borderRadius: "6px", fontSize: "0.72rem", fontWeight: 700 }}>
+                      <div style={{ position: "absolute", top: "8px", right: "8px", background: "rgba(0,0,0,0.6)", color: "#fff", padding: "4px 8px", borderRadius: "6px", fontSize: "0.72rem", fontWeight: 700, zIndex: 11 }}>
                         Slide {activeSlide + 1} of {slidesArray.length}
                       </div>
                     </div>
@@ -606,7 +629,7 @@ export default function MemberQuizPage() {
                     {/* Thumbnail Strip */}
                     {slidesArray.length > 1 && (
                       <div style={{ display: "flex", gap: "8px", overflowX: "auto", marginTop: "10px", paddingBottom: "6px", scrollBehavior: "smooth" }}>
-                        {slidesArray.map((slideName: string, i: number) => (
+                        {slidesArray.map((slideObj, i: number) => (
                           <button
                             key={i}
                             onClick={() => setActiveSlide(i)}
@@ -620,13 +643,31 @@ export default function MemberQuizPage() {
                               padding: 0,
                               background: "#000",
                               cursor: "pointer",
+                              position: "relative",
                             }}
                           >
                             <img
-                              src={slideName.startsWith("/") ? slideName : `/uploads/presentations/slides/${slideName}`}
+                              src={slideObj.image}
                               alt={`Thumb ${i + 1}`}
                               style={{ width: "100%", height: "100%", objectFit: "cover" }}
                             />
+                            {slideObj.video && (
+                              <span
+                                style={{
+                                  position: "absolute",
+                                  bottom: "2px",
+                                  left: "2px",
+                                  background: "rgba(2, 132, 199, 0.9)",
+                                  color: "white",
+                                  fontSize: "0.55rem",
+                                  padding: "1px 3px",
+                                  borderRadius: "3px",
+                                  fontWeight: 800,
+                                }}
+                              >
+                                🎬
+                              </span>
+                            )}
                           </button>
                         ))}
                       </div>
@@ -997,7 +1038,9 @@ export default function MemberQuizPage() {
 
       {lightboxSrc && (
         <ImageLightbox
-          src={slidesArray[activeSlide].startsWith("/") ? slidesArray[activeSlide] : `/uploads/presentations/slides/${slidesArray[activeSlide]}`}
+          src={currentSlide?.image || lightboxSrc}
+          videoSrc={currentSlide?.video || null}
+          videoType="video/mp4"
           onClose={() => setLightboxSrc(null)}
           onPrev={handlePrevSlide}
           onNext={handleNextSlide}

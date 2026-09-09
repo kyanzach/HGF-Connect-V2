@@ -3,6 +3,13 @@
 import React, { useState } from "react";
 import ImageLightbox from "@/components/ImageLightbox";
 
+interface SlideItem {
+  image: string;
+  video?: string | null;
+  videoType?: string | null;
+  page: number;
+}
+
 interface EventResource {
   id: number;
   title: string;
@@ -11,7 +18,7 @@ interface EventResource {
   coverPhoto: string | null;
   presentationFile: string | null;
   presentationOriginalName: string | null;
-  presentationSlides: string[] | null;
+  presentationSlides: (string | SlideItem)[] | null;
   speaker: string | null;
   commentary: string | null;
 }
@@ -21,6 +28,25 @@ interface Props {
 }
 
 const PRIMARY = "#4EB1CB";
+
+function normalizeSlides(rawSlides: any): SlideItem[] {
+  if (!rawSlides) return [];
+  const arr = Array.isArray(rawSlides) ? rawSlides : [];
+  return arr.map((s: any, idx: number) => {
+    if (typeof s === "string") {
+      const img = s.startsWith("/") ? s : `/uploads/presentations/slides/${s}`;
+      return { image: img, video: null, page: idx + 1 };
+    }
+    const rawImg = s.image || s.url || "";
+    const img = rawImg.startsWith("/") ? rawImg : `/uploads/presentations/slides/${rawImg}`;
+    return {
+      image: img,
+      video: s.video || null,
+      videoType: s.videoType || "video/mp4",
+      page: s.page ?? (idx + 1),
+    };
+  });
+}
 
 export default function ResourcesClient({ events }: Props) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -163,13 +189,9 @@ export default function ResourcesClient({ events }: Props) {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
           {filteredEvents.map((ev) => {
-            const slides = ev.presentationSlides;
-            const slidesArray = slides
-              ? (Array.isArray(slides)
-                  ? slides
-                  : JSON.parse(JSON.stringify(slides)))
-              : [];
+            const slidesArray = normalizeSlides(ev.presentationSlides);
             const activeSlide = getActiveSlideIndex(ev.id);
+            const currentSlide = slidesArray[activeSlide];
 
             return (
               <article
@@ -233,28 +255,51 @@ export default function ResourcesClient({ events }: Props) {
                 )}
 
                 {/* Slide Carousel (Below Text) */}
-                {slidesArray.length > 0 && (
+                {slidesArray.length > 0 && currentSlide && (
                   <div>
-                    <span style={{ fontSize: "0.72rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase", display: "block", marginBottom: "8px", letterSpacing: "0.05em" }}>
-                      📽️ Sermon Slides ({slidesArray.length} slides)
-                    </span>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                      <span style={{ fontSize: "0.72rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                        📽️ Sermon Slides ({slidesArray.length} slides)
+                      </span>
+                      {currentSlide.video && (
+                        <span style={{ fontSize: "0.72rem", fontWeight: 800, color: "#0284c7", background: "#e0f2fe", padding: "2px 8px", borderRadius: "12px" }}>
+                          🎬 Embedded Video Slide
+                        </span>
+                      )}
+                    </div>
                     
                     {/* Widescreen 16:9 Carousel */}
                     <div style={{ position: "relative", width: "100%", paddingBottom: "56.25%", background: "#000", borderRadius: "12px", overflow: "hidden" }}>
-                      <img
-                        src={slidesArray[activeSlide].startsWith("/") ? slidesArray[activeSlide] : `/uploads/presentations/slides/${slidesArray[activeSlide]}`}
-                        alt={`${ev.title} Slide ${activeSlide + 1}`}
-                        onClick={() => setLightboxEventId(ev.id)}
-                        style={{
-                          position: "absolute",
-                          top: 0,
-                          left: 0,
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "contain",
-                          cursor: "zoom-in",
-                        }}
-                      />
+                      {currentSlide.video ? (
+                        <div style={{ position: "absolute", inset: 0, width: "100%", height: "100%", background: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <video
+                            key={`${ev.id}-${activeSlide}-${currentSlide.video}`}
+                            src={currentSlide.video}
+                            poster={currentSlide.image}
+                            controls
+                            playsInline
+                            style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                          >
+                            <source src={currentSlide.video} type={currentSlide.videoType || "video/mp4"} />
+                            Your browser does not support playing this embedded video.
+                          </video>
+                        </div>
+                      ) : (
+                        <img
+                          src={currentSlide.image}
+                          alt={`${ev.title} Slide ${activeSlide + 1}`}
+                          onClick={() => setLightboxEventId(ev.id)}
+                          style={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "contain",
+                            cursor: "zoom-in",
+                          }}
+                        />
+                      )}
 
                       {/* Overlays arrows */}
                       {slidesArray.length > 1 && (
@@ -311,15 +356,38 @@ export default function ResourcesClient({ events }: Props) {
                       )}
 
                       {/* Page Counter overlay */}
-                      <div style={{ position: "absolute", top: "8px", right: "8px", background: "rgba(0,0,0,0.6)", color: "#fff", padding: "4px 8px", borderRadius: "6px", fontSize: "0.72rem", fontWeight: 700 }}>
+                      <div style={{ position: "absolute", top: "8px", right: "8px", background: "rgba(0,0,0,0.6)", color: "#fff", padding: "4px 8px", borderRadius: "6px", fontSize: "0.72rem", fontWeight: 700, zIndex: 11 }}>
                         Slide {activeSlide + 1} of {slidesArray.length}
                       </div>
+
+                      {/* Lightbox full screen button */}
+                      <button
+                        type="button"
+                        onClick={() => setLightboxEventId(ev.id)}
+                        title="Enlarge slide"
+                        style={{
+                          position: "absolute",
+                          bottom: "8px",
+                          right: "8px",
+                          background: "rgba(0,0,0,0.6)",
+                          color: "#fff",
+                          border: "none",
+                          padding: "4px 8px",
+                          borderRadius: "6px",
+                          fontSize: "0.72rem",
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          zIndex: 11,
+                        }}
+                      >
+                        🔍 Fullscreen
+                      </button>
                     </div>
 
                     {/* Thumbnail strip */}
                     {slidesArray.length > 1 && (
                       <div style={{ display: "flex", gap: "8px", overflowX: "auto", marginTop: "10px", paddingBottom: "6px", scrollBehavior: "smooth" }}>
-                        {slidesArray.map((slideName: string, i: number) => (
+                        {slidesArray.map((slideObj: SlideItem, i: number) => (
                           <button
                             key={i}
                             id={`resource-${ev.id}-thumb-${i}`}
@@ -334,13 +402,31 @@ export default function ResourcesClient({ events }: Props) {
                               padding: 0,
                               background: "#000",
                               cursor: "pointer",
+                              position: "relative",
                             }}
                           >
                             <img
-                              src={slideName.startsWith("/") ? slideName : `/uploads/presentations/slides/${slideName}`}
+                              src={slideObj.image}
                               alt={`Thumb ${i + 1}`}
                               style={{ width: "100%", height: "100%", objectFit: "cover" }}
                             />
+                            {slideObj.video && (
+                              <span
+                                style={{
+                                  position: "absolute",
+                                  bottom: "2px",
+                                  left: "2px",
+                                  background: "rgba(2, 132, 199, 0.9)",
+                                  color: "white",
+                                  fontSize: "0.55rem",
+                                  padding: "1px 3px",
+                                  borderRadius: "3px",
+                                  fontWeight: 800,
+                                }}
+                              >
+                                🎬 VIDEO
+                              </span>
+                            )}
                           </button>
                         ))}
                       </div>
@@ -385,37 +471,25 @@ export default function ResourcesClient({ events }: Props) {
       )}
 
       {/* Lightbox zoom wrapper */}
-      {lightboxEventId !== null && (
-        <ImageLightbox
-          src={(() => {
-            const activeEvent = events.find((e) => e.id === lightboxEventId);
-            const slides = activeEvent?.presentationSlides;
-            const slidesArray = slides ? (Array.isArray(slides) ? slides : JSON.parse(JSON.stringify(slides))) : [];
-            const activeSlide = getActiveSlideIndex(lightboxEventId);
-            const slideName = slidesArray[activeSlide] || "";
-            return slideName.startsWith("/") ? slideName : `/uploads/presentations/slides/${slideName}`;
-          })()}
-          onClose={() => setLightboxEventId(null)}
-          onPrev={() => {
-            const activeEvent = events.find((e) => e.id === lightboxEventId);
-            const slides = activeEvent?.presentationSlides;
-            const slidesArray = slides ? (Array.isArray(slides) ? slides : JSON.parse(JSON.stringify(slides))) : [];
-            handlePrevSlide(lightboxEventId, slidesArray.length);
-          }}
-          onNext={() => {
-            const activeEvent = events.find((e) => e.id === lightboxEventId);
-            const slides = activeEvent?.presentationSlides;
-            const slidesArray = slides ? (Array.isArray(slides) ? slides : JSON.parse(JSON.stringify(slides))) : [];
-            handleNextSlide(lightboxEventId, slidesArray.length);
-          }}
-          currentIndex={getActiveSlideIndex(lightboxEventId)}
-          totalSlides={(() => {
-            const activeEvent = events.find((e) => e.id === lightboxEventId);
-            const slides = activeEvent?.presentationSlides;
-            return slides ? (Array.isArray(slides) ? slides : JSON.parse(JSON.stringify(slides))).length : 0;
-          })()}
-        />
-      )}
+      {lightboxEventId !== null && (() => {
+        const activeEvent = events.find((e) => e.id === lightboxEventId);
+        const slidesArray = normalizeSlides(activeEvent?.presentationSlides);
+        const activeIdx = getActiveSlideIndex(lightboxEventId);
+        const activeSlideObj = slidesArray[activeIdx];
+
+        return (
+          <ImageLightbox
+            src={activeSlideObj?.image || ""}
+            videoSrc={activeSlideObj?.video || null}
+            videoType={activeSlideObj?.videoType || "video/mp4"}
+            onClose={() => setLightboxEventId(null)}
+            onPrev={() => handlePrevSlide(lightboxEventId, slidesArray.length)}
+            onNext={() => handleNextSlide(lightboxEventId, slidesArray.length)}
+            currentIndex={activeIdx}
+            totalSlides={slidesArray.length}
+          />
+        );
+      })()}
     </div>
   );
 }
