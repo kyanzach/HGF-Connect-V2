@@ -5,6 +5,12 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.49.2] — 2026-09-09
+### Fixed
+- **The Word Tool Smart Glasses Export Fixes (`public/thewordtool.html`)**:
+  - **Stage & Visual Cues Option Wired Up**: Fixed a bug where unchecking "Strip Stage & Visual Cues" did not preserve cues in the export preview/download because `stripCues: chkCues.checked` was omitted from options. Now keeps visual, action, and stage cues cleanly formatted as `[Visual: ...]` or `[Cue: ...]` when unchecked.
+  - **HTML Entity Decoding (`&AMP;` / `&amp;` → `&`)**: Fixed entity encoding issues where uppercase section headings converted `&amp;` to `&AMP;` and remained un-decoded due to case-sensitive replace. Implemented case-insensitive entity decoding across all headings, slide titles, cues, and content.
+
 ## [v2.49.1] — 2026-09-08
 ### Added / Enhanced
 - **Advanced Sorting & Duplicate Grouping in Review History (`/admin/review`, `AdminReviewClient.tsx`)**:
