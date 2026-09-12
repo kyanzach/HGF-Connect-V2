@@ -1899,11 +1899,23 @@ Holy forever`
     }
   }
 
-  function saveSongsLocal() {
+  function saveSongsLocal(syncServer = true) {
     localStorage.setItem('hgf_worship_songs', JSON.stringify(songs));
+    if (syncServer) {
+      try {
+        const curSong = songs.find(s => s.id === currentSongId);
+        if (curSong) {
+          fetch('/api/worship', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(curSong)
+          }).catch(() => {});
+        }
+      } catch {}
+    }
   }
 
-  function saveSetlistsLocal() {
+  function saveSetlistsLocal(syncServer = true) {
     localStorage.setItem('hgf_worship_setlists', JSON.stringify(setlists));
     if (currentSetlistId) {
       localStorage.setItem('hgf_worship_active_setlist', currentSetlistId);
@@ -1911,16 +1923,93 @@ Holy forever`
       localStorage.removeItem('hgf_worship_active_setlist');
     }
     // Also sync to server in background
+    if (syncServer) {
+      try {
+        const curSetlist = setlists.find(s => s.id === currentSetlistId);
+        if (curSetlist) {
+          fetch('/api/worship/setlists', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(curSetlist)
+          }).catch(() => {});
+        }
+      } catch {}
+    }
+  }
+
+  async function syncFromServer() {
     try {
-      const curSetlist = setlists.find(s => s.id === currentSetlistId);
-      if (curSetlist) {
-        fetch('/api/worship/setlists', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(curSetlist)
-        }).catch(() => {});
+      const [resSetlists, resSongs] = await Promise.all([
+        fetch('/api/worship/setlists', { cache: 'no-store' }),
+        fetch('/api/worship', { cache: 'no-store' })
+      ]);
+
+      if (resSongs.ok) {
+        const serverSongs = await resSongs.json();
+        if (Array.isArray(serverSongs) && serverSongs.length > 0) {
+          const map = new Map();
+          songs.forEach(s => { if (s && s.id) map.set(s.id, s); });
+          serverSongs.forEach(ss => {
+            if (!ss || !ss.id) return;
+            const local = map.get(ss.id);
+            if (!local || (ss.updatedAt && ss.updatedAt >= (local.updatedAt || 0))) {
+              map.set(ss.id, ss);
+            }
+          });
+          songs = Array.from(map.values());
+          saveSongsLocal(false);
+        }
       }
-    } catch {}
+
+      if (resSetlists.ok) {
+        const serverSetlists = await resSetlists.json();
+        if (Array.isArray(serverSetlists) && serverSetlists.length > 0) {
+          const valid = serverSetlists.filter(sl => sl && sl.id && sl.id !== 'sunday-worship-lineup');
+          if (valid.length > 0) {
+            const slMap = new Map();
+            setlists.forEach(sl => { if (sl && sl.id) slMap.set(sl.id, sl); });
+            valid.forEach(v => {
+              if (!v || !v.id) return;
+              const local = slMap.get(v.id);
+              if (!local || (v.updatedAt && v.updatedAt >= (local.updatedAt || 0))) {
+                slMap.set(v.id, v);
+              }
+            });
+            setlists = Array.from(slMap.values());
+            setlists.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+            saveSetlistsLocal(false);
+          }
+        }
+      }
+
+      // If active setlist was not set or empty, select the latest server setlist
+      if (!currentSetlistId || !setlists.some(sl => sl.id === currentSetlistId)) {
+        if (setlists.length > 0) {
+          currentSetlistId = setlists[0].id;
+        }
+      }
+
+      // If active song is not set or not in current setlist, select first song of active setlist
+      const activeSl = setlists.find(sl => sl.id === currentSetlistId);
+      if (activeSl && Array.isArray(activeSl.songs) && activeSl.songs.length > 0) {
+        if (!currentSongId || !activeSl.songs.includes(currentSongId)) {
+          currentSongId = activeSl.songs[0];
+        }
+      } else if (!currentSongId && songs.length > 0) {
+        currentSongId = songs[0].id;
+      }
+
+      renderSetlistDropdown();
+      renderSongDropdown();
+      renderSidebar();
+      updateSetlistToggleBtn();
+      if (currentSongId) loadSong(currentSongId);
+      if (modalSetlists && modalSetlists.classList.contains('open')) {
+        renderSetlistModalContent(false);
+      }
+    } catch (e) {
+      console.warn('Worship sync notice:', e);
+    }
   }
 
   function showToast(msg, isError = false) {
@@ -2578,6 +2667,7 @@ Holy forever`
       }
     }
     renderSetlistModalContent(false);
+    syncFromServer();
   }
 
   function closeSetlistModal() {
@@ -3567,6 +3657,7 @@ Holy forever`
   renderSidebar();
   if (currentSongId) loadSong(currentSongId);
   setTabletView('sidebar');
+  syncFromServer();
 
 })();
 </script>

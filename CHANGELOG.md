@@ -5,6 +5,13 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.52.14] — 2026-09-12
+### Fixed & Enhanced
+- **Cross-Device Cloud Sync for Setlists & Songs (`/api/worship/setlists` & `/theworshiptool.html`)**:
+  - Fixed a backend serialization bug in `/api/worship/setlists` where song ID strings were mapped into empty objects `[{}, {}]`, causing songs in saved setlists to disappear across devices.
+  - Added background auto-hydration `syncFromServer()` on startup and whenever opening the Setlist Manager. The tool now seamlessly loads and merges all cloud setlists and songs created on Mac onto Android tablets and phones.
+  - Automatically selects the most recent cloud setlist and song on new devices so tablets are never stuck on an empty screen on refresh.
+
 ## [v2.52.13] — 2026-09-12
 ### Added & Enhanced
 - **Two-Step Double Confirmation for Deletions (`/theworshiptool.html`)**:

@@ -44,12 +44,9 @@ export async function GET(req: NextRequest) {
           serviceDate: s.serviceDate || '',
           leader: s.leader || '',
           songCount: Array.isArray(s.songs) ? s.songs.length : 0,
-          songs: Array.isArray(s.songs) ? s.songs.map((song: any) => ({
-            id: song.id,
-            title: song.title,
-            key: song.key,
-            tempo: song.tempo,
-          })) : [],
+          songs: Array.isArray(s.songs)
+            ? s.songs.map((song: any) => (typeof song === 'string' ? song : (song.id || ''))).filter(Boolean)
+            : [],
           updatedAt: s.updatedAt || Date.now(),
         });
       } catch {}
