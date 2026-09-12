@@ -1,0 +1,2326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="author" content="Ryan Nantes Paco">
+<meta name="copyright" content="Copyright (c) 2026 Ryan Nantes Paco / House of Grace Fellowship, Davao City">
+<meta name="description" content="THE WORSHIP — Stage Lyrics Teleprompter, Setlist Manager & Song Tool for HGF Davao Worship Leaders.">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+
+<!-- PWA -->
+<link rel="manifest" href="/theworship-manifest.json">
+<meta name="theme-color" content="#0c0e12">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="THE WORSHIP">
+<meta name="mobile-web-app-capable" content="yes">
+
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png">
+
+<title>THE WORSHIP — Stage Lyrics & Setlist Manager</title>
+
+<style>
+  :root {
+    --brand-teal: #4EB1CB;
+    --brand-teal-glow: rgba(78, 177, 203, 0.35);
+    --brand-gold: #f59e0b;
+    --brand-purple: #a855f7;
+    --brand-green: #10b981;
+    --brand-red: #ef4444;
+    --bg-dark: #0c0e12;
+    --bg-panel: #131720;
+    --bg-surface: #1b202c;
+    --bg-surface-hover: #242b3a;
+    --border-color: #273042;
+    --border-light: #37435b;
+    --text-main: #f1f5f9;
+    --text-muted: #94a3b8;
+    --text-dim: #64748b;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg-dark);
+    color: var(--text-main);
+    height: 100vh;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* ── EDITOR VIEW ── */
+  #editor-view {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    padding: 12px 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+    overflow: hidden;
+  }
+
+  /* Header */
+  .top-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .brand-block {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .brand-logo {
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, var(--brand-teal), #2b7a8e);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-size: 16px;
+    color: #fff;
+    box-shadow: 0 0 14px var(--brand-teal-glow);
+  }
+
+  .brand-title {
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    color: #fff;
+  }
+
+  .brand-tag {
+    font-size: 11px;
+    color: var(--brand-teal);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+
+  /* Setlist selector bar in header */
+  .setlist-selector-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    padding: 4px 10px;
+    border-radius: 8px;
+  }
+
+  .setlist-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .setlist-select, .song-select {
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    outline: none;
+    cursor: pointer;
+    max-width: 180px;
+  }
+  .setlist-select option, .song-select option {
+    background: #1e2533;
+    color: #fff;
+  }
+
+  /* Top Action Buttons */
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn {
+    background: var(--bg-surface);
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    border-radius: 7px;
+    padding: 7px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+  }
+
+  .btn:hover {
+    background: var(--bg-surface-hover);
+    border-color: var(--border-light);
+    color: #fff;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--brand-teal), #358d9f);
+    border-color: var(--brand-teal);
+    color: #fff;
+    box-shadow: 0 0 12px var(--brand-teal-glow);
+  }
+  .btn-primary:hover {
+    background: linear-gradient(135deg, #5fc3dc, #3ba0b5);
+    box-shadow: 0 0 18px rgba(78, 177, 203, 0.6);
+  }
+
+  .btn-stage-start {
+    background: linear-gradient(135deg, #10b981, #059669);
+    border-color: #10b981;
+    color: #fff;
+    font-weight: 700;
+    padding: 8px 16px;
+    font-size: 13px;
+    box-shadow: 0 0 14px rgba(16, 185, 129, 0.4);
+    animation: stagePulse 2s infinite alternate;
+  }
+  @keyframes stagePulse {
+    0% { box-shadow: 0 0 10px rgba(16, 185, 129, 0.4); }
+    100% { box-shadow: 0 0 20px rgba(16, 185, 129, 0.7); }
+  }
+
+  /* Main Workspace Layout */
+  .workspace {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 16px;
+    flex: 1;
+    margin-top: 12px;
+    overflow: hidden;
+  }
+
+  /* Sidebar: Song Library & Setlist */
+  .sidebar {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .sidebar-header {
+    padding: 10px 14px;
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .sidebar-tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--bg-dark);
+    padding: 2px;
+    border-radius: 6px;
+  }
+
+  .sidebar-tab {
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-dim);
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.15s;
+  }
+  .sidebar-tab.active {
+    background: var(--bg-surface-hover);
+    color: var(--brand-teal);
+  }
+
+  .song-search-box {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-color);
+  }
+  .song-search-input {
+    width: 100%;
+    background: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    outline: none;
+  }
+  .song-search-input:focus {
+    border-color: var(--brand-teal);
+  }
+
+  .sidebar-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px;
+  }
+
+  .song-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    margin-bottom: 4px;
+    border: 1px solid transparent;
+  }
+  .song-item:hover {
+    background: var(--bg-surface);
+  }
+  .song-item.active {
+    background: rgba(78, 177, 203, 0.12);
+    border-color: rgba(78, 177, 203, 0.4);
+  }
+
+  .song-info {
+    overflow: hidden;
+  }
+  .song-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .song-meta-line {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .song-key-badge {
+    background: #1e2838;
+    color: var(--brand-teal);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-weight: 700;
+    font-size: 10px;
+    border: 1px solid rgba(78, 177, 203, 0.3);
+  }
+
+  /* Editor Panel */
+  .editor-panel {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Song Metadata Toolbar */
+  .song-meta-toolbar {
+    padding: 10px 14px;
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .meta-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .meta-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .meta-input, .meta-select {
+    background: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    outline: none;
+  }
+  .meta-input:focus, .meta-select:focus {
+    border-color: var(--brand-teal);
+  }
+
+  .meta-input-title {
+    font-size: 14px;
+    font-weight: 700;
+    min-width: 160px;
+  }
+
+  .bpm-tap-btn {
+    background: #2a3449;
+    border: 1px solid #3e4c6b;
+    color: var(--brand-gold);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .bpm-tap-btn:active {
+    background: var(--brand-gold);
+    color: #000;
+  }
+
+  /* Section Tagging Bar */
+  .section-tag-bar {
+    padding: 6px 12px;
+    background: #11151e;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow-x: auto;
+  }
+
+  .tag-btn {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .tag-btn:hover {
+    color: #fff;
+    border-color: var(--brand-teal);
+  }
+  .tag-btn.tag-verse { border-left: 3px solid var(--brand-green); }
+  .tag-btn.tag-chorus { border-left: 3px solid var(--brand-teal); color: var(--brand-teal); }
+  .tag-btn.tag-bridge { border-left: 3px solid var(--brand-purple); color: #c084fc; }
+  .tag-btn.tag-vamp { border-left: 3px solid var(--brand-gold); color: #fbbf24; }
+
+  /* Arrangement flow chips */
+  .arrangement-strip {
+    padding: 6px 12px;
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow-x: auto;
+  }
+  .arrangement-chip {
+    background: #202737;
+    border: 1px solid #37435b;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-main);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* Lyric Editor Textarea */
+  .editor-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+    position: relative;
+  }
+
+  #lyric-editor {
+    width: 100%;
+    flex: 1;
+    background: #0d1017;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: #e2e8f0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 14px;
+    resize: none;
+    outline: none;
+    user-select: text;
+  }
+  #lyric-editor:focus {
+    border-color: var(--brand-teal);
+    box-shadow: 0 0 10px rgba(78, 177, 203, 0.2);
+  }
+
+  /* Notes & Cues bar */
+  .notes-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .notes-input {
+    flex: 1;
+    background: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    color: #fbbf24;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    outline: none;
+  }
+  .notes-input:focus {
+    border-color: var(--brand-gold);
+  }
+
+  /* ── MODALS (Scraper, Setlists, Save, Export) ── */
+  .modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(4px);
+    z-index: 100;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  .modal-overlay.open {
+    display: flex;
+  }
+
+  .modal-box {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 650px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+  }
+
+  .modal-header {
+    padding: 14px 18px;
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .modal-title {
+    font-size: 16px;
+    font-weight: 800;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .modal-close {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 18px;
+    cursor: pointer;
+  }
+  .modal-close:hover { color: #fff; }
+
+  .modal-body {
+    padding: 16px;
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  /* Scraper Search UI */
+  .scrape-search-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .scrape-input {
+    flex: 1;
+    background: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    color: #fff;
+    padding: 9px 12px;
+    border-radius: 7px;
+    font-size: 14px;
+    outline: none;
+  }
+  .scrape-input:focus { border-color: var(--brand-teal); }
+
+  .scrape-result-item {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .scrape-result-item:hover {
+    border-color: var(--brand-teal);
+    background: var(--bg-surface-hover);
+  }
+
+  /* Toast notification */
+  #toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-60px);
+    background: var(--brand-teal);
+    color: #000;
+    padding: 9px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    z-index: 300;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    pointer-events: none;
+  }
+  #toast.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+  #toast.error {
+    background: var(--brand-red);
+    color: #fff;
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     ── STAGE TELEPROMPTER FULLSCREEN VIEW ──
+     ══════════════════════════════════════════════════════════ */
+  #stage-view {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: #090b0e;
+    z-index: 50;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  #stage-view.active {
+    display: flex;
+  }
+
+  /* Stage Top Navigation Bar */
+  .stage-top-bar {
+    height: 54px;
+    background: rgba(14, 18, 26, 0.95);
+    border-bottom: 1px solid #1f2737;
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    padding-top: env(safe-area-inset-top, 0px);
+    z-index: 60;
+  }
+
+  .stage-song-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .stage-song-title {
+    font-size: 17px;
+    font-weight: 800;
+    color: #fff;
+  }
+
+  .stage-badges {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .stage-key-badge {
+    background: rgba(78, 177, 203, 0.2);
+    border: 1px solid var(--brand-teal);
+    color: var(--brand-teal);
+    padding: 3px 8px;
+    border-radius: 5px;
+    font-weight: 800;
+    font-size: 13px;
+  }
+
+  .stage-bpm-badge {
+    background: #1c2436;
+    border: 1px solid #2e3b56;
+    color: var(--brand-gold);
+    padding: 3px 8px;
+    border-radius: 5px;
+    font-weight: 700;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .bpm-pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--brand-gold);
+    display: inline-block;
+  }
+  .bpm-pulse-dot.pulse {
+    box-shadow: 0 0 10px #fbbf24;
+    transform: scale(1.3);
+  }
+
+  .stage-timer {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .stage-nav-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .stage-btn {
+    background: #19202f;
+    border: 1px solid #2d3952;
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .stage-btn:hover { background: #26324a; }
+  .stage-btn-exit { background: #371d22; border-color: #5c2730; color: #f87171; }
+
+  /* Stage Content Scroll Area */
+  .stage-scroll-container {
+    flex: 1;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+    padding: 30px 24px 140px 24px;
+    max-width: 900px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .stage-section-block {
+    margin-bottom: 40px;
+    padding: 16px 20px;
+    border-radius: 12px;
+    background: transparent;
+    transition: all 0.25s ease;
+    border-left: 4px solid transparent;
+  }
+
+  .stage-section-block.active-glow {
+    background: rgba(78, 177, 203, 0.08);
+    border-left: 4px solid var(--brand-teal);
+    box-shadow: 0 0 30px rgba(78, 177, 203, 0.15);
+  }
+
+  .stage-section-header {
+    font-size: 14px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .hdr-verse { color: var(--brand-green); }
+  .hdr-chorus { color: var(--brand-teal); }
+  .hdr-bridge { color: #c084fc; }
+  .hdr-vamp, .hdr-tag { color: var(--brand-gold); }
+  .hdr-intro, .hdr-outro, .hdr-ending { color: #94a3b8; }
+
+  .stage-lyrics-lines {
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1.5;
+    color: #ffffff;
+    white-space: pre-wrap;
+    letter-spacing: 0.3px;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.6);
+  }
+
+  .stage-cues-alert {
+    background: rgba(245, 158, 11, 0.15);
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    color: #fcd34d;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 24px;
+  }
+
+  /* ── TACTILE SECTION JUMP DOCK (Floating Bottom/Side on Stage) ── */
+  .stage-jump-dock {
+    position: fixed;
+    bottom: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(15, 20, 30, 0.95);
+    border: 1px solid #2a354b;
+    border-radius: 40px;
+    padding: 6px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 70;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.8);
+    backdrop-filter: blur(10px);
+    max-width: 95vw;
+    overflow-x: auto;
+  }
+
+  .jump-btn {
+    background: #1b2333;
+    border: 1px solid #313d56;
+    color: #e2e8f0;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+  }
+  .jump-btn:hover {
+    background: #2b3852;
+    color: #fff;
+    transform: translateY(-2px);
+  }
+  .jump-btn:active {
+    transform: scale(0.95);
+  }
+  .jump-btn.active {
+    background: var(--brand-teal);
+    color: #000;
+    border-color: var(--brand-teal);
+    box-shadow: 0 0 14px var(--brand-teal-glow);
+  }
+
+  /* Stage Bottom Auto-Scroll Control Bar */
+  .stage-control-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 52px;
+    background: #0f131a;
+    border-top: 1px solid #1e2637;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    z-index: 65;
+  }
+
+  .speed-ctrl-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .speed-btn {
+    background: #1e2638;
+    border: 1px solid #33405c;
+    color: #fff;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    font-weight: 800;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .speed-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    min-width: 55px;
+    text-align: center;
+  }
+
+  .stage-play-btn {
+    background: linear-gradient(135deg, var(--brand-teal), #2d899e);
+    border: none;
+    color: #fff;
+    font-weight: 900;
+    font-size: 14px;
+    padding: 8px 24px;
+    border-radius: 20px;
+    cursor: pointer;
+    box-shadow: 0 0 14px var(--brand-teal-glow);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .stage-play-btn.paused {
+    background: linear-gradient(135deg, var(--brand-gold), #d97706);
+    box-shadow: 0 0 14px rgba(245, 158, 11, 0.4);
+  }
+
+  /* Responsive tweaks */
+  @media (max-width: 768px) {
+    .workspace { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+    .sidebar.mobile-open { display: flex; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 90; }
+    .stage-lyrics-lines { font-size: 24px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<!-- ══════════════════════════════════════════════════════════
+     ── MAIN APPLICATION (EDITOR & SETLIST WORKSPACE) ──
+     ══════════════════════════════════════════════════════════ -->
+<div id="editor-view">
+  <!-- Top Header -->
+  <header class="top-header">
+    <div class="brand-block">
+      <div class="brand-logo">✝</div>
+      <div>
+        <div class="brand-title">THE WORSHIP</div>
+        <div class="brand-tag">HGF DAVAO • WORSHIP PROMPTER</div>
+      </div>
+    </div>
+
+    <!-- Active Setlist & Song Selector -->
+    <div class="setlist-selector-bar">
+      <span class="setlist-label">SETLIST:</span>
+      <select id="header-setlist-select" class="setlist-select"></select>
+      <div style="width: 1px; height: 16px; background: var(--border-color); margin: 0 4px;"></div>
+      <select id="header-song-select" class="song-select"></select>
+    </div>
+
+    <!-- Header Actions -->
+    <div class="header-actions">
+      <button class="btn" id="btn-open-scraper" title="Search & Scrape Lyrics (⌘F)">🔍 Scrape Song</button>
+      <button class="btn" id="btn-open-setlists" title="Manage Setlists">📋 Setlists</button>
+      <button class="btn btn-primary" id="btn-save-song" title="Save Song (⌘S)">💾 Save</button>
+      <button class="btn btn-stage-start" id="btn-enter-stage" title="Launch Fullscreen Stage Teleprompter">▶ START STAGE</button>
+    </div>
+  </header>
+
+  <!-- Workspace -->
+  <main class="workspace">
+    <!-- Sidebar: Library & Setlist Songs -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-tabs">
+          <div class="sidebar-tab active" id="tab-setlist">Current Setlist</div>
+          <div class="sidebar-tab" id="tab-all-songs">All Songs (<span id="song-count">0</span>)</div>
+        </div>
+        <button class="btn" id="btn-new-song" style="padding: 3px 7px; font-size: 11px;">+ New</button>
+      </div>
+
+      <div class="song-search-box">
+        <input type="text" id="song-search-input" class="song-search-input" placeholder="Filter songs / artist..." />
+      </div>
+
+      <div class="sidebar-list" id="sidebar-song-list">
+        <!-- Injected via JS -->
+      </div>
+    </aside>
+
+    <!-- Editor Area -->
+    <section class="editor-panel">
+      <!-- Song Metadata Strip -->
+      <div class="song-meta-toolbar">
+        <div class="meta-group" style="flex: 1; min-width: 200px;">
+          <span class="meta-label">Title:</span>
+          <input type="text" id="meta-song-title" class="meta-input meta-input-title" placeholder="Song Title" />
+        </div>
+
+        <div class="meta-group">
+          <span class="meta-label">Artist:</span>
+          <input type="text" id="meta-song-artist" class="meta-input" placeholder="Artist / Band" style="width: 140px;" />
+        </div>
+
+        <div class="meta-group">
+          <span class="meta-label">Key:</span>
+          <select id="meta-song-key" class="meta-select">
+            <option value="C">C</option><option value="C#">C# / Db</option>
+            <option value="D">D</option><option value="Eb">Eb</option>
+            <option value="E">E</option><option value="F">F</option>
+            <option value="F#">F# / Gb</option><option value="G">G</option>
+            <option value="Ab">Ab</option><option value="A">A</option>
+            <option value="Bb">Bb</option><option value="B">B</option>
+          </select>
+        </div>
+
+        <div class="meta-group">
+          <span class="meta-label">Capo:</span>
+          <select id="meta-song-capo" class="meta-select">
+            <option value="0">None</option>
+            <option value="1">Capo 1</option><option value="2">Capo 2</option>
+            <option value="3">Capo 3</option><option value="4">Capo 4</option>
+            <option value="5">Capo 5</option>
+          </select>
+        </div>
+
+        <div class="meta-group">
+          <span class="meta-label">BPM:</span>
+          <input type="number" id="meta-song-bpm" class="meta-input" placeholder="72" style="width: 55px;" />
+          <button class="bpm-tap-btn" id="btn-bpm-tap" title="Tap tempo">TAP</button>
+        </div>
+
+        <div class="meta-group">
+          <span class="meta-label">Time:</span>
+          <select id="meta-song-time" class="meta-select">
+            <option value="4/4">4/4</option><option value="6/8">6/8</option>
+            <option value="3/4">3/4</option><option value="2/4">2/4</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Section Tags Toolbar -->
+      <div class="section-tag-bar">
+        <span class="meta-label" style="margin-right: 4px;">ADD TAG:</span>
+        <button class="tag-btn tag-verse" data-tag="[Verse 1]">+ Verse 1</button>
+        <button class="tag-btn tag-verse" data-tag="[Verse 2]">+ Verse 2</button>
+        <button class="tag-btn tag-verse" data-tag="[Verse 3]">+ Verse 3</button>
+        <button class="tag-btn tag-chorus" data-tag="[Chorus]">+ Chorus</button>
+        <button class="tag-btn tag-chorus" data-tag="[Chorus 2]">+ Chorus 2</button>
+        <button class="tag-btn tag-bridge" data-tag="[Bridge]">+ Bridge</button>
+        <button class="tag-btn tag-bridge" data-tag="[Bridge 2]">+ Bridge 2</button>
+        <button class="tag-btn tag-vamp" data-tag="[Vamp]">+ Vamp</button>
+        <button class="tag-btn tag-vamp" data-tag="[Tag]">+ Tag</button>
+        <button class="tag-btn" data-tag="[Intro]">+ Intro</button>
+        <button class="tag-btn" data-tag="[Outro]">+ Outro</button>
+        <div style="flex: 1;"></div>
+        <button class="btn" id="btn-auto-format" style="padding: 3px 8px; font-size: 11px;" title="Automatically format untagged lyrics">✨ Auto-Format</button>
+      </div>
+
+      <!-- Arrangement Strip -->
+      <div class="arrangement-strip" id="arrangement-strip">
+        <span class="meta-label" style="font-size: 10px;">FLOW:</span>
+        <div id="arrangement-chips-container" style="display: flex; gap: 4px; align-items: center;"></div>
+      </div>
+
+      <!-- Editor Body -->
+      <div class="editor-body">
+        <textarea id="lyric-editor" placeholder="Type or paste lyrics here with tags like [Verse 1], [Chorus], [Bridge]..."></textarea>
+        <div class="notes-bar">
+          <span class="meta-label" style="color: var(--brand-gold);">Worship Cues:</span>
+          <input type="text" id="meta-song-notes" class="notes-input" placeholder="e.g. Acoustic guitar only on V1, modulate to A on Bridge, free worship after Chorus 3..." />
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     ── MODAL: SONG SCRAPER & SEARCH ──
+     ══════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-scraper">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title">🔍 Search & Scrape Worship Lyrics</div>
+      <button class="modal-close" id="btn-close-scraper">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="scrape-search-bar">
+        <input type="text" id="scrape-query-input" class="scrape-input" placeholder="Search song title or artist (e.g. Goodness of God, Gratitude)..." />
+        <button class="btn btn-primary" id="btn-run-scrape">Search</button>
+      </div>
+      <div id="scrape-status" style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;"></div>
+      <div id="scrape-results-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     ── MODAL: SETLIST MANAGER ──
+     ══════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-setlists">
+  <div class="modal-box" style="max-width: 700px;">
+    <div class="modal-header">
+      <div class="modal-title">📋 Setlist & Sunday Lineup Manager</div>
+      <button class="modal-close" id="btn-close-setlists">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="display: flex; gap: 8px; margin-bottom: 14px; align-items: center;">
+        <input type="text" id="setlist-name-input" class="meta-input" style="flex: 1;" placeholder="Setlist Name (e.g. Sunday Morning Worship - Sep 13, 2026)" />
+        <button class="btn btn-primary" id="btn-save-current-setlist">Save Setlist</button>
+        <button class="btn" id="btn-create-new-setlist">+ New Setlist</button>
+      </div>
+
+      <div style="font-size: 13px; font-weight: 700; color: var(--brand-teal); margin-bottom: 8px;">Songs in this Setlist:</div>
+      <div id="setlist-songs-table" style="margin-bottom: 16px;"></div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: 12px;">
+        <div style="font-size: 12px; color: var(--text-muted);">Available Setlists:</div>
+      </div>
+      <div id="saved-setlists-list" style="margin-top: 8px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     ── STAGE TELEPROMPTER FULLSCREEN VIEW ──
+     ══════════════════════════════════════════════════════════ -->
+<div id="stage-view">
+  <!-- Top Stage Bar -->
+  <header class="stage-top-bar">
+    <div class="stage-song-info">
+      <div class="stage-song-title" id="stage-song-title">Goodness of God</div>
+      <div class="stage-badges">
+        <span class="stage-key-badge" id="stage-song-key">Key: G</span>
+        <span class="stage-bpm-badge" id="stage-song-bpm"><span class="bpm-pulse-dot" id="stage-bpm-dot"></span> <span id="stage-bpm-val">68 BPM</span></span>
+      </div>
+    </div>
+
+    <!-- Setlist navigation -->
+    <div class="stage-nav-group">
+      <button class="stage-btn" id="stage-btn-prev-song">◀ Prev Song</button>
+      <span style="font-size: 12px; color: var(--text-muted); font-weight: 700;" id="stage-song-index-label">1 / 5</span>
+      <button class="stage-btn" id="stage-btn-next-song">Next Song ▶</button>
+    </div>
+
+    <!-- Timer & Exit -->
+    <div class="stage-nav-group">
+      <div class="stage-timer" id="stage-timer-display">⏱ 00:00</div>
+      <button class="stage-btn stage-btn-exit" id="stage-btn-exit">✕ Exit</button>
+    </div>
+  </header>
+
+  <!-- Lyrics Scroll Area -->
+  <div class="stage-scroll-container" id="stage-scroll-container">
+    <div id="stage-cues-banner" class="stage-cues-alert" style="display: none;"></div>
+    <div id="stage-lyrics-content"></div>
+  </div>
+
+  <!-- Big Tactile Section Jump Dock -->
+  <div class="stage-jump-dock" id="stage-jump-dock">
+    <!-- Injected section buttons: [Verse 1] [Chorus] [Bridge] ... -->
+  </div>
+
+  <!-- Bottom Stage Control Bar (Speed, Play, Font, Fullscreen) -->
+  <footer class="stage-control-bar">
+    <div class="speed-ctrl-group">
+      <button class="speed-btn" id="stage-speed-down">−</button>
+      <span class="speed-label" id="stage-speed-label">Speed 3</span>
+      <button class="speed-btn" id="stage-speed-up">+</button>
+    </div>
+
+    <button class="stage-play-btn" id="stage-play-toggle">▶ AUTO-SCROLL</button>
+
+    <div class="speed-ctrl-group">
+      <button class="stage-btn" id="stage-font-down">A−</button>
+      <button class="stage-btn" id="stage-font-up">A+</button>
+      <button class="stage-btn" id="stage-fullscreen-toggle">⛶</button>
+    </div>
+  </footer>
+</div>
+
+<!-- Application Logic -->
+<script>
+(function () {
+  'use strict';
+
+  // ── DEFAULT SEED SONGS FOR HGF DAVAO WORSHIP ──
+  const DEFAULT_SONGS = [
+    {
+      id: 'goodness-of-god',
+      title: 'Goodness of God',
+      artist: 'Bethel Music / Jenn Johnson',
+      key: 'G',
+      originalKey: 'Ab',
+      tempo: 68,
+      timeSignature: '4/4',
+      notes: 'Acoustic intro only. Modulate to A on Bridge 2. Free worship after Chorus 3.',
+      arrangement: ['Intro', 'Verse 1', 'Chorus', 'Verse 2', 'Chorus', 'Bridge', 'Chorus', 'Tag', 'Outro'],
+      lyrics: `[Intro]
+
+[Verse 1]
+I love You, Lord
+For Your mercy never fails me
+All my days, I've been held in Your hands
+From the moment that I wake up
+Until I lay my head
+Oh, I will sing of the goodness of God
+
+[Chorus]
+And all my life You have been faithful
+And all my life You have been so, so good
+With every breath that I am able
+Oh, I will sing of the goodness of God
+
+[Verse 2]
+I love Your voice
+You have led me through the fire
+In the darkest night
+You are close like no other
+I've known You as a Father
+I've known You as a Friend
+And I have lived in the goodness of God
+
+[Chorus]
+And all my life You have been faithful
+And all my life You have been so, so good
+With every breath that I am able
+Oh, I will sing of the goodness of God
+
+[Bridge]
+Your goodness is running after
+It's running after me
+Your goodness is running after
+It's running after me
+With my life laid down, I'm surrendered now
+I give You everything
+'Cause Your goodness is running after
+It's running after me
+
+[Chorus]
+And all my life You have been faithful
+And all my life You have been so, so good
+With every breath that I am able
+Oh, I will sing of the goodness of God
+
+[Tag]
+Oh, I will sing of the goodness of God
+
+[Outro]`
+    },
+    {
+      id: 'way-maker',
+      title: 'Way Maker',
+      artist: 'Sinach / Leeland',
+      key: 'E',
+      originalKey: 'E',
+      tempo: 68,
+      timeSignature: '4/4',
+      notes: 'Build on Verse 2. Big dynamic explosion on Bridge.',
+      arrangement: ['Verse 1', 'Chorus', 'Verse 2', 'Chorus', 'Bridge', 'Chorus', 'Tag'],
+      lyrics: `[Verse 1]
+You are here, moving in our midst
+I worship You, I worship You
+You are here, working in this place
+I worship You, I worship You
+
+[Chorus]
+You are Way Maker, Miracle Worker, Promise Keeper
+Light in the darkness, my God, that is who You are
+You are Way Maker, Miracle Worker, Promise Keeper
+Light in the darkness, my God, that is who You are
+
+[Verse 2]
+You are here, touching every heart
+I worship You, I worship You
+You are here, healing every heart
+I worship You, I worship You
+
+[Chorus]
+You are Way Maker, Miracle Worker, Promise Keeper
+Light in the darkness, my God, that is who You are
+You are Way Maker, Miracle Worker, Promise Keeper
+Light in the darkness, my God, that is who You are
+
+[Bridge]
+Even when I don't see it, You're working
+Even when I don't feel it, You're working
+You never stop, You never stop working
+You never stop, You never stop working
+
+[Chorus]
+You are Way Maker, Miracle Worker, Promise Keeper
+Light in the darkness, my God, that is who You are
+
+[Tag]
+That is who You are, that is who You are`
+    },
+    {
+      id: 'gratitude',
+      title: 'Gratitude',
+      artist: 'Brandon Lake',
+      key: 'B',
+      originalKey: 'B',
+      tempo: 78,
+      timeSignature: '6/8',
+      notes: 'Tender acoustic start. Full band explodes on Bridge "Throw up your hands".',
+      arrangement: ['Verse 1', 'Chorus', 'Verse 2', 'Chorus', 'Bridge', 'Chorus', 'Outro'],
+      lyrics: `[Verse 1]
+All my words fall short
+I got nothing new
+How could I express
+All my gratitude?
+
+[Chorus]
+So I throw up my hands
+And praise You again and again
+'Cause all that I have is a hallelujah, hallelujah
+And I know it's not much
+But I've nothing else fit for a King
+Except for a heart singing hallelujah, hallelujah
+
+[Verse 2]
+I've got one response
+I've got just one move
+With my arms stretched wide
+I will worship You
+
+[Chorus]
+So I throw up my hands
+And praise You again and again
+'Cause all that I have is a hallelujah, hallelujah
+And I know it's not much
+But I've nothing else fit for a King
+Except for a heart singing hallelujah, hallelujah
+
+[Bridge]
+Come on, my soul
+Oh, don't you get shy on me
+Lift up your song
+'Cause you've got a lion inside of those lungs
+Get up and praise the Lord!
+
+[Chorus]
+So I throw up my hands
+And praise You again and again
+'Cause all that I have is a hallelujah, hallelujah
+And I know it's not much
+But I've nothing else fit for a King
+Except for a heart singing hallelujah, hallelujah
+
+[Outro]`
+    },
+    {
+      id: 'firm-foundation',
+      title: "Firm Foundation (He Won't)",
+      artist: 'Cody Carnes / Maverick City Music',
+      key: 'Bb',
+      originalKey: 'Bb',
+      tempo: 75,
+      timeSignature: '6/8',
+      notes: 'Strong rhythmic pulse. Build energy into the Chorus.',
+      arrangement: ['Verse 1', 'Chorus', 'Verse 2', 'Chorus', 'Bridge', 'Chorus'],
+      lyrics: `[Verse 1]
+Christ is my firm foundation
+The rock on which I stand
+When everything around me is shaken
+I've never been more glad
+That I put my faith in Jesus
+'Cause He's never let me down
+He's faithful through generations
+So why would He fail now?
+
+[Chorus]
+He won't, He won't
+He won't fail, He won't fail
+
+[Verse 2]
+I've still got joy in chaos
+I've got peace that makes no sense
+So I won't be going under
+No, I'm not giving in
+'Cause I build my life on Jesus
+He's never let me down
+He's faithful through generations
+So why would He fail now?
+
+[Chorus]
+He won't, He won't
+He won't fail, He won't fail
+
+[Bridge]
+Rain came and wind blew
+My house was built on You
+I'm safe with You, I'm gonna make it through
+'Cause I'm standing strong on You!`
+    },
+    {
+      id: 'holy-forever',
+      title: 'Holy Forever',
+      artist: 'Chris Tomlin / Bethel Music',
+      key: 'Db',
+      originalKey: 'Db',
+      tempo: 72,
+      timeSignature: '4/4',
+      notes: 'Anthemic worship. Full congregational singing.',
+      arrangement: ['Verse 1', 'Verse 2', 'Chorus', 'Verse 3', 'Chorus', 'Bridge', 'Chorus', 'Outro'],
+      lyrics: `[Verse 1]
+A thousand generations falling in down in awe
+To sing the song of ages to the Lamb
+And all who've gone before us and all who will believe
+Will sing the song of ages to the Lamb
+
+[Pre-Chorus]
+Your name is the highest, Your name is the greatest
+Your name stands above them all
+All thrones and dominions, all powers and positions
+Your name stands above them all
+
+[Chorus]
+And the angels cry, "Holy"
+All creation cries, "Holy"
+You are lifted high, "Holy"
+Holy forever
+
+[Verse 2]
+If you've been forgiven and if you've been redeemed
+Sing the song forever to the Lamb
+If you walk in freedom and if you bear His name
+Sing the song forever to the Lamb
+We'll sing the song forever and amen
+
+[Chorus]
+And the angels cry, "Holy"
+All creation cries, "Holy"
+You are lifted high, "Holy"
+Holy forever
+
+[Bridge]
+Hear Your people sing, "Holy"
+To the King of Kings, "Holy"
+You will always be, "Holy"
+Holy forever
+
+[Chorus]
+And the angels cry, "Holy"
+All creation cries, "Holy"
+You are lifted high, "Holy"
+Holy forever`
+    }
+  ];
+
+  const DEFAULT_SETLISTS = [
+    {
+      id: 'sunday-worship-lineup',
+      name: 'Sunday Morning Worship — Sep 13, 2026',
+      serviceDate: '2026-09-13',
+      leader: 'Ryan Paco',
+      songs: DEFAULT_SONGS.map(s => s.id)
+    }
+  ];
+
+  // ── STATE ──
+  let songs = [];
+  let setlists = [];
+  let currentSetlistId = '';
+  let currentSongId = '';
+  let activeSidebarTab = 'setlist';
+  let tapTimes = [];
+  let stageScrollSpeed = 3;
+  let stageIsScrolling = false;
+  let stageScrollInterval = null;
+  let stageFontSize = 32;
+  let stageTimerSeconds = 0;
+  let stageTimerInterval = null;
+  let bpmPulseInterval = null;
+  let wakeLock = null;
+
+  // ── DOM ELEMENTS ──
+  const toast = document.getElementById('toast');
+  const headerSetlistSelect = document.getElementById('header-setlist-select');
+  const headerSongSelect = document.getElementById('header-song-select');
+  const tabSetlist = document.getElementById('tab-setlist');
+  const tabAllSongs = document.getElementById('tab-all-songs');
+  const songSearchInput = document.getElementById('song-search-input');
+  const sidebarSongList = document.getElementById('sidebar-song-list');
+  const songCountEl = document.getElementById('song-count');
+
+  // Editor Inputs
+  const metaTitle = document.getElementById('meta-song-title');
+  const metaArtist = document.getElementById('meta-song-artist');
+  const metaKey = document.getElementById('meta-song-key');
+  const metaCapo = document.getElementById('meta-song-capo');
+  const metaBpm = document.getElementById('meta-song-bpm');
+  const metaTime = document.getElementById('meta-song-time');
+  const metaNotes = document.getElementById('meta-song-notes');
+  const lyricEditor = document.getElementById('lyric-editor');
+  const arrangementChipsContainer = document.getElementById('arrangement-chips-container');
+
+  // Stage View DOM
+  const stageView = document.getElementById('stage-view');
+  const stageSongTitle = document.getElementById('stage-song-title');
+  const stageSongKey = document.getElementById('stage-song-key');
+  const stageSongBpm = document.getElementById('stage-bpm-val');
+  const stageBpmDot = document.getElementById('stage-bpm-dot');
+  const stageSongIndexLabel = document.getElementById('stage-song-index-label');
+  const stageTimerDisplay = document.getElementById('stage-timer-display');
+  const stageScrollContainer = document.getElementById('stage-scroll-container');
+  const stageLyricsContent = document.getElementById('stage-lyrics-content');
+  const stageCuesBanner = document.getElementById('stage-cues-banner');
+  const stageJumpDock = document.getElementById('stage-jump-dock');
+  const stagePlayToggle = document.getElementById('stage-play-toggle');
+  const stageSpeedLabel = document.getElementById('stage-speed-label');
+
+  // ── INIT STORAGE ──
+  function initStorage() {
+    try {
+      const storedSongs = localStorage.getItem('hgf_worship_songs');
+      if (storedSongs) {
+        songs = JSON.parse(storedSongs);
+      } else {
+        songs = [...DEFAULT_SONGS];
+        saveSongsLocal();
+      }
+
+      const storedSetlists = localStorage.getItem('hgf_worship_setlists');
+      if (storedSetlists) {
+        setlists = JSON.parse(storedSetlists);
+      } else {
+        setlists = [...DEFAULT_SETLISTS];
+        saveSetlistsLocal();
+      }
+
+      currentSetlistId = setlists[0]?.id || '';
+      currentSongId = songs[0]?.id || '';
+    } catch (e) {
+      songs = [...DEFAULT_SONGS];
+      setlists = [...DEFAULT_SETLISTS];
+    }
+  }
+
+  function saveSongsLocal() {
+    localStorage.setItem('hgf_worship_songs', JSON.stringify(songs));
+  }
+
+  function saveSetlistsLocal() {
+    localStorage.setItem('hgf_worship_setlists', JSON.stringify(setlists));
+  }
+
+  function showToast(msg, isError = false) {
+    toast.textContent = msg;
+    toast.className = isError ? 'show error' : 'show';
+    setTimeout(() => { toast.className = ''; }, 3000);
+  }
+
+  // ── POPULATE UI ──
+  function renderSetlistDropdown() {
+    headerSetlistSelect.innerHTML = '';
+    setlists.forEach(sl => {
+      const opt = document.createElement('option');
+      opt.value = sl.id;
+      opt.textContent = sl.name;
+      if (sl.id === currentSetlistId) opt.selected = true;
+      headerSetlistSelect.appendChild(opt);
+    });
+  }
+
+  function renderSongDropdown() {
+    headerSongSelect.innerHTML = '';
+    const curSetlist = setlists.find(s => s.id === currentSetlistId);
+    const songList = (curSetlist && curSetlist.songs && curSetlist.songs.length > 0)
+      ? curSetlist.songs.map(id => songs.find(s => s.id === id)).filter(Boolean)
+      : songs;
+
+    songList.forEach((song, idx) => {
+      const opt = document.createElement('option');
+      opt.value = song.id;
+      opt.textContent = `${idx + 1}. ${song.title} (${song.key || 'C'})`;
+      if (song.id === currentSongId) opt.selected = true;
+      headerSongSelect.appendChild(opt);
+    });
+  }
+
+  function renderSidebar() {
+    sidebarSongList.innerHTML = '';
+    const query = (songSearchInput.value || '').toLowerCase().trim();
+    songCountEl.textContent = songs.length;
+
+    let displayList = [];
+    if (activeSidebarTab === 'setlist') {
+      const curSetlist = setlists.find(s => s.id === currentSetlistId);
+      if (curSetlist && Array.isArray(curSetlist.songs)) {
+        displayList = curSetlist.songs.map(id => songs.find(s => s.id === id)).filter(Boolean);
+      }
+    } else {
+      displayList = [...songs];
+    }
+
+    if (query) {
+      displayList = displayList.filter(s =>
+        s.title.toLowerCase().includes(query) || (s.artist && s.artist.toLowerCase().includes(query))
+      );
+    }
+
+    if (displayList.length === 0) {
+      sidebarSongList.innerHTML = '<div style="padding: 16px; text-align: center; color: var(--text-dim); font-size: 12px;">No songs found.</div>';
+      return;
+    }
+
+    displayList.forEach((song, idx) => {
+      const el = document.createElement('div');
+      el.className = `song-item ${song.id === currentSongId ? 'active' : ''}`;
+      el.innerHTML = `
+        <div class="song-info">
+          <div class="song-name">${activeSidebarTab === 'setlist' ? (idx + 1) + '. ' : ''}${escapeHtml(song.title)}</div>
+          <div class="song-meta-line">${escapeHtml(song.artist || 'HGF Worship')}</div>
+        </div>
+        <span class="song-key-badge">${song.key || 'C'}</span>
+      `;
+      el.onclick = () => loadSong(song.id);
+      sidebarSongList.appendChild(el);
+    });
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function loadSong(songId) {
+    const song = songs.find(s => s.id === songId);
+    if (!song) return;
+    currentSongId = song.id;
+
+    metaTitle.value = song.title || '';
+    metaArtist.value = song.artist || '';
+    metaKey.value = song.key || 'C';
+    metaCapo.value = song.capo || '0';
+    metaBpm.value = song.tempo || '';
+    metaTime.value = song.timeSignature || '4/4';
+    metaNotes.value = song.notes || '';
+    lyricEditor.value = song.lyrics || '';
+
+    renderArrangementChips(song);
+    renderSidebar();
+    renderSongDropdown();
+  }
+
+  function renderArrangementChips(song) {
+    arrangementChipsContainer.innerHTML = '';
+    const sections = extractSections(song.lyrics || '');
+    if (sections.length === 0) {
+      arrangementChipsContainer.innerHTML = '<span style="font-size: 11px; color: var(--text-dim);">No tags detected</span>';
+      return;
+    }
+
+    sections.forEach(sec => {
+      const chip = document.createElement('span');
+      chip.className = 'arrangement-chip';
+      chip.textContent = sec.title;
+      arrangementChipsContainer.appendChild(chip);
+    });
+  }
+
+  function extractSections(lyricsText) {
+    const lines = lyricsText.split('\n');
+    const sections = [];
+    let currentSection = null;
+
+    for (let line of lines) {
+      const trimmed = line.trim();
+      const match = trimmed.match(/^\[(.*?)\]$/);
+      if (match) {
+        if (currentSection) sections.push(currentSection);
+        currentSection = {
+          title: match[1],
+          type: getSectionType(match[1]),
+          lines: []
+        };
+      } else {
+        if (!currentSection && trimmed) {
+          currentSection = { title: 'Verse 1', type: 'verse', lines: [] };
+        }
+        if (currentSection) {
+          currentSection.lines.push(line);
+        }
+      }
+    }
+    if (currentSection) sections.push(currentSection);
+    return sections;
+  }
+
+  function getSectionType(title) {
+    const t = title.toLowerCase();
+    if (t.includes('verse')) return 'verse';
+    if (t.includes('chorus')) return 'chorus';
+    if (t.includes('bridge')) return 'bridge';
+    if (t.includes('vamp')) return 'vamp';
+    if (t.includes('tag')) return 'tag';
+    if (t.includes('intro')) return 'intro';
+    if (t.includes('outro') || t.includes('ending')) return 'outro';
+    return 'default';
+  }
+
+  // ── SAVE & UPDATE CURRENT SONG ──
+  async function saveCurrentSong(showFeedback = true) {
+    const title = metaTitle.value.trim();
+    if (!title) {
+      showToast('Please enter a song title', true);
+      return;
+    }
+
+    let song = songs.find(s => s.id === currentSongId);
+    if (!song) {
+      song = { id: title.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-') };
+      songs.push(song);
+      currentSongId = song.id;
+    }
+
+    song.title = title;
+    song.artist = metaArtist.value.trim();
+    song.key = metaKey.value;
+    song.capo = metaCapo.value;
+    song.tempo = parseInt(metaBpm.value) || null;
+    song.timeSignature = metaTime.value;
+    song.notes = metaNotes.value.trim();
+    song.lyrics = lyricEditor.value;
+    song.updatedAt = Date.now();
+
+    saveSongsLocal();
+    renderSidebar();
+    renderSongDropdown();
+    renderArrangementChips(song);
+
+    // Sync with Server API in background
+    try {
+      fetch('/api/worship', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(song)
+      }).catch(() => {});
+    } catch {}
+
+    if (showFeedback) showToast('💾 Song saved successfully!');
+  }
+
+  // ── AUTO-FORMAT UNTAGGED LYRICS ──
+  function autoFormatLyrics() {
+    let text = lyricEditor.value.trim();
+    if (!text) return;
+
+    // Convert standard headers like Verse 1:, Chorus:, Bridge:, etc.
+    text = text.replace(/^(Verse\s*\d*|V\d+):?/gim, '[$1]');
+    text = text.replace(/^(Chorus\s*\d*|CH|Refrain):?/gim, '[$1]');
+    text = text.replace(/^(Bridge\s*\d*|BR):?/gim, '[$1]');
+    text = text.replace(/^(Pre-Chorus\s*\d*|Pre Chorus):?/gim, '[Pre-Chorus]');
+    text = text.replace(/^(Tag|Vamp|Outro|Intro):?/gim, '[$1]');
+
+    // If still no brackets, wrap separated blocks
+    if (!text.includes('[')) {
+      const blocks = text.split(/\n\s*\n/);
+      let tagged = [];
+      let vCount = 1;
+      blocks.forEach((blk, idx) => {
+        if (idx === 0) tagged.push(`[Verse 1]\n${blk.trim()}`);
+        else if (idx === 1) tagged.push(`[Chorus]\n${blk.trim()}`);
+        else if (idx === 2) tagged.push(`[Verse 2]\n${blk.trim()}`);
+        else if (idx === 3) tagged.push(`[Chorus]\n${blk.trim()}`);
+        else if (idx === 4) tagged.push(`[Bridge]\n${blk.trim()}`);
+        else tagged.push(`[Section ${idx + 1}]\n${blk.trim()}`);
+      });
+      text = tagged.join('\n\n');
+    }
+
+    lyricEditor.value = text;
+    renderArrangementChips({ lyrics: text });
+    showToast('✨ Lyrics automatically tagged and formatted!');
+  }
+
+  // ── TAP TEMPO ──
+  function handleTapTempo() {
+    const now = Date.now();
+    tapTimes.push(now);
+    if (tapTimes.length > 4) tapTimes.shift();
+
+    if (tapTimes.length > 1) {
+      const diffs = [];
+      for (let i = 1; i < tapTimes.length; i++) {
+        diffs.push(tapTimes[i] - tapTimes[i - 1]);
+      }
+      const avgDiff = diffs.reduce((a, b) => a + b, 0) / diffs.length;
+      const bpm = Math.round(60000 / avgDiff);
+      if (bpm >= 40 && bpm <= 240) {
+        metaBpm.value = bpm;
+      }
+    }
+  }
+
+  // ── MODALS: SCRAPER ──
+  const modalScraper = document.getElementById('modal-scraper');
+  const scrapeQueryInput = document.getElementById('scrape-query-input');
+  const scrapeResultsList = document.getElementById('scrape-results-list');
+  const scrapeStatus = document.getElementById('scrape-status');
+
+  function openScraperModal() {
+    modalScraper.classList.add('open');
+    scrapeQueryInput.focus();
+    if (metaTitle.value) {
+      scrapeQueryInput.value = metaTitle.value;
+      runScraperSearch();
+    }
+  }
+
+  function closeScraperModal() {
+    modalScraper.classList.remove('open');
+  }
+
+  async function runScraperSearch() {
+    const q = scrapeQueryInput.value.trim();
+    if (!q) return;
+
+    scrapeStatus.textContent = 'Searching Ultimate Guitar & web database...';
+    scrapeResultsList.innerHTML = '';
+
+    try {
+      const res = await fetch('/api/worship/scrape', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'search', query: q })
+      });
+      const data = await res.json();
+
+      if (data.results && data.results.length > 0) {
+        scrapeStatus.textContent = `Found ${data.results.length} versions:`;
+        data.results.forEach(r => {
+          const item = document.createElement('div');
+          item.className = 'scrape-result-item';
+          item.innerHTML = `
+            <div>
+              <div style="font-weight: 800; color: #fff; font-size: 13px;">${escapeHtml(r.song_name)}</div>
+              <div style="font-size: 11px; color: var(--text-muted);">${escapeHtml(r.artist_name)} • ${r.type} ${r.tonality_name ? '• Key: ' + r.tonality_name : ''}</div>
+            </div>
+            <button class="btn btn-primary" style="padding: 4px 10px; font-size: 11px;">Import</button>
+          `;
+          item.onclick = () => fetchAndImportTab(r.tab_url);
+          scrapeResultsList.appendChild(item);
+        });
+      } else {
+        scrapeStatus.textContent = 'No results found. Try another search phrase.';
+      }
+    } catch (e) {
+      scrapeStatus.textContent = 'Failed to search online tabs.';
+    }
+  }
+
+  async function fetchAndImportTab(tabUrl) {
+    scrapeStatus.textContent = 'Fetching and parsing lyrics & tags...';
+    try {
+      const res = await fetch('/api/worship/scrape', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'fetch', url: tabUrl, stripChords: true })
+      });
+      const data = await res.json();
+
+      if (data.lyrics) {
+        metaTitle.value = data.song_name || metaTitle.value;
+        metaArtist.value = data.artist_name || metaArtist.value;
+        if (data.key) metaKey.value = data.key;
+        if (data.bpm) metaBpm.value = data.bpm;
+        lyricEditor.value = data.lyrics;
+
+        saveCurrentSong(false);
+        closeScraperModal();
+        showToast('🎉 Song scraped & imported with section tags!');
+      } else {
+        scrapeStatus.textContent = 'Could not extract lyrics from this tab.';
+      }
+    } catch (e) {
+      scrapeStatus.textContent = 'Error fetching tab content.';
+    }
+  }
+
+  // ── MODALS: SETLIST MANAGER ──
+  const modalSetlists = document.getElementById('modal-setlists');
+  const setlistNameInput = document.getElementById('setlist-name-input');
+  const setlistSongsTable = document.getElementById('setlist-songs-table');
+  const savedSetlistsList = document.getElementById('saved-setlists-list');
+
+  function openSetlistModal() {
+    modalSetlists.classList.add('open');
+    renderSetlistModalContent();
+  }
+
+  function closeSetlistModal() {
+    modalSetlists.classList.remove('open');
+  }
+
+  function renderSetlistModalContent() {
+    const curSetlist = setlists.find(s => s.id === currentSetlistId) || setlists[0];
+    if (curSetlist) {
+      setlistNameInput.value = curSetlist.name;
+    }
+
+    setlistSongsTable.innerHTML = '';
+    const curSongs = (curSetlist?.songs || []).map(id => songs.find(s => s.id === id)).filter(Boolean);
+
+    if (curSongs.length === 0) {
+      setlistSongsTable.innerHTML = '<div style="font-size: 12px; color: var(--text-dim); padding: 8px;">No songs in this setlist.</div>';
+    } else {
+      curSongs.forEach((s, idx) => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 6px; margin-bottom: 4px; font-size: 13px;';
+        row.innerHTML = `
+          <div style="font-weight: 700;">${idx + 1}. ${escapeHtml(s.title)} <span style="color: var(--brand-teal); font-size: 11px;">(${s.key || 'C'})</span></div>
+          <div style="display: flex; gap: 4px;">
+            <button class="btn" style="padding: 2px 6px; font-size: 10px;" onclick="window._moveSetlistSong(${idx}, -1)">▲</button>
+            <button class="btn" style="padding: 2px 6px; font-size: 10px;" onclick="window._moveSetlistSong(${idx}, 1)">▼</button>
+            <button class="btn" style="padding: 2px 6px; font-size: 10px; color: #f87171;" onclick="window._removeSetlistSong(${idx})">✕</button>
+          </div>
+        `;
+        setlistSongsTable.appendChild(row);
+      });
+    }
+
+    // List all setlists
+    savedSetlistsList.innerHTML = '';
+    setlists.forEach(sl => {
+      const item = document.createElement('div');
+      item.style.cssText = 'display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 6px; margin-bottom: 4px; font-size: 12px;';
+      item.innerHTML = `
+        <div>
+          <span style="font-weight: 700; color: #fff;">${escapeHtml(sl.name)}</span>
+          <span style="color: var(--text-dim); font-size: 11px; margin-left: 6px;">(${sl.songs?.length || 0} songs)</span>
+        </div>
+        <button class="btn" style="padding: 3px 8px; font-size: 11px;" onclick="window._selectSetlist('${sl.id}')">Select</button>
+      `;
+      savedSetlistsList.appendChild(item);
+    });
+  }
+
+  window._moveSetlistSong = function (index, dir) {
+    const curSetlist = setlists.find(s => s.id === currentSetlistId);
+    if (!curSetlist || !curSetlist.songs) return;
+    const newIdx = index + dir;
+    if (newIdx < 0 || newIdx >= curSetlist.songs.length) return;
+
+    const temp = curSetlist.songs[index];
+    curSetlist.songs[index] = curSetlist.songs[newIdx];
+    curSetlist.songs[newIdx] = temp;
+
+    saveSetlistsLocal();
+    renderSetlistModalContent();
+    renderSidebar();
+    renderSongDropdown();
+  };
+
+  window._removeSetlistSong = function (index) {
+    const curSetlist = setlists.find(s => s.id === currentSetlistId);
+    if (!curSetlist || !curSetlist.songs) return;
+    curSetlist.songs.splice(index, 1);
+
+    saveSetlistsLocal();
+    renderSetlistModalContent();
+    renderSidebar();
+    renderSongDropdown();
+  };
+
+  window._selectSetlist = function (id) {
+    currentSetlistId = id;
+    renderSetlistDropdown();
+    renderSongDropdown();
+    renderSidebar();
+    const curSetlist = setlists.find(s => s.id === id);
+    if (curSetlist && curSetlist.songs && curSetlist.songs.length > 0) {
+      loadSong(curSetlist.songs[0]);
+    }
+    closeSetlistModal();
+    showToast('Setlist switched: ' + (curSetlist?.name || ''));
+  };
+
+  // ══════════════════════════════════════════════════════════
+  // ── STAGE TELEPROMPTER ENGINE ──
+  // ══════════════════════════════════════════════════════════
+  function enterStageMode() {
+    saveCurrentSong(false);
+    const song = songs.find(s => s.id === currentSongId);
+    if (!song) return;
+
+    stageView.classList.add('active');
+    renderStageContent(song);
+    startStageTimer();
+    startBpmPulse(song.tempo || 72);
+    requestWakeLock();
+  }
+
+  function exitStageMode() {
+    stopAutoScroll();
+    stopStageTimer();
+    stopBpmPulse();
+    releaseWakeLock();
+    stageView.classList.remove('active');
+  }
+
+  function renderStageContent(song) {
+    stageSongTitle.textContent = song.title;
+    stageSongKey.textContent = `Key: ${song.key || 'C'}${song.capo && song.capo !== '0' ? ' (Capo ' + song.capo + ')' : ''}`;
+    stageSongBpm.textContent = `${song.tempo || 72} BPM`;
+
+    // Setlist index
+    const curSetlist = setlists.find(s => s.id === currentSetlistId);
+    const setlistSongs = curSetlist?.songs || [];
+    const idx = setlistSongs.indexOf(song.id);
+    if (idx >= 0) {
+      stageSongIndexLabel.textContent = `${idx + 1} / ${setlistSongs.length}`;
+    } else {
+      stageSongIndexLabel.textContent = `1 / 1`;
+    }
+
+    // Notes / cues banner
+    if (song.notes) {
+      stageCuesBanner.textContent = `💡 CUE: ${song.notes}`;
+      stageCuesBanner.style.display = 'block';
+    } else {
+      stageCuesBanner.style.display = 'none';
+    }
+
+    // Render lyrics blocks with section IDs
+    const sections = extractSections(song.lyrics || '');
+    stageLyricsContent.innerHTML = '';
+    stageJumpDock.innerHTML = '';
+
+    sections.forEach((sec, sIdx) => {
+      const block = document.createElement('div');
+      block.className = 'stage-section-block';
+      block.id = `stage-sec-${sIdx}`;
+
+      const hdrClass = `hdr-${sec.type}`;
+      block.innerHTML = `
+        <div class="stage-section-header ${hdrClass}">
+          <span>✦</span> ${escapeHtml(sec.title)}
+        </div>
+        <div class="stage-lyrics-lines" style="font-size: ${stageFontSize}px;">${escapeHtml(sec.lines.join('\n').trim())}</div>
+      `;
+      stageLyricsContent.appendChild(block);
+
+      // Tactile jump dock button
+      const btn = document.createElement('button');
+      btn.className = `jump-btn ${sIdx === 0 ? 'active' : ''}`;
+      btn.textContent = sec.title;
+      btn.onclick = () => jumpToSection(sIdx);
+      stageJumpDock.appendChild(btn);
+    });
+
+    stageScrollContainer.scrollTop = 0;
+  }
+
+  function jumpToSection(index) {
+    const target = document.getElementById(`stage-sec-${index}`);
+    if (target) {
+      // Highlight jump buttons
+      const buttons = stageJumpDock.querySelectorAll('.jump-btn');
+      buttons.forEach((b, i) => b.classList.toggle('active', i === index));
+
+      // Glow section
+      const blocks = stageLyricsContent.querySelectorAll('.stage-section-block');
+      blocks.forEach((b, i) => b.classList.toggle('active-glow', i === index));
+
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  // Auto-scroll controller
+  function toggleAutoScroll() {
+    if (stageIsScrolling) {
+      stopAutoScroll();
+    } else {
+      startAutoScroll();
+    }
+  }
+
+  function startAutoScroll() {
+    stageIsScrolling = true;
+    stagePlayToggle.textContent = '⏸ PAUSE';
+    stagePlayToggle.classList.add('paused');
+
+    if (stageScrollInterval) clearInterval(stageScrollInterval);
+    const speedPx = stageScrollSpeed * 1.2;
+    stageScrollInterval = setInterval(() => {
+      stageScrollContainer.scrollTop += speedPx;
+    }, 40);
+  }
+
+  function stopAutoScroll() {
+    stageIsScrolling = false;
+    stagePlayToggle.textContent = '▶ AUTO-SCROLL';
+    stagePlayToggle.classList.remove('paused');
+    if (stageScrollInterval) {
+      clearInterval(stageScrollInterval);
+      stageScrollInterval = null;
+    }
+  }
+
+  function adjustSpeed(delta) {
+    stageScrollSpeed = Math.max(1, Math.min(10, stageScrollSpeed + delta));
+    stageSpeedLabel.textContent = `Speed ${stageScrollSpeed}`;
+    if (stageIsScrolling) {
+      startAutoScroll();
+    }
+  }
+
+  function adjustFontSize(delta) {
+    stageFontSize = Math.max(20, Math.min(64, stageFontSize + delta));
+    const lines = stageLyricsContent.querySelectorAll('.stage-lyrics-lines');
+    lines.forEach(l => l.style.fontSize = `${stageFontSize}px`);
+  }
+
+  // Next / Prev Song in Setlist
+  function nextSongInSetlist() {
+    const curSetlist = setlists.find(s => s.id === currentSetlistId);
+    if (!curSetlist || !curSetlist.songs) return;
+    const curIdx = curSetlist.songs.indexOf(currentSongId);
+    if (curIdx < curSetlist.songs.length - 1) {
+      const nextId = curSetlist.songs[curIdx + 1];
+      loadSong(nextId);
+      const song = songs.find(s => s.id === nextId);
+      renderStageContent(song);
+      stopAutoScroll();
+    } else {
+      showToast('End of setlist!');
+    }
+  }
+
+  function prevSongInSetlist() {
+    const curSetlist = setlists.find(s => s.id === currentSetlistId);
+    if (!curSetlist || !curSetlist.songs) return;
+    const curIdx = curSetlist.songs.indexOf(currentSongId);
+    if (curIdx > 0) {
+      const prevId = curSetlist.songs[curIdx - 1];
+      loadSong(prevId);
+      const song = songs.find(s => s.id === prevId);
+      renderStageContent(song);
+      stopAutoScroll();
+    }
+  }
+
+  // Timer
+  function startStageTimer() {
+    stageTimerSeconds = 0;
+    if (stageTimerInterval) clearInterval(stageTimerInterval);
+    stageTimerInterval = setInterval(() => {
+      stageTimerSeconds++;
+      const m = String(Math.floor(stageTimerSeconds / 60)).padStart(2, '0');
+      const s = String(stageTimerSeconds % 60).padStart(2, '0');
+      stageTimerDisplay.textContent = `⏱ ${m}:${s}`;
+    }, 1000);
+  }
+
+  function stopStageTimer() {
+    if (stageTimerInterval) {
+      clearInterval(stageTimerInterval);
+      stageTimerInterval = null;
+    }
+  }
+
+  // Silent BPM Pulse Metronome
+  function startBpmPulse(bpm) {
+    stopBpmPulse();
+    if (!bpm || bpm <= 0) return;
+    const intervalMs = (60 / bpm) * 1000;
+    bpmPulseInterval = setInterval(() => {
+      stageBpmDot.classList.add('pulse');
+      setTimeout(() => stageBpmDot.classList.remove('pulse'), 120);
+    }, intervalMs);
+  }
+
+  function stopBpmPulse() {
+    if (bpmPulseInterval) {
+      clearInterval(bpmPulseInterval);
+      bpmPulseInterval = null;
+    }
+  }
+
+  // Fullscreen API
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+      if (document.exitFullscreen) document.exitFullscreen();
+    }
+  }
+
+  // WakeLock API to keep screen awake on stage
+  async function requestWakeLock() {
+    try {
+      if ('wakeLock' in navigator) {
+        wakeLock = await navigator.wakeLock.request('screen');
+      }
+    } catch {}
+  }
+
+  function releaseWakeLock() {
+    if (wakeLock) {
+      wakeLock.release().catch(() => {});
+      wakeLock = null;
+    }
+  }
+
+  // ── KEYBOARD & FOOT PEDAL SHORTCUTS ──
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+    if (stageView.classList.contains('active')) {
+      if (e.key === ' ' || e.code === 'Space') {
+        e.preventDefault();
+        toggleAutoScroll();
+      } else if (e.key === 'ArrowRight' || e.key === 'PageDown') {
+        e.preventDefault();
+        nextSongInSetlist();
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        e.preventDefault();
+        prevSongInSetlist();
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        stageScrollContainer.scrollTop += 120;
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        stageScrollContainer.scrollTop -= 120;
+      } else if (e.key === 'Escape') {
+        exitStageMode();
+      } else if (e.key >= '1' && e.key <= '9') {
+        jumpToSection(parseInt(e.key) - 1);
+      }
+    } else {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        saveCurrentSong(true);
+      } else if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+        e.preventDefault();
+        openScraperModal();
+      }
+    }
+  });
+
+  // ── EVENT LISTENERS ──
+  document.getElementById('btn-enter-stage').onclick = enterStageMode;
+  document.getElementById('stage-btn-exit').onclick = exitStageMode;
+  document.getElementById('stage-play-toggle').onclick = toggleAutoScroll;
+  document.getElementById('stage-speed-up').onclick = () => adjustSpeed(1);
+  document.getElementById('stage-speed-down').onclick = () => adjustSpeed(-1);
+  document.getElementById('stage-font-up').onclick = () => adjustFontSize(4);
+  document.getElementById('stage-font-down').onclick = () => adjustFontSize(-4);
+  document.getElementById('stage-fullscreen-toggle').onclick = toggleFullscreen;
+  document.getElementById('stage-btn-next-song').onclick = nextSongInSetlist;
+  document.getElementById('stage-btn-prev-song').onclick = prevSongInSetlist;
+
+  // Header and Editor actions
+  document.getElementById('btn-save-song').onclick = () => saveCurrentSong(true);
+  document.getElementById('btn-auto-format').onclick = autoFormatLyrics;
+  document.getElementById('btn-bpm-tap').onclick = handleTapTempo;
+  document.getElementById('btn-new-song').onclick = () => {
+    const newId = 'song-' + Date.now();
+    const newSong = { id: newId, title: 'New Song', artist: '', key: 'G', lyrics: '[Verse 1]\n\n[Chorus]\n' };
+    songs.unshift(newSong);
+    saveSongsLocal();
+    loadSong(newId);
+    showToast('New song template created');
+  };
+
+  // Section tagging buttons
+  document.querySelectorAll('.tag-btn[data-tag]').forEach(btn => {
+    btn.onclick = () => {
+      const tag = btn.getAttribute('data-tag');
+      const curPos = lyricEditor.selectionStart || lyricEditor.value.length;
+      const text = lyricEditor.value;
+      lyricEditor.value = text.slice(0, curPos) + '\n\n' + tag + '\n' + text.slice(curPos);
+      lyricEditor.focus();
+      renderArrangementChips({ lyrics: lyricEditor.value });
+    };
+  });
+
+  // Sidebar tab switching
+  tabSetlist.onclick = () => {
+    activeSidebarTab = 'setlist';
+    tabSetlist.classList.add('active');
+    tabAllSongs.classList.remove('active');
+    renderSidebar();
+  };
+  tabAllSongs.onclick = () => {
+    activeSidebarTab = 'all';
+    tabAllSongs.classList.add('active');
+    tabSetlist.classList.remove('active');
+    renderSidebar();
+  };
+  songSearchInput.oninput = renderSidebar;
+
+  // Dropdowns change
+  headerSetlistSelect.onchange = () => {
+    currentSetlistId = headerSetlistSelect.value;
+    renderSongDropdown();
+    renderSidebar();
+    const curSetlist = setlists.find(s => s.id === currentSetlistId);
+    if (curSetlist?.songs?.length > 0) loadSong(curSetlist.songs[0]);
+  };
+  headerSongSelect.onchange = () => {
+    loadSong(headerSongSelect.value);
+  };
+
+  // Scraper modal
+  document.getElementById('btn-open-scraper').onclick = openScraperModal;
+  document.getElementById('btn-close-scraper').onclick = closeScraperModal;
+  document.getElementById('btn-run-scrape').onclick = runScraperSearch;
+  scrapeQueryInput.onkeydown = (e) => { if (e.key === 'Enter') runScraperSearch(); };
+
+  // Setlist modal
+  document.getElementById('btn-open-setlists').onclick = openSetlistModal;
+  document.getElementById('btn-close-setlists').onclick = closeSetlistModal;
+  document.getElementById('btn-save-current-setlist').onclick = () => {
+    const curSetlist = setlists.find(s => s.id === currentSetlistId);
+    if (curSetlist) {
+      curSetlist.name = setlistNameInput.value.trim() || curSetlist.name;
+      saveSetlistsLocal();
+      renderSetlistDropdown();
+      renderSetlistModalContent();
+      showToast('Setlist name updated');
+    }
+  };
+  document.getElementById('btn-create-new-setlist').onclick = () => {
+    const id = 'setlist-' + Date.now();
+    const name = prompt('Enter new setlist name:', 'Sunday Service Worship');
+    if (name) {
+      const newSl = { id, name, songs: [currentSongId] };
+      setlists.unshift(newSl);
+      currentSetlistId = id;
+      saveSetlistsLocal();
+      renderSetlistDropdown();
+      renderSetlistModalContent();
+      renderSidebar();
+      showToast('New setlist created');
+    }
+  };
+
+  // Register PWA Service Worker for Offline stage use
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/theworship-sw.js').catch(() => {});
+  }
+
+  // ── INITIALIZE ──
+  initStorage();
+  renderSetlistDropdown();
+  renderSongDropdown();
+  renderSidebar();
+  if (currentSongId) loadSong(currentSongId);
+
+})();
+</script>
+</body>
+</html>

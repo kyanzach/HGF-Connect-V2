@@ -5,6 +5,26 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.52.0] — 2026-09-12
+### Added
+- **THE WORSHIP — Advanced Stage Teleprompter, Setlist Manager & Lyric Scraper (`/theworshiptool.html`, `/api/worship`, `/api/worship/scrape`, `/api/worship/setlists`, `theworship-manifest.json`, `theworship-sw.js`)**:
+  - **Live Stage Teleprompter & Performance Mode**:
+    - High-contrast OLED dark stage mode with glowing HGF Teal (`#4EB1CB`) section highlights and large readable typography (resizable from 20px to 64px).
+    - Smooth continuous auto-scroll engine with granular speed controls (Levels 1–10, `+`/`−`), Play/Pause toggle, and tap-to-pause.
+    - **Tactile Section Jump Dock**: Floating, prominent jump buttons for every song section (`[Verse 1]`, `[Chorus]`, `[Bridge]`, `[Vamp]`, `[Tag]`, `[Outro]`) allowing worship leaders to smoothly jump to any section during spontaneous worship.
+    - **Musical Stage HUD**: Current Key & Capo badge, BPM with silent flashing metronome pulse dot, Time Signature, and elapsed service timer.
+    - **Bluetooth Foot Pedal & Keyboard Shortcuts**: `Space` (Play/Pause), `Page Down` / `Arrow Right` (Next Song), `Arrow Up`/`Down` (Scroll), `1-9` (Direct Section Jump).
+    - **Screen WakeLock API**: Keeps mobile and tablet displays awake during live worship sets.
+  - **Smart Multi-Source Lyric Scraper & Auto-Tagger (`/api/worship/scrape`)**:
+    - Built-in search and extraction from Ultimate Guitar and web lyric databases.
+    - Extracts song title, artist, tonality/key, BPM, and capo.
+    - Automatically cleans tab formatting, decodes HTML entities, strips chord-only lines, and formats structural tags (`[Verse]`, `[Chorus]`, `[Bridge]`, `[Pre-Chorus]`, `[Tag]`, `[Vamp]`, `[Intro]`, `[Outro]`).
+    - **✨ 1-Click Auto-Formatter**: Automatically parses and structures raw untagged lyric pastes into standardized HGF sections.
+  - **Setlist & Lineup Manager (`/api/worship/setlists`, `/api/worship`)**:
+    - Manage Sunday worship lineups (e.g. 5-song setlist with instant `◀ Prev` / `Next ▶` song switching on stage).
+    - Key modulation tracking, worship leader cues, and custom arrangement flow strips (`[Intro] [V1] [CH] [V2] [CH] [BR] [CH] [TAG] [OUT]`).
+    - Offline-first IndexedDB / LocalStorage persistence + cloud backup on the HGF server.
+
 ## [v2.51.0] — 2026-09-09
 ### Added
 - **Embedded PPTX Video Extraction & Interactive Slide Player (`lib/presentationProcessor.ts`, `ResourcesClient.tsx`, `ImageLightbox.tsx`, `MultimediaDashboardClient.tsx`, `quiz/page.tsx`)**:

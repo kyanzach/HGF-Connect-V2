@@ -1,0 +1,22 @@
+{
+  "name": "THE WORSHIP — Stage Prompter & Setlist Manager",
+  "short_name": "THE WORSHIP",
+  "description": "Stage lyrics teleprompter, setlist manager, and worship tool for House of Grace Fellowship, Davao City.",
+  "start_url": "/theworshiptool.html",
+  "display": "standalone",
+  "background_color": "#0c0e12",
+  "theme_color": "#0c0e12",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
