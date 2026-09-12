@@ -2209,7 +2209,32 @@ Holy forever`
       const blocks = stageLyricsContent.querySelectorAll('.stage-section-block');
       blocks.forEach((b, i) => b.classList.toggle('active-glow', i === index));
 
-      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Calculate exact scroll target relative to container
+      const containerRect = stageScrollContainer.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      const targetTop = stageScrollContainer.scrollTop + (targetRect.top - containerRect.top) - 20;
+
+      const wasScrolling = stageIsScrolling;
+      if (wasScrolling && stageScrollInterval) {
+        clearInterval(stageScrollInterval);
+        stageScrollInterval = null;
+      }
+
+      stageScrollContainer.scrollTo({
+        top: Math.max(0, targetTop),
+        behavior: 'smooth'
+      });
+
+      if (wasScrolling) {
+        setTimeout(() => {
+          if (stageIsScrolling && !stageScrollInterval) {
+            const speedPx = stageScrollSpeed * 1.2;
+            stageScrollInterval = setInterval(() => {
+              stageScrollContainer.scrollTop += speedPx;
+            }, 40);
+          }
+        }, 600);
+      }
     }
   }
 
