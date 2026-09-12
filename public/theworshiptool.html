@@ -1047,6 +1047,12 @@
     border-color: var(--brand-teal);
     box-shadow: 0 0 14px var(--brand-teal-glow);
   }
+  #jump-btn-intro.active {
+    background: #fde047 !important;
+    color: #000 !important;
+    border-color: #fde047 !important;
+    box-shadow: 0 0 16px rgba(253, 224, 71, 0.6) !important;
+  }
 
   /* Stage Bottom Auto-Scroll Control Bar */
   .stage-control-bar {
@@ -2781,15 +2787,83 @@ Holy forever`
     });
 
     stageScrollContainer.scrollTop = 0;
+    setTimeout(updateStageScrollspy, 60);
   }
+
+  let isProgrammaticJumping = false;
+  let programmaticJumpTimeout = null;
+
+  function updateStageScrollspy() {
+    if (isProgrammaticJumping) return;
+
+    const blocks = stageLyricsContent.querySelectorAll('.stage-section-block, .stage-exhortation-card');
+    if (blocks.length === 0) return;
+
+    const containerRect = stageScrollContainer.getBoundingClientRect();
+    const focalY = containerRect.top + Math.min(220, containerRect.height * 0.28);
+
+    let activeBlock = null;
+
+    for (let i = 0; i < blocks.length; i++) {
+      const b = blocks[i];
+      const rect = b.getBoundingClientRect();
+      if (rect.top <= focalY) {
+        activeBlock = b;
+      } else {
+        if (i === 0 && !activeBlock) {
+          activeBlock = b;
+        }
+        break;
+      }
+    }
+
+    if (!activeBlock && blocks.length > 0) {
+      activeBlock = blocks[0];
+    }
+
+    if (activeBlock) {
+      const activeId = activeBlock.id;
+      let targetBtnId = '';
+      if (activeId === 'stage-sec-intro') {
+        targetBtnId = 'jump-btn-intro';
+      } else if (activeId.startsWith('stage-sec-')) {
+        const idx = activeId.replace('stage-sec-', '');
+        targetBtnId = `jump-btn-sec-${idx}`;
+      }
+
+      const buttons = stageJumpDock.querySelectorAll('.jump-btn');
+      buttons.forEach(b => {
+        if (b.id === targetBtnId) {
+          if (!b.classList.contains('active')) {
+            b.classList.add('active');
+            b.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+          }
+        } else {
+          b.classList.remove('active');
+        }
+      });
+    }
+  }
+
+  stageScrollContainer.addEventListener('scroll', updateStageScrollspy, { passive: true });
 
   function jumpToSectionIntro() {
     const target = document.getElementById('stage-sec-intro');
     if (target) {
+      isProgrammaticJumping = true;
+      if (programmaticJumpTimeout) clearTimeout(programmaticJumpTimeout);
+      programmaticJumpTimeout = setTimeout(() => {
+        isProgrammaticJumping = false;
+        updateStageScrollspy();
+      }, 700);
+
       const buttons = stageJumpDock.querySelectorAll('.jump-btn');
       buttons.forEach(b => b.classList.remove('active'));
       const introBtn = document.getElementById('jump-btn-intro');
-      if (introBtn) introBtn.classList.add('active');
+      if (introBtn) {
+        introBtn.classList.add('active');
+        introBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
 
       const blocks = stageLyricsContent.querySelectorAll('.stage-section-block, .stage-exhortation-card');
       blocks.forEach(b => b.classList.remove('active-glow'));
@@ -2826,10 +2900,20 @@ Holy forever`
   function jumpToSection(index) {
     const target = document.getElementById(`stage-sec-${index}`);
     if (target) {
+      isProgrammaticJumping = true;
+      if (programmaticJumpTimeout) clearTimeout(programmaticJumpTimeout);
+      programmaticJumpTimeout = setTimeout(() => {
+        isProgrammaticJumping = false;
+        updateStageScrollspy();
+      }, 700);
+
       const buttons = stageJumpDock.querySelectorAll('.jump-btn');
       buttons.forEach(b => b.classList.remove('active'));
       const secBtn = document.getElementById(`jump-btn-sec-${index}`);
-      if (secBtn) secBtn.classList.add('active');
+      if (secBtn) {
+        secBtn.classList.add('active');
+        secBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
 
       const blocks = stageLyricsContent.querySelectorAll('.stage-section-block, .stage-exhortation-card');
       blocks.forEach(b => b.classList.remove('active-glow'));

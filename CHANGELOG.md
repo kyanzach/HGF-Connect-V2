@@ -5,6 +5,13 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.52.11] — 2026-09-12
+### Added & Enhanced
+- **Dynamic Scrollspy Section Tracker in Stage Prompter (`/theworshiptool.html`)**:
+  - Added real-time scroll tracking (Scrollspy) to the stage teleprompter view. As the lyrics auto-scroll down or as the leader manually drags/swipes through lyrics, the active state in the bottom jump dock (`[📖 Intro / Prayer]`, `[Verse 1]`, `[Pre-Chorus]`, `[Chorus]`, etc.) updates dynamically to reflect whichever section is currently passing the reading line.
+  - Added smooth auto-centering in the bottom jump dock bar so the active button remains visible even when overflowing on smaller mobile and tablet screens.
+  - Fully preserved instant jump navigation when tapping dock buttons without breaking or jarring the auto-scroll engine.
+
 ## [v2.52.10] — 2026-09-12
 ### Added & Enhanced
 - **Smart Worship Search Engine & Artist Disambiguation (`/api/worship/scrape`)**:
