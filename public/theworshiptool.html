@@ -1383,6 +1383,7 @@
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); flex-wrap: wrap; gap: 8px;">
           <button class="btn" id="btn-scrape-back" style="font-size: 12px; padding: 5px 12px;">⬅ Back to Results</button>
           <div style="display: flex; gap: 6px; align-items: center;">
+            <span id="scrape-preview-source" style="font-size: 11px; font-weight: 700; color: #60a5fa; background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.25); border-radius: 4px; padding: 2px 7px;">🎸 Ultimate Guitar</span>
             <span class="song-key-badge" id="scrape-preview-key" style="font-size: 12px; padding: 3px 8px;">Key: C</span>
             <span class="song-key-badge" id="scrape-preview-bpm" style="font-size: 12px; padding: 3px 8px; background: rgba(59,130,246,0.15); color: #60a5fa; border-color: rgba(59,130,246,0.3); display: none;">BPM: 72</span>
           </div>
@@ -2376,6 +2377,11 @@ Holy forever`
     if (prevEl) prevEl.style.display = 'block';
     if (titleEl) titleEl.textContent = '👁 Song Preview';
 
+    const sourceEl = document.getElementById('scrape-preview-source');
+    if (sourceEl) {
+      sourceEl.textContent = '🎸 ' + (data.source || 'Ultimate Guitar');
+    }
+
     document.getElementById('scrape-preview-title').textContent = data.song_name || 'Untitled Song';
     document.getElementById('scrape-preview-artist').textContent = (data.artist_name || 'HGF Worship') + (data.type ? ` • ${data.type}` : '');
     document.getElementById('scrape-preview-key').textContent = `Key: ${data.key || 'C'}`;
@@ -2415,7 +2421,7 @@ Holy forever`
     const q = scrapeQueryInput.value.trim();
     if (!q) return;
 
-    scrapeStatus.textContent = 'Searching Ultimate Guitar & web database...';
+    scrapeStatus.textContent = 'Searching Ultimate Guitar & worship archives...';
     scrapeResultsList.innerHTML = '';
 
     try {
@@ -2433,8 +2439,11 @@ Holy forever`
           item.className = 'scrape-result-item';
           item.innerHTML = `
             <div style="flex: 1; min-width: 0; padding-right: 10px;">
-              <div style="font-weight: 800; color: #fff; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(r.song_name)}</div>
-              <div style="font-size: 11px; color: var(--text-muted);">${escapeHtml(r.artist_name)} • ${r.type} ${r.tonality_name ? '• Key: ' + r.tonality_name : ''}</div>
+              <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 2px;">
+                <div style="font-weight: 800; color: #fff; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(r.song_name)}</div>
+                <span style="font-size: 10px; font-weight: 700; color: #60a5fa; background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.25); border-radius: 4px; padding: 1px 6px; white-space: nowrap;">🎸 ${escapeHtml(r.source || 'Ultimate Guitar')}</span>
+              </div>
+              <div style="font-size: 11px; color: var(--text-muted);">${escapeHtml(r.artist_name)} • ${r.type} ${r.tonality_name ? '• Key: ' + r.tonality_name : ''} ${r.rating ? '• ⭐ ' + r.rating : ''}</div>
             </div>
             <div style="display: flex; gap: 6px; align-items: center;">
               <button class="btn btn-scrape-preview" style="padding: 4px 10px; font-size: 11px; background: rgba(78,177,203,0.12); color: var(--brand-teal); border: 1px solid var(--brand-teal);">👁 Preview</button>

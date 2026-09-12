@@ -138,13 +138,54 @@ export async function POST(req: NextRequest) {
       const searchPhrases = new Set<string>();
       searchPhrases.add(q);
 
+      // Clean delimiters & punctuation
+      let cleanSpace = q.replace(/[\+\/&,–—\-_|]/g, ' ').replace(/\s+/g, ' ').trim();
+      if (cleanSpace) searchPhrases.add(cleanSpace);
+
+      // Auto-correct common worship typos (e.g. gratite -> gratitude, scheck -> zschech)
+      const TYPO_MAP: Record<string, string> = {
+        gratite: 'gratitude',
+        gratitud: 'gratitude',
+        schek: 'zschech',
+        scheck: 'zschech',
+        zcheck: 'zschech',
+        darlen: 'darlene',
+        goodnes: 'goodness',
+        reckles: 'reckless',
+        ocens: 'oceans',
+      };
+      let corrected = cleanSpace;
+      for (const [typo, fix] of Object.entries(TYPO_MAP)) {
+        const regex = new RegExp(`\\b${typo}\\b`, 'gi');
+        if (regex.test(corrected)) {
+          corrected = corrected.replace(regex, fix);
+        }
+      }
+      if (corrected !== cleanSpace) {
+        searchPhrases.add(corrected);
+        cleanSpace = corrected;
+      }
+
+      // Check for multi-song / mashup / medley patterns (e.g. "gratitude + great are you lord", "gratitude and great are you lord")
+      const parts = cleanSpace.split(/(?:\s+(?:and|with|mashup|medley|vs)\s+)/i).map(p => p.trim()).filter(p => p.length > 1);
+      const isMultiSong = parts.length > 1;
+
+      if (isMultiSong) {
+        searchPhrases.add(parts.join(' '));
+        searchPhrases.add(parts[0] + ' mashup');
+        searchPhrases.add(parts[0] + ' medley');
+        for (const p of parts) {
+          searchPhrases.add(p);
+        }
+      }
+
       // Strip common search noise / filler words
-      const stripped = q.replace(/\b(by|of|from|feat|ft|the|a|an|song|lyrics|chords)\b/gi, ' ').replace(/\s+/g, ' ').trim();
+      const stripped = cleanSpace.replace(/\b(by|of|from|feat|ft|the|a|an|song|lyrics|chords|mashup|medley)\b/gi, ' ').replace(/\s+/g, ' ').trim();
       if (stripped && stripped !== q) searchPhrases.add(stripped);
 
       // Multi-word decomposition (e.g. 'you are near darlene' -> 'you are near')
       const words = stripped.split(' ');
-      if (words.length >= 3) {
+      if (words.length >= 3 && !isMultiSong) {
         for (let len = words.length - 1; len >= 2; len--) {
           searchPhrases.add(words.slice(0, len).join(' '));
         }
@@ -162,7 +203,7 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      const phraseList = Array.from(searchPhrases).slice(0, 6);
+      const phraseList = Array.from(searchPhrases).slice(0, 8);
       const allResultsArrays = await Promise.all(phraseList.map(phrase => searchUGSingle(phrase, headers)));
 
       // Deduplicate results
@@ -175,13 +216,14 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      const queryTokens = q.split(/\s+/).filter(w => w.length > 1);
+      const queryTokens = cleanSpace.split(/\s+/).filter(w => w.length > 1);
 
       // Relevance Scoring & Ranking
       const scoredResults = Array.from(map.values()).map(r => {
         let score = 0;
         const sTitle = (r.song_name || '').toLowerCase();
         const sArtist = (r.artist_name || '').toLowerCase();
+        const fullText = `${sTitle} ${sArtist}`;
         const votes = r.votes || 0;
         const rating = r.rating || 0;
 
@@ -190,8 +232,23 @@ export async function POST(req: NextRequest) {
         else if (r.type === 'Pro') score += 6;
         else if (r.type === 'Tabs') score += 3;
 
+        // Mashup / Multi-song matching boost
+        if (isMultiSong) {
+          let matchedPartsCount = 0;
+          for (const p of parts) {
+            const pTokens = p.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+            const hasPart = pTokens.length > 0 && pTokens.every(tok => fullText.includes(tok));
+            if (hasPart) matchedPartsCount++;
+          }
+          if (matchedPartsCount >= 2) {
+            score += 160; // HUGE boost for mashups containing both songs!
+          } else if (sTitle.includes('mashup') || sTitle.includes('medley')) {
+            score += 40;
+          }
+        }
+
         // Title precision match
-        if (sTitle === q || sTitle === stripped) score += 60;
+        if (sTitle === q || sTitle === cleanSpace || sTitle === stripped) score += 60;
         else if (sTitle.startsWith(stripped) || stripped.startsWith(sTitle)) score += 35;
         else if (sTitle.includes(stripped) || stripped.includes(sTitle)) score += 25;
 
@@ -226,6 +283,7 @@ export async function POST(req: NextRequest) {
           tab_url: r.tab_url,
           tonality_name: r.tonality_name || '',
           version: r.version || 1,
+          source: 'Ultimate Guitar',
           _score: score,
         };
       });
@@ -279,6 +337,7 @@ export async function POST(req: NextRequest) {
         bpm: bpm,
         lyrics: lyrics,
         content_with_chords: withChords,
+        source: 'Ultimate Guitar',
       });
     }
 

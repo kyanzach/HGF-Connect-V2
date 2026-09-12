@@ -5,6 +5,14 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.52.12] — 2026-09-12
+### Added & Enhanced
+- **Smart Mashup / Medley Search & Source Tagging (`/api/worship/scrape` & `/theworshiptool.html`)**:
+  - Added multi-song delimiter parsing (`+`, `/`, `&`, `and`, `with`, `mashup`, `medley`, `vs`) to smartly decompose combined search queries like `"Gratitude + great are you lord"`.
+  - Implemented a +160 multi-part boost in the ranking algorithm so actual mashups and medleys (e.g. *Gateway Worship*, *Misc Mashups*) rank at the very top above high-vote single tracks.
+  - Added worship query typo auto-correction (e.g. `gratite` ➔ `gratitude`, `schek` ➔ `zschech`, `goodnes` ➔ `goodness`, etc.).
+  - Added visible **Source Badges** (`🎸 Ultimate Guitar`) to all search result items and within the live song preview modal header for complete transparency on data origins.
+
 ## [v2.52.11] — 2026-09-12
 ### Added & Enhanced
 - **Dynamic Scrollspy Section Tracker in Stage Prompter (`/theworshiptool.html`)**:
