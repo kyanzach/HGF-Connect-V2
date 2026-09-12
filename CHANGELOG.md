@@ -5,6 +5,14 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.52.10] — 2026-09-12
+### Added & Enhanced
+- **Smart Worship Search Engine & Artist Disambiguation (`/api/worship/scrape`)**:
+  - Replaced strict title-only search with an intelligent multi-phase query decomposition engine.
+  - Added query token extraction, phrase generation, and automatic artist alias mapping for worship teams and leaders (e.g. `darlene scheck` / `darlene` ➔ `Darlene Zschech` / `Hillsong Worship`, `brandon lake` ➔ `Bethel Music`, etc.).
+  - Executes parallel searches across candidate phrases, deduplicating and ranking results by title match precision, artist boost, community rating, and chord format preference.
+  - Queries like `"you are near darlene"` and `"you are near by darlene scheck of hillsong"` now seamlessly resolve to the exact *You Are Near by Hillsong Worship* / *Darlene Zschech* chord charts at rank #1.
+
 ## [v2.52.9] — 2026-09-12
 ### Added & Enhanced
 - **Interactive Song Lyric & Chord Preview in Scraper Modal (`/theworshiptool.html`)**:

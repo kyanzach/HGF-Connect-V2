@@ -79,6 +79,44 @@ function parseUgContent(rawContent: string, stripChords = true, songName = '', a
   return text;
 }
 
+const WORSHIP_ALIASES = [
+  { match: /\b(scheck|zschech|darlene)\b/i, artists: ['darlene zschech', 'hillsong worship', 'hillsong live', 'hillsong united', 'hillsong'] },
+  { match: /\b(hillsong)\b/i, artists: ['hillsong worship', 'hillsong united', 'hillsong live', 'hillsong young & free', 'darlene zschech'] },
+  { match: /\b(brandon|lake)\b/i, artists: ['brandon lake', 'bethel music', 'elevation worship', 'maverick city'] },
+  { match: /\b(bethel)\b/i, artists: ['bethel music', 'jenn johnson', 'brian johnson', 'steffany gretzinger'] },
+  { match: /\b(elevation)\b/i, artists: ['elevation worship', 'steven furtick', 'maverick city'] },
+  { match: /\b(maverick|mav)\b/i, artists: ['maverick city music', 'chandler moore', 'naomi raine'] },
+  { match: /\b(tomlin|chris)\b/i, artists: ['chris tomlin', 'passion'] },
+  { match: /\b(wickham|phil)\b/i, artists: ['phil wickham'] },
+  { match: /\b(kari|jobe)\b/i, artists: ['kari jobe', 'cody carnes'] },
+  { match: /\b(cody|carnes)\b/i, artists: ['cody carnes', 'kari jobe'] },
+  { match: /\b(moen|don)\b/i, artists: ['don moen', 'integrity music'] },
+  { match: /\b(sinach)\b/i, artists: ['sinach'] },
+  { match: /\b(redman|matt)\b/i, artists: ['matt redman', 'passion'] },
+  { match: /\b(cityalight)\b/i, artists: ['cityalight'] },
+  { match: /\b(planetshakers)\b/i, artists: ['planetshakers'] },
+  { match: /\b(cece|winans)\b/i, artists: ['cece winans'] },
+  { match: /\b(lauren|daigle)\b/i, artists: ['lauren daigle'] },
+  { match: /\b(crowder)\b/i, artists: ['crowder', 'david crowder band'] }
+];
+
+async function searchUGSingle(phrase: string, headers: Record<string, string>): Promise<any[]> {
+  if (!phrase || phrase.trim().length < 2) return [];
+  try {
+    const searchUrl = `https://www.ultimate-guitar.com/search.php?title=${encodeURIComponent(phrase.trim())}`;
+    const res = await fetch(searchUrl, { headers, cache: 'no-store' });
+    if (!res.ok) return [];
+    const html = await res.text();
+    const match = html.match(/class="js-store"\s+data-content="([^"]+)"/);
+    if (!match) return [];
+    const decoded = JSON.parse(match[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&'));
+    const rawResults = decoded?.store?.page?.data?.results || [];
+    return rawResults.filter((r: any) => r.tab_url && r.song_name && (r.type === 'Chords' || r.type === 'Pro' || r.type === 'Tabs'));
+  } catch {
+    return [];
+  }
+}
+
 // POST /api/worship/scrape
 // Body: { action: 'search', query: string } OR { action: 'fetch', url: string, stripChords?: boolean }
 export async function POST(req: NextRequest) {
@@ -96,26 +134,89 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Search query required' }, { status: 400 });
       }
 
-      const searchUrl = `https://www.ultimate-guitar.com/search.php?search_type=title&value=${encodeURIComponent(query.trim())}`;
-      const res = await fetch(searchUrl, { headers, cache: 'no-store' });
-      if (!res.ok) {
-        return NextResponse.json({ error: 'Failed to reach search provider' }, { status: 502 });
+      const q = query.trim().toLowerCase();
+      const searchPhrases = new Set<string>();
+      searchPhrases.add(q);
+
+      // Strip common search noise / filler words
+      const stripped = q.replace(/\b(by|of|from|feat|ft|the|a|an|song|lyrics|chords)\b/gi, ' ').replace(/\s+/g, ' ').trim();
+      if (stripped && stripped !== q) searchPhrases.add(stripped);
+
+      // Multi-word decomposition (e.g. 'you are near darlene' -> 'you are near')
+      const words = stripped.split(' ');
+      if (words.length >= 3) {
+        for (let len = words.length - 1; len >= 2; len--) {
+          searchPhrases.add(words.slice(0, len).join(' '));
+        }
       }
 
-      const html = await res.text();
-      const match = html.match(/class="js-store"\s+data-content="([^"]+)"/);
-      if (!match) {
-        return NextResponse.json({ results: [] });
+      // Check artist aliases (e.g. 'darlene scheck' -> 'darlene zschech', 'hillsong worship')
+      for (const item of WORSHIP_ALIASES) {
+        if (item.match.test(q)) {
+          for (const art of item.artists) {
+            if (words.length >= 2) {
+              searchPhrases.add(words.slice(0, 2).join(' ') + ' ' + art);
+              searchPhrases.add(words.slice(0, 3).join(' '));
+            }
+          }
+        }
       }
 
-      const decoded = JSON.parse(match[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&'));
-      const rawResults = decoded?.store?.page?.data?.results || [];
+      const phraseList = Array.from(searchPhrases).slice(0, 6);
+      const allResultsArrays = await Promise.all(phraseList.map(phrase => searchUGSingle(phrase, headers)));
 
-      // Filter for Chords or Tabs with song names
-      const results = rawResults
-        .filter((r: any) => r.tab_url && r.song_name && (r.type === 'Chords' || r.type === 'Pro' || r.type === 'Tabs'))
-        .slice(0, 15)
-        .map((r: any) => ({
+      // Deduplicate results
+      const map = new Map<string, any>();
+      for (const arr of allResultsArrays) {
+        for (const r of arr) {
+          if (!map.has(r.tab_url)) {
+            map.set(r.tab_url, r);
+          }
+        }
+      }
+
+      const queryTokens = q.split(/\s+/).filter(w => w.length > 1);
+
+      // Relevance Scoring & Ranking
+      const scoredResults = Array.from(map.values()).map(r => {
+        let score = 0;
+        const sTitle = (r.song_name || '').toLowerCase();
+        const sArtist = (r.artist_name || '').toLowerCase();
+        const votes = r.votes || 0;
+        const rating = r.rating || 0;
+
+        // Preferred formats
+        if (r.type === 'Chords') score += 12;
+        else if (r.type === 'Pro') score += 6;
+        else if (r.type === 'Tabs') score += 3;
+
+        // Title precision match
+        if (sTitle === q || sTitle === stripped) score += 60;
+        else if (sTitle.startsWith(stripped) || stripped.startsWith(sTitle)) score += 35;
+        else if (sTitle.includes(stripped) || stripped.includes(sTitle)) score += 25;
+
+        // Token match
+        for (const t of queryTokens) {
+          if (sTitle.includes(t)) score += 10;
+          if (sArtist.includes(t)) score += 20; // High boost for matching artist
+        }
+
+        // Worship alias boost
+        for (const alias of WORSHIP_ALIASES) {
+          if (alias.match.test(q)) {
+            for (const art of alias.artists) {
+              if (sArtist.includes(art) || art.includes(sArtist)) {
+                score += 25;
+              }
+            }
+          }
+        }
+
+        // Popularity & community rating boost
+        score += Math.min(votes / 8, 20);
+        if (rating >= 4.5) score += 6;
+
+        return {
           id: r.id,
           song_name: decodeHtmlEntities(r.song_name || ''),
           artist_name: decodeHtmlEntities(r.artist_name || ''),
@@ -125,7 +226,12 @@ export async function POST(req: NextRequest) {
           tab_url: r.tab_url,
           tonality_name: r.tonality_name || '',
           version: r.version || 1,
-        }));
+          _score: score,
+        };
+      });
+
+      scoredResults.sort((a, b) => b._score - a._score);
+      const results = scoredResults.slice(0, 20);
 
       return NextResponse.json({ results });
     }
