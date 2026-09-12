@@ -44,8 +44,12 @@ export async function GET(req: NextRequest) {
           title: s.title || 'Untitled Song',
           artist: s.artist || '',
           key: s.key || '',
+          capo: s.capo || '0',
           tempo: s.tempo || null,
           timeSignature: s.timeSignature || '4/4',
+          notes: s.notes || '',
+          exhortation: s.exhortation || '',
+          lyrics: s.lyrics || '',
           tags: s.tags || [],
           updatedAt: s.updatedAt || Date.now(),
         });
@@ -64,7 +68,7 @@ export async function POST(req: NextRequest) {
   try {
     await ensureDirs();
     const body = await req.json();
-    const { id, title, artist, key, originalKey, tempo, timeSignature, notes, lyrics, arrangement, tags } = body;
+    const { id, title, artist, key, originalKey, capo, tempo, timeSignature, notes, exhortation, lyrics, arrangement, tags } = body;
 
     if (!title || typeof title !== 'string' || !title.trim()) {
       return NextResponse.json({ error: 'Song title is required' }, { status: 400 });
@@ -77,9 +81,11 @@ export async function POST(req: NextRequest) {
       artist: (artist || '').trim(),
       key: key || '',
       originalKey: originalKey || key || '',
+      capo: capo || '0',
       tempo: Number(tempo) || null,
       timeSignature: timeSignature || '4/4',
       notes: notes || '',
+      exhortation: exhortation || '',
       lyrics: lyrics || '',
       arrangement: Array.isArray(arrangement) ? arrangement : [],
       tags: Array.isArray(tags) ? tags : [],

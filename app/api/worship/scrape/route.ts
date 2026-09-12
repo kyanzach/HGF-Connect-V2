@@ -15,7 +15,7 @@ function decodeHtmlEntities(str: string): string {
     .replace(/&nbsp;/g, ' ');
 }
 
-function parseUgContent(rawContent: string, stripChords = true): string {
+function parseUgContent(rawContent: string, stripChords = true, songName = '', artistName = ''): string {
   let text = decodeHtmlEntities(rawContent);
   text = text.replace(/\[\/?tab\]/gi, '');
 
@@ -44,6 +44,31 @@ function parseUgContent(rawContent: string, stripChords = true): string {
   } else {
     // Retain clean bracketed chords like [G]
     text = text.replace(/\[ch\](.*?)\[\/ch\]/gi, '[$1]');
+  }
+
+  // Remove leading title/artist duplicates before the first section header
+  if (songName || artistName) {
+    const lines = text.split('\n');
+    let startIdx = 0;
+    while (startIdx < lines.length && startIdx < 4) {
+      const l = lines[startIdx].trim().toLowerCase();
+      if (!l) {
+        startIdx++;
+        continue;
+      }
+      if (l.startsWith('[')) break;
+      if (
+        (songName && l === songName.toLowerCase()) ||
+        (artistName && l === artistName.toLowerCase()) ||
+        (songName && artistName && l === `${songName.toLowerCase()} - ${artistName.toLowerCase()}`) ||
+        (songName && artistName && l === `${artistName.toLowerCase()} - ${songName.toLowerCase()}`)
+      ) {
+        startIdx++;
+      } else {
+        break;
+      }
+    }
+    text = lines.slice(startIdx).join('\n');
   }
 
   // Remove URLs or video references
@@ -137,8 +162,8 @@ export async function POST(req: NextRequest) {
       const capo = tabView?.meta?.capo || tabMeta.capo || 0;
       const bpm = tabView?.meta?.bpm || 0;
 
-      const lyrics = parseUgContent(rawContent, stripChords);
-      const withChords = parseUgContent(rawContent, false);
+      const lyrics = parseUgContent(rawContent, stripChords, songName, artistName);
+      const withChords = parseUgContent(rawContent, false, songName, artistName);
 
       return NextResponse.json({
         song_name: songName,

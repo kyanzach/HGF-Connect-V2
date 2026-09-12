@@ -5,6 +5,17 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.52.3] — 2026-09-12
+### Added & Enhanced
+- **Stage Spoken Exhortation / Scripture / Prayer Leader Toolkit (`/theworshiptool.html`, `/api/worship`)**:
+  - Added dedicated **Stage Spoken Notes & Scripture / Prayer** panel in the editor with quick 1-click template chips: `+ Scripture` (e.g. Psalm 136:1), `+ Prayer`, `+ Declaration`, and `+ Exhortation`.
+  - In Stage Teleprompter mode (`▶ START STAGE`), spoken intro notes and scriptures are rendered in a distinct, high-contrast, glowing amber card (`📖 SPOKEN INTRO / SCRIPTURE / PRAYER` with `🎙 READ ALOUD` badge) before song lyrics begin, accompanied by a dedicated `📖 Intro / Prayer` dock button.
+- **Empty Guide Tag Filtering & Scraper Cleanup (`/theworshiptool.html`, `/api/worship/scrape`)**:
+  - Filtered out trailing or outline guide tags (e.g. `[Pre-Chorus]\n[Chorus]` with no lyric text beneath) from generating blank section blocks or unnecessary jump dock buttons on stage.
+  - Enhanced lyric scraper to remove duplicate leading song title and artist lines from imported tabs.
+- **Delete Functionality & Confirmation Modals (`/theworshiptool.html`, `/api/worship`, `/api/worship/setlists`)**:
+  - Added `🗑 Delete` button to top action bar, `🗑` delete buttons on library song items in sidebar, and setlist deletion inside the Setlists modal with custom confirmation modals (`#modal-confirm`) to prevent accidental deletions.
+
 ## [v2.52.2] — 2026-09-12
 ### Fixed
 - **THE WORSHIP Section Jumping & Smooth Scroll (`/theworshiptool.html`)**:

@@ -194,6 +194,18 @@
     color: #34d399;
   }
 
+  .btn-danger {
+    background: #2a1518;
+    border: 1px solid #5c2730;
+    color: #f87171;
+    font-weight: 700;
+  }
+  .btn-danger:hover {
+    background: #3e1b20;
+    border-color: #ef4444;
+    color: #fff;
+  }
+
   .btn-stage-start {
     background: linear-gradient(135deg, #10b981, #059669);
     border-color: #10b981;
@@ -483,25 +495,83 @@
     box-shadow: 0 0 10px rgba(78, 177, 203, 0.2);
   }
 
+  /* Leader Stage Spoken Notes & Cues */
+  .leader-notes-panel {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .leader-notes-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .leader-quick-tags {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  .btn-cue-tag {
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    color: #fbbf24;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-cue-tag:hover {
+    background: rgba(245, 158, 11, 0.25);
+    border-color: #f59e0b;
+    color: #fff;
+  }
+  .exhortation-input {
+    width: 100%;
+    min-height: 48px;
+    max-height: 120px;
+    background: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: #fef08a;
+    font-family: inherit;
+    font-size: 12.5px;
+    line-height: 1.4;
+    padding: 7px 10px;
+    outline: none;
+    resize: vertical;
+  }
+  .exhortation-input:focus {
+    border-color: var(--brand-gold);
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.2);
+  }
+
   /* Notes & Cues bar */
   .notes-bar {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-top: 8px;
   }
   .notes-input {
     flex: 1;
     background: var(--bg-dark);
     border: 1px solid var(--border-color);
-    color: #fbbf24;
+    color: #38bdf8;
     padding: 6px 10px;
     border-radius: 6px;
     font-size: 12px;
     outline: none;
   }
   .notes-input:focus {
-    border-color: var(--brand-gold);
+    border-color: var(--brand-teal);
   }
 
   /* ── MODALS (Scraper, Setlists, Save, Export) ── */
@@ -791,13 +861,58 @@
     text-shadow: 0 2px 4px rgba(0,0,0,0.6);
   }
 
-  .stage-cues-alert {
-    background: rgba(245, 158, 11, 0.15);
-    border: 1px solid rgba(245, 158, 11, 0.4);
+  .stage-exhortation-card {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(15, 20, 30, 0.88) 100%);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    border-left: 6px solid #f59e0b;
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 36px;
+    box-shadow: 0 4px 25px rgba(245, 158, 11, 0.1);
+    transition: all 0.25s ease;
+  }
+  .stage-exhortation-card.active-glow {
+    box-shadow: 0 0 35px rgba(245, 158, 11, 0.35);
+    border-color: #f59e0b;
+  }
+  .stage-exhortation-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
     color: #fcd34d;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .stage-exhortation-badge {
+    background: rgba(245, 158, 11, 0.25);
+    border: 1px solid rgba(245, 158, 11, 0.5);
+    color: #fde047;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 2px 9px;
+    border-radius: 12px;
+    letter-spacing: 0.5px;
+  }
+  .stage-exhortation-text {
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 1.55;
+    color: #fef9c3;
+    white-space: pre-wrap;
+    font-style: italic;
+    letter-spacing: 0.2px;
+  }
+
+  .stage-cues-alert {
+    background: rgba(78, 177, 203, 0.12);
+    border: 1px solid rgba(78, 177, 203, 0.35);
+    color: #38bdf8;
     padding: 10px 14px;
     border-radius: 8px;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 700;
     margin-bottom: 24px;
   }
@@ -951,6 +1066,7 @@
       <button class="btn" id="btn-open-setlists" title="Manage Setlists">📋 Setlists</button>
       <button class="btn btn-setlist-toggle" id="btn-header-setlist-toggle">➕ Add to Setlist</button>
       <button class="btn btn-primary" id="btn-save-song" title="Save Song (⌘S)">💾 Save</button>
+      <button class="btn btn-danger" id="btn-delete-song" title="Delete current song from library">🗑 Delete</button>
       <button class="btn btn-stage-start" id="btn-enter-stage" title="Launch Fullscreen Stage Teleprompter">▶ START STAGE</button>
     </div>
   </header>
@@ -1054,9 +1170,25 @@
       <!-- Editor Body -->
       <div class="editor-body">
         <textarea id="lyric-editor" placeholder="Type or paste lyrics here with tags like [Verse 1], [Chorus], [Bridge]..."></textarea>
-        <div class="notes-bar">
-          <span class="meta-label" style="color: var(--brand-gold);">Worship Cues:</span>
-          <input type="text" id="meta-song-notes" class="notes-input" placeholder="e.g. Acoustic guitar only on V1, modulate to A on Bridge, free worship after Chorus 3..." />
+        <div class="leader-notes-panel">
+          <div class="leader-notes-header">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="meta-label" style="color: var(--brand-gold); font-size: 11px; font-weight: 800;">📖 STAGE SPOKEN INTRO / SCRIPTURE / PRAYER:</span>
+              <span style="font-size: 11px; color: var(--text-dim);">(Words you will read aloud on stage)</span>
+            </div>
+            <div class="leader-quick-tags">
+              <button type="button" class="btn-cue-tag" data-insert="📖 Scripture: Psalm 136:1 — 'Give thanks to the Lord, for He is good; His love endures forever.'\n\n">+ Scripture</button>
+              <button type="button" class="btn-cue-tag" data-insert="🙏 Prayer: Father, we welcome Your presence in this house today. Fill our hearts with praise...\n\n">+ Prayer</button>
+              <button type="button" class="btn-cue-tag" data-insert="🔥 Declaration: Lord, we declare Your faithfulness and goodness over every family today!\n\n">+ Declaration</button>
+              <button type="button" class="btn-cue-tag" data-insert="🎙 Exhortation: Church, let's lift our voices together as one family before the King!\n\n">+ Exhortation</button>
+            </div>
+          </div>
+          <textarea id="meta-song-exhortation" class="exhortation-input" placeholder="Type opening Bible verse, prayer, or declaration to read on stage (e.g. Psalm 100:4, opening prayer, prophetic declaration)..."></textarea>
+
+          <div class="notes-bar">
+            <span class="meta-label" style="color: var(--brand-teal); font-size: 11px; font-weight: 800; min-width: 90px;">💡 Band Cue:</span>
+            <input type="text" id="meta-song-notes" class="notes-input" placeholder="e.g. Acoustic intro only. Modulate to A on Bridge 2. Free worship after Chorus 3." />
+          </div>
         </div>
       </div>
     </section>
@@ -1115,6 +1247,27 @@
         <div style="font-size: 12px; color: var(--text-muted);">Switch to Other Setlist:</div>
       </div>
       <div id="saved-setlists-list" style="margin-top: 8px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     ── MODAL: CONFIRMATION (DELETE) ──
+     ══════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-confirm">
+  <div class="modal-box" style="max-width: 440px;">
+    <div class="modal-header">
+      <div class="modal-title" style="color: var(--brand-red);">🗑 Confirm Deletion</div>
+      <button class="modal-close" id="btn-close-confirm">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p id="confirm-modal-text" style="font-size: 14px; color: #e2e8f0; line-height: 1.5; margin-bottom: 20px;">
+        Are you sure you want to delete this item?
+      </p>
+      <div style="display: flex; gap: 8px; justify-content: flex-end;">
+        <button class="btn" id="btn-cancel-confirm">Cancel</button>
+        <button class="btn btn-danger" id="btn-action-confirm" style="background: var(--brand-red); color: #fff; border-color: var(--brand-red);">🗑 Delete Forever</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1492,6 +1645,7 @@ Holy forever`
   const metaBpm = document.getElementById('meta-song-bpm');
   const metaTime = document.getElementById('meta-song-time');
   const metaNotes = document.getElementById('meta-song-notes');
+  const metaExhortation = document.getElementById('meta-song-exhortation');
   const lyricEditor = document.getElementById('lyric-editor');
   const arrangementChipsContainer = document.getElementById('arrangement-chips-container');
 
@@ -1693,6 +1847,7 @@ Holy forever`
             ` : `
               <button class="btn btn-primary" style="padding: 2px 7px; font-size: 10px;" onclick="event.stopPropagation(); window._addSongToSetlist('${song.id}')">+ Add</button>
             `}
+            <button class="btn" style="padding: 2px 6px; font-size: 10px; color: #f87171; border: 1px solid rgba(239,68,68,0.25); background: rgba(239,68,68,0.08);" title="Delete song from library" onclick="event.stopPropagation(); window._deleteSong('${song.id}')">🗑</button>
           </div>
         `;
         el.onclick = () => loadSong(song.id);
@@ -1718,6 +1873,7 @@ Holy forever`
     metaBpm.value = song.tempo || '';
     metaTime.value = song.timeSignature || '4/4';
     metaNotes.value = song.notes || '';
+    metaExhortation.value = song.exhortation || '';
     lyricEditor.value = song.lyrics || '';
 
     renderArrangementChips(song);
@@ -1728,7 +1884,7 @@ Holy forever`
 
   function renderArrangementChips(song) {
     arrangementChipsContainer.innerHTML = '';
-    const sections = extractSections(song.lyrics || '');
+    const sections = extractSections(song.lyrics || '', true);
     if (sections.length === 0) {
       arrangementChipsContainer.innerHTML = '<span style="font-size: 11px; color: var(--text-dim);">No tags detected</span>';
       return;
@@ -1742,7 +1898,7 @@ Holy forever`
     });
   }
 
-  function extractSections(lyricsText) {
+  function extractSections(lyricsText, filterEmpty = false) {
     const lines = lyricsText.split('\n');
     const sections = [];
     let currentSection = null;
@@ -1767,6 +1923,10 @@ Holy forever`
       }
     }
     if (currentSection) sections.push(currentSection);
+
+    if (filterEmpty) {
+      return sections.filter(sec => sec.lines.some(l => l.trim() !== ''));
+    }
     return sections;
   }
 
@@ -1804,6 +1964,7 @@ Holy forever`
     song.tempo = parseInt(metaBpm.value) || null;
     song.timeSignature = metaTime.value;
     song.notes = metaNotes.value.trim();
+    song.exhortation = metaExhortation.value.trim();
     song.lyrics = lyricEditor.value;
     song.updatedAt = Date.now();
 
@@ -2083,7 +2244,10 @@ Holy forever`
           <span style="color: var(--text-dim); font-size: 11px; margin-left: 6px;">(${sl.songs?.length || 0} songs)</span>
           ${sl.id === currentSetlistId ? '<span style="color: var(--brand-teal); font-size: 10px; font-weight: 800; margin-left: 6px;">[ACTIVE]</span>' : ''}
         </div>
-        <button class="btn" style="padding: 3px 8px; font-size: 11px;" onclick="window._selectSetlist('${sl.id}')">Select</button>
+        <div style="display: flex; gap: 6px;">
+          <button class="btn" style="padding: 3px 8px; font-size: 11px;" onclick="window._selectSetlist('${sl.id}')">Select</button>
+          <button class="btn" style="padding: 3px 6px; font-size: 11px; color: #f87171; border: 1px solid rgba(239,68,68,0.25); background: rgba(239,68,68,0.08);" title="Delete Setlist" onclick="window._deleteSetlist('${sl.id}')">🗑</button>
+        </div>
       `;
       savedSetlistsList.appendChild(item);
     });
@@ -2160,18 +2324,56 @@ Holy forever`
       stageSongIndexLabel.textContent = `1 / 1`;
     }
 
-    // Notes / cues banner
-    if (song.notes) {
-      stageCuesBanner.textContent = `💡 CUE: ${song.notes}`;
+    // Notes / cues banner (Band Note)
+    if (song.notes && song.notes.trim()) {
+      stageCuesBanner.textContent = `💡 BAND CUE: ${song.notes.trim()}`;
       stageCuesBanner.style.display = 'block';
     } else {
       stageCuesBanner.style.display = 'none';
     }
 
-    // Render lyrics blocks with section IDs
-    const sections = extractSections(song.lyrics || '');
     stageLyricsContent.innerHTML = '';
     stageJumpDock.innerHTML = '';
+
+    // 1. Spoken Exhortation / Scripture / Prayer (Words to read aloud)
+    const hasExhortation = Boolean(song.exhortation && song.exhortation.trim());
+    if (hasExhortation) {
+      const exhCard = document.createElement('div');
+      exhCard.className = 'stage-exhortation-card';
+      exhCard.id = 'stage-sec-intro';
+      exhCard.innerHTML = `
+        <div class="stage-exhortation-header">
+          <span>📖 SPOKEN INTRO / SCRIPTURE / PRAYER</span>
+          <span class="stage-exhortation-badge">🎙 READ ALOUD</span>
+        </div>
+        <div class="stage-exhortation-text" style="font-size: ${Math.max(20, stageFontSize - 6)}px;">${escapeHtml(song.exhortation.trim())}</div>
+      `;
+      stageLyricsContent.appendChild(exhCard);
+
+      const introBtn = document.createElement('button');
+      introBtn.className = 'jump-btn';
+      introBtn.id = 'jump-btn-intro';
+      introBtn.style.cssText = 'border-color: rgba(245,158,11,0.5); color: #fde047; background: rgba(245,158,11,0.18); font-weight: 800;';
+      introBtn.textContent = '📖 Intro / Prayer';
+      introBtn.onclick = () => jumpToSectionIntro();
+      stageJumpDock.appendChild(introBtn);
+    }
+
+    // 2. Lyrics sections (filter out empty guide tags)
+    const sections = extractSections(song.lyrics || '', true);
+
+    if (sections.length === 0 && !hasExhortation) {
+      const emptyMsg = document.createElement('div');
+      emptyMsg.style.cssText = 'text-align: center; padding: 60px 20px; color: var(--text-dim);';
+      emptyMsg.innerHTML = `
+        <div style="font-size: 22px; font-weight: 700; margin-bottom: 8px; color: #fff;">No Lyrics Added</div>
+        <div style="font-size: 14px;">Add lyrics and section tags in the editor to display them on stage.</div>
+      `;
+      stageLyricsContent.appendChild(emptyMsg);
+      stageJumpDock.style.display = 'none';
+    } else {
+      stageJumpDock.style.display = 'flex';
+    }
 
     sections.forEach((sec, sIdx) => {
       const block = document.createElement('div');
@@ -2189,7 +2391,8 @@ Holy forever`
 
       // Tactile jump dock button
       const btn = document.createElement('button');
-      btn.className = `jump-btn ${sIdx === 0 ? 'active' : ''}`;
+      btn.className = `jump-btn ${sIdx === 0 && !hasExhortation ? 'active' : ''}`;
+      btn.id = `jump-btn-sec-${sIdx}`;
       btn.textContent = sec.title;
       btn.onclick = () => jumpToSection(sIdx);
       stageJumpDock.appendChild(btn);
@@ -2198,18 +2401,58 @@ Holy forever`
     stageScrollContainer.scrollTop = 0;
   }
 
+  function jumpToSectionIntro() {
+    const target = document.getElementById('stage-sec-intro');
+    if (target) {
+      const buttons = stageJumpDock.querySelectorAll('.jump-btn');
+      buttons.forEach(b => b.classList.remove('active'));
+      const introBtn = document.getElementById('jump-btn-intro');
+      if (introBtn) introBtn.classList.add('active');
+
+      const blocks = stageLyricsContent.querySelectorAll('.stage-section-block, .stage-exhortation-card');
+      blocks.forEach(b => b.classList.remove('active-glow'));
+      target.classList.add('active-glow');
+
+      const containerRect = stageScrollContainer.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      const targetTop = stageScrollContainer.scrollTop + (targetRect.top - containerRect.top) - 20;
+
+      const wasScrolling = stageIsScrolling;
+      if (wasScrolling && stageScrollInterval) {
+        clearInterval(stageScrollInterval);
+        stageScrollInterval = null;
+      }
+
+      stageScrollContainer.scrollTo({
+        top: Math.max(0, targetTop),
+        behavior: 'smooth'
+      });
+
+      if (wasScrolling) {
+        setTimeout(() => {
+          if (stageIsScrolling && !stageScrollInterval) {
+            const speedPx = stageScrollSpeed * 1.2;
+            stageScrollInterval = setInterval(() => {
+              stageScrollContainer.scrollTop += speedPx;
+            }, 40);
+          }
+        }, 600);
+      }
+    }
+  }
+
   function jumpToSection(index) {
     const target = document.getElementById(`stage-sec-${index}`);
     if (target) {
-      // Highlight jump buttons
       const buttons = stageJumpDock.querySelectorAll('.jump-btn');
-      buttons.forEach((b, i) => b.classList.toggle('active', i === index));
+      buttons.forEach(b => b.classList.remove('active'));
+      const secBtn = document.getElementById(`jump-btn-sec-${index}`);
+      if (secBtn) secBtn.classList.add('active');
 
-      // Glow section
-      const blocks = stageLyricsContent.querySelectorAll('.stage-section-block');
-      blocks.forEach((b, i) => b.classList.toggle('active-glow', i === index));
+      const blocks = stageLyricsContent.querySelectorAll('.stage-section-block, .stage-exhortation-card');
+      blocks.forEach(b => b.classList.remove('active-glow'));
+      target.classList.add('active-glow');
 
-      // Calculate exact scroll target relative to container
       const containerRect = stageScrollContainer.getBoundingClientRect();
       const targetRect = target.getBoundingClientRect();
       const targetTop = stageScrollContainer.scrollTop + (targetRect.top - containerRect.top) - 20;
@@ -2281,6 +2524,8 @@ Holy forever`
     stageFontSize = Math.max(20, Math.min(64, stageFontSize + delta));
     const lines = stageLyricsContent.querySelectorAll('.stage-lyrics-lines');
     lines.forEach(l => l.style.fontSize = `${stageFontSize}px`);
+    const exhText = stageLyricsContent.querySelector('.stage-exhortation-text');
+    if (exhText) exhText.style.fontSize = `${Math.max(20, stageFontSize - 6)}px`;
   }
 
   // Next / Prev Song in Setlist
@@ -2374,6 +2619,99 @@ Holy forever`
     }
   }
 
+  // ── MODAL: CONFIRMATION (DELETE) ──
+  let confirmCallback = null;
+
+  function openConfirmModal(message, onConfirm) {
+    const modal = document.getElementById('modal-confirm');
+    const textEl = document.getElementById('confirm-modal-text');
+    textEl.textContent = message;
+    confirmCallback = onConfirm;
+    modal.classList.add('open');
+  }
+
+  function closeConfirmModal() {
+    const modal = document.getElementById('modal-confirm');
+    modal.classList.remove('open');
+    confirmCallback = null;
+  }
+
+  async function deleteSong(songId) {
+    const song = songs.find(s => s.id === songId);
+    if (!song) return;
+
+    openConfirmModal(`Are you sure you want to delete "${song.title}" from your library? This will also remove it from all setlists.`, async () => {
+      songs = songs.filter(s => s.id !== songId);
+      setlists.forEach(sl => {
+        if (Array.isArray(sl.songs)) {
+          sl.songs = sl.songs.filter(id => id !== songId);
+        }
+      });
+
+      saveSongsLocal();
+      saveSetlistsLocal();
+
+      try {
+        await fetch(`/api/worship?id=${encodeURIComponent(songId)}`, { method: 'DELETE' });
+      } catch (e) {
+        console.error('Delete song failed:', e);
+      }
+
+      if (currentSongId === songId) {
+        if (songs.length > 0) {
+          currentSongId = songs[0].id;
+          loadSong(currentSongId);
+        } else {
+          currentSongId = null;
+          metaTitle.value = '';
+          metaArtist.value = '';
+          metaNotes.value = '';
+          metaExhortation.value = '';
+          lyricEditor.value = '';
+          renderArrangementChips({});
+        }
+      }
+
+      renderSidebar();
+      renderSongDropdown();
+      renderSetlistDropdown();
+      showToast(`Deleted "${song.title}" from library`);
+    });
+  }
+
+  async function deleteSetlist(setlistId) {
+    const sl = setlists.find(s => s.id === setlistId);
+    if (!sl) return;
+    if (setlists.length <= 1) {
+      showToast('Cannot delete the only setlist. Create a new one first.', true);
+      return;
+    }
+
+    openConfirmModal(`Are you sure you want to delete the setlist "${sl.name}"? (Songs will remain in your library)`, async () => {
+      setlists = setlists.filter(s => s.id !== setlistId);
+      saveSetlistsLocal();
+
+      try {
+        await fetch(`/api/worship/setlists?id=${encodeURIComponent(setlistId)}`, { method: 'DELETE' });
+      } catch (e) {
+        console.error('Delete setlist failed:', e);
+      }
+
+      if (currentSetlistId === setlistId) {
+        currentSetlistId = setlists[0].id;
+      }
+
+      renderSetlistDropdown();
+      renderSongDropdown();
+      renderSidebar();
+      renderSetlistModalContent();
+      showToast(`Deleted setlist "${sl.name}"`);
+    });
+  }
+
+  window._deleteSong = deleteSong;
+  window._deleteSetlist = deleteSetlist;
+
   // ── KEYBOARD & FOOT PEDAL SHORTCUTS ──
   document.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
@@ -2396,6 +2734,8 @@ Holy forever`
         stageScrollContainer.scrollTop -= 120;
       } else if (e.key === 'Escape') {
         exitStageMode();
+      } else if (e.key === '0' || e.key === '`') {
+        jumpToSectionIntro();
       } else if (e.key >= '1' && e.key <= '9') {
         jumpToSection(parseInt(e.key) - 1);
       }
@@ -2422,18 +2762,42 @@ Holy forever`
   document.getElementById('stage-btn-next-song').onclick = nextSongInSetlist;
   document.getElementById('stage-btn-prev-song').onclick = prevSongInSetlist;
 
+  // Confirmation modal buttons
+  document.getElementById('btn-close-confirm').onclick = closeConfirmModal;
+  document.getElementById('btn-cancel-confirm').onclick = closeConfirmModal;
+  document.getElementById('btn-action-confirm').onclick = async () => {
+    if (confirmCallback) {
+      const cb = confirmCallback;
+      closeConfirmModal();
+      await cb();
+    } else {
+      closeConfirmModal();
+    }
+  };
+
   // Header and Editor actions
   document.getElementById('btn-save-song').onclick = () => saveCurrentSong(true);
+  document.getElementById('btn-delete-song').onclick = () => { if (currentSongId) deleteSong(currentSongId); };
   document.getElementById('btn-auto-format').onclick = autoFormatLyrics;
   document.getElementById('btn-bpm-tap').onclick = handleTapTempo;
   document.getElementById('btn-new-song').onclick = () => {
     const newId = 'song-' + Date.now();
-    const newSong = { id: newId, title: 'New Song', artist: '', key: 'G', lyrics: '[Verse 1]\n\n[Chorus]\n' };
+    const newSong = { id: newId, title: 'New Song', artist: '', key: 'G', notes: '', exhortation: '', lyrics: '[Verse 1]\n\n[Chorus]\n' };
     songs.unshift(newSong);
     saveSongsLocal();
     loadSong(newId);
     showToast('New song template created');
   };
+
+  // Quick Spoken / Scripture insert buttons
+  document.querySelectorAll('.btn-cue-tag[data-insert]').forEach(btn => {
+    btn.onclick = () => {
+      const template = btn.getAttribute('data-insert');
+      const cur = metaExhortation.value.trim();
+      metaExhortation.value = cur ? cur + '\n\n' + template : template;
+      metaExhortation.focus();
+    };
+  });
 
   // Section tagging buttons
   document.querySelectorAll('.tag-btn[data-tag]').forEach(btn => {
@@ -2494,18 +2858,18 @@ Holy forever`
     }
   };
   document.getElementById('btn-create-new-setlist').onclick = () => {
+    const customName = setlistNameInput.value.trim();
+    const dateStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const name = customName ? `${customName} (New)` : `HGF Worship - ${dateStr}`;
     const id = 'setlist-' + Date.now();
-    const name = prompt('Enter new setlist name:', 'Sunday Service Worship');
-    if (name) {
-      const newSl = { id, name, songs: [currentSongId] };
-      setlists.unshift(newSl);
-      currentSetlistId = id;
-      saveSetlistsLocal();
-      renderSetlistDropdown();
-      renderSetlistModalContent();
-      renderSidebar();
-      showToast('New setlist created with current song added!');
-    }
+    const newSl = { id, name, songs: currentSongId ? [currentSongId] : [] };
+    setlists.unshift(newSl);
+    currentSetlistId = id;
+    saveSetlistsLocal();
+    renderSetlistDropdown();
+    renderSetlistModalContent();
+    renderSidebar();
+    showToast(`Created new setlist: "${name}"`);
   };
 
   // Register PWA Service Worker for Offline stage use
