@@ -1256,10 +1256,6 @@
       </div>
 
       <div class="header-main-actions">
-        <button class="btn" id="btn-manual-sync" title="Instant Live Cloud Sync" style="display: inline-flex; align-items: center; gap: 5px; font-size: 11px; padding: 6px 10px;">
-          <span id="sync-icon" style="display: inline-block; transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);">☁️</span>
-          <span id="sync-status-text" style="color: #6ee7b7; font-weight: 700;">Live Sync</span>
-        </button>
         <button class="btn" id="btn-open-setlists" title="Manage Setlists">📋 Setlists</button>
         <button class="btn" id="btn-open-scraper" title="Search & Scrape Lyrics (⌘F)">🔍 Scrape</button>
         <button class="btn btn-stage-start" id="btn-enter-stage" title="Launch Fullscreen Stage Teleprompter">▶ START STAGE</button>
@@ -1995,21 +1991,10 @@ Holy forever`
   }
 
   let isSyncing = false;
-  let syncRotAngle = 0;
 
-  async function syncFromServer(isManual = false) {
+  async function syncFromServer() {
     if (isSyncing) return;
     isSyncing = true;
-
-    const syncIcon = document.getElementById('sync-icon');
-    const syncStatus = document.getElementById('sync-status-text');
-    if (syncIcon) {
-      syncRotAngle += 360;
-      syncIcon.style.transform = `rotate(${syncRotAngle}deg)`;
-    }
-    if (syncStatus && isManual) {
-      syncStatus.textContent = 'Syncing...';
-    }
 
     try {
       const [resSetlists, resSongs] = await Promise.all([
@@ -2019,6 +2004,7 @@ Holy forever`
 
       let songsChanged = false;
       let setlistsChanged = false;
+      let currentSongChanged = false;
 
       if (resSongs.ok) {
         const serverSongs = await resSongs.json();
@@ -2028,13 +2014,18 @@ Holy forever`
           serverSongs.forEach(ss => {
             if (!ss || !ss.id) return;
             const local = map.get(ss.id);
-            if (!local || (ss.updatedAt && ss.updatedAt >= (local.updatedAt || 0))) {
+            if (!local || (ss.updatedAt && ss.updatedAt > (local.updatedAt || 0))) {
               map.set(ss.id, ss);
               songsChanged = true;
+              if (ss.id === currentSongId) {
+                currentSongChanged = true;
+              }
             }
           });
-          songs = Array.from(map.values());
-          saveSongsLocal(false);
+          if (songsChanged) {
+            songs = Array.from(map.values());
+            saveSongsLocal(false);
+          }
         }
       }
 
@@ -2048,14 +2039,16 @@ Holy forever`
             valid.forEach(v => {
               if (!v || !v.id) return;
               const local = slMap.get(v.id);
-              if (!local || (v.updatedAt && v.updatedAt >= (local.updatedAt || 0))) {
+              if (!local || (v.updatedAt && v.updatedAt > (local.updatedAt || 0))) {
                 slMap.set(v.id, v);
                 setlistsChanged = true;
               }
             });
-            setlists = Array.from(slMap.values());
-            setlists.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-            saveSetlistsLocal(false);
+            if (setlistsChanged) {
+              setlists = Array.from(slMap.values());
+              setlists.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+              saveSetlistsLocal(false);
+            }
           }
         }
       }
@@ -2074,10 +2067,12 @@ Holy forever`
         if (!currentSongId || !activeSl.songs.includes(currentSongId)) {
           currentSongId = activeSl.songs[0];
           songsChanged = true;
+          currentSongChanged = true;
         }
       } else if (!currentSongId && songs.length > 0) {
         currentSongId = songs[0].id;
         songsChanged = true;
+        currentSongChanged = true;
       }
 
       // Check if user is currently typing in an input field before re-rendering editor
@@ -2087,33 +2082,34 @@ Holy forever`
                        document.activeElement === metaNotes ||
                        document.activeElement === metaExhortation;
 
-      renderSetlistDropdown();
-      renderSongDropdown();
-      renderSidebar();
-      updateSetlistToggleBtn();
+      // Only update UI if changes actually occurred
+      if (songsChanged || setlistsChanged) {
+        renderSetlistDropdown();
+        renderSongDropdown();
+        renderSidebar();
+        updateSetlistToggleBtn();
 
-      if (currentSongId && !isTyping) {
-        loadSong(currentSongId);
-      }
+        // If in stage view, keep stage UI synchronized
+        if (stageView && stageView.classList.contains('active')) {
+          renderStageSongDropdown();
+          if (currentSongChanged) {
+            const activeSong = songs.find(s => s.id === currentSongId);
+            if (activeSong) {
+              const prevScrollTop = stageScrollContainer.scrollTop;
+              renderStageContent(activeSong);
+              stageScrollContainer.scrollTop = prevScrollTop;
+            }
+          }
+        } else if (currentSongId && !isTyping) {
+          loadSong(currentSongId);
+        }
 
-      if (modalSetlists && modalSetlists.classList.contains('open')) {
-        renderSetlistModalContent(false);
-      }
-
-      if (syncStatus) {
-        syncStatus.textContent = 'Live Sync';
-        syncStatus.style.color = '#6ee7b7';
-      }
-
-      if (isManual) {
-        showToast(`☁️ Cloud synced! (${setlists.length} setlist(s), ${songs.length} song(s))`);
+        if (modalSetlists && modalSetlists.classList.contains('open')) {
+          renderSetlistModalContent(false);
+        }
       }
     } catch (e) {
-      console.warn('Worship sync notice:', e);
-      if (syncStatus) {
-        syncStatus.textContent = 'Offline';
-        syncStatus.style.color = '#f87171';
-      }
+      console.warn('Silent worship sync notice:', e);
     } finally {
       isSyncing = false;
     }
@@ -3895,11 +3891,6 @@ Holy forever`
     navigator.serviceWorker.register('/theworship-sw.js').catch(() => {});
   }
 
-  const btnManualSync = document.getElementById('btn-manual-sync');
-  if (btnManualSync) {
-    btnManualSync.onclick = () => syncFromServer(true);
-  }
-
   const btnCopyShortlink = document.getElementById('btn-copy-shortlink');
   if (btnCopyShortlink) {
     btnCopyShortlink.onclick = async () => {
@@ -3931,18 +3922,16 @@ Holy forever`
     };
   }
 
-  // Real-time background auto-sync every 3 seconds
+  // Continuous background auto-sync every 2.5s (detects changes silently across all devices)
   setInterval(() => {
-    if (!stageView || !stageView.classList.contains('active')) {
-      syncFromServer(false);
-    }
-  }, 3000);
+    syncFromServer();
+  }, 2500);
 
   // Sync immediately when device wakes up or user focuses tab
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) syncFromServer(false);
+    if (!document.hidden) syncFromServer();
   });
-  window.addEventListener('focus', () => syncFromServer(false));
+  window.addEventListener('focus', () => syncFromServer());
 
   // ── INITIALIZE ──
   initStorage();

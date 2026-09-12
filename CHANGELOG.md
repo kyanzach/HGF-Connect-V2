@@ -5,6 +5,13 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.52.19] — 2026-09-13
+### Enhanced & Streamlined
+- **Zero-Click Silent Auto-Sync (`/theworshiptool.html`)**:
+  - Removed the unnecessary manual `Live Sync` button from the header to provide an ultra-clean, distraction-free stage interface.
+  - Implemented continuous 2.5s background change detection that automatically detects and propagates any cloud updates (new setlists, reordered songs, edited lyrics/chords) without requiring any user taps or refreshes.
+  - Keeps Stage Teleprompter mode synchronized in real time so stage musicians and tablet prompters instantly reflect edits made on laptops.
+
 ## [v2.52.18] — 2026-09-13
 ### Enhanced & Cleaned
 - **1-Tap Logo Copy Shortlink (`/theworshiptool.html`)**:
