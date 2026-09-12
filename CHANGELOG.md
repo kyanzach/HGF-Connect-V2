@@ -5,6 +5,15 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.52.1] — 2026-09-12
+### Fixed & Enhanced
+- **THE WORSHIP Setlist Management (`/theworshiptool.html`)**:
+  - Added a prominent, dedicated **`➕ Add to Setlist`** / **`✓ In Setlist (#X)`** toggle button directly on the top header action bar.
+  - Added 1-click **`+ Add`** buttons on every song card in the "All Songs" sidebar list.
+  - Enhanced empty setlist state with direct **`➕ Add "[Song Title]"`** and **`📂 Browse All Songs`** buttons.
+  - Added a **"Library Song Picker"** inside the `📋 Setlists` modal to easily search and add any song into the active setlist in one click.
+  - Auto-adds scraped songs into the currently active setlist upon import.
+
 ## [v2.52.0] — 2026-09-12
 ### Added
 - **THE WORSHIP — Advanced Stage Teleprompter, Setlist Manager & Lyric Scraper (`/theworshiptool.html`, `/api/worship`, `/api/worship/scrape`, `/api/worship/setlists`, `theworship-manifest.json`, `theworship-sw.js`)**:

@@ -178,6 +178,22 @@
     box-shadow: 0 0 18px rgba(78, 177, 203, 0.6);
   }
 
+  .btn-setlist-toggle {
+    background: #172a38;
+    border: 1px solid rgba(78, 177, 203, 0.4);
+    color: var(--brand-teal);
+    font-weight: 700;
+  }
+  .btn-setlist-toggle:hover {
+    background: #1f374a;
+    border-color: var(--brand-teal);
+  }
+  .btn-setlist-toggle.in-setlist {
+    background: #122c22;
+    border-color: #10b981;
+    color: #34d399;
+  }
+
   .btn-stage-start {
     background: linear-gradient(135deg, #10b981, #059669);
     border-color: #10b981;
@@ -196,7 +212,7 @@
   /* Main Workspace Layout */
   .workspace {
     display: grid;
-    grid-template-columns: 300px 1fr;
+    grid-template-columns: 310px 1fr;
     gap: 16px;
     flex: 1;
     margin-top: 12px;
@@ -289,6 +305,8 @@
 
   .song-info {
     overflow: hidden;
+    flex: 1;
+    margin-right: 8px;
   }
   .song-name {
     font-size: 13px;
@@ -931,6 +949,7 @@
     <div class="header-actions">
       <button class="btn" id="btn-open-scraper" title="Search & Scrape Lyrics (⌘F)">🔍 Scrape Song</button>
       <button class="btn" id="btn-open-setlists" title="Manage Setlists">📋 Setlists</button>
+      <button class="btn btn-setlist-toggle" id="btn-header-setlist-toggle">➕ Add to Setlist</button>
       <button class="btn btn-primary" id="btn-save-song" title="Save Song (⌘S)">💾 Save</button>
       <button class="btn btn-stage-start" id="btn-enter-stage" title="Launch Fullscreen Stage Teleprompter">▶ START STAGE</button>
     </div>
@@ -942,7 +961,7 @@
     <aside class="sidebar">
       <div class="sidebar-header">
         <div class="sidebar-tabs">
-          <div class="sidebar-tab active" id="tab-setlist">Current Setlist</div>
+          <div class="sidebar-tab active" id="tab-setlist">Setlist (<span id="setlist-song-count">0</span>)</div>
           <div class="sidebar-tab" id="tab-all-songs">All Songs (<span id="song-count">0</span>)</div>
         </div>
         <button class="btn" id="btn-new-song" style="padding: 3px 7px; font-size: 11px;">+ New</button>
@@ -961,14 +980,14 @@
     <section class="editor-panel">
       <!-- Song Metadata Strip -->
       <div class="song-meta-toolbar">
-        <div class="meta-group" style="flex: 1; min-width: 200px;">
+        <div class="meta-group" style="flex: 1; min-width: 180px;">
           <span class="meta-label">Title:</span>
           <input type="text" id="meta-song-title" class="meta-input meta-input-title" placeholder="Song Title" />
         </div>
 
         <div class="meta-group">
           <span class="meta-label">Artist:</span>
-          <input type="text" id="meta-song-artist" class="meta-input" placeholder="Artist / Band" style="width: 140px;" />
+          <input type="text" id="meta-song-artist" class="meta-input" placeholder="Artist / Band" style="width: 130px;" />
         </div>
 
         <div class="meta-group">
@@ -995,7 +1014,7 @@
 
         <div class="meta-group">
           <span class="meta-label">BPM:</span>
-          <input type="number" id="meta-song-bpm" class="meta-input" placeholder="72" style="width: 55px;" />
+          <input type="number" id="meta-song-bpm" class="meta-input" placeholder="72" style="width: 50px;" />
           <button class="bpm-tap-btn" id="btn-bpm-tap" title="Tap tempo">TAP</button>
         </div>
 
@@ -1070,21 +1089,30 @@
 <div class="modal-overlay" id="modal-setlists">
   <div class="modal-box" style="max-width: 700px;">
     <div class="modal-header">
-      <div class="modal-title">📋 Setlist & Sunday Lineup Manager</div>
+      <div class="modal-title">📋 Setlist & Lineup Manager</div>
       <button class="modal-close" id="btn-close-setlists">&times;</button>
     </div>
     <div class="modal-body">
       <div style="display: flex; gap: 8px; margin-bottom: 14px; align-items: center;">
-        <input type="text" id="setlist-name-input" class="meta-input" style="flex: 1;" placeholder="Setlist Name (e.g. Sunday Morning Worship - Sep 13, 2026)" />
-        <button class="btn btn-primary" id="btn-save-current-setlist">Save Setlist</button>
+        <input type="text" id="setlist-name-input" class="meta-input" style="flex: 1;" placeholder="Setlist Name (e.g. Sunday Morning Worship)" />
+        <button class="btn btn-primary" id="btn-save-current-setlist">Save Name</button>
         <button class="btn" id="btn-create-new-setlist">+ New Setlist</button>
       </div>
 
-      <div style="font-size: 13px; font-weight: 700; color: var(--brand-teal); margin-bottom: 8px;">Songs in this Setlist:</div>
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+        <div style="font-size: 13px; font-weight: 700; color: var(--brand-teal);">Songs in this Setlist:</div>
+        <button class="btn btn-primary" id="btn-modal-add-current" style="padding: 3px 8px; font-size: 11px;">➕ Add Open Song</button>
+      </div>
       <div id="setlist-songs-table" style="margin-bottom: 16px;"></div>
 
+      <!-- Quick Add from All Songs Section -->
+      <div style="border-top: 1px solid var(--border-color); padding-top: 12px; margin-bottom: 8px;">
+        <div style="font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 6px;">➕ Add Songs from Library:</div>
+        <div id="modal-library-picker" style="max-height: 180px; overflow-y: auto; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px;"></div>
+      </div>
+
       <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: 12px;">
-        <div style="font-size: 12px; color: var(--text-muted);">Available Setlists:</div>
+        <div style="font-size: 12px; color: var(--text-muted);">Switch to Other Setlist:</div>
       </div>
       <div id="saved-setlists-list" style="margin-top: 8px;"></div>
     </div>
@@ -1448,11 +1476,13 @@ Holy forever`
   const toast = document.getElementById('toast');
   const headerSetlistSelect = document.getElementById('header-setlist-select');
   const headerSongSelect = document.getElementById('header-song-select');
+  const btnHeaderSetlistToggle = document.getElementById('btn-header-setlist-toggle');
   const tabSetlist = document.getElementById('tab-setlist');
   const tabAllSongs = document.getElementById('tab-all-songs');
   const songSearchInput = document.getElementById('song-search-input');
   const sidebarSongList = document.getElementById('sidebar-song-list');
   const songCountEl = document.getElementById('song-count');
+  const setlistSongCountEl = document.getElementById('setlist-song-count');
 
   // Editor Inputs
   const metaTitle = document.getElementById('meta-song-title');
@@ -1513,6 +1543,17 @@ Holy forever`
 
   function saveSetlistsLocal() {
     localStorage.setItem('hgf_worship_setlists', JSON.stringify(setlists));
+    // Also sync to server in background
+    try {
+      const curSetlist = setlists.find(s => s.id === currentSetlistId);
+      if (curSetlist) {
+        fetch('/api/worship/setlists', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(curSetlist)
+        }).catch(() => {});
+      }
+    } catch {}
   }
 
   function showToast(msg, isError = false) {
@@ -1547,6 +1588,24 @@ Holy forever`
       if (song.id === currentSongId) opt.selected = true;
       headerSongSelect.appendChild(opt);
     });
+
+    updateSetlistToggleBtn();
+  }
+
+  function updateSetlistToggleBtn() {
+    const curSetlist = setlists.find(s => s.id === currentSetlistId);
+    const inSetlist = curSetlist && Array.isArray(curSetlist.songs) && curSetlist.songs.includes(currentSongId);
+
+    if (inSetlist) {
+      const idx = curSetlist.songs.indexOf(currentSongId) + 1;
+      btnHeaderSetlistToggle.textContent = `✓ In Setlist (#${idx})`;
+      btnHeaderSetlistToggle.className = 'btn btn-setlist-toggle in-setlist';
+      btnHeaderSetlistToggle.title = 'Click to remove this song from the current setlist';
+    } else {
+      btnHeaderSetlistToggle.textContent = `➕ Add to Setlist`;
+      btnHeaderSetlistToggle.className = 'btn btn-setlist-toggle';
+      btnHeaderSetlistToggle.title = `Click to add this song to "${curSetlist?.name || 'Current Setlist'}"`;
+    }
   }
 
   function renderSidebar() {
@@ -1554,40 +1613,92 @@ Holy forever`
     const query = (songSearchInput.value || '').toLowerCase().trim();
     songCountEl.textContent = songs.length;
 
-    let displayList = [];
+    const curSetlist = setlists.find(s => s.id === currentSetlistId);
+    const setlistSongs = (curSetlist && Array.isArray(curSetlist.songs)) ? curSetlist.songs : [];
+    setlistSongCountEl.textContent = setlistSongs.length;
+
     if (activeSidebarTab === 'setlist') {
-      const curSetlist = setlists.find(s => s.id === currentSetlistId);
-      if (curSetlist && Array.isArray(curSetlist.songs)) {
-        displayList = curSetlist.songs.map(id => songs.find(s => s.id === id)).filter(Boolean);
+      let displayList = setlistSongs.map(id => songs.find(s => s.id === id)).filter(Boolean);
+
+      if (query) {
+        displayList = displayList.filter(s =>
+          s.title.toLowerCase().includes(query) || (s.artist && s.artist.toLowerCase().includes(query))
+        );
       }
+
+      if (displayList.length === 0) {
+        const curSong = songs.find(s => s.id === currentSongId);
+        sidebarSongList.innerHTML = `
+          <div style="padding: 24px 12px; text-align: center;">
+            <div style="font-size: 13px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px;">
+              ${query ? 'No matching songs in this setlist.' : 'This setlist is currently empty.'}
+            </div>
+            ${curSong ? `
+              <button class="btn btn-primary" style="width: 100%; justify-content: center; margin-bottom: 8px; font-size: 12px;" onclick="window._addSongToSetlist('${curSong.id}')">
+                ➕ Add "${escapeHtml(curSong.title)}"
+              </button>
+            ` : ''}
+            <button class="btn" style="width: 100%; justify-content: center; font-size: 11px;" onclick="document.getElementById('tab-all-songs').click()">
+              📂 Browse All Songs (${songs.length})
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      displayList.forEach((song, idx) => {
+        const el = document.createElement('div');
+        el.className = `song-item ${song.id === currentSongId ? 'active' : ''}`;
+        el.innerHTML = `
+          <div class="song-info">
+            <div class="song-name">${idx + 1}. ${escapeHtml(song.title)}</div>
+            <div class="song-meta-line">${escapeHtml(song.artist || 'HGF Worship')}</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <span class="song-key-badge">${song.key || 'C'}</span>
+            <button class="btn" style="padding: 2px 5px; font-size: 10px; color: #f87171; border: none; background: transparent;" title="Remove from setlist" onclick="event.stopPropagation(); window._removeSongFromSetlist('${song.id}')">✕</button>
+          </div>
+        `;
+        el.onclick = () => loadSong(song.id);
+        sidebarSongList.appendChild(el);
+      });
+
     } else {
-      displayList = [...songs];
-    }
+      // All Songs Tab
+      let displayList = [...songs];
+      if (query) {
+        displayList = displayList.filter(s =>
+          s.title.toLowerCase().includes(query) || (s.artist && s.artist.toLowerCase().includes(query))
+        );
+      }
 
-    if (query) {
-      displayList = displayList.filter(s =>
-        s.title.toLowerCase().includes(query) || (s.artist && s.artist.toLowerCase().includes(query))
-      );
-    }
+      if (displayList.length === 0) {
+        sidebarSongList.innerHTML = '<div style="padding: 16px; text-align: center; color: var(--text-dim); font-size: 12px;">No songs found.</div>';
+        return;
+      }
 
-    if (displayList.length === 0) {
-      sidebarSongList.innerHTML = '<div style="padding: 16px; text-align: center; color: var(--text-dim); font-size: 12px;">No songs found.</div>';
-      return;
+      displayList.forEach((song) => {
+        const inCurSetlist = setlistSongs.includes(song.id);
+        const el = document.createElement('div');
+        el.className = `song-item ${song.id === currentSongId ? 'active' : ''}`;
+        el.innerHTML = `
+          <div class="song-info">
+            <div class="song-name">${escapeHtml(song.title)}</div>
+            <div class="song-meta-line">${escapeHtml(song.artist || 'HGF Worship')}</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span class="song-key-badge">${song.key || 'C'}</span>
+            ${inCurSetlist ? `
+              <span style="font-size: 10px; font-weight: 800; color: #10b981;">✓ In Set</span>
+            ` : `
+              <button class="btn btn-primary" style="padding: 2px 7px; font-size: 10px;" onclick="event.stopPropagation(); window._addSongToSetlist('${song.id}')">+ Add</button>
+            `}
+          </div>
+        `;
+        el.onclick = () => loadSong(song.id);
+        sidebarSongList.appendChild(el);
+      });
     }
-
-    displayList.forEach((song, idx) => {
-      const el = document.createElement('div');
-      el.className = `song-item ${song.id === currentSongId ? 'active' : ''}`;
-      el.innerHTML = `
-        <div class="song-info">
-          <div class="song-name">${activeSidebarTab === 'setlist' ? (idx + 1) + '. ' : ''}${escapeHtml(song.title)}</div>
-          <div class="song-meta-line">${escapeHtml(song.artist || 'HGF Worship')}</div>
-        </div>
-        <span class="song-key-badge">${song.key || 'C'}</span>
-      `;
-      el.onclick = () => loadSong(song.id);
-      sidebarSongList.appendChild(el);
-    });
   }
 
   function escapeHtml(str) {
@@ -1612,6 +1723,7 @@ Holy forever`
     renderArrangementChips(song);
     renderSidebar();
     renderSongDropdown();
+    updateSetlistToggleBtn();
   }
 
   function renderArrangementChips(song) {
@@ -1712,6 +1824,51 @@ Holy forever`
     if (showFeedback) showToast('💾 Song saved successfully!');
   }
 
+  // ── SETLIST TOGGLE & ADD HELPERS ──
+  window._addSongToSetlist = function (songId) {
+    const curSetlist = setlists.find(s => s.id === currentSetlistId);
+    if (!curSetlist) return;
+    if (!Array.isArray(curSetlist.songs)) curSetlist.songs = [];
+
+    if (!curSetlist.songs.includes(songId)) {
+      curSetlist.songs.push(songId);
+      saveSetlistsLocal();
+      renderSidebar();
+      renderSongDropdown();
+      updateSetlistToggleBtn();
+      renderSetlistModalContent();
+      const s = songs.find(x => x.id === songId);
+      showToast(`➕ Added "${s?.title || 'Song'}" to ${curSetlist.name}!`);
+    } else {
+      showToast(`Song is already in this setlist`);
+    }
+  };
+
+  window._removeSongFromSetlist = function (songId) {
+    const curSetlist = setlists.find(s => s.id === currentSetlistId);
+    if (!curSetlist || !curSetlist.songs) return;
+    curSetlist.songs = curSetlist.songs.filter(id => id !== songId);
+    saveSetlistsLocal();
+    renderSidebar();
+    renderSongDropdown();
+    updateSetlistToggleBtn();
+    renderSetlistModalContent();
+    const s = songs.find(x => x.id === songId);
+    showToast(`Removed "${s?.title || 'Song'}" from setlist`);
+  };
+
+  btnHeaderSetlistToggle.onclick = function () {
+    const curSetlist = setlists.find(s => s.id === currentSetlistId);
+    if (!curSetlist) return;
+    if (!Array.isArray(curSetlist.songs)) curSetlist.songs = [];
+
+    if (curSetlist.songs.includes(currentSongId)) {
+      window._removeSongFromSetlist(currentSongId);
+    } else {
+      window._addSongToSetlist(currentSongId);
+    }
+  };
+
   // ── AUTO-FORMAT UNTAGGED LYRICS ──
   function autoFormatLyrics() {
     let text = lyricEditor.value.trim();
@@ -1728,7 +1885,6 @@ Holy forever`
     if (!text.includes('[')) {
       const blocks = text.split(/\n\s*\n/);
       let tagged = [];
-      let vCount = 1;
       blocks.forEach((blk, idx) => {
         if (idx === 0) tagged.push(`[Verse 1]\n${blk.trim()}`);
         else if (idx === 1) tagged.push(`[Chorus]\n${blk.trim()}`);
@@ -1773,7 +1929,7 @@ Holy forever`
   function openScraperModal() {
     modalScraper.classList.add('open');
     scrapeQueryInput.focus();
-    if (metaTitle.value) {
+    if (metaTitle.value && metaTitle.value !== 'New Song') {
       scrapeQueryInput.value = metaTitle.value;
       runScraperSearch();
     }
@@ -1839,8 +1995,11 @@ Holy forever`
         lyricEditor.value = data.lyrics;
 
         saveCurrentSong(false);
+        // Automatically add to current setlist
+        window._addSongToSetlist(currentSongId);
+
         closeScraperModal();
-        showToast('🎉 Song scraped & imported with section tags!');
+        showToast('🎉 Song scraped, imported & added to setlist!');
       } else {
         scrapeStatus.textContent = 'Could not extract lyrics from this tab.';
       }
@@ -1854,6 +2013,7 @@ Holy forever`
   const setlistNameInput = document.getElementById('setlist-name-input');
   const setlistSongsTable = document.getElementById('setlist-songs-table');
   const savedSetlistsList = document.getElementById('saved-setlists-list');
+  const modalLibraryPicker = document.getElementById('modal-library-picker');
 
   function openSetlistModal() {
     modalSetlists.classList.add('open');
@@ -1871,10 +2031,11 @@ Holy forever`
     }
 
     setlistSongsTable.innerHTML = '';
-    const curSongs = (curSetlist?.songs || []).map(id => songs.find(s => s.id === id)).filter(Boolean);
+    const curSongIds = curSetlist?.songs || [];
+    const curSongs = curSongIds.map(id => songs.find(s => s.id === id)).filter(Boolean);
 
     if (curSongs.length === 0) {
-      setlistSongsTable.innerHTML = '<div style="font-size: 12px; color: var(--text-dim); padding: 8px;">No songs in this setlist.</div>';
+      setlistSongsTable.innerHTML = '<div style="font-size: 12px; color: var(--text-dim); padding: 8px;">No songs in this setlist yet. Add some below!</div>';
     } else {
       curSongs.forEach((s, idx) => {
         const row = document.createElement('div');
@@ -1884,28 +2045,53 @@ Holy forever`
           <div style="display: flex; gap: 4px;">
             <button class="btn" style="padding: 2px 6px; font-size: 10px;" onclick="window._moveSetlistSong(${idx}, -1)">▲</button>
             <button class="btn" style="padding: 2px 6px; font-size: 10px;" onclick="window._moveSetlistSong(${idx}, 1)">▼</button>
-            <button class="btn" style="padding: 2px 6px; font-size: 10px; color: #f87171;" onclick="window._removeSetlistSong(${idx})">✕</button>
+            <button class="btn" style="padding: 2px 6px; font-size: 10px; color: #f87171;" onclick="window._removeSongFromSetlist('${s.id}')">✕</button>
           </div>
         `;
         setlistSongsTable.appendChild(row);
       });
     }
 
+    // Modal Library Picker (quick add from all songs)
+    modalLibraryPicker.innerHTML = '';
+    songs.forEach(s => {
+      const inSet = curSongIds.includes(s.id);
+      const row = document.createElement('div');
+      row.style.cssText = 'display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 12px;';
+      row.innerHTML = `
+        <div>
+          <span style="font-weight: 700; color: #fff;">${escapeHtml(s.title)}</span>
+          <span style="color: var(--text-muted); font-size: 11px; margin-left: 6px;">(${s.key || 'C'})</span>
+        </div>
+        ${inSet ? `
+          <span style="color: #10b981; font-size: 10px; font-weight: 800;">✓ In Set</span>
+        ` : `
+          <button class="btn btn-primary" style="padding: 2px 8px; font-size: 10px;" onclick="window._addSongToSetlist('${s.id}')">+ Add</button>
+        `}
+      `;
+      modalLibraryPicker.appendChild(row);
+    });
+
     // List all setlists
     savedSetlistsList.innerHTML = '';
     setlists.forEach(sl => {
       const item = document.createElement('div');
-      item.style.cssText = 'display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 6px; margin-bottom: 4px; font-size: 12px;';
+      item.style.cssText = `display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--bg-dark); border: 1px solid ${sl.id === currentSetlistId ? 'var(--brand-teal)' : 'var(--border-color)'}; border-radius: 6px; margin-bottom: 4px; font-size: 12px;`;
       item.innerHTML = `
         <div>
           <span style="font-weight: 700; color: #fff;">${escapeHtml(sl.name)}</span>
           <span style="color: var(--text-dim); font-size: 11px; margin-left: 6px;">(${sl.songs?.length || 0} songs)</span>
+          ${sl.id === currentSetlistId ? '<span style="color: var(--brand-teal); font-size: 10px; font-weight: 800; margin-left: 6px;">[ACTIVE]</span>' : ''}
         </div>
         <button class="btn" style="padding: 3px 8px; font-size: 11px;" onclick="window._selectSetlist('${sl.id}')">Select</button>
       `;
       savedSetlistsList.appendChild(item);
     });
   }
+
+  document.getElementById('btn-modal-add-current').onclick = () => {
+    window._addSongToSetlist(currentSongId);
+  };
 
   window._moveSetlistSong = function (index, dir) {
     const curSetlist = setlists.find(s => s.id === currentSetlistId);
@@ -1916,17 +2102,6 @@ Holy forever`
     const temp = curSetlist.songs[index];
     curSetlist.songs[index] = curSetlist.songs[newIdx];
     curSetlist.songs[newIdx] = temp;
-
-    saveSetlistsLocal();
-    renderSetlistModalContent();
-    renderSidebar();
-    renderSongDropdown();
-  };
-
-  window._removeSetlistSong = function (index) {
-    const curSetlist = setlists.find(s => s.id === currentSetlistId);
-    if (!curSetlist || !curSetlist.songs) return;
-    curSetlist.songs.splice(index, 1);
 
     saveSetlistsLocal();
     renderSetlistModalContent();
@@ -2304,7 +2479,7 @@ Holy forever`
       renderSetlistDropdown();
       renderSetlistModalContent();
       renderSidebar();
-      showToast('New setlist created');
+      showToast('New setlist created with current song added!');
     }
   };
 
