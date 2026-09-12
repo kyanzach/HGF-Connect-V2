@@ -1756,15 +1756,7 @@ Holy forever`
     }
   ];
 
-  const DEFAULT_SETLISTS = [
-    {
-      id: 'sunday-worship-lineup',
-      name: 'Sunday Morning Worship — Sep 13, 2026',
-      serviceDate: '2026-09-13',
-      leader: 'Ryan Paco',
-      songs: DEFAULT_SONGS.map(s => s.id)
-    }
-  ];
+  const DEFAULT_SETLISTS = [];
 
   // ── STATE ──
   let songs = [];
@@ -1834,17 +1826,20 @@ Holy forever`
 
       const storedSetlists = localStorage.getItem('hgf_worship_setlists');
       if (storedSetlists) {
-        setlists = JSON.parse(storedSetlists);
+        const parsed = JSON.parse(storedSetlists);
+        // Strip legacy pre-filled demo setlist if present
+        setlists = Array.isArray(parsed) ? parsed.filter(sl => sl.id !== 'sunday-worship-lineup') : [];
       } else {
-        setlists = [...DEFAULT_SETLISTS];
-        saveSetlistsLocal();
+        setlists = [];
       }
 
-      currentSetlistId = setlists[0]?.id || '';
-      currentSongId = songs[0]?.id || '';
+      currentSetlistId = setlists.length > 0 ? setlists[0].id : '';
+      currentSongId = '';
     } catch (e) {
       songs = [...DEFAULT_SONGS];
-      setlists = [...DEFAULT_SETLISTS];
+      setlists = [];
+      currentSetlistId = '';
+      currentSongId = '';
     }
   }
 
@@ -1876,10 +1871,16 @@ Holy forever`
   // ── POPULATE UI ──
   function renderSetlistDropdown() {
     headerSetlistSelect.innerHTML = '';
+    const emptyOpt = document.createElement('option');
+    emptyOpt.value = '';
+    emptyOpt.textContent = setlists.length === 0 ? '-- No Setlist (Click to Create) --' : '-- Select Setlist --';
+    if (!currentSetlistId) emptyOpt.selected = true;
+    headerSetlistSelect.appendChild(emptyOpt);
+
     setlists.forEach(sl => {
       const opt = document.createElement('option');
       opt.value = sl.id;
-      opt.textContent = sl.name;
+      opt.textContent = `${sl.name} (${sl.songs?.length || 0})`;
       if (sl.id === currentSetlistId) opt.selected = true;
       headerSetlistSelect.appendChild(opt);
     });
@@ -1890,15 +1891,22 @@ Holy forever`
     const curSetlist = setlists.find(s => s.id === currentSetlistId);
     const songList = (curSetlist && curSetlist.songs && curSetlist.songs.length > 0)
       ? curSetlist.songs.map(id => songs.find(s => s.id === id)).filter(Boolean)
-      : songs;
+      : [];
 
-    songList.forEach((song, idx) => {
+    if (songList.length === 0) {
       const opt = document.createElement('option');
-      opt.value = song.id;
-      opt.textContent = `${idx + 1}. ${song.title} (${song.key || 'C'})`;
-      if (song.id === currentSongId) opt.selected = true;
+      opt.value = '';
+      opt.textContent = currentSetlistId ? '-- Setlist is Empty --' : '-- No Songs Selected --';
       headerSongSelect.appendChild(opt);
-    });
+    } else {
+      songList.forEach((song, idx) => {
+        const opt = document.createElement('option');
+        opt.value = song.id;
+        opt.textContent = `${idx + 1}. ${song.title} (${song.key || 'C'})`;
+        if (song.id === currentSongId) opt.selected = true;
+        headerSongSelect.appendChild(opt);
+      });
+    }
 
     updateSetlistToggleBtn();
   }
@@ -1931,6 +1939,30 @@ Holy forever`
     if (switcherCountEl) switcherCountEl.textContent = setlistSongs.length;
 
     if (activeSidebarTab === 'setlist') {
+      if (!currentSetlistId) {
+        sidebarSongList.innerHTML = `
+          <div style="padding: 24px 14px; text-align: center;">
+            <div style="font-size: 28px; margin-bottom: 6px;">📋</div>
+            <div style="font-size: 14px; font-weight: 800; color: #fff; margin-bottom: 4px;">No Setlist Selected</div>
+            <div style="font-size: 11.5px; color: var(--text-muted); line-height: 1.4; margin-bottom: 16px;">
+              Create your lineup for this Sunday or choose from past history.
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <button class="btn btn-primary" style="justify-content: center; font-size: 12px; padding: 8px;" onclick="document.getElementById('btn-open-setlists').click()">
+                ✨ Create / Select Setlist
+              </button>
+              <button class="btn" style="justify-content: center; font-size: 12px; padding: 8px;" onclick="document.getElementById('tab-all-songs').click()">
+                📂 Browse Library Songs (${songs.length})
+              </button>
+              <button class="btn" style="justify-content: center; font-size: 12px; padding: 8px;" onclick="document.getElementById('btn-open-scraper').click()">
+                🔍 Search & Scrape Online Tab
+              </button>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
       let displayList = setlistSongs.map(id => songs.find(s => s.id === id)).filter(Boolean);
 
       if (query) {
@@ -1940,18 +1972,17 @@ Holy forever`
       }
 
       if (displayList.length === 0) {
-        const curSong = songs.find(s => s.id === currentSongId);
         sidebarSongList.innerHTML = `
           <div style="padding: 20px 12px; text-align: center;">
             <div style="font-size: 13px; font-weight: 700; color: var(--text-muted); margin-bottom: 10px;">
-              ${query ? 'No matching songs in this setlist.' : '📋 Current Setlist is Empty'}
+              ${query ? 'No matching songs in this setlist.' : `📋 "${escapeHtml(curSetlist.name)}" is Empty`}
             </div>
             <div style="display: flex; flex-direction: column; gap: 8px;">
-              <button class="btn btn-primary" style="justify-content: center; font-size: 12px; padding: 8px;" onclick="document.getElementById('btn-open-scraper').click()">
-                🔍 Search & Scrape Online Tab
-              </button>
-              <button class="btn" style="justify-content: center; font-size: 12px; padding: 8px;" onclick="document.getElementById('tab-all-songs').click()">
+              <button class="btn btn-primary" style="justify-content: center; font-size: 12px; padding: 8px;" onclick="document.getElementById('tab-all-songs').click()">
                 📂 Add from Song Library (${songs.length})
+              </button>
+              <button class="btn" style="justify-content: center; font-size: 12px; padding: 8px;" onclick="document.getElementById('btn-open-scraper').click()">
+                🔍 Search & Scrape Online Tab
               </button>
               <button class="btn" style="justify-content: center; font-size: 12px; padding: 8px;" onclick="document.getElementById('btn-open-setlists').click()">
                 📋 Switch to Another Setlist
@@ -2011,13 +2042,6 @@ Holy forever`
             `}
             <button class="btn" style="padding: 2px 6px; font-size: 10px; color: #f87171; border: 1px solid rgba(239,68,68,0.25); background: rgba(239,68,68,0.08);" title="Delete song from library" onclick="event.stopPropagation(); window._deleteSong('${song.id}')">🗑</button>
           </div>
-        `;
-        el.onclick = () => loadSong(song.id);
-        sidebarSongList.appendChild(el);
-      });
-    }
-  }
-
   function escapeHtml(str) {
     if (!str) return '';
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -2154,15 +2178,26 @@ Holy forever`
 
   // ── SETLIST TOGGLE & ADD HELPERS ──
   window._addSongToSetlist = function (songId) {
-    const curSetlist = setlists.find(s => s.id === currentSetlistId);
-    if (!curSetlist) return;
+    let curSetlist = setlists.find(s => s.id === currentSetlistId);
+    if (!curSetlist) {
+      const dateStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      curSetlist = {
+        id: 'setlist-' + Date.now(),
+        name: `Sunday Morning Worship — ${dateStr}`,
+        serviceDate: new Date().toISOString().split('T')[0],
+        songs: []
+      };
+      setlists.unshift(curSetlist);
+      currentSetlistId = curSetlist.id;
+    }
     if (!Array.isArray(curSetlist.songs)) curSetlist.songs = [];
 
     if (!curSetlist.songs.includes(songId)) {
       curSetlist.songs.push(songId);
       saveSetlistsLocal();
-      renderSidebar();
+      renderSetlistDropdown();
       renderSongDropdown();
+      renderSidebar();
       updateSetlistToggleBtn();
       renderSetlistModalContent();
       const s = songs.find(x => x.id === songId);
@@ -2186,11 +2221,12 @@ Holy forever`
   };
 
   btnHeaderSetlistToggle.onclick = function () {
+    if (!currentSongId) {
+      showToast('Select or create a song first', true);
+      return;
+    }
     const curSetlist = setlists.find(s => s.id === currentSetlistId);
-    if (!curSetlist) return;
-    if (!Array.isArray(curSetlist.songs)) curSetlist.songs = [];
-
-    if (curSetlist.songs.includes(currentSongId)) {
+    if (curSetlist && curSetlist.songs && curSetlist.songs.includes(currentSongId)) {
       window._removeSongFromSetlist(currentSongId);
     } else {
       window._addSongToSetlist(currentSongId);
@@ -2997,10 +3033,40 @@ Holy forever`
   // Dropdowns change
   headerSetlistSelect.onchange = () => {
     currentSetlistId = headerSetlistSelect.value;
+    if (!currentSetlistId) {
+      currentSongId = '';
+      metaTitle.value = '';
+      metaArtist.value = '';
+      metaKey.value = 'C';
+      metaCapo.value = '0';
+      metaBpm.value = '';
+      metaTime.value = '4/4';
+      metaNotes.value = '';
+      metaExhortation.value = '';
+      lyricEditor.value = '';
+      arrangementChipsContainer.innerHTML = '<span style="font-size: 11px; color: var(--text-dim);">No song selected</span>';
+      updateSetlistToggleBtn();
+    } else {
+      const curSetlist = setlists.find(s => s.id === currentSetlistId);
+      if (curSetlist?.songs?.length > 0) {
+        loadSong(curSetlist.songs[0]);
+      } else {
+        currentSongId = '';
+        metaTitle.value = '';
+        metaArtist.value = '';
+        metaKey.value = 'C';
+        metaCapo.value = '0';
+        metaBpm.value = '';
+        metaTime.value = '4/4';
+        metaNotes.value = '';
+        metaExhortation.value = '';
+        lyricEditor.value = '';
+        arrangementChipsContainer.innerHTML = '<span style="font-size: 11px; color: var(--text-dim);">No song selected</span>';
+        updateSetlistToggleBtn();
+      }
+    }
     renderSongDropdown();
     renderSidebar();
-    const curSetlist = setlists.find(s => s.id === currentSetlistId);
-    if (curSetlist?.songs?.length > 0) loadSong(curSetlist.songs[0]);
   };
   headerSongSelect.onchange = () => {
     loadSong(headerSongSelect.value);

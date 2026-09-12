@@ -5,6 +5,13 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.52.6] — 2026-09-12
+### Fixed & Enhanced
+- **First Visit & Incognito Clean Empty State (`/theworshiptool.html`)**:
+  - Removed pre-populated hardcoded demo setlist on first load and incognito visits. The app now opens cleanly with **no active setlist** forced upon the user.
+  - Setlist dropdown starts on `-- No Setlist (Click to Create) --` with direct 1-tap prompts in the sidebar and header to create a new setlist, pick an existing setlist from history, or browse the 5 library songs in the "All Songs" tab.
+  - Adding any song when no setlist is active automatically initializes a new Sunday service setlist for today and seamlessly adds the song.
+
 ## [v2.52.5] — 2026-09-12
 ### Fixed
 - **Leader Spoken Notes & Scripture / Prayer Template Insertions (`/theworshiptool.html`)**:
