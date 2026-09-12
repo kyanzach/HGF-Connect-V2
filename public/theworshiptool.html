@@ -1204,6 +1204,10 @@
       </div>
 
       <div class="header-main-actions">
+        <button class="btn" id="btn-manual-sync" title="Instant Live Cloud Sync" style="display: inline-flex; align-items: center; gap: 5px; font-size: 11px; padding: 6px 10px;">
+          <span id="sync-icon" style="display: inline-block; transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);">☁️</span>
+          <span id="sync-status-text" style="color: #6ee7b7; font-weight: 700;">Live Sync</span>
+        </button>
         <button class="btn" id="btn-open-setlists" title="Manage Setlists">📋 Setlists</button>
         <button class="btn" id="btn-open-scraper" title="Search & Scrape Lyrics (⌘F)">🔍 Scrape</button>
         <button class="btn btn-stage-start" id="btn-enter-stage" title="Launch Fullscreen Stage Teleprompter">▶ START STAGE</button>
@@ -1937,12 +1941,31 @@ Holy forever`
     }
   }
 
-  async function syncFromServer() {
+  let isSyncing = false;
+  let syncRotAngle = 0;
+
+  async function syncFromServer(isManual = false) {
+    if (isSyncing) return;
+    isSyncing = true;
+
+    const syncIcon = document.getElementById('sync-icon');
+    const syncStatus = document.getElementById('sync-status-text');
+    if (syncIcon) {
+      syncRotAngle += 360;
+      syncIcon.style.transform = `rotate(${syncRotAngle}deg)`;
+    }
+    if (syncStatus && isManual) {
+      syncStatus.textContent = 'Syncing...';
+    }
+
     try {
       const [resSetlists, resSongs] = await Promise.all([
         fetch('/api/worship/setlists', { cache: 'no-store' }),
         fetch('/api/worship', { cache: 'no-store' })
       ]);
+
+      let songsChanged = false;
+      let setlistsChanged = false;
 
       if (resSongs.ok) {
         const serverSongs = await resSongs.json();
@@ -1954,6 +1977,7 @@ Holy forever`
             const local = map.get(ss.id);
             if (!local || (ss.updatedAt && ss.updatedAt >= (local.updatedAt || 0))) {
               map.set(ss.id, ss);
+              songsChanged = true;
             }
           });
           songs = Array.from(map.values());
@@ -1973,6 +1997,7 @@ Holy forever`
               const local = slMap.get(v.id);
               if (!local || (v.updatedAt && v.updatedAt >= (local.updatedAt || 0))) {
                 slMap.set(v.id, v);
+                setlistsChanged = true;
               }
             });
             setlists = Array.from(slMap.values());
@@ -1986,6 +2011,7 @@ Holy forever`
       if (!currentSetlistId || !setlists.some(sl => sl.id === currentSetlistId)) {
         if (setlists.length > 0) {
           currentSetlistId = setlists[0].id;
+          setlistsChanged = true;
         }
       }
 
@@ -1994,23 +2020,53 @@ Holy forever`
       if (activeSl && Array.isArray(activeSl.songs) && activeSl.songs.length > 0) {
         if (!currentSongId || !activeSl.songs.includes(currentSongId)) {
           currentSongId = activeSl.songs[0];
+          songsChanged = true;
         }
       } else if (!currentSongId && songs.length > 0) {
         currentSongId = songs[0].id;
+        songsChanged = true;
       }
+
+      // Check if user is currently typing in an input field before re-rendering editor
+      const isTyping = document.activeElement === lyricEditor ||
+                       document.activeElement === metaTitle ||
+                       document.activeElement === metaArtist ||
+                       document.activeElement === metaNotes ||
+                       document.activeElement === metaExhortation;
 
       renderSetlistDropdown();
       renderSongDropdown();
       renderSidebar();
       updateSetlistToggleBtn();
-      if (currentSongId) loadSong(currentSongId);
+
+      if (currentSongId && !isTyping) {
+        loadSong(currentSongId);
+      }
+
       if (modalSetlists && modalSetlists.classList.contains('open')) {
         renderSetlistModalContent(false);
       }
+
+      if (syncStatus) {
+        syncStatus.textContent = 'Live Sync';
+        syncStatus.style.color = '#6ee7b7';
+      }
+
+      if (isManual) {
+        showToast(`☁️ Cloud synced! (${setlists.length} setlist(s), ${songs.length} song(s))`);
+      }
     } catch (e) {
       console.warn('Worship sync notice:', e);
+      if (syncStatus) {
+        syncStatus.textContent = 'Offline';
+        syncStatus.style.color = '#f87171';
+      }
+    } finally {
+      isSyncing = false;
     }
   }
+
+  window._syncFromServer = syncFromServer;
 
   function showToast(msg, isError = false) {
     toast.textContent = msg;
@@ -3649,6 +3705,24 @@ Holy forever`
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/theworship-sw.js').catch(() => {});
   }
+
+  const btnManualSync = document.getElementById('btn-manual-sync');
+  if (btnManualSync) {
+    btnManualSync.onclick = () => syncFromServer(true);
+  }
+
+  // Real-time background auto-sync every 3 seconds
+  setInterval(() => {
+    if (!stageView || !stageView.classList.contains('active')) {
+      syncFromServer(false);
+    }
+  }, 3000);
+
+  // Sync immediately when device wakes up or user focuses tab
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) syncFromServer(false);
+  });
+  window.addEventListener('focus', () => syncFromServer(false));
 
   // ── INITIALIZE ──
   initStorage();

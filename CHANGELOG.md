@@ -5,6 +5,15 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.52.15] — 2026-09-12
+### Added & Enhanced
+- **Real-Time Instant Cross-Device Cloud Sync (`/theworshiptool.html` & `/theworship-sw.js`)**:
+  - Added real-time background sync polling every 3 seconds to seamlessly propagate new/updated setlists and songs across devices (Mac, Android tablets, iPads, mobile) within seconds without requiring manual page refreshes.
+  - Added an interactive `☁️ Live Sync` button with smooth spin animations in the header for on-demand cloud synchronization and visual status feedback (`Live Sync` / `Syncing...` / `Offline`).
+  - Added instant sync triggers on window focus and screen wake-up (`visibilitychange`), ensuring devices that wake up from sleep or switch tabs immediately catch up with the latest cloud setlists.
+  - Upgraded service worker (`theworship-sw.js` v2) with a network-first policy for the tool and explicit bypass for `/api/` dynamic endpoints, eliminating stale cache issues on tablets and mobile browsers.
+  - Implemented typing-conflict safeguards so background synchronization never clobbers or interrupts active inputs when users are actively composing lyrics or notes in the editor.
+
 ## [v2.52.14] — 2026-09-12
 ### Fixed & Enhanced
 - **Cross-Device Cloud Sync for Setlists & Songs (`/api/worship/setlists` & `/theworshiptool.html`)**:

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'the-worship-hgf-v1';
+const CACHE_NAME = 'the-worship-hgf-v2';
 const ASSETS_TO_CACHE = [
   '/theworshiptool.html',
   '/theworship-manifest.json',
@@ -26,8 +26,30 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
-  
-  // Stale-while-revalidate for html and static assets
+
+  const url = new URL(event.request.url);
+  // Never cache or intercept dynamic API routes
+  if (url.pathname.startsWith('/api/')) {
+    return;
+  }
+
+  // Network-first for the tool HTML so online devices get instant updates
+  if (url.pathname === '/theworshiptool.html' || url.pathname === '/') {
+    event.respondWith(
+      fetch(event.request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
+        }
+        return networkResponse;
+      }).catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Stale-while-revalidate for static assets (icons/manifest)
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request).then((networkResponse) => {
