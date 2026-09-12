@@ -1353,21 +1353,49 @@
 </div>
 
 <!-- ══════════════════════════════════════════════════════════
-     ── MODAL: SONG SCRAPER & SEARCH ──
+     ── MODAL: SONG SCRAPER & SEARCH (WITH LIVE PREVIEW) ──
      ══════════════════════════════════════════════════════════ -->
 <div class="modal-overlay" id="modal-scraper">
-  <div class="modal-box">
+  <div class="modal-box" style="max-width: 680px;">
     <div class="modal-header">
-      <div class="modal-title">🔍 Search & Scrape Worship Lyrics</div>
+      <div class="modal-title" id="scrape-modal-title">🔍 Search & Scrape Worship Lyrics</div>
       <button class="modal-close" id="btn-close-scraper">&times;</button>
     </div>
     <div class="modal-body">
-      <div class="scrape-search-bar">
-        <input type="text" id="scrape-query-input" class="scrape-input" placeholder="Search song title or artist (e.g. Goodness of God, Gratitude)..." />
-        <button class="btn btn-primary" id="btn-run-scrape">Search</button>
+      <!-- Search & Results List View -->
+      <div id="scrape-list-view">
+        <div class="scrape-search-bar">
+          <input type="text" id="scrape-query-input" class="scrape-input" placeholder="Search song title or artist (e.g. Goodness of God, Gratitude)..." />
+          <button class="btn btn-primary" id="btn-run-scrape">Search</button>
+        </div>
+        <div id="scrape-status" style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;"></div>
+        <div id="scrape-results-list" style="max-height: 420px; overflow-y: auto;"></div>
       </div>
-      <div id="scrape-status" style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;"></div>
-      <div id="scrape-results-list"></div>
+
+      <!-- Live Song Preview View -->
+      <div id="scrape-preview-view" style="display: none;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); flex-wrap: wrap; gap: 8px;">
+          <button class="btn" id="btn-scrape-back" style="font-size: 12px; padding: 5px 12px;">⬅ Back to Results</button>
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <span class="song-key-badge" id="scrape-preview-key" style="font-size: 12px; padding: 3px 8px;">Key: C</span>
+            <span class="song-key-badge" id="scrape-preview-bpm" style="font-size: 12px; padding: 3px 8px; background: rgba(59,130,246,0.15); color: #60a5fa; border-color: rgba(59,130,246,0.3); display: none;">BPM: 72</span>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 10px;">
+          <div id="scrape-preview-title" style="font-size: 16px; font-weight: 800; color: #fff;"></div>
+          <div id="scrape-preview-artist" style="font-size: 12px; color: var(--text-muted);"></div>
+        </div>
+
+        <div style="position: relative; margin-bottom: 14px;">
+          <div id="scrape-preview-lyrics" style="max-height: 320px; overflow-y: auto; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; padding: 14px; font-family: ui-monospace, monospace; font-size: 13px; line-height: 1.6; color: #e2e8f0; white-space: pre-wrap; user-select: text;"></div>
+        </div>
+
+        <div style="display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; border-top: 1px solid var(--border-color); padding-top: 12px;">
+          <button class="btn" id="btn-scrape-import-replace" style="font-size: 12px; padding: 8px 14px;">✍️ Overwrite Current Song</button>
+          <button class="btn btn-primary" id="btn-scrape-import-new" style="font-size: 12px; padding: 8px 16px; font-weight: 800;">➕ Import as New Song</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -2317,16 +2345,56 @@ Holy forever`
     }
   }
 
-  // ── MODALS: SCRAPER ──
+  // ── MODALS: SCRAPER & LIVE PREVIEW ──
   const modalScraper = document.getElementById('modal-scraper');
   const scrapeQueryInput = document.getElementById('scrape-query-input');
   const scrapeResultsList = document.getElementById('scrape-results-list');
   const scrapeStatus = document.getElementById('scrape-status');
+  let activeScrapePreviewData = null;
+
+  function showScrapeListView() {
+    const listEl = document.getElementById('scrape-list-view');
+    const prevEl = document.getElementById('scrape-preview-view');
+    const titleEl = document.getElementById('scrape-modal-title');
+    if (listEl) listEl.style.display = 'block';
+    if (prevEl) prevEl.style.display = 'none';
+    if (titleEl) titleEl.textContent = '🔍 Search & Scrape Worship Lyrics';
+  }
+
+  function showScrapePreviewView(data) {
+    activeScrapePreviewData = data;
+    const listEl = document.getElementById('scrape-list-view');
+    const prevEl = document.getElementById('scrape-preview-view');
+    const titleEl = document.getElementById('scrape-modal-title');
+    if (listEl) listEl.style.display = 'none';
+    if (prevEl) prevEl.style.display = 'block';
+    if (titleEl) titleEl.textContent = '👁 Song Preview';
+
+    document.getElementById('scrape-preview-title').textContent = data.song_name || 'Untitled Song';
+    document.getElementById('scrape-preview-artist').textContent = (data.artist_name || 'HGF Worship') + (data.type ? ` • ${data.type}` : '');
+    document.getElementById('scrape-preview-key').textContent = `Key: ${data.key || 'C'}`;
+
+    const bpmEl = document.getElementById('scrape-preview-bpm');
+    if (data.bpm) {
+      bpmEl.textContent = `BPM: ${data.bpm}`;
+      bpmEl.style.display = 'inline-block';
+    } else {
+      bpmEl.style.display = 'none';
+    }
+
+    const raw = data.lyrics || '';
+    const lyricsHtml = escapeHtml(raw)
+      .replace(/(\[[^\]]+\])/g, '<span style="color: var(--brand-teal); font-weight: 800; display: inline-block; margin-top: 10px; margin-bottom: 2px;">$1</span>');
+
+    document.getElementById('scrape-preview-lyrics').innerHTML = lyricsHtml || '<em style="color: var(--text-dim);">No lyrics found in this tab</em>';
+    document.getElementById('scrape-preview-lyrics').scrollTop = 0;
+  }
 
   function openScraperModal() {
     modalScraper.classList.add('open');
+    showScrapeListView();
     scrapeQueryInput.focus();
-    if (metaTitle.value && metaTitle.value !== 'New Song') {
+    if (metaTitle.value && metaTitle.value !== 'New Song' && !scrapeQueryInput.value) {
       scrapeQueryInput.value = metaTitle.value;
       runScraperSearch();
     }
@@ -2334,6 +2402,7 @@ Holy forever`
 
   function closeScraperModal() {
     modalScraper.classList.remove('open');
+    showScrapeListView();
   }
 
   async function runScraperSearch() {
@@ -2352,18 +2421,29 @@ Holy forever`
       const data = await res.json();
 
       if (data.results && data.results.length > 0) {
-        scrapeStatus.textContent = `Found ${data.results.length} versions:`;
+        scrapeStatus.textContent = `Found ${data.results.length} versions (click preview to inspect lyrics):`;
         data.results.forEach(r => {
           const item = document.createElement('div');
           item.className = 'scrape-result-item';
           item.innerHTML = `
-            <div>
-              <div style="font-weight: 800; color: #fff; font-size: 13px;">${escapeHtml(r.song_name)}</div>
+            <div style="flex: 1; min-width: 0; padding-right: 10px;">
+              <div style="font-weight: 800; color: #fff; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(r.song_name)}</div>
               <div style="font-size: 11px; color: var(--text-muted);">${escapeHtml(r.artist_name)} • ${r.type} ${r.tonality_name ? '• Key: ' + r.tonality_name : ''}</div>
             </div>
-            <button class="btn btn-primary" style="padding: 4px 10px; font-size: 11px;">Import</button>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <button class="btn btn-scrape-preview" style="padding: 4px 10px; font-size: 11px; background: rgba(78,177,203,0.12); color: var(--brand-teal); border: 1px solid var(--brand-teal);">👁 Preview</button>
+              <button class="btn btn-primary btn-scrape-import" style="padding: 4px 10px; font-size: 11px;">+ Import</button>
+            </div>
           `;
-          item.onclick = () => fetchAndImportTab(r.tab_url);
+          item.querySelector('.btn-scrape-preview').onclick = (e) => {
+            e.stopPropagation();
+            fetchAndPreviewTab(r.tab_url, item.querySelector('.btn-scrape-preview'));
+          };
+          item.querySelector('.btn-scrape-import').onclick = (e) => {
+            e.stopPropagation();
+            fetchAndDirectImport(r.tab_url, item.querySelector('.btn-scrape-import'));
+          };
+          item.onclick = () => fetchAndPreviewTab(r.tab_url, item.querySelector('.btn-scrape-preview'));
           scrapeResultsList.appendChild(item);
         });
       } else {
@@ -2374,35 +2454,85 @@ Holy forever`
     }
   }
 
-  async function fetchAndImportTab(tabUrl) {
-    scrapeStatus.textContent = 'Fetching and parsing lyrics & tags...';
+  async function fetchTabLyrics(tabUrl) {
+    const res = await fetch('/api/worship/scrape', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'fetch', url: tabUrl, stripChords: true })
+    });
+    return await res.json();
+  }
+
+  async function fetchAndPreviewTab(tabUrl, btnEl) {
+    const oldText = btnEl ? btnEl.textContent : '';
+    if (btnEl) btnEl.textContent = '⏳ Loading...';
+    scrapeStatus.textContent = 'Fetching and parsing preview...';
     try {
-      const res = await fetch('/api/worship/scrape', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'fetch', url: tabUrl, stripChords: true })
-      });
-      const data = await res.json();
-
-      if (data.lyrics) {
-        metaTitle.value = data.song_name || metaTitle.value;
-        metaArtist.value = data.artist_name || metaArtist.value;
-        if (data.key) metaKey.value = data.key;
-        if (data.bpm) metaBpm.value = data.bpm;
-        lyricEditor.value = data.lyrics;
-
-        saveCurrentSong(false);
-        // Automatically add to current setlist
-        window._addSongToSetlist(currentSongId);
-
-        closeScraperModal();
-        showToast('🎉 Song scraped, imported & added to setlist!');
+      const data = await fetchTabLyrics(tabUrl);
+      if (data && data.lyrics) {
+        scrapeStatus.textContent = '';
+        showScrapePreviewView(data);
       } else {
+        showToast('Could not extract lyrics from this tab', true);
         scrapeStatus.textContent = 'Could not extract lyrics from this tab.';
       }
     } catch (e) {
-      scrapeStatus.textContent = 'Error fetching tab content.';
+      showToast('Error fetching tab preview', true);
+      scrapeStatus.textContent = 'Error fetching tab preview.';
+    } finally {
+      if (btnEl) btnEl.textContent = oldText;
     }
+  }
+
+  async function fetchAndDirectImport(tabUrl, btnEl) {
+    const oldText = btnEl ? btnEl.textContent : '';
+    if (btnEl) btnEl.textContent = '⏳...';
+    scrapeStatus.textContent = 'Fetching and importing song...';
+    try {
+      const data = await fetchTabLyrics(tabUrl);
+      if (data && data.lyrics) {
+        applyScrapedSong(data, true);
+      } else {
+        showToast('Could not extract lyrics from this tab', true);
+      }
+    } catch (e) {
+      showToast('Error importing tab', true);
+    } finally {
+      if (btnEl) btnEl.textContent = oldText;
+    }
+  }
+
+  function applyScrapedSong(data, asNewSong = true) {
+    if (!data || !data.lyrics) return;
+
+    if (asNewSong || !currentSongId) {
+      const newId = 'song-' + Date.now();
+      const newSong = {
+        id: newId,
+        title: data.song_name || 'New Song',
+        artist: data.artist_name || '',
+        key: data.key || 'C',
+        tempo: data.bpm || '',
+        notes: '',
+        exhortation: '',
+        lyrics: data.lyrics
+      };
+      songs.unshift(newSong);
+      saveSongsLocal();
+      loadSong(newId);
+      window._addSongToSetlist(newId);
+      showToast(`🎉 Imported "${newSong.title}" as new song & added to setlist!`);
+    } else {
+      metaTitle.value = data.song_name || metaTitle.value;
+      metaArtist.value = data.artist_name || metaArtist.value;
+      if (data.key) metaKey.value = data.key;
+      if (data.bpm) metaBpm.value = data.bpm;
+      lyricEditor.value = data.lyrics;
+      saveCurrentSong(false);
+      window._addSongToSetlist(currentSongId);
+      showToast(`🎉 Replaced open editor song with "${metaTitle.value}"!`);
+    }
+    closeScraperModal();
   }
 
   // ── MODALS: SETLIST MANAGER ──
@@ -3126,6 +3256,13 @@ Holy forever`
   document.getElementById('btn-close-scraper').onclick = closeScraperModal;
   document.getElementById('btn-run-scrape').onclick = runScraperSearch;
   scrapeQueryInput.onkeydown = (e) => { if (e.key === 'Enter') runScraperSearch(); };
+  document.getElementById('btn-scrape-back').onclick = showScrapeListView;
+  document.getElementById('btn-scrape-import-new').onclick = () => {
+    if (activeScrapePreviewData) applyScrapedSong(activeScrapePreviewData, true);
+  };
+  document.getElementById('btn-scrape-import-replace').onclick = () => {
+    if (activeScrapePreviewData) applyScrapedSong(activeScrapePreviewData, false);
+  };
 
   // Setlist modal
   document.getElementById('btn-open-setlists').onclick = openSetlistModal;

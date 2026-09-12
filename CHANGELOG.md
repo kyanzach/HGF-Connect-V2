@@ -5,6 +5,16 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.52.9] — 2026-09-12
+### Added & Enhanced
+- **Interactive Song Lyric & Chord Preview in Scraper Modal (`/theworshiptool.html`)**:
+  - Added dedicated live **Preview Mode** (`👁 Preview`) before importing any searched online tab.
+  - Clicking a search result opens the preview screen displaying the song title, artist, key, tempo, and formatted scrollable lyrics with colored section tags (`[Verse 1]`, `[Chorus]`, `[Bridge]`).
+  - Added dual import options directly from the preview card:
+    - `➕ Import as New Song`: Safely adds the song to the library and active setlist without overwriting whatever song was previously open.
+    - `✍️ Overwrite Current Song`: Replaces the current editor song when desired.
+  - Added `⬅ Back to Results` navigation to explore other versions if the previewed tab isn't the right one.
+
 ## [v2.52.8] — 2026-09-12
 ### Fixed & Enhanced
 - **Setlist Title Save & Smart Creation (`/theworshiptool.html`)**:
