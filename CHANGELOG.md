@@ -5,6 +5,13 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.52.7] — 2026-09-12
+### Fixed & Enhanced
+- **State Persistence & Song Library Restoration (`/theworshiptool.html`)**:
+  - Fixed syntax issue in sidebar rendering that previously prevented songs and setlists from populating.
+  - Added full `localStorage` persistence across page reloads for the user's active setlist (`hgf_worship_active_setlist`) and active song (`hgf_worship_active_song`).
+  - Reloading the page now keeps the current setlist and open song active, while fresh first-time visits and incognito sessions start with a clean `-- No Setlist (Click to Create) --` selector with direct 1-tap options to create or pick a setlist.
+
 ## [v2.52.6] — 2026-09-12
 ### Fixed & Enhanced
 - **First Visit & Incognito Clean Empty State (`/theworshiptool.html`)**:

@@ -1833,8 +1833,28 @@ Holy forever`
         setlists = [];
       }
 
-      currentSetlistId = setlists.length > 0 ? setlists[0].id : '';
-      currentSongId = '';
+      // Restore active setlist
+      const savedActiveSetlist = localStorage.getItem('hgf_worship_active_setlist');
+      if (savedActiveSetlist && setlists.some(s => s.id === savedActiveSetlist)) {
+        currentSetlistId = savedActiveSetlist;
+      } else {
+        currentSetlistId = setlists.length > 0 ? setlists[0].id : '';
+      }
+
+      // Restore active song
+      const savedActiveSong = localStorage.getItem('hgf_worship_active_song');
+      const curSetlist = setlists.find(s => s.id === currentSetlistId);
+      if (curSetlist && curSetlist.songs && curSetlist.songs.length > 0) {
+        if (savedActiveSong && curSetlist.songs.includes(savedActiveSong)) {
+          currentSongId = savedActiveSong;
+        } else {
+          currentSongId = curSetlist.songs[0];
+        }
+      } else if (savedActiveSong && songs.some(s => s.id === savedActiveSong)) {
+        currentSongId = savedActiveSong;
+      } else {
+        currentSongId = '';
+      }
     } catch (e) {
       songs = [...DEFAULT_SONGS];
       setlists = [];
@@ -1849,6 +1869,11 @@ Holy forever`
 
   function saveSetlistsLocal() {
     localStorage.setItem('hgf_worship_setlists', JSON.stringify(setlists));
+    if (currentSetlistId) {
+      localStorage.setItem('hgf_worship_active_setlist', currentSetlistId);
+    } else {
+      localStorage.removeItem('hgf_worship_active_setlist');
+    }
     // Also sync to server in background
     try {
       const curSetlist = setlists.find(s => s.id === currentSetlistId);
@@ -2042,6 +2067,13 @@ Holy forever`
             `}
             <button class="btn" style="padding: 2px 6px; font-size: 10px; color: #f87171; border: 1px solid rgba(239,68,68,0.25); background: rgba(239,68,68,0.08);" title="Delete song from library" onclick="event.stopPropagation(); window._deleteSong('${song.id}')">🗑</button>
           </div>
+        `;
+        el.onclick = () => loadSong(song.id);
+        sidebarSongList.appendChild(el);
+      });
+    }
+  }
+
   function escapeHtml(str) {
     if (!str) return '';
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -2051,6 +2083,7 @@ Holy forever`
     const song = songs.find(s => s.id === songId);
     if (!song) return;
     currentSongId = song.id;
+    localStorage.setItem('hgf_worship_active_song', song.id);
 
     metaTitle.value = song.title || '';
     metaArtist.value = song.artist || '';
@@ -2478,6 +2511,11 @@ Holy forever`
 
   window._selectSetlist = function (id) {
     currentSetlistId = id;
+    if (id) {
+      localStorage.setItem('hgf_worship_active_setlist', id);
+    } else {
+      localStorage.removeItem('hgf_worship_active_setlist');
+    }
     renderSetlistDropdown();
     renderSongDropdown();
     renderSidebar();
