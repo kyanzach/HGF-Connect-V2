@@ -16,6 +16,16 @@ export async function GET(
     return NextResponse.redirect("https://houseofgrace.ph", 302);
   }
 
+  const cleanCode = code.toLowerCase().trim();
+
+  // Handle dedicated church tool shortcodes
+  if (["worship", "theworship", "the-worship", "stage", "prompter"].includes(cleanCode)) {
+    return NextResponse.redirect("https://connect.houseofgrace.ph/theworshiptool.html", 302);
+  }
+  if (["word", "theword", "the-word", "scripture"].includes(cleanCode)) {
+    return NextResponse.redirect("https://connect.houseofgrace.ph/thewordtool.html", 302);
+  }
+
   // 1. Try to look up the code as a referral shareCode first
   const share = await db.listingShare.findFirst({
     where: { shareCode: code },

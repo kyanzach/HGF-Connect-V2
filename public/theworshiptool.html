@@ -1208,6 +1208,10 @@
           <span id="sync-icon" style="display: inline-block; transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);">☁️</span>
           <span id="sync-status-text" style="color: #6ee7b7; font-weight: 700;">Live Sync</span>
         </button>
+        <button class="btn" id="btn-copy-shortlink" title="Copy Shortlink (hgfapp.link/worship)" style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 6px 10px;">
+          <span>🔗</span>
+          <span>hgfapp.link/worship</span>
+        </button>
         <button class="btn" id="btn-open-setlists" title="Manage Setlists">📋 Setlists</button>
         <button class="btn" id="btn-open-scraper" title="Search & Scrape Lyrics (⌘F)">🔍 Scrape</button>
         <button class="btn btn-stage-start" id="btn-enter-stage" title="Launch Fullscreen Stage Teleprompter">▶ START STAGE</button>
@@ -3523,15 +3527,79 @@ Holy forever`
     };
   });
 
-  // Section tagging buttons
+  // Track lyric editor cursor and selection positions
+  let lastLyricSelStart = 0;
+  let lastLyricSelEnd = 0;
+
+  function updateLyricSelection() {
+    if (typeof lyricEditor.selectionStart === 'number') {
+      lastLyricSelStart = lyricEditor.selectionStart;
+      lastLyricSelEnd = lyricEditor.selectionEnd;
+    }
+  }
+
+  lyricEditor.addEventListener('keyup', updateLyricSelection);
+  lyricEditor.addEventListener('mouseup', updateLyricSelection);
+  lyricEditor.addEventListener('select', updateLyricSelection);
+  lyricEditor.addEventListener('focus', updateLyricSelection);
+  lyricEditor.addEventListener('click', updateLyricSelection);
+  lyricEditor.addEventListener('input', () => {
+    updateLyricSelection();
+    renderArrangementChips({ lyrics: lyricEditor.value });
+    clearTimeout(window._lyricAutoSaveTimer);
+    window._lyricAutoSaveTimer = setTimeout(() => saveCurrentSong(false), 800);
+  });
+
+  // Section tagging buttons (Insert at cursor / Replace selection without jumping to bottom)
   document.querySelectorAll('.tag-btn[data-tag]').forEach(btn => {
-    btn.onclick = () => {
+    // Prevent button press from losing textarea focus or clearing highlighted text
+    btn.addEventListener('mousedown', (e) => e.preventDefault());
+    btn.addEventListener('pointerdown', (e) => {
+      if (document.activeElement === lyricEditor && typeof lyricEditor.selectionStart === 'number') {
+        lastLyricSelStart = lyricEditor.selectionStart;
+        lastLyricSelEnd = lyricEditor.selectionEnd;
+      }
+    });
+
+    btn.onclick = (e) => {
+      e.preventDefault();
       const tag = btn.getAttribute('data-tag');
-      const curPos = lyricEditor.selectionStart || lyricEditor.value.length;
-      const text = lyricEditor.value;
-      lyricEditor.value = text.slice(0, curPos) + '\n\n' + tag + '\n' + text.slice(curPos);
+      const val = lyricEditor.value;
+
+      let start = (typeof lyricEditor.selectionStart === 'number') ? lyricEditor.selectionStart : lastLyricSelStart;
+      let end = (typeof lyricEditor.selectionEnd === 'number') ? lyricEditor.selectionEnd : lastLyricSelEnd;
+
+      if (start === undefined || start === null || isNaN(start) || start < 0) start = 0;
+      if (end === undefined || end === null || isNaN(end) || end < 0) end = start;
+
+      // Smart prefix newline if cursor is not at line start / start of document
+      let prefix = '';
+      if (start > 0 && val[start - 1] !== '\n') {
+        prefix = '\n';
+      }
+
+      // Smart suffix newline
+      let suffix = '\n';
+      if (end < val.length && val[end] === '\n') {
+        suffix = '\n';
+      }
+
+      const insertion = prefix + tag + suffix;
+
+      if (typeof lyricEditor.setRangeText === 'function') {
+        lyricEditor.setRangeText(insertion, start, end, 'end');
+      } else {
+        lyricEditor.value = val.slice(0, start) + insertion + val.slice(end);
+        const nextPos = start + insertion.length;
+        lyricEditor.setSelectionRange(nextPos, nextPos);
+      }
+
+      lastLyricSelStart = lyricEditor.selectionStart;
+      lastLyricSelEnd = lyricEditor.selectionEnd;
       lyricEditor.focus();
+
       renderArrangementChips({ lyrics: lyricEditor.value });
+      saveCurrentSong(false);
     };
   });
 
@@ -3709,6 +3777,28 @@ Holy forever`
   const btnManualSync = document.getElementById('btn-manual-sync');
   if (btnManualSync) {
     btnManualSync.onclick = () => syncFromServer(true);
+  }
+
+  const btnCopyShortlink = document.getElementById('btn-copy-shortlink');
+  if (btnCopyShortlink) {
+    btnCopyShortlink.onclick = async () => {
+      const shortUrl = 'https://hgfapp.link/worship';
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(shortUrl);
+        } else {
+          const tempInput = document.createElement('input');
+          tempInput.value = shortUrl;
+          document.body.appendChild(tempInput);
+          tempInput.select();
+          document.execCommand('copy');
+          document.body.removeChild(tempInput);
+        }
+        showToast('🔗 Shortlink copied: ' + shortUrl);
+      } catch (err) {
+        showToast('Shortlink: ' + shortUrl);
+      }
+    };
   }
 
   // Real-time background auto-sync every 3 seconds

@@ -5,6 +5,17 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.52.16] — 2026-09-13
+### Fixed & Enhanced
+- **Lyric Editor Cursor-Aware Tag Insertion & Selection Replacement (`/theworshiptool.html`)**:
+  - Fixed a bug where clicking an `ADD TAG:` button (e.g. `+ Chorus`, `+ Verse 1`) would jump and append to the very bottom of the lyrics editor instead of replacing highlighted text or inserting at the active cursor position.
+  - Implemented selection tracking and `mousedown` preventDefault protection so clicking toolbar tag buttons preserves the textarea focus and highlighted text range.
+  - Replaces selected section headers (e.g. replacing `[Intro]` with `[Chorus]`) seamlessly without duplicating text or misplacing the cursor.
+- **Shortlink Mapping for THE WORSHIP (`hgfapp.link/worship` & `/s/worship`)**:
+  - Mapped shortlinks `https://hgfapp.link/worship`, `https://hgfapp.link/stage`, `https://hgfapp.link/s/worship`, and `connect.houseofgrace.ph/worship` directly to the prompter tool.
+  - Created `public/theworshiptool-og.html` providing rich social cards and OpenGraph metadata when shared on WhatsApp, Facebook, or Messenger, and auto-redirecting browsers.
+  - Added a `🔗 hgfapp.link/worship` 1-click copy shortlink button to the main tool header.
+
 ## [v2.52.15] — 2026-09-12
 ### Added & Enhanced
 - **Real-Time Instant Cross-Device Cloud Sync (`/theworshiptool.html` & `/theworship-sw.js`)**:

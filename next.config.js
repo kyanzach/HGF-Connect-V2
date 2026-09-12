@@ -37,6 +37,43 @@ const nextConfig = {
         destination: "/stewardshop",
         permanent: true,
       },
+      // Worship tool shortlinks
+      {
+        source: "/worship",
+        destination: "/theworshiptool.html",
+        permanent: false,
+      },
+      {
+        source: "/theworship",
+        destination: "/theworshiptool.html",
+        permanent: false,
+      },
+      {
+        source: "/the-worship",
+        destination: "/theworshiptool.html",
+        permanent: false,
+      },
+      {
+        source: "/stage",
+        destination: "/theworshiptool.html",
+        permanent: false,
+      },
+      // Word tool shortlinks
+      {
+        source: "/word",
+        destination: "/thewordtool.html",
+        permanent: false,
+      },
+      {
+        source: "/theword",
+        destination: "/thewordtool.html",
+        permanent: false,
+      },
+      {
+        source: "/the-word",
+        destination: "/thewordtool.html",
+        permanent: false,
+      },
     ];
   },
 };
