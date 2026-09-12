@@ -5,6 +5,14 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.52.13] — 2026-09-12
+### Added & Enhanced
+- **Two-Step Double Confirmation for Deletions (`/theworshiptool.html`)**:
+  - Implemented a safety-first, two-step double confirmation system for deleting songs from the library and deleting entire setlists.
+  - Step 1: Displays initial impact verification (`Step 1 of 2`) explaining what will be removed and what stays safe.
+  - Step 2: Transitions to a prominent `⚠️ FINAL WARNING` state (`Step 2 of 2`) requiring an explicit final click on `🔥 Yes, Delete Permanently` before executing the wipe.
+  - Added single-step confirmation prompts when removing songs from an active setlist lineup (`✕`), preventing accidental taps on tablet/touchscreens.
+
 ## [v2.52.12] — 2026-09-12
 ### Added & Enhanced
 - **Smart Mashup / Medley Search & Source Tagging (`/api/worship/scrape` & `/theworshiptool.html`)**:

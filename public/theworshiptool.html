@@ -1444,21 +1444,22 @@
 </div>
 
 <!-- ══════════════════════════════════════════════════════════
-     ── MODAL: CONFIRMATION (DELETE) ──
+     ── MODAL: CONFIRMATION (DELETE & DOUBLE-CHECK) ──
      ══════════════════════════════════════════════════════════ -->
 <div class="modal-overlay" id="modal-confirm">
-  <div class="modal-box" style="max-width: 440px;">
+  <div class="modal-box" style="max-width: 460px;">
     <div class="modal-header">
-      <div class="modal-title" style="color: var(--brand-red);">🗑 Confirm Deletion</div>
+      <div class="modal-title" id="confirm-modal-title" style="color: var(--brand-red); display: flex; align-items: center; gap: 8px;">🗑 Confirm Deletion</div>
       <button class="modal-close" id="btn-close-confirm">&times;</button>
     </div>
     <div class="modal-body">
-      <p id="confirm-modal-text" style="font-size: 14px; color: #e2e8f0; line-height: 1.5; margin-bottom: 20px;">
+      <div id="confirm-modal-badge" style="display: inline-block; font-size: 11px; font-weight: 800; background: rgba(239,68,68,0.12); color: #f87171; border: 1px solid rgba(239,68,68,0.3); border-radius: 4px; padding: 2px 8px; margin-bottom: 12px;">Step 1 of 2: Initial Verification</div>
+      <div id="confirm-modal-text" style="font-size: 14px; color: #e2e8f0; line-height: 1.5; margin-bottom: 20px;">
         Are you sure you want to delete this item?
-      </p>
+      </div>
       <div style="display: flex; gap: 8px; justify-content: flex-end;">
         <button class="btn" id="btn-cancel-confirm">Cancel</button>
-        <button class="btn btn-danger" id="btn-action-confirm" style="background: var(--brand-red); color: #fff; border-color: var(--brand-red);">🗑 Delete Forever</button>
+        <button class="btn btn-danger" id="btn-action-confirm" style="background: var(--brand-red); color: #fff; border-color: var(--brand-red);">Proceed ➔</button>
       </div>
     </div>
   </div>
@@ -2278,14 +2279,22 @@ Holy forever`
   window._removeSongFromSetlist = function (songId) {
     const curSetlist = setlists.find(s => s.id === currentSetlistId);
     if (!curSetlist || !curSetlist.songs) return;
-    curSetlist.songs = curSetlist.songs.filter(id => id !== songId);
-    saveSetlistsLocal();
-    renderSidebar();
-    renderSongDropdown();
-    updateSetlistToggleBtn();
-    renderSetlistModalContent();
     const s = songs.find(x => x.id === songId);
-    showToast(`Removed "${s?.title || 'Song'}" from setlist`);
+    const songTitle = s?.title || 'Song';
+
+    openConfirmModal(
+      `Remove <b>"${escapeHtml(songTitle)}"</b> from setlist <b>"${escapeHtml(curSetlist.name)}"</b>?<br><br><span style="font-size: 12px; color: var(--text-muted);">The song will still remain safe in your library.</span>`,
+      () => {
+        curSetlist.songs = curSetlist.songs.filter(id => id !== songId);
+        saveSetlistsLocal();
+        renderSidebar();
+        renderSongDropdown();
+        updateSetlistToggleBtn();
+        renderSetlistModalContent();
+        showToast(`Removed "${songTitle}" from setlist`);
+      },
+      'Remove from Setlist'
+    );
   };
 
   btnHeaderSetlistToggle.onclick = function () {
@@ -3094,63 +3103,119 @@ Holy forever`
     }
   }
 
-  // ── MODAL: CONFIRMATION (DELETE) ──
-  let confirmCallback = null;
+  // ── MODAL: CONFIRMATION (DELETE & DOUBLE-CHECK) ──
+  let doubleConfirmState = null;
 
-  function openConfirmModal(message, onConfirm) {
+  function openDoubleConfirmModal(config) {
     const modal = document.getElementById('modal-confirm');
+    const titleEl = document.getElementById('confirm-modal-title');
+    const badgeEl = document.getElementById('confirm-modal-badge');
     const textEl = document.getElementById('confirm-modal-text');
-    textEl.textContent = message;
-    confirmCallback = onConfirm;
+    const actionBtn = document.getElementById('btn-action-confirm');
+    const cancelBtn = document.getElementById('btn-cancel-confirm');
+
+    doubleConfirmState = { step: 1, config };
+
+    titleEl.textContent = config.title1 || '🗑 Delete Item';
+    badgeEl.textContent = config.badge1 || 'Step 1 of 2: Initial Verification';
+    badgeEl.style.display = 'inline-block';
+    badgeEl.style.background = 'rgba(239,68,68,0.12)';
+    badgeEl.style.color = '#f87171';
+    badgeEl.style.borderColor = 'rgba(239,68,68,0.3)';
+    textEl.innerHTML = config.message1;
+    actionBtn.textContent = config.btn1 || 'Next: Confirm Deletion ➔';
+    actionBtn.style.background = 'rgba(239,68,68,0.2)';
+    actionBtn.style.borderColor = 'rgba(239,68,68,0.5)';
+    actionBtn.style.color = '#fca5a5';
+    cancelBtn.textContent = 'Cancel';
+
+    modal.classList.add('open');
+  }
+
+  function openConfirmModal(message, onConfirm, title = '🗑 Confirm Action') {
+    const modal = document.getElementById('modal-confirm');
+    const titleEl = document.getElementById('confirm-modal-title');
+    const badgeEl = document.getElementById('confirm-modal-badge');
+    const textEl = document.getElementById('confirm-modal-text');
+    const actionBtn = document.getElementById('btn-action-confirm');
+    const cancelBtn = document.getElementById('btn-cancel-confirm');
+
+    doubleConfirmState = {
+      step: 2,
+      config: {
+        onConfirm
+      }
+    };
+
+    titleEl.textContent = title;
+    if (badgeEl) badgeEl.style.display = 'none';
+    textEl.innerHTML = message;
+    actionBtn.textContent = 'Confirm';
+    actionBtn.style.background = 'var(--brand-red)';
+    actionBtn.style.borderColor = 'var(--brand-red)';
+    actionBtn.style.color = '#fff';
+    cancelBtn.textContent = 'Cancel';
+
     modal.classList.add('open');
   }
 
   function closeConfirmModal() {
     const modal = document.getElementById('modal-confirm');
     modal.classList.remove('open');
-    confirmCallback = null;
+    doubleConfirmState = null;
   }
 
   async function deleteSong(songId) {
     const song = songs.find(s => s.id === songId);
     if (!song) return;
 
-    openConfirmModal(`Are you sure you want to delete "${song.title}" from your library? This will also remove it from all setlists.`, async () => {
-      songs = songs.filter(s => s.id !== songId);
-      setlists.forEach(sl => {
-        if (Array.isArray(sl.songs)) {
-          sl.songs = sl.songs.filter(id => id !== songId);
+    openDoubleConfirmModal({
+      title1: '🗑 Delete Song from Library?',
+      badge1: 'Step 1 of 2: Verification',
+      message1: `Are you sure you want to delete <b>"${escapeHtml(song.title)}"</b>?<br><br><span style="font-size: 12px; color: var(--text-muted);">This will remove its lyrics, chords, notes, and remove it from all active setlists.</span>`,
+      btn1: 'Next: Confirm Deletion ➔',
+      title2: '⚠️ FINAL WARNING: Delete Song',
+      badge2: 'Step 2 of 2: FINAL CONFIRMATION',
+      message2: `Please verify once more: Are you <b>ABSOLUTELY SURE</b> you want to delete <b>"${escapeHtml(song.title)}"</b>?<br><br><span style="font-size: 12px; color: #f87171; font-weight: 700;">⚠️ This song and all custom edits will be permanently wiped and cannot be recovered.</span>`,
+      btn2: '🔥 Yes, Delete Song Permanently',
+      onConfirm: async () => {
+        songs = songs.filter(s => s.id !== songId);
+        setlists.forEach(sl => {
+          if (Array.isArray(sl.songs)) {
+            sl.songs = sl.songs.filter(id => id !== songId);
+          }
+        });
+
+        saveSongsLocal();
+        saveSetlistsLocal();
+
+        try {
+          await fetch(`/api/worship?id=${encodeURIComponent(songId)}`, { method: 'DELETE' });
+        } catch (e) {
+          console.error('Delete song failed:', e);
         }
-      });
 
-      saveSongsLocal();
-      saveSetlistsLocal();
-
-      try {
-        await fetch(`/api/worship?id=${encodeURIComponent(songId)}`, { method: 'DELETE' });
-      } catch (e) {
-        console.error('Delete song failed:', e);
-      }
-
-      if (currentSongId === songId) {
-        if (songs.length > 0) {
-          currentSongId = songs[0].id;
-          loadSong(currentSongId);
-        } else {
-          currentSongId = null;
-          metaTitle.value = '';
-          metaArtist.value = '';
-          metaNotes.value = '';
-          metaExhortation.value = '';
-          lyricEditor.value = '';
-          renderArrangementChips({});
+        if (currentSongId === songId) {
+          if (songs.length > 0) {
+            currentSongId = songs[0].id;
+            loadSong(currentSongId);
+          } else {
+            currentSongId = null;
+            metaTitle.value = '';
+            metaArtist.value = '';
+            metaNotes.value = '';
+            metaExhortation.value = '';
+            lyricEditor.value = '';
+            renderArrangementChips({});
+          }
         }
-      }
 
-      renderSidebar();
-      renderSongDropdown();
-      renderSetlistDropdown();
-      showToast(`Deleted "${song.title}" from library`);
+        renderSidebar();
+        renderSongDropdown();
+        renderSetlistDropdown();
+        renderSetlistModalContent();
+        showToast(`🗑 Permanently deleted "${song.title}" from library`);
+      }
     });
   }
 
@@ -3162,25 +3227,35 @@ Holy forever`
       return;
     }
 
-    openConfirmModal(`Are you sure you want to delete the setlist "${sl.name}"? (Songs will remain in your library)`, async () => {
-      setlists = setlists.filter(s => s.id !== setlistId);
-      saveSetlistsLocal();
+    openDoubleConfirmModal({
+      title1: '🗑 Delete Setlist?',
+      badge1: 'Step 1 of 2: Verification',
+      message1: `Are you sure you want to delete the setlist <b>"${escapeHtml(sl.name)}"</b>?<br><br><span style="font-size: 12px; color: var(--text-muted);">All <b>${sl.songs?.length || 0} song(s)</b> in this lineup will remain safe in your library.</span>`,
+      btn1: 'Next: Confirm Deletion ➔',
+      title2: '⚠️ FINAL WARNING: Delete Setlist',
+      badge2: 'Step 2 of 2: FINAL CONFIRMATION',
+      message2: `Please verify once more: Are you <b>ABSOLUTELY SURE</b> you want to delete setlist <b>"${escapeHtml(sl.name)}"</b>?<br><br><span style="font-size: 12px; color: #f87171; font-weight: 700;">⚠️ This lineup will be permanently removed.</span>`,
+      btn2: '🔥 Yes, Delete Setlist Permanently',
+      onConfirm: async () => {
+        setlists = setlists.filter(s => s.id !== setlistId);
+        saveSetlistsLocal();
 
-      try {
-        await fetch(`/api/worship/setlists?id=${encodeURIComponent(setlistId)}`, { method: 'DELETE' });
-      } catch (e) {
-        console.error('Delete setlist failed:', e);
+        try {
+          await fetch(`/api/worship/setlists?id=${encodeURIComponent(setlistId)}`, { method: 'DELETE' });
+        } catch (e) {
+          console.error('Delete setlist failed:', e);
+        }
+
+        if (currentSetlistId === setlistId) {
+          currentSetlistId = setlists[0].id;
+        }
+
+        renderSetlistDropdown();
+        renderSongDropdown();
+        renderSidebar();
+        renderSetlistModalContent();
+        showToast(`🗑 Deleted setlist "${sl.name}"`);
       }
-
-      if (currentSetlistId === setlistId) {
-        currentSetlistId = setlists[0].id;
-      }
-
-      renderSetlistDropdown();
-      renderSongDropdown();
-      renderSidebar();
-      renderSetlistModalContent();
-      showToast(`Deleted setlist "${sl.name}"`);
     });
   }
 
@@ -3241,12 +3316,39 @@ Holy forever`
   document.getElementById('btn-close-confirm').onclick = closeConfirmModal;
   document.getElementById('btn-cancel-confirm').onclick = closeConfirmModal;
   document.getElementById('btn-action-confirm').onclick = async () => {
-    if (confirmCallback) {
-      const cb = confirmCallback;
+    if (!doubleConfirmState) {
       closeConfirmModal();
-      await cb();
-    } else {
+      return;
+    }
+
+    if (doubleConfirmState.step === 1) {
+      const cfg = doubleConfirmState.config;
+      doubleConfirmState.step = 2;
+
+      const titleEl = document.getElementById('confirm-modal-title');
+      const badgeEl = document.getElementById('confirm-modal-badge');
+      const textEl = document.getElementById('confirm-modal-text');
+      const actionBtn = document.getElementById('btn-action-confirm');
+      const cancelBtn = document.getElementById('btn-cancel-confirm');
+
+      titleEl.textContent = cfg.title2 || '⚠️ FINAL WARNING';
+      badgeEl.textContent = cfg.badge2 || 'Step 2 of 2: FINAL CONFIRMATION';
+      badgeEl.style.display = 'inline-block';
+      badgeEl.style.background = 'rgba(239,68,68,0.25)';
+      badgeEl.style.color = '#ff8080';
+      badgeEl.style.borderColor = 'rgba(239,68,68,0.6)';
+      textEl.innerHTML = cfg.message2;
+      actionBtn.textContent = cfg.btn2 || '🔥 Yes, Delete Permanently';
+      actionBtn.style.background = 'var(--brand-red)';
+      actionBtn.style.borderColor = 'var(--brand-red)';
+      actionBtn.style.color = '#fff';
+      cancelBtn.textContent = 'Cancel / Keep';
+    } else if (doubleConfirmState.step === 2) {
+      const onConfirm = doubleConfirmState.config?.onConfirm;
       closeConfirmModal();
+      if (typeof onConfirm === 'function') {
+        await onConfirm();
+      }
     }
   };
 
