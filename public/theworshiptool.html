@@ -55,31 +55,40 @@
     display: flex;
     flex-direction: column;
     height: 100vh;
-    padding: 12px 20px;
-    max-width: 1200px;
+    padding: 12px 16px;
+    max-width: 1400px;
     margin: 0 auto;
     overflow: hidden;
   }
 
-  /* Header */
+  /* Header Architecture */
   .top-header {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+  }
+
+  .header-primary-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid var(--border-color);
+    width: 100%;
   }
 
   .brand-block {
     display: flex;
     align-items: center;
     gap: 10px;
+    flex-shrink: 0;
   }
 
   .brand-logo {
-    width: 32px;
-    height: 32px;
+    width: 34px;
+    height: 34px;
     background: linear-gradient(135deg, var(--brand-teal), #2b7a8e);
     border-radius: 8px;
     display: flex;
@@ -89,20 +98,39 @@
     font-size: 16px;
     color: #fff;
     box-shadow: 0 0 14px var(--brand-teal-glow);
+    flex-shrink: 0;
   }
 
   .brand-title {
-    font-size: 18px;
+    font-size: 17px;
     font-weight: 800;
     letter-spacing: 0.5px;
     color: #fff;
+    white-space: nowrap;
   }
 
   .brand-tag {
-    font-size: 11px;
+    font-size: 10px;
     color: var(--brand-teal);
     font-weight: 600;
     letter-spacing: 0.5px;
+    white-space: nowrap;
+  }
+
+  .header-main-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .header-secondary-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    flex-wrap: wrap;
   }
 
   /* Setlist selector bar in header */
@@ -114,6 +142,8 @@
     border: 1px solid var(--border-color);
     padding: 4px 10px;
     border-radius: 8px;
+    flex: 1;
+    min-width: 220px;
   }
 
   .setlist-label {
@@ -121,6 +151,7 @@
     color: var(--text-dim);
     text-transform: uppercase;
     font-weight: 700;
+    white-space: nowrap;
   }
 
   .setlist-select, .song-select {
@@ -131,7 +162,8 @@
     font-weight: 600;
     outline: none;
     cursor: pointer;
-    max-width: 180px;
+    max-width: 220px;
+    flex: 1;
   }
   .setlist-select option, .song-select option {
     background: #1e2533;
@@ -139,10 +171,31 @@
   }
 
   /* Top Action Buttons */
-  .header-actions {
+  .header-edit-actions {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  @media (min-width: 1080px) {
+    .top-header {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding-bottom: 12px;
+    }
+    .header-primary-row {
+      width: auto;
+      gap: 16px;
+    }
+    .header-secondary-row {
+      width: auto;
+      flex: 1;
+      justify-content: flex-end;
+      gap: 10px;
+    }
   }
 
   .btn {
@@ -159,6 +212,7 @@
     cursor: pointer;
     transition: all 0.15s ease;
     user-select: none;
+    white-space: nowrap;
   }
 
   .btn:hover {
@@ -210,7 +264,7 @@
     background: linear-gradient(135deg, #10b981, #059669);
     border-color: #10b981;
     color: #fff;
-    font-weight: 700;
+    font-weight: 800;
     padding: 8px 16px;
     font-size: 13px;
     box-shadow: 0 0 14px rgba(16, 185, 129, 0.4);
@@ -221,13 +275,43 @@
     100% { box-shadow: 0 0 20px rgba(16, 185, 129, 0.7); }
   }
 
+  /* Tablet / Mobile View Switcher */
+  .tablet-view-switcher {
+    display: none;
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 3px;
+    margin-top: 8px;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .switcher-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    padding: 7px 10px;
+    border-radius: 6px;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: center;
+  }
+  .switcher-btn.active {
+    background: var(--bg-surface-hover);
+    color: var(--brand-teal);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  }
+
   /* Main Workspace Layout */
   .workspace {
     display: grid;
     grid-template-columns: 310px 1fr;
     gap: 16px;
     flex: 1;
-    margin-top: 12px;
+    margin-top: 10px;
     overflow: hidden;
   }
 
@@ -1025,12 +1109,72 @@
     box-shadow: 0 0 14px rgba(245, 158, 11, 0.4);
   }
 
-  /* Responsive tweaks */
-  @media (max-width: 768px) {
-    .workspace { grid-template-columns: 1fr; }
-    .sidebar { display: none; }
-    .sidebar.mobile-open { display: flex; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 90; }
-    .stage-lyrics-lines { font-size: 24px; }
+  /* Responsive tweaks for Tablet Portrait & Mobile */
+  @media (max-width: 880px) {
+    #editor-view {
+      padding: 8px 10px;
+    }
+    .tablet-view-switcher {
+      display: flex;
+    }
+    .workspace {
+      grid-template-columns: 1fr;
+      margin-top: 8px;
+    }
+    .sidebar {
+      display: flex;
+      height: 100%;
+    }
+    .sidebar.tablet-hidden {
+      display: none !important;
+    }
+    .editor-panel {
+      display: flex;
+      height: 100%;
+    }
+    .editor-panel.tablet-hidden {
+      display: none !important;
+    }
+    .setlist-selector-bar {
+      max-width: 100%;
+    }
+    .song-meta-toolbar {
+      gap: 8px;
+      padding: 8px 10px;
+    }
+    .meta-input-title {
+      min-width: 140px;
+    }
+    .stage-lyrics-lines {
+      font-size: 26px;
+    }
+    .stage-jump-dock {
+      bottom: 56px;
+      padding: 4px 8px;
+      gap: 6px;
+    }
+    .jump-btn {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .brand-tag {
+      display: none;
+    }
+    .btn {
+      padding: 6px 9px;
+      font-size: 11px;
+    }
+    .btn-stage-start {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+    .setlist-select, .song-select {
+      font-size: 12px;
+      max-width: 130px;
+    }
   }
 </style>
 </head>
@@ -1044,32 +1188,45 @@
 <div id="editor-view">
   <!-- Top Header -->
   <header class="top-header">
-    <div class="brand-block">
-      <div class="brand-logo">✝</div>
-      <div>
-        <div class="brand-title">THE WORSHIP</div>
-        <div class="brand-tag">HGF DAVAO • WORSHIP PROMPTER</div>
+    <div class="header-primary-row">
+      <div class="brand-block">
+        <div class="brand-logo">✝</div>
+        <div>
+          <div class="brand-title">THE WORSHIP</div>
+          <div class="brand-tag">HGF DAVAO • WORSHIP PROMPTER</div>
+        </div>
+      </div>
+
+      <div class="header-main-actions">
+        <button class="btn" id="btn-open-setlists" title="Manage Setlists">📋 Setlists</button>
+        <button class="btn" id="btn-open-scraper" title="Search & Scrape Lyrics (⌘F)">🔍 Scrape</button>
+        <button class="btn btn-stage-start" id="btn-enter-stage" title="Launch Fullscreen Stage Teleprompter">▶ START STAGE</button>
       </div>
     </div>
 
-    <!-- Active Setlist & Song Selector -->
-    <div class="setlist-selector-bar">
-      <span class="setlist-label">SETLIST:</span>
-      <select id="header-setlist-select" class="setlist-select"></select>
-      <div style="width: 1px; height: 16px; background: var(--border-color); margin: 0 4px;"></div>
-      <select id="header-song-select" class="song-select"></select>
-    </div>
+    <div class="header-secondary-row">
+      <!-- Active Setlist & Song Selector -->
+      <div class="setlist-selector-bar">
+        <span class="setlist-label">SETLIST:</span>
+        <select id="header-setlist-select" class="setlist-select"></select>
+        <div style="width: 1px; height: 16px; background: var(--border-color); margin: 0 4px; flex-shrink: 0;"></div>
+        <select id="header-song-select" class="song-select"></select>
+      </div>
 
-    <!-- Header Actions -->
-    <div class="header-actions">
-      <button class="btn" id="btn-open-scraper" title="Search & Scrape Lyrics (⌘F)">🔍 Scrape Song</button>
-      <button class="btn" id="btn-open-setlists" title="Manage Setlists">📋 Setlists</button>
-      <button class="btn btn-setlist-toggle" id="btn-header-setlist-toggle">➕ Add to Setlist</button>
-      <button class="btn btn-primary" id="btn-save-song" title="Save Song (⌘S)">💾 Save</button>
-      <button class="btn btn-danger" id="btn-delete-song" title="Delete current song from library">🗑 Delete</button>
-      <button class="btn btn-stage-start" id="btn-enter-stage" title="Launch Fullscreen Stage Teleprompter">▶ START STAGE</button>
+      <!-- Header Song Edit Actions -->
+      <div class="header-edit-actions">
+        <button class="btn btn-setlist-toggle" id="btn-header-setlist-toggle">➕ Add to Setlist</button>
+        <button class="btn btn-primary" id="btn-save-song" title="Save Song (⌘S)">💾 Save</button>
+        <button class="btn btn-danger" id="btn-delete-song" title="Delete current song from library">🗑 Delete</button>
+      </div>
     </div>
   </header>
+
+  <!-- Tablet / Mobile View Switcher -->
+  <div class="tablet-view-switcher" id="tablet-view-switcher">
+    <button class="switcher-btn active" id="btn-view-sidebar">📋 Setlist & Songs (<span id="switcher-song-count">0</span>)</button>
+    <button class="switcher-btn" id="btn-view-editor">✍️ Lyrics & Cues Editor</button>
+  </div>
 
   <!-- Workspace -->
   <main class="workspace">
@@ -1770,6 +1927,8 @@ Holy forever`
     const curSetlist = setlists.find(s => s.id === currentSetlistId);
     const setlistSongs = (curSetlist && Array.isArray(curSetlist.songs)) ? curSetlist.songs : [];
     setlistSongCountEl.textContent = setlistSongs.length;
+    const switcherCountEl = document.getElementById('switcher-song-count');
+    if (switcherCountEl) switcherCountEl.textContent = setlistSongs.length;
 
     if (activeSidebarTab === 'setlist') {
       let displayList = setlistSongs.map(id => songs.find(s => s.id === id)).filter(Boolean);
@@ -1783,18 +1942,21 @@ Holy forever`
       if (displayList.length === 0) {
         const curSong = songs.find(s => s.id === currentSongId);
         sidebarSongList.innerHTML = `
-          <div style="padding: 24px 12px; text-align: center;">
-            <div style="font-size: 13px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px;">
-              ${query ? 'No matching songs in this setlist.' : 'This setlist is currently empty.'}
+          <div style="padding: 20px 12px; text-align: center;">
+            <div style="font-size: 13px; font-weight: 700; color: var(--text-muted); margin-bottom: 10px;">
+              ${query ? 'No matching songs in this setlist.' : '📋 Current Setlist is Empty'}
             </div>
-            ${curSong ? `
-              <button class="btn btn-primary" style="width: 100%; justify-content: center; margin-bottom: 8px; font-size: 12px;" onclick="window._addSongToSetlist('${curSong.id}')">
-                ➕ Add "${escapeHtml(curSong.title)}"
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <button class="btn btn-primary" style="justify-content: center; font-size: 12px; padding: 8px;" onclick="document.getElementById('btn-open-scraper').click()">
+                🔍 Search & Scrape Online Tab
               </button>
-            ` : ''}
-            <button class="btn" style="width: 100%; justify-content: center; font-size: 11px;" onclick="document.getElementById('tab-all-songs').click()">
-              📂 Browse All Songs (${songs.length})
-            </button>
+              <button class="btn" style="justify-content: center; font-size: 12px; padding: 8px;" onclick="document.getElementById('tab-all-songs').click()">
+                📂 Add from Song Library (${songs.length})
+              </button>
+              <button class="btn" style="justify-content: center; font-size: 12px; padding: 8px;" onclick="document.getElementById('btn-open-setlists').click()">
+                📋 Switch to Another Setlist
+              </button>
+            </div>
           </div>
         `;
         return;
@@ -1880,6 +2042,11 @@ Holy forever`
     renderSidebar();
     renderSongDropdown();
     updateSetlistToggleBtn();
+
+    // In tablet portrait mode or mobile, automatically transition to editor view on song selection
+    if (window.innerWidth <= 880) {
+      setTabletView('editor');
+    }
   }
 
   function renderArrangementChips(song) {
@@ -2872,6 +3039,37 @@ Holy forever`
     showToast(`Created new setlist: "${name}"`);
   };
 
+  // ── TABLET / MOBILE VIEW SWITCHER ──
+  const btnViewSidebar = document.getElementById('btn-view-sidebar');
+  const btnViewEditor = document.getElementById('btn-view-editor');
+  const sidebarEl = document.querySelector('.sidebar');
+  const editorPanelEl = document.querySelector('.editor-panel');
+  let activeTabletView = 'sidebar';
+
+  function setTabletView(view) {
+    activeTabletView = view;
+    if (window.innerWidth <= 880) {
+      if (view === 'sidebar') {
+        btnViewSidebar?.classList.add('active');
+        btnViewEditor?.classList.remove('active');
+        sidebarEl?.classList.remove('tablet-hidden');
+        editorPanelEl?.classList.add('tablet-hidden');
+      } else {
+        btnViewEditor?.classList.add('active');
+        btnViewSidebar?.classList.remove('active');
+        editorPanelEl?.classList.remove('tablet-hidden');
+        sidebarEl?.classList.add('tablet-hidden');
+      }
+    } else {
+      sidebarEl?.classList.remove('tablet-hidden');
+      editorPanelEl?.classList.remove('tablet-hidden');
+    }
+  }
+
+  if (btnViewSidebar) btnViewSidebar.onclick = () => setTabletView('sidebar');
+  if (btnViewEditor) btnViewEditor.onclick = () => setTabletView('editor');
+  window.addEventListener('resize', () => setTabletView(activeTabletView));
+
   // Register PWA Service Worker for Offline stage use
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/theworship-sw.js').catch(() => {});
@@ -2883,6 +3081,7 @@ Holy forever`
   renderSongDropdown();
   renderSidebar();
   if (currentSongId) loadSong(currentSongId);
+  setTabletView('sidebar');
 
 })();
 </script>

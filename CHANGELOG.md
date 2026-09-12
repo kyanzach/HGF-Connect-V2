@@ -5,6 +5,14 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.52.4] — 2026-09-12
+### Added & Enhanced
+- **Android Tablet Portrait Mode Optimization (`/theworshiptool.html`)**:
+  - **Responsive 2-Row Header Layout**: Redesigned header to never squish brand logo or push action buttons off-screen on tablets in portrait mode (CSS width ≤ 880px / 600px - 800px). Split into top row (Brand + `[📋 Setlists]` `[🔍 Scrape]` `[▶ START STAGE]`) and secondary row (Setlist/Song Selectors + `[➕ Add to Setlist]` `[💾 Save]` `[🗑 Delete]`).
+  - **Tablet/Mobile Segmented View Switcher**: Added responsive tactile toggle bar (`[📋 Setlist & Songs]` vs `[✍️ Lyrics & Cues Editor]`) allowing full-screen focus on tablet portrait, with auto-switching to the editor upon selecting any song from the lineup.
+  - **Empty Setlist Hub**: Added 1-tap quick action cards when opening or creating an empty setlist (`[🔍 Search & Scrape Online Tab]`, `[📂 Add from Song Library]`, `[📋 Switch to Another Setlist]`).
+  - Optimized touch button sizing, tap targets, and smooth scrolling for Android 10 tablet browsers.
+
 ## [v2.52.3] — 2026-09-12
 ### Added & Enhanced
 - **Stage Spoken Exhortation / Scripture / Prayer Leader Toolkit (`/theworshiptool.html`, `/api/worship`)**:
