@@ -2414,16 +2414,25 @@ Holy forever`
 
   function openSetlistModal() {
     modalSetlists.classList.add('open');
-    renderSetlistModalContent();
+    const curSetlist = setlists.find(s => s.id === currentSetlistId);
+    if (curSetlist) {
+      setlistNameInput.value = curSetlist.name;
+    } else {
+      if (!setlistNameInput.value) {
+        const dateStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        setlistNameInput.value = `HGF Sunday Service (${dateStr})`;
+      }
+    }
+    renderSetlistModalContent(false);
   }
 
   function closeSetlistModal() {
     modalSetlists.classList.remove('open');
   }
 
-  function renderSetlistModalContent() {
-    const curSetlist = setlists.find(s => s.id === currentSetlistId) || setlists[0];
-    if (curSetlist) {
+  function renderSetlistModalContent(updateInput = true) {
+    const curSetlist = setlists.find(s => s.id === currentSetlistId);
+    if (updateInput && curSetlist) {
       setlistNameInput.value = curSetlist.name;
     }
 
@@ -2431,7 +2440,9 @@ Holy forever`
     const curSongIds = curSetlist?.songs || [];
     const curSongs = curSongIds.map(id => songs.find(s => s.id === id)).filter(Boolean);
 
-    if (curSongs.length === 0) {
+    if (!curSetlist) {
+      setlistSongsTable.innerHTML = '<div style="font-size: 12px; color: var(--text-dim); padding: 8px;">No active setlist selected. Click <b>"Save Name"</b> above to create it with your typed title, or select an existing setlist below.</div>';
+    } else if (curSongs.length === 0) {
       setlistSongsTable.innerHTML = '<div style="font-size: 12px; color: var(--text-dim); padding: 8px;">No songs in this setlist yet. Add some below!</div>';
     } else {
       curSongs.forEach((s, idx) => {
@@ -3120,28 +3131,65 @@ Holy forever`
   document.getElementById('btn-open-setlists').onclick = openSetlistModal;
   document.getElementById('btn-close-setlists').onclick = closeSetlistModal;
   document.getElementById('btn-save-current-setlist').onclick = () => {
-    const curSetlist = setlists.find(s => s.id === currentSetlistId);
+    const enteredName = setlistNameInput.value.trim();
+    if (!enteredName) {
+      showToast('Please enter a setlist name first', true);
+      return;
+    }
+    let curSetlist = setlists.find(s => s.id === currentSetlistId);
     if (curSetlist) {
-      curSetlist.name = setlistNameInput.value.trim() || curSetlist.name;
+      curSetlist.name = enteredName;
       saveSetlistsLocal();
       renderSetlistDropdown();
-      renderSetlistModalContent();
-      showToast('Setlist name updated');
+      renderSetlistModalContent(false);
+      renderSidebar();
+      showToast(`Setlist name updated: "${enteredName}"`);
+    } else {
+      const id = 'setlist-' + Date.now();
+      const newSl = {
+        id,
+        name: enteredName,
+        serviceDate: new Date().toISOString().split('T')[0],
+        songs: currentSongId ? [currentSongId] : []
+      };
+      setlists.unshift(newSl);
+      currentSetlistId = id;
+      saveSetlistsLocal();
+      renderSetlistDropdown();
+      renderSongDropdown();
+      renderSetlistModalContent(false);
+      renderSidebar();
+      updateSetlistToggleBtn();
+      showToast(`Created & selected setlist: "${enteredName}"`);
     }
   };
+
   document.getElementById('btn-create-new-setlist').onclick = () => {
     const customName = setlistNameInput.value.trim();
-    const dateStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    const name = customName ? `${customName} (New)` : `HGF Worship - ${dateStr}`;
+    const dateStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const name = customName ? customName : `HGF Sunday Service (${dateStr})`;
     const id = 'setlist-' + Date.now();
-    const newSl = { id, name, songs: currentSongId ? [currentSongId] : [] };
+    const newSl = {
+      id,
+      name,
+      serviceDate: new Date().toISOString().split('T')[0],
+      songs: []
+    };
     setlists.unshift(newSl);
     currentSetlistId = id;
     saveSetlistsLocal();
     renderSetlistDropdown();
-    renderSetlistModalContent();
+    renderSongDropdown();
+    renderSetlistModalContent(false);
     renderSidebar();
+    updateSetlistToggleBtn();
     showToast(`Created new setlist: "${name}"`);
+  };
+
+  setlistNameInput.onkeydown = (e) => {
+    if (e.key === 'Enter') {
+      document.getElementById('btn-save-current-setlist').click();
+    }
   };
 
   // ── TABLET / MOBILE VIEW SWITCHER ──

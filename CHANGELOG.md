@@ -5,6 +5,13 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.52.8] — 2026-09-12
+### Fixed & Enhanced
+- **Setlist Title Save & Smart Creation (`/theworshiptool.html`)**:
+  - Fixed "Save Name" button in Setlist Manager modal so typing any custom title (e.g. `Ryan @ HGF Sunday Service (Sep 13, 2026)`) and clicking "Save Name" immediately creates and selects the setlist even when no prior setlist was active.
+  - Enabled `Enter` key shortcut inside the setlist title input to trigger instant saving/creation.
+  - Improved "+ New Setlist" handler to cleanly adopt the typed name without unwanted `(New)` suffixes.
+
 ## [v2.52.7] — 2026-09-12
 ### Fixed & Enhanced
 - **State Persistence & Song Library Restoration (`/theworshiptool.html`)**:
