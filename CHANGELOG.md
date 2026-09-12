@@ -5,6 +5,13 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.52.17] — 2026-09-13
+### Added & Enhanced
+- **Stage Mode Quick Song Selector Dropdown (`/theworshiptool.html`)**:
+  - Added a prominent, dark-themed song selector dropdown directly in the Stage Teleprompter top bar.
+  - Worship leaders and pastors on stage can now instantly jump to any song in the active setlist (e.g. `1. Goodness of God [Key G]`, `2. Battle Belongs [Key A]`) or spontaneously jump to any song in the library.
+  - Automatically synchronizes with Next/Prev button navigation and Bluetooth pedal triggers in real time.
+
 ## [v2.52.16] — 2026-09-13
 ### Fixed & Enhanced
 - **Lyric Editor Cursor-Aware Tag Insertion & Selection Replacement (`/theworshiptool.html`)**:

@@ -876,6 +876,38 @@
     gap: 8px;
   }
 
+  .stage-song-select {
+    background: #111722;
+    color: #6ee7b7;
+    border: 1px solid rgba(78, 177, 203, 0.4);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 13px;
+    font-weight: 700;
+    max-width: 250px;
+    cursor: pointer;
+    outline: none;
+    font-family: inherit;
+    transition: all 0.2s ease;
+  }
+  .stage-song-select:hover,
+  .stage-song-select:focus {
+    border-color: var(--brand-teal);
+    background: #182232;
+    box-shadow: 0 0 10px rgba(78, 177, 203, 0.25);
+  }
+  .stage-song-select optgroup {
+    background: #090d14;
+    color: #94a3b8;
+    font-weight: 800;
+  }
+  .stage-song-select option {
+    background: #111722;
+    color: #f8fafc;
+    font-weight: 600;
+    padding: 4px;
+  }
+
   .stage-btn {
     background: #19202f;
     border: 1px solid #2d3952;
@@ -1487,11 +1519,12 @@
       </div>
     </div>
 
-    <!-- Setlist navigation -->
+    <!-- Setlist navigation & Song Jump Dropdown -->
     <div class="stage-nav-group">
-      <button class="stage-btn" id="stage-btn-prev-song">◀ Prev Song</button>
-      <span style="font-size: 12px; color: var(--text-muted); font-weight: 700;" id="stage-song-index-label">1 / 5</span>
-      <button class="stage-btn" id="stage-btn-next-song">Next Song ▶</button>
+      <button class="stage-btn" id="stage-btn-prev-song" title="Previous Song">◀</button>
+      <select id="stage-song-select" class="stage-song-select" title="Jump to Song"></select>
+      <button class="stage-btn" id="stage-btn-next-song" title="Next Song">▶</button>
+      <span style="font-size: 12px; color: var(--text-muted); font-weight: 700; white-space: nowrap;" id="stage-song-index-label">1 / 5</span>
     </div>
 
     <!-- Timer & Exit -->
@@ -2865,12 +2898,68 @@ Holy forever`
     stageView.classList.remove('active');
   }
 
+  function renderStageSongDropdown() {
+    const stageSelect = document.getElementById('stage-song-select');
+    if (!stageSelect) return;
+
+    stageSelect.innerHTML = '';
+
+    const curSetlist = setlists.find(s => s.id === currentSetlistId);
+    const setlistSongIds = curSetlist?.songs || [];
+
+    if (setlistSongIds.length > 0) {
+      const setlistGroup = document.createElement('optgroup');
+      setlistGroup.label = `📋 Setlist Songs (${setlistSongIds.length})`;
+
+      setlistSongIds.forEach((sid, idx) => {
+        const sObj = songs.find(s => s.id === sid);
+        const opt = document.createElement('option');
+        opt.value = sid;
+        const keyInfo = sObj?.key ? ` [Key ${sObj.key}]` : '';
+        const title = sObj ? sObj.title : sid;
+        opt.textContent = `${idx + 1}. ${title}${keyInfo}`;
+        if (sid === currentSongId) opt.selected = true;
+        setlistGroup.appendChild(opt);
+      });
+      stageSelect.appendChild(setlistGroup);
+
+      const otherSongs = songs.filter(s => !setlistSongIds.includes(s.id));
+      if (otherSongs.length > 0) {
+        const otherGroup = document.createElement('optgroup');
+        otherGroup.label = `📚 Other Library Songs (${otherSongs.length})`;
+        otherSongs.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s.id;
+          const keyInfo = s.key ? ` [Key ${s.key}]` : '';
+          opt.textContent = `${s.title}${keyInfo}`;
+          if (s.id === currentSongId) opt.selected = true;
+          otherGroup.appendChild(opt);
+        });
+        stageSelect.appendChild(otherGroup);
+      }
+    } else {
+      const allGroup = document.createElement('optgroup');
+      allGroup.label = `📚 All Songs (${songs.length})`;
+      songs.forEach((s, idx) => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        const keyInfo = s.key ? ` [Key ${s.key}]` : '';
+        opt.textContent = `${idx + 1}. ${s.title}${keyInfo}`;
+        if (s.id === currentSongId) opt.selected = true;
+        allGroup.appendChild(opt);
+      });
+      stageSelect.appendChild(allGroup);
+    }
+
+    stageSelect.value = currentSongId;
+  }
+
   function renderStageContent(song) {
     stageSongTitle.textContent = song.title;
     stageSongKey.textContent = `Key: ${song.key || 'C'}${song.capo && song.capo !== '0' ? ' (Capo ' + song.capo + ')' : ''}`;
     stageSongBpm.textContent = `${song.tempo || 72} BPM`;
 
-    // Setlist index
+    // Setlist index & stage dropdown sync
     const curSetlist = setlists.find(s => s.id === currentSetlistId);
     const setlistSongs = curSetlist?.songs || [];
     const idx = setlistSongs.indexOf(song.id);
@@ -2879,6 +2968,8 @@ Holy forever`
     } else {
       stageSongIndexLabel.textContent = `1 / 1`;
     }
+
+    renderStageSongDropdown();
 
     // Notes / cues banner (Band Note)
     if (song.notes && song.notes.trim()) {
@@ -3461,6 +3552,20 @@ Holy forever`
   document.getElementById('stage-fullscreen-toggle').onclick = toggleFullscreen;
   document.getElementById('stage-btn-next-song').onclick = nextSongInSetlist;
   document.getElementById('stage-btn-prev-song').onclick = prevSongInSetlist;
+
+  const stageSongSelect = document.getElementById('stage-song-select');
+  if (stageSongSelect) {
+    stageSongSelect.onchange = () => {
+      const selectedId = stageSongSelect.value;
+      if (!selectedId) return;
+      loadSong(selectedId);
+      const song = songs.find(s => s.id === selectedId);
+      if (song) {
+        renderStageContent(song);
+        stopAutoScroll();
+      }
+    };
+  }
 
   // Confirmation modal buttons
   document.getElementById('btn-close-confirm').onclick = closeConfirmModal;
