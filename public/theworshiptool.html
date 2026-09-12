@@ -84,6 +84,25 @@
     align-items: center;
     gap: 10px;
     flex-shrink: 0;
+    cursor: pointer;
+    user-select: none;
+    padding: 3px 6px;
+    margin: -3px -6px;
+    border-radius: 8px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .brand-block:hover {
+    background: rgba(78, 177, 203, 0.1);
+  }
+  .brand-block:active {
+    transform: scale(0.97);
+  }
+  .brand-block:hover .brand-logo {
+    box-shadow: 0 0 20px rgba(78, 177, 203, 0.65);
+    transform: translateY(-1px);
+  }
+  .brand-block:active .brand-logo {
+    transform: scale(0.95);
   }
 
   .brand-logo {
@@ -99,6 +118,7 @@
     color: #fff;
     box-shadow: 0 0 14px var(--brand-teal-glow);
     flex-shrink: 0;
+    transition: all 0.2s ease;
   }
 
   .brand-title {
@@ -1227,7 +1247,7 @@
   <!-- Top Header -->
   <header class="top-header">
     <div class="header-primary-row">
-      <div class="brand-block">
+      <div class="brand-block" id="btn-copy-shortlink" title="Tap to copy shortlink (hgfapp.link/worship)">
         <div class="brand-logo">✝</div>
         <div>
           <div class="brand-title">THE WORSHIP</div>
@@ -1239,10 +1259,6 @@
         <button class="btn" id="btn-manual-sync" title="Instant Live Cloud Sync" style="display: inline-flex; align-items: center; gap: 5px; font-size: 11px; padding: 6px 10px;">
           <span id="sync-icon" style="display: inline-block; transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);">☁️</span>
           <span id="sync-status-text" style="color: #6ee7b7; font-weight: 700;">Live Sync</span>
-        </button>
-        <button class="btn" id="btn-copy-shortlink" title="Copy Shortlink (hgfapp.link/worship)" style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 6px 10px;">
-          <span>🔗</span>
-          <span>hgfapp.link/worship</span>
         </button>
         <button class="btn" id="btn-open-setlists" title="Manage Setlists">📋 Setlists</button>
         <button class="btn" id="btn-open-scraper" title="Search & Scrape Lyrics (⌘F)">🔍 Scrape</button>
@@ -3888,6 +3904,15 @@ Holy forever`
   if (btnCopyShortlink) {
     btnCopyShortlink.onclick = async () => {
       const shortUrl = 'https://hgfapp.link/worship';
+      const logoEl = btnCopyShortlink.querySelector('.brand-logo');
+      if (logoEl) {
+        logoEl.style.transform = 'scale(1.18) rotate(-6deg)';
+        logoEl.style.boxShadow = '0 0 24px rgba(78, 177, 203, 0.9)';
+        setTimeout(() => {
+          logoEl.style.transform = '';
+          logoEl.style.boxShadow = '';
+        }, 350);
+      }
       try {
         if (navigator.clipboard && navigator.clipboard.writeText) {
           await navigator.clipboard.writeText(shortUrl);
