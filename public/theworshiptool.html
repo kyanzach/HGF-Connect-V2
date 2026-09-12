@@ -1334,10 +1334,10 @@
               <span style="font-size: 11px; color: var(--text-dim);">(Words you will read aloud on stage)</span>
             </div>
             <div class="leader-quick-tags">
-              <button type="button" class="btn-cue-tag" data-insert="📖 Scripture: Psalm 136:1 — 'Give thanks to the Lord, for He is good; His love endures forever.'\n\n">+ Scripture</button>
-              <button type="button" class="btn-cue-tag" data-insert="🙏 Prayer: Father, we welcome Your presence in this house today. Fill our hearts with praise...\n\n">+ Prayer</button>
-              <button type="button" class="btn-cue-tag" data-insert="🔥 Declaration: Lord, we declare Your faithfulness and goodness over every family today!\n\n">+ Declaration</button>
-              <button type="button" class="btn-cue-tag" data-insert="🎙 Exhortation: Church, let's lift our voices together as one family before the King!\n\n">+ Exhortation</button>
+              <button type="button" class="btn-cue-tag" data-insert="📖 Scripture: Psalm 136:1 — 'Give thanks to the Lord, for He is good; His love endures forever.'">+ Scripture</button>
+              <button type="button" class="btn-cue-tag" data-insert="🙏 Prayer: Father, we welcome Your presence in this house today. Fill our hearts with praise...">+ Prayer</button>
+              <button type="button" class="btn-cue-tag" data-insert="🔥 Declaration: Lord, we declare Your faithfulness and goodness over every family today!">+ Declaration</button>
+              <button type="button" class="btn-cue-tag" data-insert="🎙 Exhortation: Church, let's lift our voices together as one family before the King!">+ Exhortation</button>
             </div>
           </div>
           <textarea id="meta-song-exhortation" class="exhortation-input" placeholder="Type opening Bible verse, prayer, or declaration to read on stage (e.g. Psalm 100:4, opening prayer, prophetic declaration)..."></textarea>
@@ -2959,7 +2959,8 @@ Holy forever`
   // Quick Spoken / Scripture insert buttons
   document.querySelectorAll('.btn-cue-tag[data-insert]').forEach(btn => {
     btn.onclick = () => {
-      const template = btn.getAttribute('data-insert');
+      let template = btn.getAttribute('data-insert') || '';
+      template = template.replace(/\\n/g, '\n').trim();
       const cur = metaExhortation.value.trim();
       metaExhortation.value = cur ? cur + '\n\n' + template : template;
       metaExhortation.focus();
