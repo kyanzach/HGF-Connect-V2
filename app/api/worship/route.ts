@@ -60,6 +60,7 @@ export async function GET(req: NextRequest) {
           exhortation: s.exhortation || '',
           lyrics: s.lyrics || '',
           tags: s.tags || [],
+          audioTrack: s.audioTrack || null,
           updatedAt: s.updatedAt || Date.now(),
         });
       } catch {}
@@ -99,6 +100,7 @@ export async function POST(req: NextRequest) {
       lyrics,
       arrangement,
       tags,
+      audioTrack,
     } = body;
 
     if (!title || typeof title !== 'string' || !title.trim()) {
@@ -128,6 +130,7 @@ export async function POST(req: NextRequest) {
       lyrics: lyrics || '',
       arrangement: Array.isArray(arrangement) ? arrangement : [],
       tags: Array.isArray(tags) ? tags : [],
+      audioTrack: audioTrack || null,
       updatedAt: Date.now(),
     };
 

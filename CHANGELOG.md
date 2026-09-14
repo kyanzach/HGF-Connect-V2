@@ -5,6 +5,21 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.53.1] — 2026-09-14
+### Added — Backing Track Audio Import, In-Ear Playback & Server Storage Buffer
+- **Audio File Import (`.mp3`, `.wav`, `.m4a`, `.aac`)**:
+  - Musicians can import backing tracks or click tracks directly into **THE BAND** for live in-ear playback via Bluetooth receiver hooked to the mixer.
+  - Dedicated API endpoint `/api/worship/audio` supporting multipart uploads with drag & drop or file selector.
+  - Audio files are directly associated with the active song and loaded automatically upon selecting the song.
+- **Temporary Server Storage Buffer Meter & Warning Bar**:
+  - Live progress bar showing exact storage usage vs. 1.0 GB server buffer limit (e.g. `42 MB / 1024 MB (4%) used • 3 tracks`).
+  - Dynamic warning color states: Normal (Teal `< 60%`), Warning (Amber `60%–80%`), Danger (Red `> 80%`).
+  - Buffer warning banner noting temporary local storage pending Dropbox cloud integration.
+  - File management interface to preview, attach, or delete stored audio tracks to reclaim server space.
+- **Docked In-Ear Playback Controller**:
+  - Bottom docked player with Play/Pause, high-precision timeline scrubber, elapsed/remaining time, volume/in-ear gain control, repeat loop toggle, and Bluetooth indicator.
+  - Native HTML5 audio streaming with HTTP Range header support for instant seeking without buffering whole files.
+
 ## [v2.53.0] — 2026-09-14
 ### Added — THE BAND: Musician Songbook & Live Chord Transposer
 - **Dedicated Musician Web App (`/thebandtool.html`)**:

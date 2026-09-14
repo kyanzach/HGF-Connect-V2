@@ -643,6 +643,165 @@
       cursor: pointer;
     }
 
+    /* IN-EAR PLAYBACK DOCK (Bluetooth receiver to mixer) */
+    .playback-dock {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 10px 16px calc(var(--safe-bottom) + 8px);
+      background: #0f141d;
+      border-top: 1px solid var(--border);
+      display: none;
+      flex-direction: column;
+      gap: 6px;
+      z-index: 58;
+      box-shadow: 0 -8px 24px rgba(0,0,0,0.6);
+    }
+    .playback-dock.visible {
+      display: flex;
+    }
+    .playback-row-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .playback-track-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      flex: 1;
+    }
+    .playback-track-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .playback-bt-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: rgba(16, 185, 129, 0.2);
+      color: #10b981;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .playback-controls-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .playback-time-label {
+      font-size: 11px;
+      font-family: var(--font-chords);
+      color: var(--text-muted);
+      min-width: 78px;
+    }
+    .playback-scrubber {
+      flex: 1;
+      accent-color: var(--primary);
+      cursor: pointer;
+      height: 4px;
+    }
+    .playback-vol-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      max-width: 100px;
+    }
+    .playback-vol-slider {
+      width: 60px;
+      accent-color: #38bdf8;
+      cursor: pointer;
+      height: 4px;
+    }
+
+    /* STORAGE BUFFER METER WIDGET */
+    .storage-meter-box {
+      background: #0d121a;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .storage-meter-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .storage-meter-bar-track {
+      width: 100%;
+      height: 8px;
+      background: #161c26;
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+    .storage-meter-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--primary);
+      border-radius: 4px;
+      transition: width 0.3s ease, background 0.3s ease;
+    }
+    .storage-meter-bar-fill.warning {
+      background: var(--accent-chord);
+    }
+    .storage-meter-bar-fill.danger {
+      background: var(--accent-red);
+    }
+    .storage-notice-banner {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 6px;
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      font-size: 11.5px;
+      line-height: 1.4;
+      color: #fde68a;
+    }
+    .upload-drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      padding: 18px 12px;
+      text-align: center;
+      background: rgba(22, 28, 38, 0.4);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .upload-drop-zone:hover, .upload-drop-zone.dragover {
+      border-color: var(--primary);
+      background: rgba(78, 177, 203, 0.08);
+    }
+    .audio-track-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      background: #161c26;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      gap: 8px;
+    }
+    .audio-track-item:hover {
+      border-color: var(--primary);
+    }
+
     /* EDIT SONG MODAL (SongBook Pro Screenshots 2 & 3) */
     .modal-overlay {
       position: fixed;
@@ -1104,6 +1263,41 @@
       <button class="fab-btn" onclick="jumpToNextSection()" title="Jump to Next Section">⬇</button>
     </div>
 
+    <!-- HIDDEN AUDIO ELEMENT FOR IN-EAR BLUETOOTH PLAYBACK -->
+    <audio id="backingAudioPlayer" preload="auto"></audio>
+
+    <!-- IN-EAR PLAYBACK DOCK (Bluetooth receiver hooked to in-ear mixer) -->
+    <div class="playback-dock" id="playbackDock">
+      <div class="playback-row-top">
+        <div class="playback-track-info">
+          <span style="font-size:16px;">🎧</span>
+          <div style="min-width:0;">
+            <div class="playback-track-title" id="playbackTrackTitle">No audio loaded</div>
+            <div style="font-size:10px;color:var(--text-muted);display:flex;align-items:center;gap:6px;">
+              <span id="playbackSongRefTitle">Backing Track</span>
+              <span class="playback-bt-badge">⚡ Bluetooth In-Ear</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button class="icon-btn" id="playbackPlayBtn" onclick="toggleAudioPlay()" style="width:34px;height:34px;" title="Play / Pause">▶</button>
+          <button class="icon-btn" id="playbackLoopBtn" onclick="toggleAudioLoop()" style="width:30px;height:30px;font-size:12px;" title="Toggle Loop">🔁</button>
+          <button class="icon-btn" onclick="stopAudioPlayback()" style="width:30px;height:30px;font-size:12px;" title="Stop Audio">⏹</button>
+          <button class="icon-btn" onclick="togglePlaybackDock(false)" style="width:28px;height:28px;font-size:11px;" title="Close Player">✕</button>
+        </div>
+      </div>
+
+      <div class="playback-controls-row">
+        <span class="playback-time-label" id="playbackTimeLabel">00:00 / 00:00</span>
+        <input type="range" class="playback-scrubber" id="playbackScrubber" min="0" max="100" value="0" oninput="onScrubInput(this.value)" onchange="onScrubCommit(this.value)">
+        <div class="playback-vol-wrap" title="In-Ear Monitor Volume">
+          <span style="font-size:12px;">🔊</span>
+          <input type="range" class="playback-vol-slider" id="playbackVolumeSlider" min="0" max="1" step="0.05" value="0.9" oninput="setAudioVolume(this.value)">
+        </div>
+      </div>
+    </div>
+
     <!-- AUTO-SCROLL CONTROLS BAR -->
     <div class="autoscroll-bar" id="autoScrollBar">
       <button class="icon-btn" id="scrollPlayBtn" onclick="toggleScrollPlay()">▶</button>
@@ -1291,28 +1485,105 @@
 
       <!-- Other Sources List (Screenshot 5) -->
       <div class="source-list">
-        <div class="source-item" onclick="showToast('Device audio ready')">
+        <div class="source-item" onclick="openAudioManagerModal()">
           <div class="source-item-left">
-            <span>🎧</span>
-            <span>Device</span>
+            <span>📁</span>
+            <div>
+              <div style="font-weight:700;">Files / Backing Tracks</div>
+              <div style="font-size:11px;color:var(--text-muted);">Import MP3 / WAV for Bluetooth in-ear playback</div>
+            </div>
           </div>
           <span>›</span>
         </div>
-        <div class="source-item" onclick="triggerFileInput()">
+        <div class="source-item" onclick="openAudioManagerModal()">
           <div class="source-item-left">
-            <span>📁</span>
-            <span>Files</span>
+            <span>🎧</span>
+            <div>
+              <div style="font-weight:700;">Device Playback (In-Ear)</div>
+              <div style="font-size:11px;color:var(--text-muted);">Bluetooth receiver connected to soundboard mixer</div>
+            </div>
           </div>
           <span>›</span>
         </div>
         <div class="source-item" onclick="openSpotifyLink()">
           <div class="source-item-left">
             <span>🟢</span>
-            <span>Spotify</span>
+            <span>Spotify Reference</span>
           </div>
           <span>›</span>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- 2B. BACKING TRACK AUDIO MANAGER & TEMPORARY STORAGE BUFFER MODAL -->
+<div class="modal-overlay" id="audioManagerModal">
+  <div class="edit-modal" style="max-width:560px;height:88vh;">
+    <div class="modal-header">
+      <div class="modal-header-title">Backing Tracks & Playback</div>
+      <button class="icon-btn" onclick="closeAudioManagerModal()" style="width:30px;height:30px;">✕</button>
+    </div>
+    <div class="modal-body" style="padding:14px;gap:12px;">
+
+      <!-- ACTIVE SONG ATTACHMENT CARD -->
+      <div style="background:#161c26;border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;font-weight:700;">Active Song</div>
+          <div style="font-size:14px;font-weight:800;color:#fff;" id="audioModalActiveSongTitle">10,000 Reasons</div>
+          <div style="font-size:11px;color:#38bdf8;margin-top:2px;" id="audioModalAttachedStatus">No track attached</div>
+        </div>
+        <div id="audioModalSongActions">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- TEMPORARY SERVER STORAGE BUFFER METER WIDGET -->
+      <div class="storage-meter-box">
+        <div class="storage-meter-header">
+          <span>Server Temporary Storage</span>
+          <span id="storageStatsText" style="font-family:var(--font-chords);font-size:12px;color:var(--primary);">0 MB / 1024 MB (0%)</span>
+        </div>
+        <div class="storage-meter-bar-track">
+          <div class="storage-meter-bar-fill" id="storageMeterBarFill" style="width:0%;"></div>
+        </div>
+        <div class="storage-notice-banner">
+          <span style="font-size:15px;">⚠️</span>
+          <div>
+            <strong>Temporary Buffer Warning:</strong> Backing track audio files are buffered locally on the server for Bluetooth in-ear monitor playback. Dropbox cloud storage integration will be connected later. Keep total files within the 1.0 GB limit.
+          </div>
+        </div>
+      </div>
+
+      <!-- UPLOAD DROP ZONE -->
+      <input type="file" id="audioFileInput" accept=".mp3,.wav,.m4a,.aac,.ogg,.flac" style="display:none;" onchange="handleAudioFileSelect(this.files)">
+      <div class="upload-drop-zone" id="uploadDropZone" onclick="document.getElementById('audioFileInput').click()">
+        <div style="font-size:24px;margin-bottom:4px;">📥</div>
+        <div style="font-size:14px;font-weight:700;color:#fff;">Import MP3 or WAV Backing Track</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Tap to select file from phone / computer or drag & drop (up to 100MB)</div>
+      </div>
+
+      <!-- UPLOAD PROGRESS BAR -->
+      <div id="uploadProgressWrap" style="display:none;background:#161c26;border-radius:6px;padding:8px 12px;border:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:#fff;margin-bottom:4px;">
+          <span id="uploadFileNameLabel">Uploading track...</span>
+          <span id="uploadPercentLabel" style="font-weight:700;color:var(--primary);">0%</span>
+        </div>
+        <div style="height:6px;background:#0b0e14;border-radius:3px;overflow:hidden;">
+          <div id="uploadProgressBarFill" style="height:100%;width:0%;background:var(--primary);transition:width 0.15s;"></div>
+        </div>
+      </div>
+
+      <!-- STORED BACKING TRACKS LIST -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px;">
+        <span style="font-size:13px;font-weight:700;color:#fff;">Server Audio Library</span>
+        <button class="sidebar-action-btn" onclick="fetchStorageAudioFiles()" style="padding:4px 8px;font-size:11px;">🔄 Refresh</button>
+      </div>
+
+      <div id="audioTracksListContainer" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px;min-height:140px;">
+        <div style="text-align:center;padding:24px;color:var(--text-muted);font-size:12px;">Loading audio library...</div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -1712,6 +1983,7 @@ Lord, I'll worship Your holy name.`
     localStorage.setItem('hgf_band_active_id', song.id);
     renderSheet();
     renderSongList();
+    initSongAudio(song);
   }
 
   // RENDER SHEET & LIVE TRANSPOSITION
@@ -2489,9 +2761,381 @@ Lord, I'll worship Your holy name.`
     setTimeout(() => t.classList.remove('visible'), 2800);
   }
 
-  function escapeHtml(str) {
-    if (!str) return '';
-    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  // IN-EAR BLUETOOTH PLAYBACK CONTROLLER & STORAGE BUFFER
+  let backingAudio = null;
+  let isAudioPlaying = false;
+  let isAudioLooping = false;
+  let isAudioScrubbing = false;
+  let activeAudioTrack = null;
+  let currentStorageData = { usedBytes: 0, quotaBytes: 1024 * 1024 * 1024, usedMb: '0.0', quotaMb: 1024, percent: 0, fileCount: 0, files: [] };
+
+  function initAudioPlayerElement() {
+    backingAudio = document.getElementById('backingAudioPlayer');
+    if (!backingAudio) return;
+
+    backingAudio.addEventListener('timeupdate', onAudioTimeUpdate);
+    backingAudio.addEventListener('play', () => {
+      isAudioPlaying = true;
+      document.getElementById('playbackPlayBtn').textContent = '⏸';
+    });
+    backingAudio.addEventListener('pause', () => {
+      isAudioPlaying = false;
+      document.getElementById('playbackPlayBtn').textContent = '▶';
+    });
+    backingAudio.addEventListener('ended', () => {
+      if (!isAudioLooping) {
+        isAudioPlaying = false;
+        document.getElementById('playbackPlayBtn').textContent = '▶';
+        document.getElementById('playbackScrubber').value = 0;
+      }
+    });
+    backingAudio.addEventListener('error', () => {
+      showToast('Audio playback error');
+      isAudioPlaying = false;
+      document.getElementById('playbackPlayBtn').textContent = '▶';
+    });
+  }
+
+  function initSongAudio(song) {
+    initAudioPlayerElement();
+    if (song && song.audioTrack && song.audioTrack.url) {
+      loadAudioTrack(song.audioTrack, false);
+    } else {
+      stopAudioPlayback();
+      togglePlaybackDock(false);
+      activeAudioTrack = null;
+    }
+  }
+
+  function loadAudioTrack(track, autoPlay = false) {
+    initAudioPlayerElement();
+    if (!track || !track.url) return;
+    activeAudioTrack = track;
+    backingAudio.src = track.url;
+    backingAudio.loop = isAudioLooping;
+
+    document.getElementById('playbackTrackTitle').textContent = track.originalName || track.filename;
+    document.getElementById('playbackSongRefTitle').textContent = currentSong ? currentSong.title : 'Backing Track';
+    document.getElementById('playbackTimeLabel').textContent = '00:00 / 00:00';
+    document.getElementById('playbackScrubber').value = 0;
+    togglePlaybackDock(true);
+
+    if (autoPlay) {
+      backingAudio.play().catch(() => {});
+    }
+  }
+
+  function togglePlaybackDock(show) {
+    const dock = document.getElementById('playbackDock');
+    if (show === undefined) show = !dock.classList.contains('visible');
+    dock.classList.toggle('visible', show);
+  }
+
+  function toggleAudioPlay() {
+    initAudioPlayerElement();
+    if (!backingAudio || !backingAudio.src) {
+      openAudioManagerModal();
+      return;
+    }
+    if (isAudioPlaying) {
+      backingAudio.pause();
+    } else {
+      backingAudio.play().then(() => {
+        showToast('Playing audio via In-Ear / Bluetooth');
+      }).catch(e => {
+        showToast('Playback error: tap again');
+      });
+    }
+  }
+
+  function stopAudioPlayback() {
+    if (backingAudio) {
+      backingAudio.pause();
+      backingAudio.currentTime = 0;
+      document.getElementById('playbackScrubber').value = 0;
+      document.getElementById('playbackTimeLabel').textContent = '00:00 / ' + formatSeconds(backingAudio.duration || 0);
+    }
+    isAudioPlaying = false;
+    document.getElementById('playbackPlayBtn').textContent = '▶';
+  }
+
+  function toggleAudioLoop() {
+    isAudioLooping = !isAudioLooping;
+    if (backingAudio) backingAudio.loop = isAudioLooping;
+    const btn = document.getElementById('playbackLoopBtn');
+    btn.classList.toggle('active', isAudioLooping);
+    showToast(isAudioLooping ? 'Repeat loop ON' : 'Repeat loop OFF');
+  }
+
+  function setAudioVolume(val) {
+    if (backingAudio) backingAudio.volume = parseFloat(val);
+  }
+
+  function onAudioTimeUpdate() {
+    if (isAudioScrubbing || !backingAudio) return;
+    const cur = backingAudio.currentTime || 0;
+    const dur = backingAudio.duration || 0;
+    document.getElementById('playbackTimeLabel').textContent = `${formatSeconds(cur)} / ${formatSeconds(dur)}`;
+    if (dur > 0) {
+      document.getElementById('playbackScrubber').value = (cur / dur) * 100;
+    }
+  }
+
+  function onScrubInput(val) {
+    isAudioScrubbing = true;
+    if (backingAudio && backingAudio.duration) {
+      const cur = (val / 100) * backingAudio.duration;
+      document.getElementById('playbackTimeLabel').textContent = `${formatSeconds(cur)} / ${formatSeconds(backingAudio.duration)}`;
+    }
+  }
+
+  function onScrubCommit(val) {
+    isAudioScrubbing = false;
+    if (backingAudio && backingAudio.duration) {
+      backingAudio.currentTime = (val / 100) * backingAudio.duration;
+    }
+  }
+
+  function formatSeconds(sec) {
+    if (isNaN(sec) || sec < 0) return '00:00';
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+  }
+
+  // AUDIO MANAGER MODAL & SERVER STORAGE BUFFER METER
+  function openAudioManagerModal() {
+    closeSourceModal();
+    document.getElementById('audioModalActiveSongTitle').textContent = currentSong ? currentSong.title : 'No song selected';
+    updateAudioModalAttachedStatus();
+    fetchStorageAudioFiles();
+    document.getElementById('audioManagerModal').classList.add('visible');
+
+    // Setup drag & drop
+    const dropZone = document.getElementById('uploadDropZone');
+    dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('dragover'); };
+    dropZone.ondragleave = () => dropZone.classList.remove('dragover');
+    dropZone.ondrop = (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        handleAudioFileSelect(e.dataTransfer.files);
+      }
+    };
+  }
+
+  function closeAudioManagerModal() {
+    document.getElementById('audioManagerModal').classList.remove('visible');
+  }
+
+  function updateAudioModalAttachedStatus() {
+    const statusEl = document.getElementById('audioModalAttachedStatus');
+    const actionsEl = document.getElementById('audioModalSongActions');
+
+    if (currentSong && currentSong.audioTrack && currentSong.audioTrack.url) {
+      statusEl.textContent = `Attached: ${currentSong.audioTrack.originalName || currentSong.audioTrack.filename} (${currentSong.audioTrack.sizeMb || '0'} MB)`;
+      statusEl.style.color = '#10b981';
+      actionsEl.innerHTML = `
+        <button class="sidebar-action-btn primary" onclick="loadAudioTrack(currentSong.audioTrack, true); closeAudioManagerModal();">▶ Play In-Ear</button>
+        <button class="sidebar-action-btn" onclick="detachTrackFromCurrentSong()" style="margin-left:6px;color:var(--accent-red);">Detach</button>
+      `;
+    } else {
+      statusEl.textContent = 'No track attached to this song';
+      statusEl.style.color = '#38bdf8';
+      actionsEl.innerHTML = '';
+    }
+  }
+
+  async function fetchStorageAudioFiles() {
+    try {
+      const res = await fetch('/api/worship/audio');
+      if (res.ok) {
+        const data = await res.json();
+        currentStorageData = data;
+        renderStorageMeter(data);
+        renderAudioTracksList(data.files || []);
+      }
+    } catch {
+      document.getElementById('audioTracksListContainer').innerHTML = `<div style="text-align:center;padding:20px;color:var(--accent-red);">Failed to load audio files.</div>`;
+    }
+  }
+
+  function renderStorageMeter(data) {
+    const barFill = document.getElementById('storageMeterBarFill');
+    const statsText = document.getElementById('storageStatsText');
+    const percent = data.percent || 0;
+
+    statsText.textContent = `${data.usedMb || '0'} MB / ${data.quotaMb || 1024} MB (${percent}%) used • ${data.fileCount || 0} tracks`;
+
+    barFill.style.width = percent + '%';
+    barFill.classList.remove('warning', 'danger');
+    if (percent >= 85) {
+      barFill.classList.add('danger');
+    } else if (percent >= 60) {
+      barFill.classList.add('warning');
+    }
+  }
+
+  function renderAudioTracksList(files) {
+    const container = document.getElementById('audioTracksListContainer');
+    if (!files || files.length === 0) {
+      container.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:12px;">No audio tracks stored yet. Import an MP3/WAV above.</div>`;
+      return;
+    }
+
+    let html = '';
+    for (const f of files) {
+      const isAttachedToCurrent = currentSong && currentSong.audioTrack && currentSong.audioTrack.filename === f.filename;
+      html += `
+        <div class="audio-track-item">
+          <div style="min-width:0;flex:1;">
+            <div style="font-size:13px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+              ${escapeHtml(f.filename)}
+            </div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">
+              ${f.sizeMb} MB • ${new Date(f.updatedAt).toLocaleDateString()}
+              ${isAttachedToCurrent ? '<span style="color:#10b981;font-weight:700;margin-left:6px;">● Attached to this song</span>' : ''}
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+            <button class="sidebar-action-btn primary" onclick="loadAudioTrack(${JSON.stringify(f).replace(/"/g, '&quot;')}, true); closeAudioManagerModal();" title="Play through In-Ear Bluetooth">
+              ▶ Play
+            </button>
+            <button class="sidebar-action-btn" onclick="attachTrackToCurrentSong(${JSON.stringify(f).replace(/"/g, '&quot;')})" title="Attach track to ${escapeHtml(currentSong ? currentSong.title : 'song')}">
+              Attach
+            </button>
+            <button class="icon-btn" onclick="deleteAudioTrackFile('${escapeHtml(f.filename)}')" style="width:28px;height:28px;font-size:11px;color:var(--accent-red);" title="Delete file to free server storage">
+              🗑️
+            </button>
+          </div>
+        </div>
+      `;
+    }
+    container.innerHTML = html;
+  }
+
+  async function handleAudioFileSelect(fileList) {
+    if (!fileList || fileList.length === 0) return;
+    const file = fileList[0];
+
+    const progressWrap = document.getElementById('uploadProgressWrap');
+    const barFill = document.getElementById('uploadProgressBarFill');
+    const nameLabel = document.getElementById('uploadFileNameLabel');
+    const percentLabel = document.getElementById('uploadPercentLabel');
+
+    progressWrap.style.display = 'block';
+    nameLabel.textContent = `Uploading ${file.name}...`;
+    barFill.style.width = '10%';
+    percentLabel.textContent = '10%';
+
+    const formData = new FormData();
+    formData.append('file', file);
+    if (currentSong) {
+      formData.append('songId', currentSong.id);
+    }
+
+    try {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/worship/audio');
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const pct = Math.round((e.loaded / e.total) * 100);
+          barFill.style.width = pct + '%';
+          percentLabel.textContent = pct + '%';
+        }
+      };
+
+      xhr.onload = () => {
+        progressWrap.style.display = 'none';
+        document.getElementById('audioFileInput').value = '';
+        if (xhr.status >= 200 && xhr.status < 300) {
+          const res = JSON.parse(xhr.responseText);
+          showToast(`Uploaded "${file.name}" to server buffer!`);
+          if (currentSong && res.audioTrack) {
+            currentSong.audioTrack = res.audioTrack;
+            updateAudioModalAttachedStatus();
+            loadAudioTrack(res.audioTrack, false);
+          }
+          fetchStorageAudioFiles();
+        } else {
+          try {
+            const err = JSON.parse(xhr.responseText);
+            alert(err.error || 'Upload failed');
+          } catch {
+            alert('Upload failed with status ' + xhr.status);
+          }
+        }
+      };
+
+      xhr.onerror = () => {
+        progressWrap.style.display = 'none';
+        alert('Network error during upload');
+      };
+
+      xhr.send(formData);
+    } catch (err) {
+      progressWrap.style.display = 'none';
+      alert('Error uploading file: ' + err.message);
+    }
+  }
+
+  async function attachTrackToCurrentSong(track) {
+    if (!currentSong) return;
+    currentSong.audioTrack = track;
+    updateAudioModalAttachedStatus();
+    loadAudioTrack(track, false);
+    showToast(`Attached to "${currentSong.title}"`);
+
+    // Persist song to server
+    try {
+      await fetch('/api/worship', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(currentSong)
+      });
+      fetchStorageAudioFiles();
+    } catch {}
+  }
+
+  async function detachTrackFromCurrentSong() {
+    if (!currentSong || !currentSong.audioTrack) return;
+    delete currentSong.audioTrack;
+    updateAudioModalAttachedStatus();
+    stopAudioPlayback();
+    togglePlaybackDock(false);
+    showToast('Track detached from song');
+
+    try {
+      await fetch('/api/worship', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(currentSong)
+      });
+      fetchStorageAudioFiles();
+    } catch {}
+  }
+
+  async function deleteAudioTrackFile(filename) {
+    if (!confirm(`Delete "${filename}" from server storage buffer to reclaim space?`)) return;
+
+    try {
+      const songId = currentSong ? currentSong.id : '';
+      const res = await fetch(`/api/worship/audio?filename=${encodeURIComponent(filename)}&songId=${encodeURIComponent(songId)}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        showToast(`Deleted "${filename}" — storage buffer reclaimed.`);
+        if (currentSong && currentSong.audioTrack && currentSong.audioTrack.filename === filename) {
+          detachTrackFromCurrentSong();
+        }
+        fetchStorageAudioFiles();
+      } else {
+        alert('Failed to delete file');
+      }
+    } catch (e) {
+      alert('Error deleting file: ' + e.message);
+    }
   }
 </script>
 
