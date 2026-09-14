@@ -1102,17 +1102,80 @@
 
     @media (max-width: 640px) {
       .sheet-wrapper {
-        padding: 14px 14px 70px;
+        padding: 12px 14px 90px;
       }
       .sheet-song-title {
         font-size: 24px;
+        letter-spacing: -0.3px;
+      }
+      .sheet-song-meta {
+        font-size: 13px;
+        gap: 8px;
+      }
+      .meta-tag {
+        font-size: 11px;
+        padding: 2px 6px;
       }
       .chord-sheet-container {
         font-size: 15px;
+        line-height: 1.5;
       }
       .topbar {
-        padding-left: 8px;
-        padding-right: 8px;
+        height: calc(50px + var(--safe-top));
+        padding-left: 6px;
+        padding-right: 6px;
+        gap: 4px;
+      }
+      .brand-sub {
+        display: none !important;
+      }
+      .brand-wrap {
+        padding: 2px 4px;
+      }
+      .brand-title {
+        font-size: 11px;
+        letter-spacing: 0.2px;
+      }
+      .brand-badge {
+        font-size: 8px;
+        padding: 1px 3px;
+      }
+      .transpose-widget {
+        padding: 1px;
+        gap: 1px;
+      }
+      .trans-step-btn {
+        width: 24px;
+        height: 28px;
+        font-size: 12px;
+      }
+      .current-key-pill {
+        padding: 1px 6px;
+        font-size: 11px;
+      }
+      .topbar-right {
+        gap: 3px;
+      }
+      .icon-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        font-size: 13px;
+      }
+      /* Compact floating controls on mobile */
+      .stage-fab-dock {
+        right: 12px;
+        bottom: calc(var(--safe-bottom) + 14px);
+        gap: 6px;
+      }
+      .fab-btn {
+        width: 38px;
+        height: 38px;
+        font-size: 11px;
+        background: rgba(18, 24, 34, 0.75);
+        border: 1px solid rgba(255,255,255,0.1);
+        backdrop-filter: blur(8px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.4);
       }
     }
   </style>
@@ -1653,6 +1716,11 @@
 
 <!-- JAVASCRIPT ENGINE -->
 <script>
+  function escapeHtml(str) {
+    if (!str && str !== 0) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
   // MUSIC THEORY & TRANSPOSITION ENGINE
   const CHROMATIC_SHARPS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
   const CHROMATIC_FLATS  = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
@@ -2017,10 +2085,23 @@ Lord, I'll worship Your holy name.`
 
   // MUSIC SHEET PARSER & TRANSPOSER
   function parseAndTransposeSheet(text, semitones, preferFlats) {
-    if (!text) return '<div style="color:var(--text-muted);padding:20px;">No chords entered yet. Tap ✏️ to edit.</div>';
+    if (!text) {
+      return `
+        <div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:14px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <div>
+            <div style="font-weight:700;font-size:13px;color:#fde68a;">No chords or lyrics entered yet.</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">You can 1-tap import worship tabs or edit manually.</div>
+          </div>
+          <button class="sidebar-action-btn primary" onclick="openScraperModal('${escapeHtml(currentSong ? currentSong.title : '')}')" style="white-space:nowrap;font-size:12px;padding:6px 12px;">
+            🔍 Find Chords
+          </button>
+        </div>
+      `;
+    }
 
     const lines = text.split('\n');
     let out = [];
+    let hasAnyChords = false;
 
     // Detect section headers like Intro:, [Verse 1], Chorus:, Verse 1:, Bridge:
     const SECTION_REGEX = /^\s*(\[?(Intro|Verse|Chorus|Pre-Chorus|Bridge|Vamp|Tag|Interlude|Outro|Ending|Instrumental|Refrain).*?\]?:?)\s*$/i;
@@ -2046,6 +2127,7 @@ Lord, I'll worship Your holy name.`
 
       // Check if this line is in ChordPro format [C]Bless the [G]Lord
       if (/\[[A-G][b#]?.*?\]/.test(rawLine)) {
+        hasAnyChords = true;
         const transChordPro = rawLine.replace(/\[([A-G][b#]?[^\]]*)\]/g, (m, chord) => {
           const trans = transposeChord(chord, semitones, preferFlats);
           return `<span class="chord-token" onclick="showChordDiagram('${trans}')">${escapeHtml(trans)}</span>`;
@@ -2059,6 +2141,7 @@ Lord, I'll worship Your holy name.`
       const isPureChordLine = words.every(w => /^[A-G][b#]?(?:m|maj|min|sus|add|dim|aug|2|4|5|6|7|9|11|13)*(?:\/[A-G][b#]?)?$/.test(w) || /^[-–—()|]+$/.test(w));
 
       if (isPureChordLine) {
+        hasAnyChords = true;
         // Transpose each chord in its column position
         const transposedLine = rawLine.replace(CHORD_TOKEN_REGEX, (m, chord) => {
           const trans = transposeChord(chord, semitones, preferFlats);
@@ -2069,6 +2152,22 @@ Lord, I'll worship Your holy name.`
         // Lyric line
         out.push(`<div>${escapeHtml(rawLine)}</div>`);
       }
+    }
+
+    // If song only has lyrics and no chords, prepend a sleek banner prompting to import chords
+    if (!hasAnyChords) {
+      const banner = `
+        <div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:10px 12px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <div>
+            <div style="font-weight:700;font-size:12px;color:#fde68a;">No chords attached yet</div>
+            <div style="color:var(--text-muted);font-size:11px;margin-top:2px;">Showing lyrics only. Tap to 1-tap import chords from Ultimate Guitar.</div>
+          </div>
+          <button class="sidebar-action-btn primary" onclick="openScraperModal('${escapeHtml(currentSong ? currentSong.title : '')}')" style="white-space:nowrap;font-size:11px;padding:6px 10px;">
+            🔍 Import Chords
+          </button>
+        </div>
+      `;
+      return banner + out.join('');
     }
 
     return out.join('');
@@ -2576,9 +2675,15 @@ Lord, I'll worship Your holy name.`
   }
 
   // SIMPLE WORD SEARCH & CHORD SCRAPER MODAL
-  function openScraperModal() {
+  function openScraperModal(initialQuery = '') {
+    const input = document.getElementById('scraperQueryInput');
+    const q = initialQuery || (currentSong ? currentSong.title : '');
+    input.value = q;
     document.getElementById('scraperModal').classList.add('visible');
-    setTimeout(() => document.getElementById('scraperQueryInput').focus(), 150);
+    setTimeout(() => {
+      input.focus();
+      if (q) executeScraperSearch();
+    }, 150);
   }
 
   function closeScraperModal() {
@@ -2594,7 +2699,7 @@ Lord, I'll worship Your holy name.`
     searchBtn.textContent = 'Searching...';
     searchBtn.disabled = true;
 
-    list.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text-muted);">Searching worship tabs for "${escapeHtml(q)}"...</div>`;
+    list.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text-muted);">Searching worship tabs for "<strong>${escapeHtml(q)}</strong>"...</div>`;
 
     try {
       const res = await fetch('/api/worship/scrape', {
@@ -2607,7 +2712,7 @@ Lord, I'll worship Your holy name.`
       const results = data.results || [];
 
       if (results.length === 0) {
-        list.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text-muted);">No tabs found for "${escapeHtml(q)}". Try simpler words or titles.</div>`;
+        list.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text-muted);">No tabs found for "${escapeHtml(q)}". Try simpler words or another title.</div>`;
         return;
       }
 

@@ -5,6 +5,17 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.53.2] — 2026-09-14
+### Fixed & Optimized — iPhone Mobile View & Scraper Search
+- **iPhone Mobile Screen Optimization**:
+  - Restructured the topbar header specifically for mobile widths (≤ 640px) to prevent element overlapping and squishing.
+  - Reduced transpose stepper footprint and optimized touch targets (32px) so brand, key controls, and actions fit comfortably without horizontal collision.
+  - Redesigned the floating stage action dock on mobile to be compact (38px buttons with subtle translucent blur) preventing clutter over lyrics.
+- **Fixed Missing `escapeHtml` Reference & Search Freeze**:
+  - Restored `escapeHtml` at the top of the script scope, resolving the `ReferenceError` that froze the search modal on "Searching...".
+  - Resolved the blank sheet bug on songs loaded without chords, ensuring lyrics and section headers render properly with a prominent "🔍 Import Chords" quick action.
+  - Automatically pre-populates and searches active song titles upon opening the scraper modal.
+
 ## [v2.53.1] — 2026-09-14
 ### Added — Backing Track Audio Import, In-Ear Playback & Server Storage Buffer
 - **Audio File Import (`.mp3`, `.wav`, `.m4a`, `.aac`)**:
