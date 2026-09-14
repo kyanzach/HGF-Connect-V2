@@ -42,11 +42,20 @@ export async function GET(req: NextRequest) {
         songs.push({
           id: s.id || f.replace('.json', ''),
           title: s.title || 'Untitled Song',
+          alternativeTitle: s.alternativeTitle || '',
           artist: s.artist || '',
           key: s.key || '',
+          originalKey: s.originalKey || s.key || '',
+          chords: s.chords || '',
+          chordFormat: s.chordFormat || 'chords_over_lyrics',
           capo: s.capo || '0',
           tempo: s.tempo || null,
           timeSignature: s.timeSignature || '4/4',
+          duration: s.duration || '',
+          sectionOrder: s.sectionOrder || '',
+          songNumber: s.songNumber || '',
+          copyright: s.copyright || '',
+          webUrl: s.webUrl || '',
           notes: s.notes || '',
           exhortation: s.exhortation || '',
           lyrics: s.lyrics || '',
@@ -68,7 +77,29 @@ export async function POST(req: NextRequest) {
   try {
     await ensureDirs();
     const body = await req.json();
-    const { id, title, artist, key, originalKey, capo, tempo, timeSignature, notes, exhortation, lyrics, arrangement, tags } = body;
+    const {
+      id,
+      title,
+      alternativeTitle,
+      artist,
+      key,
+      originalKey,
+      chords,
+      chordFormat,
+      capo,
+      tempo,
+      timeSignature,
+      duration,
+      sectionOrder,
+      songNumber,
+      copyright,
+      webUrl,
+      notes,
+      exhortation,
+      lyrics,
+      arrangement,
+      tags,
+    } = body;
 
     if (!title || typeof title !== 'string' || !title.trim()) {
       return NextResponse.json({ error: 'Song title is required' }, { status: 400 });
@@ -78,12 +109,20 @@ export async function POST(req: NextRequest) {
     const songData = {
       id: songId,
       title: title.trim(),
+      alternativeTitle: (alternativeTitle || '').trim(),
       artist: (artist || '').trim(),
       key: key || '',
       originalKey: originalKey || key || '',
+      chords: chords || '',
+      chordFormat: chordFormat || 'chords_over_lyrics',
       capo: capo || '0',
       tempo: Number(tempo) || null,
       timeSignature: timeSignature || '4/4',
+      duration: (duration || '').trim(),
+      sectionOrder: (sectionOrder || '').trim(),
+      songNumber: (songNumber || '').trim(),
+      copyright: (copyright || '').trim(),
+      webUrl: (webUrl || '').trim(),
       notes: notes || '',
       exhortation: exhortation || '',
       lyrics: lyrics || '',

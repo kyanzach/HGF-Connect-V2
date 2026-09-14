@@ -22,6 +22,9 @@ export async function GET(
   if (["worship", "theworship", "the-worship", "stage", "prompter"].includes(cleanCode)) {
     return NextResponse.redirect("https://connect.houseofgrace.ph/theworshiptool.html", 302);
   }
+  if (["chords", "band", "theband", "musician", "themusician"].includes(cleanCode)) {
+    return NextResponse.redirect("https://connect.houseofgrace.ph/thebandtool.html", 302);
+  }
   if (["word", "theword", "the-word", "scripture"].includes(cleanCode)) {
     return NextResponse.redirect("https://connect.houseofgrace.ph/thewordtool.html", 302);
   }

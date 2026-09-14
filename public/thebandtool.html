@@ -1,0 +1,2499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>THE BAND — HGF Chords & Songbook</title>
+  <meta name="description" content="Dedicated live chord transposer, chords-over-lyrics songbook, ambient pads, and setlist prompter for House of Grace Fellowship musicians.">
+  <meta name="theme-color" content="#0b0e14">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="icon" href="/favicon.ico">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #000000;
+      --surface: #0b0e14;
+      --surface-2: #161c26;
+      --surface-3: #222938;
+      --border: #242c3d;
+      --text: #ffffff;
+      --text-muted: #94a3b8;
+      --primary: #4EB1CB;
+      --primary-hover: #3da1bb;
+      --accent-chord: #F59E0B;
+      --accent-chord-alt: #38bdf8;
+      --accent-red: #ef4444;
+      --accent-green: #10b981;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-chords: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-ui);
+      overflow: hidden;
+      user-select: none;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* App Frame */
+    .app-root {
+      display: flex;
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* SIDEBAR (SongBook Pro Style) */
+    .sidebar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 340px;
+      max-width: 88vw;
+      background: #0d1117;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+      transform: translateX(-100%);
+      transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 10px 0 30px rgba(0,0,0,0.7);
+    }
+    .sidebar.open {
+      transform: translateX(0);
+    }
+    .sidebar-scrim {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      backdrop-filter: blur(4px);
+      z-index: 99;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+    .sidebar-scrim.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .sidebar-header {
+      padding: calc(var(--safe-top) + 14px) 16px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      background: #090d13;
+    }
+    .sidebar-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .sidebar-pin-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 16px;
+      padding: 6px;
+      border-radius: 6px;
+    }
+    .sidebar-pin-btn:hover {
+      background: var(--surface-2);
+      color: var(--text);
+    }
+
+    /* Search & Order */
+    .sidebar-search-box {
+      padding: 10px 14px;
+      background: #0d1117;
+      border-bottom: 1px solid var(--border);
+    }
+    .search-input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .search-input {
+      width: 100%;
+      height: 38px;
+      padding: 0 34px 0 34px;
+      background: #161c26;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 14px;
+      font-family: var(--font-ui);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .search-input:focus {
+      border-color: var(--primary);
+    }
+    .search-icon {
+      position: absolute;
+      left: 10px;
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+    .clear-search-btn {
+      position: absolute;
+      right: 8px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 14px;
+      padding: 4px;
+      display: none;
+    }
+
+    .order-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 14px;
+      font-size: 12px;
+      color: var(--text-muted);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      background: #0b0f15;
+    }
+    .order-select {
+      background: transparent;
+      border: none;
+      color: var(--primary);
+      font-weight: 600;
+      font-size: 12px;
+      cursor: pointer;
+      outline: none;
+    }
+    .order-select option {
+      background: #161c26;
+      color: #fff;
+    }
+
+    /* Grouped Song List */
+    .song-list-scroll {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .group-letter {
+      position: sticky;
+      top: 0;
+      padding: 6px 14px;
+      background: #111721;
+      color: var(--primary);
+      font-size: 15px;
+      font-weight: 800;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      z-index: 2;
+    }
+    .song-item {
+      padding: 11px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      transition: background 0.15s;
+    }
+    .song-item:hover, .song-item.active {
+      background: rgba(78, 177, 203, 0.12);
+    }
+    .song-item.active {
+      border-left: 3px solid var(--primary);
+    }
+    .song-item-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .song-item-key-badge {
+      font-size: 11px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: rgba(245, 158, 11, 0.18);
+      color: var(--accent-chord);
+      font-weight: 700;
+      font-family: var(--font-chords);
+    }
+    .song-item-artist {
+      font-size: 12px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Sidebar Footer Docks */
+    .sidebar-actions-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      border-top: 1px solid var(--border);
+      background: #0a0e14;
+    }
+    .sidebar-action-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #161c26;
+      border: 1px solid var(--border);
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .sidebar-action-btn.primary {
+      background: var(--primary);
+      color: #000;
+      border-color: var(--primary);
+    }
+
+    .sidebar-nav-dock {
+      display: flex;
+      border-top: 1px solid var(--border);
+      background: #070a0f;
+      padding-bottom: var(--safe-bottom);
+    }
+    .nav-dock-btn {
+      flex: 1;
+      padding: 10px 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .nav-dock-btn.active {
+      color: var(--primary);
+    }
+    .nav-dock-icon {
+      font-size: 18px;
+    }
+
+    /* MAIN VIEWPORT */
+    .main-viewport {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      background: var(--bg);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* TOP BAR */
+    .topbar {
+      height: calc(56px + var(--safe-top));
+      padding-top: var(--safe-top);
+      background: #090d13;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-left: 12px;
+      padding-right: 12px;
+      z-index: 50;
+      gap: 8px;
+    }
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .icon-btn {
+      background: #161c26;
+      border: 1px solid var(--border);
+      color: #fff;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all 0.15s ease;
+    }
+    .icon-btn:hover {
+      background: var(--surface-3);
+      border-color: var(--primary);
+    }
+    .icon-btn.active {
+      background: var(--primary);
+      color: #000;
+      border-color: var(--primary);
+    }
+
+    .brand-wrap {
+      display: flex;
+      flex-direction: column;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 6px;
+      transition: background 0.15s;
+    }
+    .brand-wrap:hover {
+      background: rgba(255,255,255,0.06);
+    }
+    .brand-title {
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .brand-badge {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 1px 5px;
+      background: var(--primary);
+      color: #000;
+      border-radius: 3px;
+    }
+    .brand-sub {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* Transpose Center Widget */
+    .transpose-widget {
+      display: flex;
+      align-items: center;
+      background: #121822;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 2px;
+      gap: 2px;
+    }
+    .trans-step-btn {
+      background: transparent;
+      border: none;
+      color: #fff;
+      width: 28px;
+      height: 30px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .trans-step-btn:hover {
+      background: var(--surface-3);
+    }
+    .current-key-pill {
+      padding: 2px 10px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent-chord);
+      font-family: var(--font-chords);
+      cursor: pointer;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .current-key-pill:hover {
+      background: rgba(245, 158, 11, 0.15);
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    /* DRAWING TOOLBAR (Screenshot 1) */
+    .markup-bar {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 6px 12px;
+      background: #0f141d;
+      border-bottom: 1px solid var(--border);
+      z-index: 40;
+    }
+    .markup-bar.visible {
+      display: flex;
+    }
+    .tool-color-btn {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+    .tool-color-btn.active {
+      transform: scale(1.15);
+      border-color: #fff;
+    }
+
+    /* SHEET CANVAS & CONTENT WRAPPER */
+    .sheet-wrapper {
+      flex: 1;
+      position: relative;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 20px 24px 80px;
+      -webkit-overflow-scrolling: touch;
+      scroll-behavior: smooth;
+    }
+
+    /* Fullscreen Drawing Canvas Overlay */
+    #drawCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+    }
+    #drawCanvas.active {
+      pointer-events: auto;
+    }
+
+    /* Song Title Header in Sheet */
+    .song-sheet-header {
+      margin-bottom: 24px;
+      position: relative;
+      z-index: 5;
+    }
+    .sheet-song-title {
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: #ffffff;
+      line-height: 1.2;
+    }
+    .sheet-song-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      margin-top: 6px;
+      font-size: 15px;
+      color: var(--text-muted);
+    }
+    .meta-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: #161c26;
+      border: 1px solid var(--border);
+      font-size: 13px;
+      color: #e2e8f0;
+      font-family: var(--font-chords);
+      font-weight: 600;
+    }
+
+    /* Chord Sheet Lines (SongBook Pro & UG Style) */
+    .chord-sheet-container {
+      font-family: var(--font-chords);
+      font-size: 17px;
+      line-height: 1.6;
+      color: #f1f5f9;
+      white-space: pre-wrap;
+      word-break: break-word;
+      user-select: text;
+      position: relative;
+      z-index: 5;
+    }
+
+    /* Section Header: Intro, Verse 1, Chorus, Bridge, etc. */
+    .section-header {
+      font-family: var(--font-ui);
+      font-size: 20px;
+      font-weight: 800;
+      color: #ffffff;
+      margin-top: 26px;
+      margin-bottom: 8px;
+      display: block;
+      border-left: 3px solid var(--primary);
+      padding-left: 8px;
+    }
+
+    /* Highlighted Chord token */
+    .chord-token {
+      color: var(--accent-chord);
+      font-weight: 700;
+      cursor: pointer;
+      border-radius: 4px;
+      padding: 0 2px;
+      display: inline-block;
+      transition: background 0.15s, color 0.15s;
+    }
+    .chord-token:hover {
+      background: rgba(245, 158, 11, 0.2);
+      color: #fbbf24;
+    }
+
+    /* FLOATING ACTION DOCK (Right side of stage) */
+    .stage-fab-dock {
+      position: absolute;
+      right: 18px;
+      bottom: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 60;
+    }
+    .fab-btn {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: rgba(22, 28, 38, 0.85);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.5);
+      transition: transform 0.15s, background 0.15s;
+    }
+    .fab-btn:hover {
+      background: var(--surface-3);
+      transform: scale(1.08);
+    }
+    .fab-btn.active {
+      background: var(--primary);
+      color: #000;
+      border-color: var(--primary);
+    }
+
+    /* Auto-Scroll Bar */
+    .autoscroll-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 10px 18px calc(var(--safe-bottom) + 10px);
+      background: rgba(11, 14, 20, 0.95);
+      backdrop-filter: blur(8px);
+      border-top: 1px solid var(--border);
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 55;
+    }
+    .autoscroll-bar.visible {
+      display: flex;
+    }
+    .autoscroll-slider-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+      max-width: 320px;
+      margin: 0 16px;
+    }
+    .autoscroll-slider {
+      flex: 1;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+
+    /* EDIT SONG MODAL (SongBook Pro Screenshots 2 & 3) */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(6px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      padding: 12px;
+    }
+    .modal-overlay.visible {
+      display: flex;
+    }
+    .edit-modal {
+      width: 100%;
+      max-width: 680px;
+      height: 94vh;
+      max-height: 840px;
+      background: #11161f;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+    }
+    .modal-header {
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      background: #0a0e14;
+    }
+    .modal-header-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    /* Two Tabs: General | Advanced */
+    .modal-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      background: #0e131b;
+    }
+    .modal-tab-btn {
+      flex: 1;
+      padding: 12px 0;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      position: relative;
+    }
+    .modal-tab-btn.active {
+      color: #fff;
+    }
+    .modal-tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 20%;
+      right: 20%;
+      height: 3px;
+      background: var(--primary);
+      border-radius: 3px 3px 0 0;
+    }
+
+    .modal-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      padding: 16px;
+      gap: 14px;
+    }
+
+    .tab-pane {
+      display: none;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .tab-pane.active {
+      display: flex;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 12px;
+    }
+    .form-group {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .form-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+    .form-input, .form-select {
+      height: 38px;
+      background: #161c26;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0 10px;
+      color: #fff;
+      font-size: 14px;
+      font-family: var(--font-ui);
+      outline: none;
+    }
+    .form-input:focus, .form-select:focus {
+      border-color: var(--primary);
+    }
+    .form-select option {
+      background: #161c26;
+      color: #fff;
+    }
+
+    /* Format Radio Selector (Screenshot 2) */
+    .format-radio-group {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 6px 0;
+    }
+    .radio-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: #e2e8f0;
+      cursor: pointer;
+    }
+    .radio-label input {
+      accent-color: var(--primary);
+    }
+
+    /* Quick Chord Insertion Toolbar (Screenshots 2 & 3) */
+    .quick-chord-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      overflow-x: auto;
+      padding: 8px 0;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      -webkit-overflow-scrolling: touch;
+    }
+    .quick-tag-btn {
+      background: #1a2230;
+      border: 1px solid var(--border);
+      color: var(--primary);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .quick-tag-btn.chord-pill {
+      color: var(--accent-chord);
+      font-family: var(--font-chords);
+    }
+    .quick-tag-btn:hover {
+      background: var(--surface-3);
+      border-color: var(--primary);
+    }
+
+    /* Song Content Textarea */
+    .sheet-editor-textarea {
+      flex: 1;
+      min-height: 260px;
+      background: #0a0e14;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: #f1f5f9;
+      font-family: var(--font-chords);
+      font-size: 14px;
+      line-height: 1.5;
+      padding: 12px;
+      outline: none;
+      resize: vertical;
+      white-space: pre;
+    }
+
+    /* SELECT SOURCE MODAL (Screenshot 5) */
+    .source-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .source-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      background: #161c26;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .source-item:hover {
+      background: var(--surface-3);
+      border-color: var(--primary);
+    }
+    .source-item-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    /* Pad Generator Card inside Source Modal */
+    .pad-card {
+      background: #0d121a;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .pad-key-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 6px;
+    }
+    .pad-key-btn {
+      background: #161c26;
+      border: 1px solid var(--border);
+      color: #fff;
+      font-family: var(--font-chords);
+      font-weight: 700;
+      font-size: 13px;
+      padding: 8px 0;
+      border-radius: 6px;
+      cursor: pointer;
+      text-align: center;
+    }
+    .pad-key-btn.active {
+      background: var(--primary);
+      color: #000;
+      border-color: var(--primary);
+    }
+
+    /* TOAST NOTIFICATION */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #1f2937;
+      color: #fff;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+      border: 1px solid var(--border);
+      z-index: 300;
+      opacity: 0;
+      pointer-events: none;
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .toast.visible {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    /* BPM Metronome Visual Dot */
+    .metronome-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      display: inline-block;
+      transition: background 0.1s, transform 0.1s;
+    }
+    .metronome-dot.flash {
+      background: #10b981;
+      transform: scale(1.4);
+      box-shadow: 0 0 10px #10b981;
+    }
+
+    @media (max-width: 640px) {
+      .sheet-wrapper {
+        padding: 14px 14px 70px;
+      }
+      .sheet-song-title {
+        font-size: 24px;
+      }
+      .chord-sheet-container {
+        font-size: 15px;
+      }
+      .topbar {
+        padding-left: 8px;
+        padding-right: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-root">
+  <!-- SIDEBAR SCRIM -->
+  <div class="sidebar-scrim" id="sidebarScrim" onclick="toggleSidebar(false)"></div>
+
+  <!-- SIDEBAR: SongBook Pro Style Song Library & Sets (Screenshot 4) -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">
+        <span onclick="toggleSidebar(false)" style="cursor:pointer;font-size:18px;">‹</span>
+        <span>House of Grace Fellowship</span>
+      </div>
+      <button class="sidebar-pin-btn" title="Pin / Options">📌</button>
+    </div>
+
+    <!-- Search Box with Clear Button -->
+    <div class="sidebar-search-box">
+      <div class="search-input-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="songSearchInput" class="search-input" placeholder="Search..." oninput="onSearchInput(this.value)">
+        <button id="clearSearchBtn" class="clear-search-btn" onclick="clearSearch()">✕</button>
+      </div>
+    </div>
+
+    <!-- Order By Selector -->
+    <div class="order-bar">
+      <span>Order by:</span>
+      <select id="orderBySelect" class="order-select" onchange="renderSongList()">
+        <option value="title">Title ▼</option>
+        <option value="key">Key ▼</option>
+        <option value="artist">Artist ▼</option>
+        <option value="recent">Recently Added ▼</option>
+      </select>
+    </div>
+
+    <!-- Grouped Song List (Screenshot 4) -->
+    <div class="song-list-scroll" id="songListContainer">
+      <!-- Injected alphabetically with #, A, B, etc. -->
+    </div>
+
+    <!-- Sidebar Bottom Action Bar -->
+    <div class="sidebar-actions-bar">
+      <button class="sidebar-action-btn primary" onclick="openNewSongModal()">
+        <span>+</span> New Song
+      </button>
+      <button class="sidebar-action-btn" onclick="openSetlistModal()">
+        Add to Set...
+      </button>
+    </div>
+
+    <!-- Sidebar Navigation Dock: Songs | Sets | Settings -->
+    <div class="sidebar-nav-dock">
+      <button class="nav-dock-btn active" id="navDockSongs" onclick="switchLibraryTab('songs')">
+        <span class="nav-dock-icon">🎵</span>
+        <span>Songs</span>
+      </button>
+      <button class="nav-dock-btn" id="navDockSets" onclick="switchLibraryTab('sets')">
+        <span class="nav-dock-icon">🎼</span>
+        <span>Sets</span>
+      </button>
+      <button class="nav-dock-btn" id="navDockSettings" onclick="openScraperModal()">
+        <span class="nav-dock-icon">🔍</span>
+        <span>Search / Import</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN VIEWPORT -->
+  <main class="main-viewport">
+    <!-- TOP BAR -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="icon-btn" onclick="toggleSidebar(true)" title="Songbook Menu">☰</button>
+        <div class="brand-wrap" onclick="copyMusicianLink()" title="Click to copy shortlink https://hgfapp.link/chords">
+          <div class="brand-title">
+            <span>THE BAND</span>
+            <span class="brand-badge">CHORDS</span>
+          </div>
+          <div class="brand-sub">HGF Connect • 1-tap copy</div>
+        </div>
+      </div>
+
+      <!-- LIVE TRANSPOSE WIDGET (Like Ultimate Guitar) -->
+      <div class="transpose-widget">
+        <button class="trans-step-btn" onclick="transposeCurrentSong(-1)" title="Transpose down 1 semitone">-</button>
+        <div class="current-key-pill" id="currentKeyPill" onclick="openKeyPickerModal()" title="Click to choose key / capo">
+          <span id="keyLabel">Key: C</span>
+        </div>
+        <button class="trans-step-btn" onclick="transposeCurrentSong(1)" title="Transpose up 1 semitone">+</button>
+      </div>
+
+      <!-- STAGE ACTIONS -->
+      <div class="topbar-right">
+        <button class="icon-btn" onclick="openEditCurrentSong()" title="Edit Song (SongBook Pro Style)">✏️</button>
+        <button class="icon-btn" id="markupToggleBtn" onclick="toggleMarkupBar()" title="Draw / Annotate (Screenshot 1)">🎨</button>
+        <button class="icon-btn" onclick="openSourceModal()" title="Pad Backing Tracks & Audio Sources (Screenshot 5)">🎧</button>
+        <button class="icon-btn" id="autoScrollToggleBtn" onclick="toggleAutoScroll()" title="Auto-Scroll">📜</button>
+      </div>
+    </header>
+
+    <!-- DRAWING TOOLBAR (Screenshot 1: Yellow highlighter, red pen, eraser, etc.) -->
+    <div class="markup-bar" id="markupBar">
+      <button class="tool-color-btn active" style="background:#facc15;" onclick="setDrawColor('#facc15', 6)" title="Yellow Highlighter"></button>
+      <button class="tool-color-btn" style="background:#ef4444;" onclick="setDrawColor('#ef4444', 3)" title="Red Pen"></button>
+      <button class="tool-color-btn" style="background:#38bdf8;" onclick="setDrawColor('#38bdf8', 3)" title="Cyan Pen"></button>
+      <button class="tool-color-btn" style="background:#ffffff;" onclick="setDrawColor('#ffffff', 3)" title="White Pen"></button>
+      <button class="icon-btn" style="width:28px;height:28px;font-size:12px;" onclick="setDrawColor('eraser', 16)" title="Eraser">🧹</button>
+      <button class="icon-btn" style="width:28px;height:28px;font-size:12px;" onclick="undoCanvasDraw()" title="Undo">↶</button>
+      <button class="icon-btn" style="width:28px;height:28px;font-size:12px;color:var(--accent-red);" onclick="clearCanvasDraw()" title="Clear Canvas">🗑️</button>
+    </div>
+
+    <!-- SHEET VIEWPORT -->
+    <div class="sheet-wrapper" id="sheetWrapper">
+      <!-- Annotation Canvas -->
+      <canvas id="drawCanvas"></canvas>
+
+      <!-- Song Header inside sheet -->
+      <div class="song-sheet-header">
+        <h1 class="sheet-song-title" id="sheetTitle">10,000 Reasons</h1>
+        <div class="sheet-song-meta">
+          <span id="sheetArtist" style="font-weight:600;color:#cbd5e1;">Bethel Music, Matt Redman</span>
+          <span class="meta-tag" id="sheetKeyBadge">Key: C</span>
+          <span class="meta-tag" id="sheetCapoBadge">Capo: 0</span>
+          <span class="meta-tag" id="sheetTempoBadge">
+            <span class="metronome-dot" id="metronomeDot"></span>
+            <span id="tempoLabel">73 BPM</span>
+          </span>
+          <span class="meta-tag" id="sheetTimeSigBadge">4/4</span>
+        </div>
+      </div>
+
+      <!-- Chords & Lyrics Display -->
+      <div class="chord-sheet-container" id="sheetContent">
+        <!-- Live rendered chord sheet -->
+      </div>
+    </div>
+
+    <!-- FLOATING ACTION DOCK (Screenshot 1: Zoom, Metronome, Section Jump) -->
+    <div class="stage-fab-dock">
+      <button class="fab-btn" onclick="adjustFontSize(1)" title="Zoom In Chords">🔍+</button>
+      <button class="fab-btn" onclick="adjustFontSize(-1)" title="Zoom Out Chords">🔍-</button>
+      <button class="fab-btn" id="metronomeFab" onclick="toggleMetronome()" title="Toggle Metronome Sound">⏱️</button>
+      <button class="fab-btn" onclick="jumpToNextSection()" title="Jump to Next Section">⬇</button>
+    </div>
+
+    <!-- AUTO-SCROLL CONTROLS BAR -->
+    <div class="autoscroll-bar" id="autoScrollBar">
+      <button class="icon-btn" id="scrollPlayBtn" onclick="toggleScrollPlay()">▶</button>
+      <div class="autoscroll-slider-wrap">
+        <span style="font-size:12px;color:var(--text-muted);">Speed:</span>
+        <input type="range" min="1" max="10" value="3" class="autoscroll-slider" id="scrollSpeedInput" oninput="setScrollSpeed(this.value)">
+        <span id="scrollSpeedLabel" style="font-size:12px;font-weight:700;color:var(--primary);width:18px;">3</span>
+      </div>
+      <button class="icon-btn" onclick="toggleAutoScroll(false)">✕</button>
+    </div>
+  </main>
+</div>
+
+<!-- ================= MODALS ================= -->
+
+<!-- 1. EDIT SONG MODAL (SongBook Pro Style Screenshots 2 & 3) -->
+<div class="modal-overlay" id="editSongModal">
+  <div class="edit-modal">
+    <div class="modal-header">
+      <button class="icon-btn" onclick="closeEditModal()" style="width:30px;height:30px;">‹</button>
+      <div class="modal-header-title" id="editModalTitle">Edit Song</div>
+      <button class="icon-btn active" onclick="saveSongFromEditor()" title="Save Song" style="width:32px;height:32px;">💾</button>
+    </div>
+
+    <!-- Tabs: General | Advanced -->
+    <div class="modal-tabs">
+      <button class="modal-tab-btn active" id="tabBtnGeneral" onclick="switchEditTab('general')">General</button>
+      <button class="modal-tab-btn" id="tabBtnAdvanced" onclick="switchEditTab('advanced')">Advanced</button>
+    </div>
+
+    <div class="modal-body">
+      <!-- GENERAL TAB -->
+      <div class="tab-pane active" id="tabGeneral">
+        <div class="form-group">
+          <label class="form-label">Title</label>
+          <input type="text" id="editTitleInput" class="form-input" placeholder="e.g. 10,000 Reasons">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Alternative title</label>
+            <input type="text" id="editAltTitleInput" class="form-input" placeholder="e.g. Bless the Lord">
+          </div>
+          <div class="form-group" style="max-width:140px;">
+            <label class="form-label">Original Key</label>
+            <select id="editKeySelect" class="form-select">
+              <option value="C">C</option>
+              <option value="C#">C#</option>
+              <option value="Db">Db</option>
+              <option value="D">D</option>
+              <option value="Eb">Eb</option>
+              <option value="E">E</option>
+              <option value="F">F</option>
+              <option value="F#">F#</option>
+              <option value="Gb">Gb</option>
+              <option value="G">G</option>
+              <option value="Ab">Ab</option>
+              <option value="A">A</option>
+              <option value="Bb">Bb</option>
+              <option value="B">B</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Artist</label>
+          <input type="text" id="editArtistInput" class="form-input" placeholder="e.g. Bethel Music, Jean Johnson">
+        </div>
+
+        <!-- Format Selector Radio: Chords over Lyrics vs ChordPro (Screenshot 2) -->
+        <div class="format-radio-group">
+          <label class="radio-label">
+            <input type="radio" name="chordFormatRadio" value="chords_over_lyrics" checked id="radioChordsOverLyrics">
+            <span>Chords over Lyrics</span>
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="chordFormatRadio" value="chordpro" id="radioChordPro">
+            <span>ChordPro</span>
+          </label>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Add tags...</label>
+          <input type="text" id="editTagsInput" class="form-input" placeholder="Worship, Fast, Communion, Sunday">
+        </div>
+      </div>
+
+      <!-- ADVANCED TAB (Screenshot 3) -->
+      <div class="tab-pane" id="tabAdvanced">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Time Signature</label>
+            <input type="text" id="editTimeSigInput" class="form-input" placeholder="4/4">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tempo (BPM)</label>
+            <input type="number" id="editTempoInput" class="form-input" placeholder="73">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Duration</label>
+            <input type="text" id="editDurationInput" class="form-input" placeholder="5:40">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Section Order</label>
+            <input type="text" id="editSectionOrderInput" class="form-input" placeholder="Intro, V1, C, V2, C, B, C, Outro">
+          </div>
+          <div class="form-group" style="max-width:140px;">
+            <label class="form-label">Song Number</label>
+            <input type="text" id="editSongNumberInput" class="form-input" placeholder="#104">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Copyright info</label>
+          <input type="text" id="editCopyrightInput" class="form-input" placeholder="© 2011 Thankyou Music / Said And Done Music">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Web URL Link</label>
+          <input type="text" id="editWebUrlInput" class="form-input" placeholder="https://youtube.com/watch?v=...">
+        </div>
+      </div>
+
+      <!-- QUICK CHORD INSERTION TOOLBAR (Screenshots 2 & 3) -->
+      <div class="quick-chord-toolbar" id="quickChordToolbar">
+        <button class="quick-tag-btn" onclick="insertAtCursor('Chorus:\n')">Chorus</button>
+        <button class="quick-tag-btn" onclick="insertAtCursor('Verse:\n')">Verse</button>
+        <button class="quick-tag-btn" onclick="insertAtCursor('Bridge:\n')">Bridge</button>
+        <button class="quick-tag-btn chord-pill" onclick="insertAtCursor('F ')">F</button>
+        <button class="quick-tag-btn chord-pill" onclick="insertAtCursor('C ')">C</button>
+        <button class="quick-tag-btn chord-pill" onclick="insertAtCursor('G/B ')">G/B</button>
+        <button class="quick-tag-btn chord-pill" onclick="insertAtCursor('Am ')">Am</button>
+        <button class="quick-tag-btn chord-pill" onclick="insertAtCursor('Gsus4 ')">Gsus4</button>
+        <button class="quick-tag-btn chord-pill" onclick="insertAtCursor('D/F# ')">D/F#</button>
+        <button class="quick-tag-btn chord-pill" onclick="insertAtCursor('Em ')">Em</button>
+        <button class="quick-tag-btn" onclick="undoEditorText()">↶</button>
+      </div>
+
+      <!-- TEXT EDITOR -->
+      <textarea id="editSheetTextarea" class="sheet-editor-textarea" placeholder="Paste chords and lyrics here..."></textarea>
+    </div>
+  </div>
+</div>
+
+<!-- 2. SELECT SOURCE / AMBIENT PADS MODAL (Screenshot 5) -->
+<div class="modal-overlay" id="sourceModal">
+  <div class="edit-modal" style="max-width:440px;height:auto;max-height:90vh;">
+    <div class="modal-header">
+      <div class="modal-header-title">Select source...</div>
+      <button class="icon-btn" onclick="closeSourceModal()" style="width:30px;height:30px;">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- Ambient Pad Generator -->
+      <div class="pad-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div style="font-weight:700;font-size:14px;color:#fff;display:flex;align-items:center;gap:8px;">
+            <span>🎵</span> Ambient Pad Backing Track
+          </div>
+          <button class="sidebar-action-btn primary" id="padToggleBtn" onclick="toggleAmbientPad()">
+            ▶ Play Pad
+          </button>
+        </div>
+        <div style="font-size:12px;color:var(--text-muted);">
+          Continuous warm worship synth pad in current key (<span id="padCurrentKeyLabel" style="color:var(--primary);font-weight:700;">C</span>)
+        </div>
+        <!-- 12-key quick selector -->
+        <div class="pad-key-grid">
+          <button class="pad-key-btn active" onclick="setPadKey('C')">C</button>
+          <button class="pad-key-btn" onclick="setPadKey('Db')">Db</button>
+          <button class="pad-key-btn" onclick="setPadKey('D')">D</button>
+          <button class="pad-key-btn" onclick="setPadKey('Eb')">Eb</button>
+          <button class="pad-key-btn" onclick="setPadKey('E')">E</button>
+          <button class="pad-key-btn" onclick="setPadKey('F')">F</button>
+          <button class="pad-key-btn" onclick="setPadKey('F#')">F#</button>
+          <button class="pad-key-btn" onclick="setPadKey('G')">G</button>
+          <button class="pad-key-btn" onclick="setPadKey('Ab')">Ab</button>
+          <button class="pad-key-btn" onclick="setPadKey('A')">A</button>
+          <button class="pad-key-btn" onclick="setPadKey('Bb')">Bb</button>
+          <button class="pad-key-btn" onclick="setPadKey('B')">B</button>
+        </div>
+      </div>
+
+      <!-- Other Sources List (Screenshot 5) -->
+      <div class="source-list">
+        <div class="source-item" onclick="showToast('Device audio ready')">
+          <div class="source-item-left">
+            <span>🎧</span>
+            <span>Device</span>
+          </div>
+          <span>›</span>
+        </div>
+        <div class="source-item" onclick="triggerFileInput()">
+          <div class="source-item-left">
+            <span>📁</span>
+            <span>Files</span>
+          </div>
+          <span>›</span>
+        </div>
+        <div class="source-item" onclick="openSpotifyLink()">
+          <div class="source-item-left">
+            <span>🟢</span>
+            <span>Spotify</span>
+          </div>
+          <span>›</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 3. KEY & CAPO PICKER MODAL -->
+<div class="modal-overlay" id="keyPickerModal">
+  <div class="edit-modal" style="max-width:380px;height:auto;">
+    <div class="modal-header">
+      <div class="modal-header-title">Transpose Key & Capo</div>
+      <button class="icon-btn" onclick="closeKeyPickerModal()" style="width:30px;height:30px;">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Sounding Key</label>
+        <div class="pad-key-grid" id="keyGridContainer">
+          <!-- 12 Keys -->
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:10px;">
+        <label class="form-label">Capo Position</label>
+        <div class="pad-key-grid">
+          <button class="pad-key-btn" onclick="setCapo(0)">0 (None)</button>
+          <button class="pad-key-btn" onclick="setCapo(1)">1</button>
+          <button class="pad-key-btn" onclick="setCapo(2)">2</button>
+          <button class="pad-key-btn" onclick="setCapo(3)">3</button>
+          <button class="pad-key-btn" onclick="setCapo(4)">4</button>
+          <button class="pad-key-btn" onclick="setCapo(5)">5</button>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:10px;">
+        <button class="sidebar-action-btn" onclick="resetTransposition()">Reset to Original</button>
+        <button class="sidebar-action-btn primary" onclick="closeKeyPickerModal()">Done</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 4. SIMPLE WORD SEARCH & CHORD SCRAPER MODAL -->
+<div class="modal-overlay" id="scraperModal">
+  <div class="edit-modal" style="max-width:600px;height:85vh;">
+    <div class="modal-header">
+      <div class="modal-header-title">Search & Import Chords</div>
+      <button class="icon-btn" onclick="closeScraperModal()" style="width:30px;height:30px;">✕</button>
+    </div>
+    <div class="modal-body" style="padding:14px;">
+      <!-- Search Input -->
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="scraperQueryInput" class="form-input" style="flex:1;" placeholder="Search title, artist, or lyrics (e.g. bless the lord, 10000 reasons)..." onkeydown="if(event.key==='Enter') executeScraperSearch()">
+        <button class="sidebar-action-btn primary" id="scraperSearchBtn" onclick="executeScraperSearch()">Search</button>
+      </div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">
+        Search any lyrics or keywords. Top church worship chords will be fetched with 1-tap import.
+      </div>
+
+      <!-- Results Container -->
+      <div id="scraperResultsList" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin-top:10px;">
+        <div style="text-align:center;padding:30px 10px;color:var(--text-muted);font-size:13px;">
+          Type a song name, lyric phrase, or artist above and click Search.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">Link copied to clipboard!</div>
+
+<!-- JAVASCRIPT ENGINE -->
+<script>
+  // MUSIC THEORY & TRANSPOSITION ENGINE
+  const CHROMATIC_SHARPS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  const CHROMATIC_FLATS  = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+
+  const NOTE_TO_SEMITONE = {
+    'C': 0, 'B#': 0,
+    'C#': 1, 'Db': 1,
+    'D': 2,
+    'D#': 3, 'Eb': 3,
+    'E': 4, 'Fb': 4,
+    'F': 5, 'E#': 5,
+    'F#': 6, 'Gb': 6,
+    'G': 7,
+    'G#': 8, 'Ab': 8,
+    'A': 9,
+    'A#': 10, 'Bb': 10,
+    'B': 11, 'Cb': 11
+  };
+
+  const FLAT_KEYS = ['F', 'Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Dm', 'Gm', 'Cm', 'Fm', 'Bbm', 'Ebm'];
+
+  function transposeNote(note, semitones, preferFlats = false) {
+    if (!(note in NOTE_TO_SEMITONE)) return note;
+    let curr = NOTE_TO_SEMITONE[note];
+    let next = (curr + semitones) % 12;
+    if (next < 0) next += 12;
+    return preferFlats ? CHROMATIC_FLATS[next] : CHROMATIC_SHARPS[next];
+  }
+
+  function transposeChord(chord, semitones, preferFlats = false) {
+    if (!chord || semitones === 0) return chord;
+    return chord.replace(/([A-G][b#]?)([^/]*)(?:\/([A-G][b#]?))?/g, (match, root, ext, bass) => {
+      const newRoot = transposeNote(root, semitones, preferFlats);
+      const newBass = bass ? '/' + transposeNote(bass, semitones, preferFlats) : '';
+      return newRoot + (ext || '') + newBass;
+    });
+  }
+
+  // APP STATE
+  let songs = [];
+  let currentSong = null;
+  let currentTransposeOffset = 0;
+  let currentCapo = 0;
+  let fontSizePx = 17;
+  let isAutoScrolling = false;
+  let scrollSpeed = 3;
+  let scrollInterval = null;
+  let isMetronomePlaying = false;
+  let metronomeTimer = null;
+  let isMarkupActive = false;
+  let audioCtx = null;
+  let ambientPadNode = null;
+  let padGainNode = null;
+  let activePadKey = 'C';
+  let canvasUndoStack = [];
+
+  // DEFAULT SAMPLE SONG (Matching Screenshot 1, 2, 3)
+  const SAMPLE_SONG = {
+    id: '10-000-reasons',
+    title: '10,000 Reasons',
+    alternativeTitle: 'Bless the Lord',
+    artist: 'Bethel Music, Matt Redman',
+    key: 'C',
+    originalKey: 'C',
+    capo: '0',
+    tempo: 73,
+    timeSignature: '4/4',
+    chordFormat: 'chords_over_lyrics',
+    tags: ['Worship', 'Sunday', 'Praise'],
+    chords: `Intro:
+F  C  G/B  Am
+F  C  Gsus4  G
+
+Verse 1:
+      F          C            G          Am
+The sun comes up, it's a new day dawning;
+F          C          G     Am
+It's time to sing Your song again.
+F                 C          G             Am
+Whatever may pass, and whatever lies before me,
+F2         C               Gsus4 G   C   Csus4 C
+Let me be singing when the even- ing comes.
+
+Chorus:
+          F          C
+Bless the Lord, O my soul,
+G/B  Am
+O my soul,
+F             C    Gsus4 G
+Worship His holy name.
+          F        Am
+Sing like never before,
+F  G  Am
+O my soul.
+    F               G    F/C  C
+I'll worship Your holy name.
+
+Verse 2:
+Drums - In
+              F             C             G       Am
+You're rich in love, and You're slow to anger.
+     F             C             G          Am
+Your name is great, and Your heart is kind.
+    F               C              G       Am
+For all Your goodness, I will keep on singing;
+F2             C             Gsus4 G   C   Csus4 C
+Ten thousand reasons for my heart to find.
+
+Chorus:
+          F          C
+Bless the Lord, O my soul,
+G/B  Am
+O my soul,
+F             C    Gsus4 G
+Worship His holy name.
+          F        Am
+Sing like never before,
+F  G  Am
+O my soul.
+    F               G    F/C  C
+I'll worship Your holy name.
+
+Bridge:
+F  C  G  Am
+F  C  Gsus4  G
+
+Verse 3:
+           F          C               G         Am
+And on that day when my strength is failing,
+    F               C          G          Am
+The end draws near, and my time has come;
+F             C             G           Am
+Still my soul will sing Your praise unending:
+F2             C             Gsus4 G   C   Csus4 C
+Ten thousand years and then forevermore!
+
+Chorus:
+          F          C
+Bless the Lord, O my soul,
+G/B  Am
+O my soul,
+F             C    Gsus4 G
+Worship His holy name.
+          F        Am
+Sing like never before,
+F  G  Am
+O my soul.
+    F               G    F/C  C
+I'll worship Your holy name.
+
+Outro:
+    F               G    Am
+Yes, I will worship Your holy name.
+     F               G        C
+Lord, I'll worship Your holy name.`
+  };
+
+  // INITIALIZATION
+  window.addEventListener('DOMContentLoaded', async () => {
+    initCanvas();
+    buildKeyGrid();
+    await loadSongsFromCloud();
+    setupPedalControls();
+    registerServiceWorker();
+
+    // Auto-sync every 2.5 seconds silently
+    setInterval(silentSync, 2500);
+  });
+
+  function registerServiceWorker() {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/theband-sw.js').catch(() => {});
+    }
+  }
+
+  // CLOUD SYNC & LOCAL STORAGE
+  async function loadSongsFromCloud() {
+    try {
+      const res = await fetch('/api/worship', { cache: 'no-store' });
+      if (res.ok) {
+        const cloudSongs = await res.json();
+        if (Array.isArray(cloudSongs) && cloudSongs.length > 0) {
+          songs = cloudSongs;
+          localStorage.setItem('hgf_band_songs', JSON.stringify(songs));
+        }
+      }
+    } catch (e) {
+      const cached = localStorage.getItem('hgf_band_songs');
+      if (cached) {
+        try { songs = JSON.parse(cached); } catch {}
+      }
+    }
+
+    if (songs.length === 0) {
+      songs = [SAMPLE_SONG];
+    }
+
+    // Load active song
+    const lastId = localStorage.getItem('hgf_band_active_id');
+    const match = songs.find(s => s.id === lastId);
+    selectSong(match || songs[0]);
+    renderSongList();
+  }
+
+  async function silentSync() {
+    try {
+      const res = await fetch('/api/worship', { cache: 'no-store' });
+      if (res.ok) {
+        const cloudSongs = await res.json();
+        if (Array.isArray(cloudSongs) && cloudSongs.length > 0) {
+          const prevHash = JSON.stringify(songs.map(s => ({ id: s.id, updated: s.updatedAt })));
+          const nextHash = JSON.stringify(cloudSongs.map(s => ({ id: s.id, updated: s.updatedAt })));
+          if (prevHash !== nextHash) {
+            songs = cloudSongs;
+            localStorage.setItem('hgf_band_songs', JSON.stringify(songs));
+            renderSongList();
+            if (currentSong) {
+              const updated = songs.find(s => s.id === currentSong.id);
+              if (updated && updated.updatedAt !== currentSong.updatedAt) {
+                currentSong = updated;
+                renderSheet();
+              }
+            }
+          }
+        }
+      }
+    } catch {}
+  }
+
+  // SIDEBAR & GROUPED SONG LIST (Screenshot 4)
+  function toggleSidebar(show) {
+    const sb = document.getElementById('sidebar');
+    const scrim = document.getElementById('sidebarScrim');
+    if (show === undefined) show = !sb.classList.contains('open');
+    sb.classList.toggle('open', show);
+    scrim.classList.toggle('visible', show);
+  }
+
+  function onSearchInput(val) {
+    document.getElementById('clearSearchBtn').style.display = val ? 'block' : 'none';
+    renderSongList(val);
+  }
+
+  function clearSearch() {
+    document.getElementById('songSearchInput').value = '';
+    document.getElementById('clearSearchBtn').style.display = 'none';
+    renderSongList();
+  }
+
+  function renderSongList(filterText = '') {
+    const container = document.getElementById('songListContainer');
+    const orderBy = document.getElementById('orderBySelect').value;
+    let list = [...songs];
+
+    const q = (filterText || '').trim().toLowerCase();
+    if (q) {
+      list = list.filter(s =>
+        (s.title || '').toLowerCase().includes(q) ||
+        (s.alternativeTitle || '').toLowerCase().includes(q) ||
+        (s.artist || '').toLowerCase().includes(q) ||
+        (s.key || '').toLowerCase().includes(q) ||
+        (s.chords || '').toLowerCase().includes(q)
+      );
+    }
+
+    // Sort
+    if (orderBy === 'title') {
+      list.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+    } else if (orderBy === 'key') {
+      list.sort((a, b) => (a.key || '').localeCompare(b.key || ''));
+    } else if (orderBy === 'artist') {
+      list.sort((a, b) => (a.artist || '').localeCompare(b.artist || ''));
+    } else if (orderBy === 'recent') {
+      list.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    }
+
+    // Group by first letter (#, A, B, C...)
+    const groups = {};
+    for (const song of list) {
+      const first = (song.title || '#').trim()[0].toUpperCase();
+      const letter = /[A-Z]/.test(first) ? first : '#';
+      if (!groups[letter]) groups[letter] = [];
+      groups[letter].push(song);
+    }
+
+    let html = '';
+    const sortedKeys = Object.keys(groups).sort((a, b) => {
+      if (a === '#') return -1;
+      if (b === '#') return 1;
+      return a.localeCompare(b);
+    });
+
+    for (const key of sortedKeys) {
+      html += `<div class="group-letter">${key}</div>`;
+      for (const s of groups[key]) {
+        const isActive = currentSong && currentSong.id === s.id;
+        html += `
+          <div class="song-item ${isActive ? 'active' : ''}" onclick="onSongItemClick('${s.id}')">
+            <div class="song-item-title">
+              <span>${escapeHtml(s.title)}</span>
+              ${s.key ? `<span class="song-item-key-badge">${s.key}</span>` : ''}
+            </div>
+            <div class="song-item-artist">${escapeHtml(s.artist || 'House of Grace')}</div>
+          </div>
+        `;
+      }
+    }
+
+    if (list.length === 0) {
+      html = `<div style="padding:30px 14px;text-align:center;color:var(--text-muted);font-size:13px;">No songs found.</div>`;
+    }
+
+    container.innerHTML = html;
+  }
+
+  function onSongItemClick(id) {
+    const s = songs.find(x => x.id === id);
+    if (s) {
+      selectSong(s);
+      toggleSidebar(false);
+    }
+  }
+
+  function selectSong(song) {
+    currentSong = song;
+    currentTransposeOffset = 0;
+    currentCapo = parseInt(song.capo || 0, 10);
+    localStorage.setItem('hgf_band_active_id', song.id);
+    renderSheet();
+    renderSongList();
+  }
+
+  // RENDER SHEET & LIVE TRANSPOSITION
+  function renderSheet() {
+    if (!currentSong) return;
+
+    document.getElementById('sheetTitle').textContent = currentSong.title;
+    document.getElementById('sheetArtist').textContent = currentSong.artist || 'House of Grace';
+
+    // Sounding key calculation
+    const origKey = currentSong.originalKey || currentSong.key || 'C';
+    const isFlats = FLAT_KEYS.includes(origKey);
+    const effectiveKey = transposeNote(origKey, currentTransposeOffset, isFlats);
+
+    document.getElementById('keyLabel').textContent = `Key: ${effectiveKey}${currentTransposeOffset !== 0 ? ` (${currentTransposeOffset > 0 ? '+' : ''}${currentTransposeOffset})` : ''}`;
+    document.getElementById('sheetKeyBadge').textContent = `Key: ${effectiveKey}`;
+    document.getElementById('sheetCapoBadge').textContent = `Capo: ${currentCapo || 0}`;
+    document.getElementById('sheetTempoBadge').style.display = currentSong.tempo ? 'inline-flex' : 'none';
+    document.getElementById('tempoLabel').textContent = `${currentSong.tempo || 70} BPM`;
+    document.getElementById('sheetTimeSigBadge').textContent = currentSong.timeSignature || '4/4';
+    document.getElementById('padCurrentKeyLabel').textContent = effectiveKey;
+    activePadKey = effectiveKey.replace('m', '');
+
+    const rawContent = currentSong.chords || currentSong.lyrics || '';
+    const formattedHtml = parseAndTransposeSheet(rawContent, currentTransposeOffset, isFlats);
+    document.getElementById('sheetContent').innerHTML = formattedHtml;
+
+    // Reset Canvas drawing on song switch
+    clearCanvasDraw(false);
+  }
+
+  // MUSIC SHEET PARSER & TRANSPOSER
+  function parseAndTransposeSheet(text, semitones, preferFlats) {
+    if (!text) return '<div style="color:var(--text-muted);padding:20px;">No chords entered yet. Tap ✏️ to edit.</div>';
+
+    const lines = text.split('\n');
+    let out = [];
+
+    // Detect section headers like Intro:, [Verse 1], Chorus:, Verse 1:, Bridge:
+    const SECTION_REGEX = /^\s*(\[?(Intro|Verse|Chorus|Pre-Chorus|Bridge|Vamp|Tag|Interlude|Outro|Ending|Instrumental|Refrain).*?\]?:?)\s*$/i;
+
+    // Chord line detection: line composed mostly of chord tokens, spaces, slash chords
+    const CHORD_TOKEN_REGEX = /\b([A-G][b#]?(?:m|maj|min|sus|add|dim|aug|2|4|5|6|7|9|11|13)*(?:\/[A-G][b#]?)?)\b/g;
+
+    for (let i = 0; i < lines.length; i++) {
+      const rawLine = lines[i];
+      const trimmed = rawLine.trim();
+
+      if (!trimmed) {
+        out.push('<br>');
+        continue;
+      }
+
+      // Check section header
+      const secMatch = rawLine.match(SECTION_REGEX);
+      if (secMatch) {
+        out.push(`<div class="section-header" data-section="${escapeHtml(trimmed)}">${escapeHtml(trimmed.replace(/[\[\]]/g, ''))}</div>`);
+        continue;
+      }
+
+      // Check if this line is in ChordPro format [C]Bless the [G]Lord
+      if (/\[[A-G][b#]?.*?\]/.test(rawLine)) {
+        const transChordPro = rawLine.replace(/\[([A-G][b#]?[^\]]*)\]/g, (m, chord) => {
+          const trans = transposeChord(chord, semitones, preferFlats);
+          return `<span class="chord-token" onclick="showChordDiagram('${trans}')">${escapeHtml(trans)}</span>`;
+        });
+        out.push(`<div>${transChordPro}</div>`);
+        continue;
+      }
+
+      // Check if this line is purely a chord line (or starts with chords)
+      const words = trimmed.split(/\s+/);
+      const isPureChordLine = words.every(w => /^[A-G][b#]?(?:m|maj|min|sus|add|dim|aug|2|4|5|6|7|9|11|13)*(?:\/[A-G][b#]?)?$/.test(w) || /^[-–—()|]+$/.test(w));
+
+      if (isPureChordLine) {
+        // Transpose each chord in its column position
+        const transposedLine = rawLine.replace(CHORD_TOKEN_REGEX, (m, chord) => {
+          const trans = transposeChord(chord, semitones, preferFlats);
+          return `<span class="chord-token" onclick="showChordDiagram('${trans}')">${escapeHtml(trans)}</span>`;
+        });
+        out.push(`<div>${transposedLine}</div>`);
+      } else {
+        // Lyric line
+        out.push(`<div>${escapeHtml(rawLine)}</div>`);
+      }
+    }
+
+    return out.join('');
+  }
+
+  function transposeCurrentSong(step) {
+    currentTransposeOffset += step;
+    renderSheet();
+    showToast(`Transposed: ${currentTransposeOffset > 0 ? '+' : ''}${currentTransposeOffset} semitones`);
+  }
+
+  function resetTransposition() {
+    currentTransposeOffset = 0;
+    renderSheet();
+    closeKeyPickerModal();
+  }
+
+  function buildKeyGrid() {
+    const container = document.getElementById('keyGridContainer');
+    let html = '';
+    for (const k of CHROMATIC_SHARPS) {
+      html += `<button class="pad-key-btn" onclick="selectDirectKey('${k}')">${k}</button>`;
+    }
+    container.innerHTML = html;
+  }
+
+  function selectDirectKey(targetKey) {
+    if (!currentSong) return;
+    const orig = currentSong.originalKey || currentSong.key || 'C';
+    const origSemi = NOTE_TO_SEMITONE[orig] || 0;
+    const targetSemi = NOTE_TO_SEMITONE[targetKey] || 0;
+    let diff = targetSemi - origSemi;
+    if (diff > 6) diff -= 12;
+    if (diff < -5) diff += 12;
+    currentTransposeOffset = diff;
+    renderSheet();
+    closeKeyPickerModal();
+  }
+
+  function setCapo(capoVal) {
+    currentCapo = capoVal;
+    if (currentSong) currentSong.capo = String(capoVal);
+    document.getElementById('sheetCapoBadge').textContent = `Capo: ${capoVal}`;
+    closeKeyPickerModal();
+    showToast(`Capo set to ${capoVal}`);
+  }
+
+  function adjustFontSize(delta) {
+    fontSizePx = Math.max(12, Math.min(32, fontSizePx + delta));
+    document.getElementById('sheetContent').style.fontSize = fontSizePx + 'px';
+  }
+
+  // AUTO-SCROLL
+  function toggleAutoScroll(forceState) {
+    const bar = document.getElementById('autoScrollBar');
+    const toggleBtn = document.getElementById('autoScrollToggleBtn');
+    const show = forceState !== undefined ? forceState : !bar.classList.contains('visible');
+    bar.classList.toggle('visible', show);
+    toggleBtn.classList.toggle('active', show);
+    if (!show && isAutoScrolling) {
+      stopAutoScroll();
+    }
+  }
+
+  function toggleScrollPlay() {
+    if (isAutoScrolling) {
+      stopAutoScroll();
+    } else {
+      startAutoScroll();
+    }
+  }
+
+  function startAutoScroll() {
+    isAutoScrolling = true;
+    document.getElementById('scrollPlayBtn').textContent = '⏸';
+    const container = document.getElementById('sheetWrapper');
+    if (scrollInterval) clearInterval(scrollInterval);
+    scrollInterval = setInterval(() => {
+      container.scrollTop += 1;
+      if (container.scrollTop + container.clientHeight >= container.scrollHeight) {
+        stopAutoScroll();
+      }
+    }, Math.max(15, 75 - (scrollSpeed * 6)));
+  }
+
+  function stopAutoScroll() {
+    isAutoScrolling = false;
+    document.getElementById('scrollPlayBtn').textContent = '▶';
+    if (scrollInterval) clearInterval(scrollInterval);
+  }
+
+  function setScrollSpeed(val) {
+    scrollSpeed = parseInt(val, 10);
+    document.getElementById('scrollSpeedLabel').textContent = val;
+    if (isAutoScrolling) {
+      startAutoScroll();
+    }
+  }
+
+  function jumpToNextSection() {
+    const container = document.getElementById('sheetWrapper');
+    const headers = Array.from(container.querySelectorAll('.section-header'));
+    const currentScroll = container.scrollTop;
+    for (const h of headers) {
+      if (h.offsetTop > currentScroll + 30) {
+        container.scrollTo({ top: h.offsetTop - 10, behavior: 'smooth' });
+        return;
+      }
+    }
+    // Loop back to top if at bottom
+    container.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // WEBAUDIO AMBIENT WORSHIP PAD GENERATOR (Screenshot 5)
+  function initAudioContext() {
+    if (!audioCtx) {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AudioContextClass();
+    }
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+  }
+
+  function toggleAmbientPad() {
+    initAudioContext();
+    if (ambientPadNode) {
+      stopAmbientPad();
+    } else {
+      startAmbientPad(activePadKey);
+    }
+  }
+
+  const KEY_FREQUENCIES = {
+    'C': 130.81, 'Db': 138.59, 'D': 146.83, 'Eb': 155.56,
+    'E': 164.81, 'F': 174.61, 'F#': 185.00, 'G': 196.00,
+    'Ab': 207.65, 'A': 220.00, 'Bb': 233.08, 'B': 246.94
+  };
+
+  function startAmbientPad(keyName) {
+    initAudioContext();
+    stopAmbientPad();
+
+    const rootFreq = KEY_FREQUENCIES[keyName] || 130.81;
+    const fifthFreq = rootFreq * 1.4983; // Perfect Fifth
+    const octaveFreq = rootFreq * 2;
+
+    const masterGain = audioCtx.createGain();
+    masterGain.gain.setValueAtTime(0.001, audioCtx.currentTime);
+    masterGain.gain.exponentialRampToValueAtTime(0.28, audioCtx.currentTime + 3.0); // Smooth warm fade in
+
+    // Warm Low-pass filter for lush ambient sound
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(420, audioCtx.currentTime);
+    filter.Q.setValueAtTime(1.8, audioCtx.currentTime);
+
+    // Subtle chorus / LFO
+    const lfo = audioCtx.createOscillator();
+    const lfoGain = audioCtx.createGain();
+    lfo.frequency.setValueAtTime(0.25, audioCtx.currentTime);
+    lfoGain.gain.setValueAtTime(45, audioCtx.currentTime);
+    lfo.connect(lfoGain);
+    lfoGain.connect(filter.frequency);
+    lfo.start();
+
+    // 3 warm oscillators: Root, Fifth, Sub
+    const oscRoot = audioCtx.createOscillator();
+    oscRoot.type = 'sawtooth';
+    oscRoot.frequency.setValueAtTime(rootFreq, audioCtx.currentTime);
+
+    const oscFifth = audioCtx.createOscillator();
+    oscFifth.type = 'sawtooth';
+    oscFifth.frequency.setValueAtTime(fifthFreq, audioCtx.currentTime);
+
+    const oscSub = audioCtx.createOscillator();
+    oscSub.type = 'sine';
+    oscSub.frequency.setValueAtTime(rootFreq / 2, audioCtx.currentTime);
+
+    oscRoot.connect(filter);
+    oscFifth.connect(filter);
+    oscSub.connect(filter);
+    filter.connect(masterGain);
+    masterGain.connect(audioCtx.destination);
+
+    oscRoot.start();
+    oscFifth.start();
+    oscSub.start();
+
+    ambientPadNode = { oscRoot, oscFifth, oscSub, lfo, masterGain };
+    padGainNode = masterGain;
+
+    document.getElementById('padToggleBtn').textContent = '⏹ Stop Pad';
+    document.getElementById('padToggleBtn').classList.remove('primary');
+    showToast(`Ambient Worship Pad playing in Key ${keyName}`);
+  }
+
+  function stopAmbientPad() {
+    if (!ambientPadNode) return;
+    try {
+      ambientPadNode.masterGain.gain.linearRampToValueAtTime(0.001, audioCtx.currentTime + 1.5);
+      setTimeout(() => {
+        if (ambientPadNode) {
+          ambientPadNode.oscRoot.stop();
+          ambientPadNode.oscFifth.stop();
+          ambientPadNode.oscSub.stop();
+          ambientPadNode.lfo.stop();
+          ambientPadNode = null;
+        }
+      }, 1600);
+    } catch {}
+    document.getElementById('padToggleBtn').textContent = '▶ Play Pad';
+    document.getElementById('padToggleBtn').classList.add('primary');
+  }
+
+  function setPadKey(key) {
+    activePadKey = key;
+    document.querySelectorAll('.pad-key-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.textContent.trim() === key);
+    });
+    document.getElementById('padCurrentKeyLabel').textContent = key;
+    if (ambientPadNode) {
+      startAmbientPad(key);
+    }
+  }
+
+  // VISUAL & AUDIO METRONOME
+  function toggleMetronome() {
+    isMetronomePlaying = !isMetronomePlaying;
+    const fab = document.getElementById('metronomeFab');
+    fab.classList.toggle('active', isMetronomePlaying);
+    if (isMetronomePlaying) {
+      startMetronome();
+    } else {
+      stopMetronome();
+    }
+  }
+
+  function startMetronome() {
+    stopMetronome();
+    const bpm = currentSong?.tempo || 73;
+    const intervalMs = (60 / bpm) * 1000;
+    const dot = document.getElementById('metronomeDot');
+
+    metronomeTimer = setInterval(() => {
+      dot.classList.add('flash');
+      setTimeout(() => dot.classList.remove('flash'), 100);
+    }, intervalMs);
+  }
+
+  function stopMetronome() {
+    if (metronomeTimer) clearInterval(metronomeTimer);
+  }
+
+  // CANVAS ANNOTATION & DRAWING (Screenshot 1)
+  let canvas, ctx, isDrawing = false, drawColor = '#facc15', drawLineWidth = 6;
+
+  function initCanvas() {
+    canvas = document.getElementById('drawCanvas');
+    ctx = canvas.getContext('2d');
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    canvas.addEventListener('mousedown', startDrawing);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stopDrawing);
+    canvas.addEventListener('touchstart', (e) => {
+      const t = e.touches[0];
+      startDrawing({ clientX: t.clientX, clientY: t.clientY });
+    }, { passive: true });
+    canvas.addEventListener('touchmove', (e) => {
+      const t = e.touches[0];
+      draw({ clientX: t.clientX, clientY: t.clientY });
+    }, { passive: true });
+    canvas.addEventListener('touchend', stopDrawing);
+  }
+
+  function resizeCanvas() {
+    const wrapper = document.getElementById('sheetWrapper');
+    canvas.width = wrapper.scrollWidth;
+    canvas.height = wrapper.scrollHeight;
+  }
+
+  function toggleMarkupBar() {
+    isMarkupActive = !isMarkupActive;
+    document.getElementById('markupBar').classList.toggle('visible', isMarkupActive);
+    document.getElementById('markupToggleBtn').classList.toggle('active', isMarkupActive);
+    canvas.classList.toggle('active', isMarkupActive);
+    if (isMarkupActive) resizeCanvas();
+  }
+
+  function setDrawColor(color, width) {
+    drawColor = color;
+    drawLineWidth = width;
+  }
+
+  function startDrawing(e) {
+    if (!isMarkupActive) return;
+    isDrawing = true;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    // Save snapshot for undo
+    canvasUndoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+  }
+
+  function draw(e) {
+    if (!isDrawing || !isMarkupActive) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    ctx.lineWidth = drawLineWidth;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    if (drawColor === 'eraser') {
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.strokeStyle = 'rgba(0,0,0,1)';
+    } else {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = drawColor;
+    }
+
+    ctx.lineTo(x, y);
+    ctx.stroke();
+  }
+
+  function stopDrawing() {
+    if (isDrawing) {
+      ctx.closePath();
+      isDrawing = false;
+    }
+  }
+
+  function undoCanvasDraw() {
+    if (canvasUndoStack.length > 0) {
+      const prev = canvasUndoStack.pop();
+      ctx.putImageData(prev, 0, 0);
+    }
+  }
+
+  function clearCanvasDraw(confirm = true) {
+    if (ctx && canvas) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      canvasUndoStack = [];
+    }
+  }
+
+  // SONGBOOK PRO STYLE SONG EDITOR (Screenshots 2 & 3)
+  function openEditCurrentSong() {
+    if (!currentSong) return;
+    document.getElementById('editModalTitle').textContent = 'Edit Song';
+    document.getElementById('editTitleInput').value = currentSong.title || '';
+    document.getElementById('editAltTitleInput').value = currentSong.alternativeTitle || '';
+    document.getElementById('editArtistInput').value = currentSong.artist || '';
+    document.getElementById('editKeySelect').value = currentSong.originalKey || currentSong.key || 'C';
+    document.getElementById('editTagsInput').value = (currentSong.tags || []).join(', ');
+
+    // Advanced fields
+    document.getElementById('editTimeSigInput').value = currentSong.timeSignature || '4/4';
+    document.getElementById('editTempoInput').value = currentSong.tempo || '';
+    document.getElementById('editDurationInput').value = currentSong.duration || '';
+    document.getElementById('editSectionOrderInput').value = currentSong.sectionOrder || '';
+    document.getElementById('editSongNumberInput').value = currentSong.songNumber || '';
+    document.getElementById('editCopyrightInput').value = currentSong.copyright || '';
+    document.getElementById('editWebUrlInput').value = currentSong.webUrl || '';
+
+    // Format selector
+    const isChordPro = currentSong.chordFormat === 'chordpro';
+    document.getElementById('radioChordPro').checked = isChordPro;
+    document.getElementById('radioChordsOverLyrics').checked = !isChordPro;
+
+    document.getElementById('editSheetTextarea').value = currentSong.chords || currentSong.lyrics || '';
+
+    // Populate quick chord buttons dynamically based on chords in the song
+    populateQuickChordToolbar(currentSong.chords || '');
+
+    switchEditTab('general');
+    document.getElementById('editSongModal').classList.add('visible');
+  }
+
+  function openNewSongModal() {
+    document.getElementById('editModalTitle').textContent = 'New Song';
+    document.getElementById('editTitleInput').value = '';
+    document.getElementById('editAltTitleInput').value = '';
+    document.getElementById('editArtistInput').value = '';
+    document.getElementById('editKeySelect').value = 'C';
+    document.getElementById('editTagsInput').value = '';
+    document.getElementById('editTimeSigInput').value = '4/4';
+    document.getElementById('editTempoInput').value = '';
+    document.getElementById('editDurationInput').value = '';
+    document.getElementById('editSectionOrderInput').value = '';
+    document.getElementById('editSongNumberInput').value = '';
+    document.getElementById('editCopyrightInput').value = '';
+    document.getElementById('editWebUrlInput').value = '';
+    document.getElementById('radioChordsOverLyrics').checked = true;
+    document.getElementById('editSheetTextarea').value = '';
+
+    switchEditTab('general');
+    document.getElementById('editSongModal').classList.add('visible');
+  }
+
+  function closeEditModal() {
+    document.getElementById('editSongModal').classList.remove('visible');
+  }
+
+  function switchEditTab(tabName) {
+    document.getElementById('tabBtnGeneral').classList.toggle('active', tabName === 'general');
+    document.getElementById('tabBtnAdvanced').classList.toggle('active', tabName === 'advanced');
+    document.getElementById('tabGeneral').classList.toggle('active', tabName === 'general');
+    document.getElementById('tabAdvanced').classList.toggle('active', tabName === 'advanced');
+  }
+
+  function populateQuickChordToolbar(text) {
+    const toolbar = document.getElementById('quickChordToolbar');
+    // Extract unique chords from text
+    const chordMatches = text.match(/\b[A-G][b#]?(?:m|maj|min|sus|add|dim|aug|2|4|5|6|7|9|11|13)*(?:\/[A-G][b#]?)?\b/g) || ['F', 'C', 'G/B', 'Am', 'Gsus4', 'D/F#', 'Em'];
+    const uniqueChords = Array.from(new Set(chordMatches)).slice(0, 10);
+
+    let html = `
+      <button class="quick-tag-btn" onclick="insertAtCursor('Chorus:\n')">Chorus</button>
+      <button class="quick-tag-btn" onclick="insertAtCursor('Verse:\n')">Verse</button>
+      <button class="quick-tag-btn" onclick="insertAtCursor('Bridge:\n')">Bridge</button>
+    `;
+    for (const c of uniqueChords) {
+      html += `<button class="quick-tag-btn chord-pill" onclick="insertAtCursor('${c} ')">${c}</button>`;
+    }
+    html += `<button class="quick-tag-btn" onclick="undoEditorText()">↶</button>`;
+    toolbar.innerHTML = html;
+  }
+
+  let editorHistory = [];
+  function insertAtCursor(text) {
+    const textarea = document.getElementById('editSheetTextarea');
+    editorHistory.push(textarea.value);
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const val = textarea.value;
+    textarea.value = val.substring(0, start) + text + val.substring(end);
+    textarea.selectionStart = textarea.selectionEnd = start + text.length;
+    textarea.focus();
+  }
+
+  function undoEditorText() {
+    if (editorHistory.length > 0) {
+      document.getElementById('editSheetTextarea').value = editorHistory.pop();
+    }
+  }
+
+  async function saveSongFromEditor() {
+    const title = document.getElementById('editTitleInput').value.trim();
+    if (!title) {
+      alert('Please enter a song title');
+      return;
+    }
+
+    const format = document.getElementById('radioChordPro').checked ? 'chordpro' : 'chords_over_lyrics';
+    const originalKey = document.getElementById('editKeySelect').value;
+    const artist = document.getElementById('editArtistInput').value.trim();
+    const chords = document.getElementById('editSheetTextarea').value;
+    const tags = document.getElementById('editTagsInput').value.split(',').map(t => t.trim()).filter(Boolean);
+
+    const songData = {
+      id: currentSong ? currentSong.id : title.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+      title,
+      alternativeTitle: document.getElementById('editAltTitleInput').value.trim(),
+      artist,
+      key: originalKey,
+      originalKey,
+      chords,
+      lyrics: chords,
+      chordFormat: format,
+      tags,
+      timeSignature: document.getElementById('editTimeSigInput').value.trim() || '4/4',
+      tempo: parseInt(document.getElementById('editTempoInput').value, 10) || null,
+      duration: document.getElementById('editDurationInput').value.trim(),
+      sectionOrder: document.getElementById('editSectionOrderInput').value.trim(),
+      songNumber: document.getElementById('editSongNumberInput').value.trim(),
+      copyright: document.getElementById('editCopyrightInput').value.trim(),
+      webUrl: document.getElementById('editWebUrlInput').value.trim(),
+      updatedAt: Date.now()
+    };
+
+    // Save locally
+    const idx = songs.findIndex(s => s.id === songData.id);
+    if (idx >= 0) songs[idx] = songData;
+    else songs.unshift(songData);
+
+    localStorage.setItem('hgf_band_songs', JSON.stringify(songs));
+    selectSong(songData);
+    closeEditModal();
+    showToast('Song saved successfully!');
+
+    // Persist to server
+    try {
+      await fetch('/api/worship', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(songData)
+      });
+    } catch {}
+  }
+
+  // SIMPLE WORD SEARCH & CHORD SCRAPER MODAL
+  function openScraperModal() {
+    document.getElementById('scraperModal').classList.add('visible');
+    setTimeout(() => document.getElementById('scraperQueryInput').focus(), 150);
+  }
+
+  function closeScraperModal() {
+    document.getElementById('scraperModal').classList.remove('visible');
+  }
+
+  async function executeScraperSearch() {
+    const q = document.getElementById('scraperQueryInput').value.trim();
+    if (!q) return;
+
+    const list = document.getElementById('scraperResultsList');
+    const searchBtn = document.getElementById('scraperSearchBtn');
+    searchBtn.textContent = 'Searching...';
+    searchBtn.disabled = true;
+
+    list.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text-muted);">Searching worship tabs for "${escapeHtml(q)}"...</div>`;
+
+    try {
+      const res = await fetch('/api/worship/scrape', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'search', query: q })
+      });
+
+      const data = await res.json();
+      const results = data.results || [];
+
+      if (results.length === 0) {
+        list.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text-muted);">No tabs found for "${escapeHtml(q)}". Try simpler words or titles.</div>`;
+        return;
+      }
+
+      let html = '';
+      for (const r of results) {
+        html += `
+          <div class="source-item" style="flex-direction:column;align-items:stretch;gap:8px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div>
+                <div style="font-weight:700;font-size:15px;color:#fff;">${escapeHtml(r.song_name)}</div>
+                <div style="font-size:12px;color:var(--text-muted);">${escapeHtml(r.artist_name)} • ${r.source || 'Ultimate Guitar'}</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                ${r.tonality_name ? `<span class="song-item-key-badge">${r.tonality_name}</span>` : ''}
+                <button class="sidebar-action-btn primary" onclick="importScrapedTab('${encodeURIComponent(r.tab_url)}')">
+                  📥 Import
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+      list.innerHTML = html;
+    } catch (err) {
+      list.innerHTML = `<div style="text-align:center;padding:30px;color:var(--accent-red);">Search failed. Please try again.</div>`;
+    } finally {
+      searchBtn.textContent = 'Search';
+      searchBtn.disabled = false;
+    }
+  }
+
+  async function importScrapedTab(encodedUrl) {
+    const url = decodeURIComponent(encodedUrl);
+    showToast('Importing tab content...');
+
+    try {
+      const res = await fetch('/api/worship/scrape', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'fetch', url })
+      });
+
+      const data = await res.json();
+      if (!data.chords_over_lyrics && !data.lyrics) {
+        alert('Could not parse tab chords');
+        return;
+      }
+
+      const newSong = {
+        id: data.song_name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+        title: data.song_name,
+        artist: data.artist_name,
+        key: data.key || 'C',
+        originalKey: data.key || 'C',
+        capo: String(data.capo || 0),
+        tempo: data.bpm || null,
+        timeSignature: '4/4',
+        chords: data.chords_over_lyrics || data.content_with_chords,
+        lyrics: data.lyrics || data.chords_over_lyrics,
+        chordFormat: 'chords_over_lyrics',
+        tags: ['Imported', 'Ultimate Guitar'],
+        updatedAt: Date.now()
+      };
+
+      // Add to songs
+      const idx = songs.findIndex(s => s.id === newSong.id);
+      if (idx >= 0) songs[idx] = newSong;
+      else songs.unshift(newSong);
+
+      localStorage.setItem('hgf_band_songs', JSON.stringify(songs));
+      selectSong(newSong);
+      closeScraperModal();
+      showToast(`Imported "${newSong.title}" in Key ${newSong.key}!`);
+
+      // Persist to server
+      fetch('/api/worship', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newSong)
+      }).catch(() => {});
+    } catch (e) {
+      alert('Failed to import tab: ' + e.message);
+    }
+  }
+
+  // OTHER MODALS
+  function openSourceModal() {
+    document.getElementById('sourceModal').classList.add('visible');
+  }
+  function closeSourceModal() {
+    document.getElementById('sourceModal').classList.remove('visible');
+  }
+
+  function openKeyPickerModal() {
+    document.getElementById('keyPickerModal').classList.add('visible');
+  }
+  function closeKeyPickerModal() {
+    document.getElementById('keyPickerModal').classList.remove('visible');
+  }
+
+  function showChordDiagram(chord) {
+    showToast(`Chord: ${chord}`);
+  }
+
+  function triggerFileInput() {
+    showToast('Select text or chordpro file from device');
+  }
+
+  function openSpotifyLink() {
+    if (currentSong && currentSong.title) {
+      window.open(`https://open.spotify.com/search/${encodeURIComponent(currentSong.title + ' ' + currentSong.artist)}`, '_blank');
+    } else {
+      window.open('https://open.spotify.com', '_blank');
+    }
+  }
+
+  // BLUETOOTH FOOT PEDAL SUPPORT (PageUp / PageDown / Arrows / Space)
+  function setupPedalControls() {
+    window.addEventListener('keydown', (e) => {
+      // Don't intercept when typing in modal inputs
+      if (document.querySelector('.modal-overlay.visible')) return;
+
+      const container = document.getElementById('sheetWrapper');
+      if (e.key === 'PageDown' || e.key === 'ArrowDown' || e.key === '3') {
+        container.scrollBy({ top: 320, behavior: 'smooth' });
+        e.preventDefault();
+      } else if (e.key === 'PageUp' || e.key === 'ArrowUp' || e.key === '1') {
+        container.scrollBy({ top: -320, behavior: 'smooth' });
+        e.preventDefault();
+      } else if (e.key === ' ' || e.key === 'Spacebar') {
+        toggleScrollPlay();
+        e.preventDefault();
+      }
+    });
+  }
+
+  // 1-TAP LINK COPY
+  function copyMusicianLink() {
+    const link = 'https://hgfapp.link/chords';
+    navigator.clipboard.writeText(link).then(() => {
+      showToast('Copied shortlink: https://hgfapp.link/chords');
+    }).catch(() => {
+      showToast('Link: connect.houseofgrace.ph/thebandtool.html');
+    });
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('visible');
+    setTimeout(() => t.classList.remove('visible'), 2800);
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+</script>
+
+</body>
+</html>

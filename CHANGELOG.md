@@ -5,12 +5,30 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v2.52.19] — 2026-09-13
-### Enhanced & Streamlined
-- **Zero-Click Silent Auto-Sync (`/theworshiptool.html`)**:
-  - Removed the unnecessary manual `Live Sync` button from the header to provide an ultra-clean, distraction-free stage interface.
-  - Implemented continuous 2.5s background change detection that automatically detects and propagates any cloud updates (new setlists, reordered songs, edited lyrics/chords) without requiring any user taps or refreshes.
-  - Keeps Stage Teleprompter mode synchronized in real time so stage musicians and tablet prompters instantly reflect edits made on laptops.
+## [v2.53.0] — 2026-09-14
+### Added — THE BAND: Musician Songbook & Live Chord Transposer
+- **Dedicated Musician Web App (`/thebandtool.html`)**:
+  - Engineered a brand new, zero-latency progressive web application designed specifically for church worship musicians and band members.
+  - Hybrid design combining the live chord transposing and tab scraping of **Ultimate Guitar** with the clean stage performance layout, chords-over-lyrics formatting, and setlist management of **SongBook Pro**.
+- **Live Key Transposition Engine**:
+  - Live transposition (`[-]` and `[+]` semitones or direct key selector: C, Db, D, Eb, E, F, F#, G, Ab, A, Bb, B).
+  - Music theory transposer accurately handling sharps/flats, complex chord extensions (`Gsus4`, `Cadd9`, `F#m7b5`), and slash chords (`G/B`, `D/F#`, `F/C`).
+  - Capo setting support with sounding key calculations.
+- **SongBook Pro Style Song Editor**:
+  - Two-tab layout (`General` & `Advanced`) matching SongBook Pro.
+  - Format toggle between `Chords over Lyrics` and `ChordPro`.
+  - Dynamic chord helper toolbar (`Chorus`, `Verse`, `Bridge`, `F`, `C`, `G/B`, `Am`, `Gsus4`, `Undo`) with cursor-aware insertion.
+  - Advanced metadata support: Time signature, Tempo BPM, Duration, Section Order, Song Number, Copyright, and external Web URL.
+- **Simple Word Search & Worship Tab Scraper**:
+  - Upgraded scraper supporting simple keyword and lyric search queries (e.g., "bless the lord", "10,000 reasons", "gratitude", "great are you lord").
+  - 1-tap import directly into the musician chord sheet with auto-detected key, tempo, and clean chords-over-lyrics formatting.
+- **Built-in Ambient Worship Pad Generator**:
+  - Client-side Web Audio API drone synth producing warm, lush church pads in any key with zero external audio dependencies.
+  - Silent visual metronome BPM pulse dot.
+  - Interactive canvas drawing layer for live stylus/finger annotations and section highlighting.
+- **Shortlink Routing & Cross-Device Sync**:
+  - Mapped clean shortlink `https://hgfapp.link/chords`, `https://hgfapp.link/band`, and `connect.houseofgrace.ph/chords`.
+  - 2.5s silent background cloud sync sharing the setlist and song database between worship leaders and band musicians.
 
 ## [v2.52.18] — 2026-09-13
 ### Enhanced & Cleaned

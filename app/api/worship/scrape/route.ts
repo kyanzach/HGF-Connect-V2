@@ -15,48 +15,53 @@ function decodeHtmlEntities(str: string): string {
     .replace(/&nbsp;/g, ' ');
 }
 
-function parseUgContent(rawContent: string, stripChords = true, songName = '', artistName = ''): string {
+function parseUgBothFormats(rawContent: string, songName = '', artistName = '') {
   let text = decodeHtmlEntities(rawContent);
   text = text.replace(/\[\/?tab\]/gi, '');
 
-  if (stripChords) {
-    const lines = text.split('\n');
-    const cleanedLines: string[] = [];
-    for (const rawLine of lines) {
-      const line = rawLine.trim();
-      const withoutCh = line.replace(/\[ch\].*?\[\/ch\]/gi, '').trim();
-      const isHeader = /^\[(Intro|Verse|Chorus|Pre-Chorus|Bridge|Vamp|Tag|Interlude|Outro|Ending|Instrumental|Refrain).*?\]/i.test(line);
+  // 1. Chords over Lyrics format: Replace [ch]Chord[/ch] with just Chord, preserving exact spacing
+  let chordsOverLyrics = text.replace(/\[ch\](.*?)\[\/ch\]/gi, '$1');
 
-      if (isHeader) {
-        cleanedLines.push(line);
-      } else if (withoutCh === '' && /\[ch\]/i.test(line)) {
-        // Chord-only line
-        continue;
-      } else {
-        // Line has words + chords
-        const clean = line.replace(/\[ch\].*?\[\/ch\]/gi, '').trim();
-        if (clean || (cleanedLines.length > 0 && cleanedLines[cleanedLines.length - 1] !== '')) {
-          cleanedLines.push(clean);
-        }
+  // Remove URLs
+  chordsOverLyrics = chordsOverLyrics.replace(/https?:\/\/\S+/gi, '').trim();
+  chordsOverLyrics = chordsOverLyrics.replace(/\n{3,}/g, '\n\n');
+
+  // 2. Lyrics only format: remove lines that are purely chords
+  const lines = text.split('\n');
+  const cleanLyricLines: string[] = [];
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    const withoutCh = line.replace(/\[ch\].*?\[\/ch\]/gi, '').trim();
+    const isHeader = /^\[?(Intro|Verse|Chorus|Pre-Chorus|Bridge|Vamp|Tag|Interlude|Outro|Ending|Instrumental|Refrain).*?\]?:?/i.test(line);
+
+    if (isHeader) {
+      cleanLyricLines.push(line.replace(/\[ch\].*?\[\/ch\]/gi, '').trim());
+    } else if (withoutCh === '' && /\[ch\]/i.test(line)) {
+      // Pure chord line - skip for lyrics-only
+      continue;
+    } else {
+      const clean = line.replace(/\[ch\].*?\[\/ch\]/gi, '').trim();
+      if (clean || (cleanLyricLines.length > 0 && cleanLyricLines[cleanLyricLines.length - 1] !== '')) {
+        cleanLyricLines.push(clean);
       }
     }
-    text = cleanedLines.join('\n');
-  } else {
-    // Retain clean bracketed chords like [G]
-    text = text.replace(/\[ch\](.*?)\[\/ch\]/gi, '[$1]');
   }
+  let lyricsOnly = cleanLyricLines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
 
-  // Remove leading title/artist duplicates before the first section header
+  // 3. ChordPro format: convert dual lines (chord line above lyric line) into [Chord]lyric
+  // If line has [ch]...[/ch], keep bracketed chords
+  let chordPro = text.replace(/\[ch\](.*?)\[\/ch\]/gi, '[$1]');
+  chordPro = chordPro.replace(/https?:\/\/\S+/gi, '').trim();
+  chordPro = chordPro.replace(/\n{3,}/g, '\n\n');
+
+  // Clean song/artist title header from top if duplicated
   if (songName || artistName) {
-    const lines = text.split('\n');
+    const sLines = chordsOverLyrics.split('\n');
     let startIdx = 0;
-    while (startIdx < lines.length && startIdx < 4) {
-      const l = lines[startIdx].trim().toLowerCase();
-      if (!l) {
-        startIdx++;
-        continue;
-      }
-      if (l.startsWith('[')) break;
+    while (startIdx < sLines.length && startIdx < 4) {
+      const l = sLines[startIdx].trim().toLowerCase();
+      if (!l) { startIdx++; continue; }
+      if (l.startsWith('[') || l.endsWith(':')) break;
       if (
         (songName && l === songName.toLowerCase()) ||
         (artistName && l === artistName.toLowerCase()) ||
@@ -68,15 +73,15 @@ function parseUgContent(rawContent: string, stripChords = true, songName = '', a
         break;
       }
     }
-    text = lines.slice(startIdx).join('\n');
+    chordsOverLyrics = sLines.slice(startIdx).join('\n').trim();
   }
 
-  // Remove URLs or video references
-  text = text.replace(/https?:\/\/\S+/gi, '').trim();
+  return { chordsOverLyrics, lyricsOnly, chordPro };
+}
 
-  // Normalize duplicate blank lines
-  text = text.replace(/\n{3,}/g, '\n\n').trim();
-  return text;
+function parseUgContent(rawContent: string, stripChords = true, songName = '', artistName = ''): string {
+  const res = parseUgBothFormats(rawContent, songName, artistName);
+  return stripChords ? res.lyricsOnly : res.chordsOverLyrics;
 }
 
 const WORSHIP_ALIASES = [
@@ -326,17 +331,20 @@ export async function POST(req: NextRequest) {
       const capo = tabView?.meta?.capo || tabMeta.capo || 0;
       const bpm = tabView?.meta?.bpm || 0;
 
-      const lyrics = parseUgContent(rawContent, stripChords, songName, artistName);
-      const withChords = parseUgContent(rawContent, false, songName, artistName);
+      const parsed = parseUgBothFormats(rawContent, songName, artistName);
 
       return NextResponse.json({
         song_name: songName,
         artist_name: artistName,
         key: key,
+        original_key: key,
         capo: capo,
         bpm: bpm,
-        lyrics: lyrics,
-        content_with_chords: withChords,
+        lyrics: parsed.lyricsOnly,
+        chords_text: parsed.chordsOverLyrics,
+        chords_over_lyrics: parsed.chordsOverLyrics,
+        chordpro: parsed.chordPro,
+        content_with_chords: parsed.chordsOverLyrics,
         source: 'Ultimate Guitar',
       });
     }
