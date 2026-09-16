@@ -5,6 +5,18 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.53.4] — 2026-09-16
+### Added & Enhanced — Section Roadmap, 1-Tap Playback Duration & Enharmonic Keys
+- **Section Order Arrangement Roadmap**:
+  - Songs with a defined `sectionOrder` (e.g. `Intro, V1, C, V2, C, B, C, Outro`) now render an interactive pill bar directly beneath the song title.
+  - Tapping any section chip smoothly scrolls the chord sheet directly to that section on stage.
+- **Duration & Backing Track Auto-Sync**:
+  - Prominent 1-tap playback button and duration badge (`[▶ 5:40]` / `[⏸ 01:23 / 05:40]`) added directly inside the song header.
+  - When a backing track audio file is loaded or uploaded, its detected duration auto-syncs to the song's duration field in memory and cloud storage.
+- **Unambiguous Enharmonic Key Labels**:
+  - Key picker modal and ambient pad key selectors now explicitly display enharmonics: `C# / Db`, `D# / Eb`, `F# / Gb`, `G# / Ab`, `A# / Bb`.
+  - Sounding key badge renders `Key: C# / Db` eliminating confusion between sharp and flat notations.
+
 ## [v2.53.3] — 2026-09-16
 ### Fixed & Overhauled — Chords Scraper, Cross-Device Drawing Sync, Ambient Pad & Mobile UX
 - **Chord Scraper & Tab Importer**:
