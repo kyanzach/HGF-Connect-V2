@@ -493,6 +493,91 @@
       border-color: var(--primary);
     }
 
+    /* Stage Action Buttons on Tablets, Laptops & Desktops (No overlap or squishing) */
+    .icon-btn.stage-action-btn,
+    .stage-action-btn {
+      width: auto !important;
+      min-width: 68px;
+      height: 36px;
+      padding: 0 12px !important;
+      display: inline-flex !important;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      background: rgba(22, 28, 38, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 8px;
+      color: #f1f5f9;
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+      cursor: pointer;
+      flex-shrink: 0;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+      transition: all 0.15s ease;
+    }
+    .icon-btn.stage-action-btn:hover,
+    .stage-action-btn:hover {
+      background: rgba(78, 177, 203, 0.16);
+      border-color: var(--primary);
+      color: #38bdf8;
+      transform: translateY(-1px);
+    }
+    .stage-action-btn .btn-text {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      display: inline !important;
+    }
+
+    /* MD KEY SYNC REMINDER BANNER */
+    .md-key-reminder-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(22, 28, 38, 0.96));
+      border: 1px solid rgba(78, 177, 203, 0.4);
+      border-radius: 10px;
+      padding: 9px 14px;
+      margin: 10px 18px 0;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(10px);
+      z-index: 50;
+      animation: slideDownFade 0.25s ease;
+    }
+    @keyframes slideDownFade {
+      from { opacity: 0; transform: translateY(-8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .md-key-btn {
+      height: 30px;
+      padding: 0 12px;
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.06);
+      color: #cbd5e1;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+    .md-key-btn:hover {
+      background: rgba(255, 255, 255, 0.14);
+      color: #fff;
+    }
+    .md-key-btn.primary {
+      background: rgba(78, 177, 203, 0.2);
+      border-color: var(--primary);
+      color: #38bdf8;
+    }
+    .md-key-btn.primary:hover {
+      background: var(--primary);
+      color: #000;
+    }
+
     .brand-wrap {
       display: flex;
       flex-direction: column;
@@ -1694,13 +1779,18 @@
         padding: 2px 8px;
         font-size: 12px;
       }
+      .icon-btn.stage-action-btn,
       .stage-action-btn {
-        height: 38px;
-        padding: 0 8px;
+        width: 36px !important;
+        min-width: 36px !important;
+        height: 36px !important;
+        padding: 0 !important;
         font-size: 13px;
+        gap: 0 !important;
+        justify-content: center !important;
       }
       .stage-action-btn .btn-text {
-        display: none;
+        display: none !important;
       }
       .icon-btn {
         width: 36px;
@@ -1967,6 +2057,25 @@
           <button class="set-step-btn" id="setPrevSongBtn" onclick="stepActiveSet(-1)" title="Previous Song in Set">◀ Prev</button>
           <button class="set-step-btn primary" id="setNextSongBtn" onclick="stepActiveSet(1)" title="Next Song in Set">Next ▶</button>
           <button class="icon-btn" onclick="exitActiveSetStage()" style="width:26px;height:26px;font-size:11px;" title="Exit Setlist Mode">✕</button>
+        </div>
+      </div>
+
+      <!-- MD KEY SYNC REMINDER BANNER (Personal Key vs Official Key) -->
+      <div class="md-key-reminder-banner" id="mdKeyReminderBanner" style="display:none;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:16px;">👑</span>
+          <div>
+            <div style="font-size:12px;font-weight:700;color:#fff;">
+              MD Official Key: <span id="mdKeyOfficialBadge" style="color:var(--chord-color);font-weight:800;background:rgba(245,158,11,0.15);padding:1px 6px;border-radius:4px;">G</span>
+            </div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:1px;">
+              Your device is transposed to <strong id="mdKeyCurrentBadge" style="color:#38bdf8;">A</strong>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button class="md-key-btn primary" onclick="applyMdKey()">Apply MD Key</button>
+          <button class="md-key-btn" onclick="dismissMdKeyReminder()">Keep My Key</button>
         </div>
       </div>
 
@@ -2313,6 +2422,24 @@
         </div>
       </div>
 
+      <!-- STORAGE DESTINATION SELECTOR (Device Local vs Cloud Server) -->
+      <div style="background:#0d1117;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px;margin-bottom:12px;">
+        <div style="font-size:12px;font-weight:700;color:#cbd5e1;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">
+          <span>📦 Audio Storage Mode</span>
+          <span style="font-size:10px;color:var(--primary);font-weight:700;" id="currentStorageModeBadge">📱 Device-Only</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <button type="button" id="storageModeDeviceBtn" class="sidebar-action-btn primary" onclick="setAudioStorageMode('device')" style="font-size:12px;padding:8px;height:auto;text-align:left;display:flex;flex-direction:column;gap:3px;">
+            <span style="font-weight:800;display:flex;align-items:center;gap:4px;">📱 This Device Only</span>
+            <span style="font-size:10px;font-weight:400;color:#94a3b8;line-height:1.2;">Saved offline in phone/tablet memory. No server upload. Recalls after closing.</span>
+          </button>
+          <button type="button" id="storageModeCloudBtn" class="sidebar-action-btn" onclick="setAudioStorageMode('cloud')" style="font-size:12px;padding:8px;height:auto;text-align:left;display:flex;flex-direction:column;gap:3px;">
+            <span style="font-weight:800;display:flex;align-items:center;gap:4px;">☁️ Cloud Server</span>
+            <span style="font-size:10px;font-weight:400;color:#94a3b8;line-height:1.2;">Uploaded to server buffer & shared with all band members across devices.</span>
+          </button>
+        </div>
+      </div>
+
       <!-- TEMPORARY SERVER STORAGE BUFFER METER WIDGET -->
       <div class="storage-meter-box">
         <div class="storage-meter-header">
@@ -2389,8 +2516,9 @@
           <button class="pad-key-btn" onclick="setCapo(5)">5</button>
         </div>
       </div>
-      <div style="display:flex;justify-content:space-between;margin-top:10px;">
-        <button class="sidebar-action-btn" onclick="resetTransposition()">Reset to Original</button>
+      <div style="display:flex;justify-content:space-between;margin-top:10px;gap:6px;flex-wrap:wrap;">
+        <button class="sidebar-action-btn" onclick="resetTransposition()">Reset</button>
+        <button class="sidebar-action-btn" id="saveOfficialMdKeyBtn" onclick="saveOfficialMdKeyForBand()" style="display:none;background:rgba(245,158,11,0.15);border-color:#f59e0b;color:#fbbf24;font-weight:700;">👑 Set as MD Official Key</button>
         <button class="sidebar-action-btn primary" onclick="closeKeyPickerModal()">Done</button>
       </div>
     </div>
@@ -3397,10 +3525,162 @@ Lord, I'll worship Your holy name.`
     }
   }
 
+  // USER KEY PREFERENCE & MD OFFICIAL KEY SYNC
+  function getUserKeyStorageKey(songId) {
+    const userPrefix = currentBandUser ? (currentBandUser.username || currentBandUser.id) : 'device';
+    return `hgf_key_${userPrefix}_${songId}`;
+  }
+
+  function getUserKeyPreference(songId) {
+    try {
+      const raw = localStorage.getItem(getUserKeyStorageKey(songId));
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function saveUserKeyPreference(songId, key, offset, capo) {
+    if (!songId) return;
+    const pref = {
+      key: key,
+      offset: offset,
+      capo: capo,
+      savedAt: Date.now()
+    };
+    try {
+      localStorage.setItem(getUserKeyStorageKey(songId), JSON.stringify(pref));
+    } catch {}
+  }
+
+  let mdKeyReminderDismissedForSong = {};
+  function dismissMdKeyReminder() {
+    if (currentSong) {
+      mdKeyReminderDismissedForSong[currentSong.id] = true;
+    }
+    const banner = document.getElementById('mdKeyReminderBanner');
+    if (banner) banner.style.display = 'none';
+  }
+
+  function applyMdKey() {
+    if (!currentSong || !currentSong._officialMdKey) return;
+    const targetKey = currentSong._officialMdKey;
+    const orig = currentSong.originalKey || currentSong.key || 'C';
+    const origSemi = NOTE_TO_SEMITONE[orig] || 0;
+    const targetSemi = NOTE_TO_SEMITONE[targetKey] || 0;
+    let diff = targetSemi - origSemi;
+    if (diff > 6) diff -= 12;
+    if (diff < -5) diff += 12;
+    currentTransposeOffset = diff;
+    saveUserKeyPreference(currentSong.id, targetKey, currentTransposeOffset, currentCapo);
+    dismissMdKeyReminder();
+    renderSheet();
+    showToast(`Applied MD Key: ${targetKey}`);
+  }
+
+  function checkMdKeyReminder() {
+    const banner = document.getElementById('mdKeyReminderBanner');
+    if (!banner || !currentSong) {
+      if (banner) banner.style.display = 'none';
+      return;
+    }
+    if (mdKeyReminderDismissedForSong[currentSong.id]) {
+      banner.style.display = 'none';
+      return;
+    }
+
+    const mdKey = currentSong._officialMdKey;
+    if (!mdKey) {
+      banner.style.display = 'none';
+      return;
+    }
+
+    const origKey = currentSong.originalKey || currentSong.key || 'C';
+    const isFlats = FLAT_KEYS.includes(origKey);
+    const effectiveKey = transposeNote(origKey, currentTransposeOffset, isFlats);
+    const displayEffective = KEY_DISPLAY_MAP[effectiveKey] || effectiveKey;
+    const displayMd = KEY_DISPLAY_MAP[mdKey] || mdKey;
+
+    const baseEff = getRootNote(effectiveKey);
+    const baseMd = getRootNote(mdKey);
+
+    if (baseEff !== baseMd) {
+      const badgeOff = document.getElementById('mdKeyOfficialBadge');
+      const badgeCur = document.getElementById('mdKeyCurrentBadge');
+      if (badgeOff) badgeOff.textContent = displayMd;
+      if (badgeCur) badgeCur.textContent = displayEffective;
+      banner.style.display = 'flex';
+    } else {
+      banner.style.display = 'none';
+    }
+  }
+
+  async function saveOfficialMdKeyForBand() {
+    if (!currentSong) return;
+    const origKey = currentSong.originalKey || currentSong.key || 'C';
+    const isFlats = FLAT_KEYS.includes(origKey);
+    const effectiveKey = transposeNote(origKey, currentTransposeOffset, isFlats);
+    const displayKey = KEY_DISPLAY_MAP[effectiveKey] || effectiveKey;
+
+    currentSong.key = effectiveKey;
+    currentSong.officialKey = effectiveKey;
+    currentSong._officialMdKey = effectiveKey;
+
+    // If inside active setlist, update setlist item
+    if (currentSetlist && currentSetlistSongIndex >= 0 && Array.isArray(currentSetlist.songs)) {
+      const item = currentSetlist.songs[currentSetlistSongIndex];
+      if (typeof item === 'object') {
+        item.key = effectiveKey;
+      } else {
+        currentSetlist.songs[currentSetlistSongIndex] = { id: item, key: effectiveKey };
+      }
+      const slIdx = setlists.findIndex(x => x.id === currentSetlist.id);
+      if (slIdx !== -1) {
+        setlists[slIdx] = currentSetlist;
+        localStorage.setItem('hgf_band_setlists', JSON.stringify(setlists));
+      }
+      fetch('/api/worship/setlists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(currentSetlist)
+      }).catch(() => {});
+    }
+
+    saveUserKeyPreference(currentSong.id, effectiveKey, currentTransposeOffset, currentCapo);
+
+    const now = Date.now();
+    currentSong.updatedAt = now;
+    localSongModifiedAt[currentSong.id] = now;
+    lastLocalActionTime = now;
+    localStorage.setItem('hgf_band_songs', JSON.stringify(songs));
+
+    renderSheet();
+    closeKeyPickerModal();
+    showToast(`👑 Set official MD key to ${displayKey} for the band!`);
+
+    try {
+      await fetch('/api/worship', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(currentSong)
+      });
+    } catch {}
+  }
+
   function selectSong(song) {
     currentSong = song;
-    currentTransposeOffset = 0;
-    currentCapo = parseInt(song.capo || 0, 10);
+    currentSong._officialMdKey = song.officialKey || song.key || song.originalKey || 'C';
+
+    // Check user's saved personal key preference for this song
+    const savedPref = getUserKeyPreference(song.id);
+    if (savedPref && typeof savedPref.offset === 'number') {
+      currentTransposeOffset = savedPref.offset;
+      currentCapo = typeof savedPref.capo === 'number' ? savedPref.capo : parseInt(song.capo || 0, 10);
+    } else {
+      currentTransposeOffset = 0;
+      currentCapo = parseInt(song.capo || 0, 10);
+    }
+
     localStorage.setItem('hgf_band_active_id', song.id);
     renderSheet();
     renderSongList();
@@ -3443,6 +3723,7 @@ Lord, I'll worship Your holy name.`
     startVisualBpmPulse(bpmVal);
     document.getElementById('padCurrentKeyLabel').textContent = displayKey;
     activePadKey = effectiveKey.replace('m', '');
+    checkMdKeyReminder();
 
     // Duration & Playback 1-Tap Play Button
     const playBtn = document.getElementById('sheetPlaybackBtn');
@@ -3637,12 +3918,22 @@ Lord, I'll worship Your holy name.`
 
   function transposeCurrentSong(step) {
     currentTransposeOffset += step;
+    if (currentSong) {
+      const origKey = currentSong.originalKey || currentSong.key || 'C';
+      const isFlats = FLAT_KEYS.includes(origKey);
+      const effectiveKey = transposeNote(origKey, currentTransposeOffset, isFlats);
+      saveUserKeyPreference(currentSong.id, effectiveKey, currentTransposeOffset, currentCapo);
+    }
     renderSheet();
     showToast(`Transposed: ${currentTransposeOffset > 0 ? '+' : ''}${currentTransposeOffset} semitones`);
   }
 
   function resetTransposition() {
     currentTransposeOffset = 0;
+    if (currentSong) {
+      const origKey = currentSong.originalKey || currentSong.key || 'C';
+      saveUserKeyPreference(currentSong.id, origKey, 0, currentCapo);
+    }
     renderSheet();
     closeKeyPickerModal();
   }
@@ -3666,13 +3957,20 @@ Lord, I'll worship Your holy name.`
     if (diff > 6) diff -= 12;
     if (diff < -5) diff += 12;
     currentTransposeOffset = diff;
+    saveUserKeyPreference(currentSong.id, targetKey, currentTransposeOffset, currentCapo);
     renderSheet();
     closeKeyPickerModal();
   }
 
   function setCapo(capoVal) {
     currentCapo = capoVal;
-    if (currentSong) currentSong.capo = String(capoVal);
+    if (currentSong) {
+      currentSong.capo = String(capoVal);
+      const origKey = currentSong.originalKey || currentSong.key || 'C';
+      const isFlats = FLAT_KEYS.includes(origKey);
+      const effectiveKey = transposeNote(origKey, currentTransposeOffset, isFlats);
+      saveUserKeyPreference(currentSong.id, effectiveKey, currentTransposeOffset, currentCapo);
+    }
     document.getElementById('sheetCapoBadge').textContent = `Capo: ${capoVal}`;
     closeKeyPickerModal();
     showToast(`Capo set to ${capoVal}`);
@@ -4663,20 +4961,30 @@ Lord, I'll worship Your holy name.`
     currentSetlistSongIndex = songIndex;
     const targetSong = songs.find(s => s.id === songId);
     if (targetSong) {
-      selectSong(targetSong);
-      if (songKey) {
-        // Transpose to stored key
-        const baseRoot = getRootNote(targetSong.key || 'C');
-        const targetRoot = getRootNote(songKey);
+      currentSong = targetSong;
+      const officialKey = songKey || targetSong.officialKey || targetSong.key || targetSong.originalKey || 'C';
+      currentSong._officialMdKey = officialKey;
+
+      const savedPref = getUserKeyPreference(targetSong.id);
+      if (savedPref && typeof savedPref.offset === 'number') {
+        currentTransposeOffset = savedPref.offset;
+        currentCapo = typeof savedPref.capo === 'number' ? savedPref.capo : parseInt(targetSong.capo || 0, 10);
+      } else {
+        const baseRoot = getRootNote(targetSong.originalKey || targetSong.key || 'C');
+        const targetRoot = getRootNote(officialKey);
         const baseSemi = NOTE_TO_SEMITONE[baseRoot] ?? 0;
         const targetSemi = NOTE_TO_SEMITONE[targetRoot] ?? 0;
         let diff = targetSemi - baseSemi;
         if (diff > 6) diff -= 12;
         if (diff < -6) diff += 12;
         currentTransposeOffset = diff;
-        currentSong.transposedKey = songKey;
-        renderSheet();
+        currentCapo = parseInt(targetSong.capo || 0, 10);
       }
+
+      localStorage.setItem('hgf_band_active_id', targetSong.id);
+      renderSheet();
+      renderSongList();
+      initSongAudio(targetSong);
     }
     updateActiveSetStageBanner();
     toggleSidebar(false);
@@ -5834,6 +6142,16 @@ Lord, I'll worship Your holy name.`
   }
 
   function openKeyPickerModal() {
+    const isBandAdmin = currentBandUser && (
+      currentBandUser.role === 'admin' ||
+      currentBandUser.role === 'MD' ||
+      currentBandUser.role === 'md' ||
+      currentBandUser.role === 'leader'
+    );
+    const officialBtn = document.getElementById('saveOfficialMdKeyBtn');
+    if (officialBtn) {
+      officialBtn.style.display = isBandAdmin ? 'inline-flex' : 'none';
+    }
     document.getElementById('keyPickerModal').classList.add('visible');
   }
   function closeKeyPickerModal() {
@@ -5963,14 +6281,130 @@ Lord, I'll worship Your holy name.`
     });
   }
 
-  function initSongAudio(song) {
+  // INDEXEDDB OFFLINE AUDIO TRACK STORAGE (Zero server storage, recalls across reboots)
+  let bandTracksDB = null;
+  function openBandTracksDB() {
+    return new Promise((resolve, reject) => {
+      if (bandTracksDB) return resolve(bandTracksDB);
+      const req = indexedDB.open('HGF_Band_Audio_DB', 1);
+      req.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains('tracks')) {
+          db.createObjectStore('tracks', { keyPath: 'songId' });
+        }
+      };
+      req.onsuccess = (e) => {
+        bandTracksDB = e.target.result;
+        resolve(bandTracksDB);
+      };
+      req.onerror = (e) => reject(e);
+    });
+  }
+
+  async function saveLocalTrackBlob(songId, file) {
+    const db = await openBandTracksDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('tracks', 'readwrite');
+      const store = tx.objectStore('tracks');
+      const record = {
+        songId: songId,
+        blob: file,
+        filename: file.name,
+        originalName: file.name,
+        sizeMb: (file.size / (1024 * 1024)).toFixed(1),
+        type: file.type || 'audio/wav',
+        updatedAt: new Date().toISOString()
+      };
+      const req = store.put(record);
+      req.onsuccess = () => resolve(record);
+      req.onerror = (e) => reject(e);
+    });
+  }
+
+  async function getLocalTrackBlob(songId) {
+    try {
+      const db = await openBandTracksDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction('tracks', 'readonly');
+        const store = tx.objectStore('tracks');
+        const req = store.get(songId);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = (e) => reject(e);
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  async function deleteLocalTrackBlob(songId) {
+    try {
+      const db = await openBandTracksDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction('tracks', 'readwrite');
+        const store = tx.objectStore('tracks');
+        const req = store.delete(songId);
+        req.onsuccess = () => resolve();
+        req.onerror = (e) => reject(e);
+      });
+    } catch {}
+  }
+
+  let audioStorageMode = localStorage.getItem('hgf_audio_storage_mode') || 'device';
+  function setAudioStorageMode(mode) {
+    audioStorageMode = mode;
+    localStorage.setItem('hgf_audio_storage_mode', mode);
+    updateAudioStorageModeUI();
+    showToast(mode === 'device' ? '📱 Audio Mode: Stored offline on this device' : '☁️ Audio Mode: Syncing to Band Server');
+  }
+
+  function updateAudioStorageModeUI() {
+    const devBtn = document.getElementById('storageModeDeviceBtn');
+    const cldBtn = document.getElementById('storageModeCloudBtn');
+    const badge = document.getElementById('currentStorageModeBadge');
+    if (devBtn && cldBtn) {
+      devBtn.classList.toggle('primary', audioStorageMode === 'device');
+      cldBtn.classList.toggle('primary', audioStorageMode === 'cloud');
+    }
+    if (badge) {
+      badge.textContent = audioStorageMode === 'device' ? '📱 Device-Only' : '☁️ Cloud Server';
+      badge.style.color = audioStorageMode === 'device' ? '#10b981' : 'var(--primary)';
+    }
+  }
+
+  async function initSongAudio(song) {
     initAudioPlayerElement();
-    if (song && song.audioTrack && song.audioTrack.url && song.useBacktrack !== false) {
+    if (!song) {
+      stopAudioPlayback();
+      togglePlaybackDock(false);
+      activeAudioTrack = null;
+      return;
+    }
+
+    // Check IndexedDB local storage first for persistent offline audio on this device
+    try {
+      const localRec = await getLocalTrackBlob(song.id);
+      if (localRec && localRec.blob) {
+        const localBlobUrl = URL.createObjectURL(localRec.blob);
+        song.audioTrack = {
+          url: localBlobUrl,
+          filename: localRec.filename,
+          originalName: localRec.originalName || localRec.filename,
+          sizeMb: localRec.sizeMb,
+          type: localRec.type,
+          isDeviceLocal: true,
+          updatedAt: localRec.updatedAt
+        };
+      }
+    } catch (e) {
+      console.warn('Error loading local audio from IndexedDB:', e);
+    }
+
+    if (song.audioTrack && song.audioTrack.url && song.useBacktrack !== false) {
       loadAudioTrack(song.audioTrack, false);
     } else {
       stopAudioPlayback();
       togglePlaybackDock(false);
-      activeAudioTrack = (song && song.audioTrack && song.audioTrack.url) ? song.audioTrack : null;
+      activeAudioTrack = (song.audioTrack && song.audioTrack.url) ? song.audioTrack : null;
     }
   }
 
@@ -6119,6 +6553,7 @@ Lord, I'll worship Your holy name.`
 
   function openAudioManagerModal() {
     closeSourceModal();
+    updateAudioStorageModeUI();
     populateAudioModalSongSelector();
     updateAudioModalAttachedStatus();
     fetchStorageAudioFiles();
@@ -6296,6 +6731,46 @@ Lord, I'll worship Your holy name.`
     const file = fileList[0];
     const targetSong = getAudioTargetSong() || currentSong;
 
+    // DEVICE-ONLY OFFLINE STORAGE (IndexedDB - Zero server upload, persists forever on this device)
+    if (audioStorageMode === 'device') {
+      try {
+        if (targetSong) {
+          await saveLocalTrackBlob(targetSong.id, file);
+        }
+        const localBlobUrl = URL.createObjectURL(file);
+        const instantTrack = {
+          url: localBlobUrl,
+          filename: file.name,
+          originalName: file.name,
+          sizeMb: (file.size / (1024 * 1024)).toFixed(1),
+          type: file.type || 'audio/wav',
+          isDeviceLocal: true,
+          updatedAt: new Date().toISOString()
+        };
+        if (targetSong) {
+          targetSong.audioTrack = instantTrack;
+          targetSong.useBacktrack = true;
+          const now = Date.now();
+          targetSong.updatedAt = now;
+          localSongModifiedAt[targetSong.id] = now;
+          lastLocalActionTime = now;
+          localStorage.setItem('hgf_band_songs', JSON.stringify(songs));
+          updateAudioModalAttachedStatus();
+          if (targetSong.id === currentSong?.id) {
+            loadAudioTrack(instantTrack, false);
+            renderSheet();
+          }
+        }
+        showToast(`📱 Saved "${file.name}" to device offline storage! Ready across app reboots.`);
+        const fileInput = document.getElementById('audioFileInput');
+        if (fileInput) fileInput.value = '';
+        return;
+      } catch (err) {
+        console.error('IndexedDB save failed:', err);
+        showToast('Device storage error: falling back to server upload');
+      }
+    }
+
     // INSTANT LOCAL PLAYBACK FALLBACK (Google Drive / offline / zero latency)
     try {
       const localBlobUrl = URL.createObjectURL(file);
@@ -6439,6 +6914,9 @@ Lord, I'll worship Your holy name.`
   async function detachTrackFromSelectedSong() {
     const targetSong = getAudioTargetSong() || currentSong;
     if (!targetSong || !targetSong.audioTrack) return;
+    if (targetSong.audioTrack.isDeviceLocal) {
+      deleteLocalTrackBlob(targetSong.id);
+    }
     delete targetSong.audioTrack;
     delete targetSong.useBacktrack;
 

@@ -5,6 +5,21 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.53.16] — 2026-09-16
+### Fixed & Enhanced — Tablet/Laptop Topbar Layout, Device-Only Offline Audio Storage (IndexedDB), and Personal Key Recall with MD Key Sync Reminders
+- **Tablet & Laptop Topbar Layout Refinement**:
+  - Resolved button squishing and text stacking on widescreen viewports (tablets, iPads, laptops, desktops).
+  - Overrode conflicting `.icon-btn` styles with dedicated `.icon-btn.stage-action-btn` rules (`width: auto !important`, `min-width: 68px`, `padding: 0 12px !important`, `display: inline-flex !important`, `gap: 6px`), keeping labels (`✏️ Edit`, `🎨 Draw`, `🎧 Track`, `🗒️ Notes`, `🎹 Pad`) clean, non-wrapping, and properly proportioned while retaining compact icon-only mode on mobile phones (`max-width: 768px`).
+- **Device-Only Offline Audio Storage (IndexedDB Engine)**:
+  - Added **"📦 Audio Storage Mode"** switcher in Audio Manager: `📱 This Device Only (Offline Local Storage)` vs `☁️ Cloud Server`.
+  - In Device Mode, backtracks are saved directly to the device's persistent IndexedDB (`HGF_Band_Audio_DB`) as binary blobs. Zero server quota consumed, zero network upload lag, and audio stays attached across browser reboots and app closures.
+  - Automatically loads from IndexedDB upon selecting any song, instantly creating local blob URLs.
+- **Personal Key Transposition Recall & MD Official Key Sync Reminder**:
+  - Individual musicians' transpositions are stored per-user / per-device in `hgf_key_${user}_${songId}`, remembering each musician's preferred key across browser sessions.
+  - When opening a song, the system compares the musician's effective key against the **MD Official Key** (from the active setlist or song library default).
+  - If transposed away from the official key, a non-intrusive reminder banner appears: `👑 MD Official Key: [Key] • Your device is transposed to [Key] [Apply MD Key] [Keep My Key]`.
+  - Added **"👑 Set as MD Official Key"** in the Key Picker for Music Directors and Band Admins, allowing leads to set the official band key directly from stage.
+
 ## [v2.53.15] — 2026-09-16
 ### Fixed & Enhanced — Mobile Browser Dock Clearance, Horizontal Swipe & Edge Navigation, Full Member Deletion, and Ryan Admin Credential Management
 - **Mobile Browser Bottom Dock Clearance (`100dvh` + `--browser-dock-offset`)**:
