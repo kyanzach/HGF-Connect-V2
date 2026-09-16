@@ -2677,7 +2677,7 @@ Holy forever`
     const res = await fetch('/api/worship/scrape', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'fetch', url: tabUrl, stripChords: true })
+      body: JSON.stringify({ action: 'fetch', url: tabUrl, stripChords: false })
     });
     return await res.json();
   }
@@ -2734,7 +2734,9 @@ Holy forever`
         tempo: data.bpm || '',
         notes: '',
         exhortation: '',
-        lyrics: data.lyrics
+        lyrics: data.lyrics,
+        chords: data.chords_over_lyrics || data.content_with_chords || '',
+        chordFormat: 'chords_over_lyrics'
       };
       songs.unshift(newSong);
       saveSongsLocal();
@@ -2747,6 +2749,13 @@ Holy forever`
       if (data.key) metaKey.value = data.key;
       if (data.bpm) metaBpm.value = data.bpm;
       lyricEditor.value = data.lyrics;
+      if (currentSongId) {
+        const s = songs.find(x => x.id === currentSongId);
+        if (s && (data.chords_over_lyrics || data.content_with_chords)) {
+          s.chords = data.chords_over_lyrics || data.content_with_chords;
+          s.chordFormat = 'chords_over_lyrics';
+        }
+      }
       saveCurrentSong(false);
       window._addSongToSetlist(currentSongId);
       showToast(`🎉 Replaced open editor song with "${metaTitle.value}"!`);

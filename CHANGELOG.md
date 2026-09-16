@@ -5,6 +5,29 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.53.3] — 2026-09-16
+### Fixed & Overhauled — Chords Scraper, Cross-Device Drawing Sync, Ambient Pad & Mobile UX
+- **Chord Scraper & Tab Importer**:
+  - Direct import into active song: importing a chord sheet now directly updates the song currently open on stage (including preserving its existing ID and arrangement) instead of creating an orphaned duplicate.
+  - Tab scraping in `theworshiptool.html` now retains chords (`stripChords: false`) alongside lyrics so songs created in the worship tool include full chord sheets for musicians.
+  - Patched Phil Wickham's "Battle Belongs" (`song-1789220469006`) with complete chords in the cloud database.
+- **Cross-Device Vector Drawing & Cloud Sync**:
+  - Converted canvas annotations to normalized vector strokes (`0.0 - 1.0` coordinates) saved in `song.drawingStrokes` and synced through `/api/worship`.
+  - Drawings automatically scale and render identically on laptops (1440px+), Android tablets (768px-1024px), and iPhones (390px).
+  - Added `touch-action: none` and prevented default scroll gestures on touchscreens during markup mode.
+- **Glitch-Free Ambient Pad Engine**:
+  - Overhauled the WebAudio synth to eliminate race conditions, timeout collisions, and key switching bugs.
+  - Added real-time oscillator frequency morphing: switching keys while playing smoothly transitions to new root, fifth, and sub frequencies in 0.45s without stopping.
+  - Synchronous Play/Stop button state updates with zero delay.
+- **Backing Tracks & Mobile File Picker**:
+  - Replaced programmatic `.click()` on hidden inputs with native accessible `<label for="audioFileInput">` and explicit "Choose File" touch targets compatible with iOS Safari and Android Chrome.
+  - Guarded against duplicate event listener registration on the backing audio player element.
+- **Mobile Bottom-Sheet UI Overhaul**:
+  - Transformed modals on screens ≤ 640px into native bottom sheets with rounded top corners, top drag handles, and `max-height: 90dvh`.
+  - Re-arranged the pad key selector into a clean 6-column grid for fast two-row access on mobile screens.
+- **Dedicated Standalone PWA Manifest**:
+  - Created `/theband-manifest.json` configured with `display: standalone` for full-screen musician stage monitor use.
+
 ## [v2.53.2] — 2026-09-14
 ### Fixed & Optimized — iPhone Mobile View & Scraper Search
 - **iPhone Mobile Screen Optimization**:
