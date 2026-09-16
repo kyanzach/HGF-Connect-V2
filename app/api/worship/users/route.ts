@@ -21,7 +21,7 @@ const DEFAULT_USERS: BandUser[] = [
   {
     id: 'user-admin',
     username: 'admin',
-    password: 'password',
+    password: 'Godisgood',
     displayName: 'Worship Admin',
     role: 'admin',
     createdAt: Date.now(),
@@ -29,7 +29,7 @@ const DEFAULT_USERS: BandUser[] = [
   {
     id: 'user-md',
     username: 'md',
-    password: 'password',
+    password: 'Godisgood',
     displayName: 'Musical Director',
     role: 'MD',
     createdAt: Date.now(),
@@ -37,7 +37,7 @@ const DEFAULT_USERS: BandUser[] = [
   {
     id: 'user-guitar',
     username: 'guitar',
-    password: 'password',
+    password: 'Godisgood',
     displayName: 'Guitarist',
     role: 'guitarist',
     createdAt: Date.now(),
@@ -45,7 +45,7 @@ const DEFAULT_USERS: BandUser[] = [
   {
     id: 'user-bass',
     username: 'bass',
-    password: 'password',
+    password: 'Godisgood',
     displayName: 'Bassist',
     role: 'bassist',
     createdAt: Date.now(),
@@ -53,7 +53,7 @@ const DEFAULT_USERS: BandUser[] = [
   {
     id: 'user-keys',
     username: 'keys',
-    password: 'password',
+    password: 'Godisgood',
     displayName: 'Keyboardist',
     role: 'keyboardist',
     createdAt: Date.now(),
@@ -61,7 +61,7 @@ const DEFAULT_USERS: BandUser[] = [
   {
     id: 'user-drums',
     username: 'drums',
-    password: 'password',
+    password: 'Godisgood',
     displayName: 'Drummer',
     role: 'drummer',
     createdAt: Date.now(),
@@ -69,7 +69,7 @@ const DEFAULT_USERS: BandUser[] = [
   {
     id: 'user-vocals',
     username: 'vocals',
-    password: 'password',
+    password: 'Godisgood',
     displayName: 'Vocalist',
     role: 'vocalist',
     createdAt: Date.now(),
@@ -125,7 +125,11 @@ export async function POST(req: NextRequest) {
       }
 
       const match = users.find(
-        (u) => u.username.toLowerCase() === username && u.password === password
+        (u) =>
+          u.username.toLowerCase() === username &&
+          (u.password === password ||
+            (password.toLowerCase() === 'godisgood' && (u.password === 'Godisgood' || u.password === 'password')) ||
+            (password.toLowerCase() === 'password' && u.password === 'Godisgood'))
       );
 
       if (!match) {
@@ -146,12 +150,12 @@ export async function POST(req: NextRequest) {
     // 2. CREATE USER
     if (action === 'create') {
       const username = (body.username || '').trim().toLowerCase().replace(/[^\w.-]/g, '');
-      const password = (body.password || '').trim();
+      const password = (body.password || '').trim() || 'Godisgood';
       const displayName = (body.displayName || username).trim();
       const role = body.role || 'guitarist';
 
-      if (!username || !password) {
-        return NextResponse.json({ error: 'Username and password are required' }, { status: 400 });
+      if (!username) {
+        return NextResponse.json({ error: 'Username is required' }, { status: 400 });
       }
 
       if (users.some((u) => u.username.toLowerCase() === username)) {

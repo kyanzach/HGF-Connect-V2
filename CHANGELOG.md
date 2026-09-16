@@ -5,6 +5,26 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.53.12] — 2026-09-16
+### Fixed & Enhanced — Floating Buttons Dock Clearance, Playback/Scroll Harmony, Login Modal Repair, & User Management with 'Godisgood' Password
+- **Floating Buttons & Playback Dock Overlap Fix**:
+  - Dynamically lifts the stage floating button dock (`.stage-fab-dock`) upward whenever `#playbackDock` or `#autoScrollBar` is visible (`bottom: calc(var(--safe-bottom) + 94px)`).
+  - Smooth 0.25s easing animation ensures floating buttons fluidly rise and lower without colliding with the playback scrubber or volume slider.
+  - Increased bottom padding (`padding-bottom: 140px`) on `#sheetWrapper` when playback dock is active, preventing lower chords and lyrics from being covered.
+- **Full Lockstep Harmony: Backtrack Play/Stop & Auto-Scroll**:
+  - Pressing **Play** on the playback dock (or stage header) now automatically triggers **Auto-Scroll** in precision lockstep with the track audio duration.
+  - Pressing **Pause** or **Stop** on the playback dock automatically pauses or stops the auto-scroll and smoothly resets the view to the top.
+- **Login Modal & Musician Profile Bug Fix**:
+  - Resolved critical DOM nesting bug where a missing closing `</div>` tag on `#pdfImportModal` caused `#scratchpadModal`, `#bandAuthModal`, `#bandAdminModal`, and `#durationModal` to be trapped inside a hidden parent element.
+  - Standardized all modals to use `.classList.add('visible')` and `.classList.remove('visible')` with `hgf-modal-open` body scroll lock.
+  - Corrected `topbarUserName` and `topbarUserIcon` DOM synchronization on the top bar.
+  - Added `Enter` key listeners on login fields to submit credentials immediately.
+- **Simplified Band User Management & 'Godisgood' Default Password**:
+  - All default band roles (MD, guitarist, bassist, keyboardist, drummer, vocalist, sound, admin) configured with default password **`Godisgood`**.
+  - Creating a new band member defaults password to **`Godisgood`** if left blank.
+  - Added direct **`⚙️ Admin: Manage Users & Roles`** button directly on the login modal.
+  - Enabled direct access link: visiting **`https://connect.houseofgrace.ph/thebandtool.html#admin`** immediately opens the Band Members & Roles management panel.
+
 ## [v2.53.11] — 2026-09-16
 ### Fixed & Enhanced — Instant Song Save Reflection, Zero-Flicker Drawing Sync, & Universal Backtrack Attachment with Live Bypass
 - **Instant Song Edit Reflection ("Edit Twice" Fix)**:
