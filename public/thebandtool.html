@@ -418,13 +418,14 @@
       gap: 8px;
       min-width: 0;
     }
-    .stage-actions-group {
+    .stage-actions-group, .stage-action-btns {
       display: flex;
       align-items: center;
       gap: 6px;
+      flex-shrink: 0;
     }
     .stage-action-btn {
-      display: flex;
+      display: inline-flex;
       align-items: center;
       gap: 5px;
       padding: 0 10px;
@@ -433,6 +434,8 @@
       font-size: 13px;
       font-weight: 700;
       border-radius: 8px;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
     .stage-action-btn .btn-text {
       font-size: 11px;
@@ -1098,7 +1101,9 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 3px 10px;
+      padding: 4px 10px;
+      height: 32px;
+      box-sizing: border-box;
       border-radius: 999px;
       background: #0f172a;
       border: 1px solid rgba(245, 158, 11, 0.4);
@@ -1109,6 +1114,9 @@
       cursor: pointer;
       user-select: none;
       transition: all 0.2s ease;
+      white-space: nowrap;
+      flex-shrink: 0;
+      line-height: 1;
     }
     .stage-bpm-badge:hover, .stage-bpm-badge.active {
       background: rgba(245, 158, 11, 0.2);
@@ -1121,6 +1129,7 @@
       border-radius: 50%;
       background: #f59e0b;
       display: inline-block;
+      flex-shrink: 0;
       transition: transform 0.1s ease, box-shadow 0.1s ease;
     }
     .bpm-pulse-dot.pulse, .metronome-dot.flash {
@@ -1750,7 +1759,8 @@
         gap: 0 !important;
         justify-content: center !important;
       }
-      .stage-action-btn .btn-text {
+      .stage-action-btn .btn-text,
+      .stage-action-btn .stage-btn-text {
         display: none !important;
       }
       .icon-btn {
@@ -1970,40 +1980,19 @@
           <button class="trans-step-btn" onclick="transposeCurrentSong(1)" title="Transpose up 1 semitone">+</button>
         </div>
 
-        <!-- STAGE PLAYBACK TRIGGER (Prominent Blue Button with audio icon) -->
-        <button class="stage-playback-btn" id="sheetPlaybackBtn" onclick="toggleAudioPlay()" title="Start / Stop Backing Track">
-          <span id="sheetPlaybackIcon">▶</span>
-          <span id="sheetPlaybackLabel">Audio</span>
-        </button>
-
-        <!-- LIVE METRONOME PULSE INDICATOR -->
-        <div class="bpm-pulse-dot" id="bpmPulseDot" onclick="toggleMetronomeAudio()" title="Live Visual BPM Pulse • Click to toggle audio click">
-          <span style="font-size:10px;">●</span>
-          <span id="bpmPulseLabel">65 BPM</span>
+        <!-- PULSING BPM METRONOME BADGE (Worship Tool style) -->
+        <div class="stage-bpm-badge" id="topbarBpmBadge" onclick="toggleMetronomeAudio()" title="Live Visual BPM Pulse • Tap to toggle audible metronome click">
+          <span class="bpm-pulse-dot" id="topbarBpmDot"></span>
+          <span id="topbarBpmVal">72 BPM</span>
         </div>
 
-        <!-- STAGE ACTION BUTTONS (Dedicated row for effortless tapping) -->
-        <div class="stage-action-btns">
-          <button class="icon-btn stage-action-btn" onclick="openEditSongModal()" title="Edit Song (ChordPro/Lyrics)">
-            <span class="stage-btn-icon">✏️</span>
-            <span class="stage-btn-text">Edit</span>
-          </button>
-          <button class="icon-btn stage-action-btn" id="canvasDrawToggleBtn" onclick="toggleCanvasDrawing()" title="Draw / Annotate with Finger or Apple Pencil">
-            <span class="stage-btn-icon">🎨</span>
-            <span class="stage-btn-text">Draw</span>
-          </button>
-          <button class="icon-btn stage-action-btn" onclick="openAudioManagerModal()" title="Backing Tracks / Multi-Track Audio">
-            <span class="stage-btn-icon">🎧</span>
-            <span class="stage-btn-text">Track</span>
-          </button>
-          <button class="icon-btn stage-action-btn" onclick="openScratchpadModal()" title="Personal Musician Notes & Scratchpad">
-            <span class="stage-btn-icon">🗒️</span>
-            <span class="stage-btn-text">Notes</span>
-          </button>
-          <button class="icon-btn stage-action-btn" onclick="openAmbientPadModal()" title="Infinite Continuous Ambient Worship Pads">
-            <span class="stage-btn-icon">🎹</span>
-            <span class="stage-btn-text">Pad</span>
-          </button>
+        <!-- STAGE ACTION BUTTONS (Edit, Draw, Backtrack, Notes, Ambient Pad) -->
+        <div class="stage-actions-group">
+          <button class="icon-btn stage-action-btn" onclick="openEditCurrentSong()" title="Edit Song Chords & Details">✏️ <span class="btn-text">Edit</span></button>
+          <button class="icon-btn stage-action-btn" id="markupToggleBtn" onclick="toggleMarkupBar()" title="Draw / Annotate Canvas">🎨 <span class="btn-text">Draw</span></button>
+          <button class="icon-btn stage-action-btn" onclick="openAudioManagerModal()" title="Playback Track Audio">🎧 <span class="btn-text">Track</span></button>
+          <button class="icon-btn stage-action-btn" id="scratchpadTopBtn" onclick="openScratchpadModal()" title="Song Scratchpad & MD Notes">🗒️ <span class="btn-text">Notes</span></button>
+          <button class="icon-btn stage-action-btn" onclick="openSourceModal()" title="Ambient Worship Pads">🎹 <span class="btn-text">Pad</span></button>
         </div>
       </div>
     </header>

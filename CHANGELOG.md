@@ -5,6 +5,17 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.53.19] — 2026-09-16
+### Fixed — Topbar BPM Badge Rendering, Dynamic Tempo Binding, and Stage Button Spacing
+- **Topbar BPM Metronome Badge Fix**:
+  - Restored proper `.stage-bpm-badge` pill styling with inner pulsing amber dot (`#topbarBpmDot`) and tempo label (`#topbarBpmVal`).
+  - Fixed bug where the topbar BPM badge had erroneous class `.bpm-pulse-dot`, restricting the container to an 8px circle and causing the dots, tempo value, and BPM label to overflow and wrap vertically.
+  - Corrected element IDs so `renderSheet()` dynamically updates the topbar BPM to the active song's tempo (e.g. 72 BPM instead of static 65 BPM) and synchronizes with the visual metronome pulse.
+- **Topbar Stage Actions & Playback Cleanup**:
+  - Removed duplicate unstyled `sheetPlaybackBtn` from topbar row 2 which previously shadowed the actual sheet audio playback trigger in DOM lookups.
+  - Restored `.stage-actions-group` / `.stage-action-btns` flex gap and alignment to prevent stage buttons (`✏️ Edit`, `🎨 Draw`, `🎧 Track`, `🗒️ Notes`, `🎹 Pad`) from squishing together.
+  - Restored correct button click handlers (`openEditCurrentSong()`, `toggleMarkupBar()`, `openSourceModal()`).
+
 ## [v2.53.18] — 2026-09-16
 ### Fixed — Setlist Lineup Restoration, Active Set Persistence, and Edge Chevron Cleanup
 - **Setlist Lineup Crash Fix (`getRootNote`)**:
