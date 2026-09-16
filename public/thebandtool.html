@@ -1572,23 +1572,27 @@
             ▶ Play Pad
           </button>
         </div>
-        <div style="font-size:12px;color:var(--text-muted);">
-          Continuous warm worship synth pad in current key (<span id="padCurrentKeyLabel" style="color:var(--primary);font-weight:700;">C</span>)
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">
+          Preset Peace Worship Pads (Peaceful Vol. 5) in key (<span id="padCurrentKeyLabel" style="color:var(--primary);font-weight:700;">C</span>)
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:var(--text-muted);">
+          <span>🔊 Volume:</span>
+          <input type="range" id="padVolumeSlider" min="0" max="1" step="0.05" value="0.85" oninput="setPadVolume(this.value)" style="flex:1;accent-color:var(--primary);cursor:pointer;">
         </div>
         <!-- 12-key quick selector with clear enharmonics -->
-        <div class="pad-key-grid">
-          <button class="pad-key-btn active" onclick="setPadKey('C')">C</button>
-          <button class="pad-key-btn" onclick="setPadKey('Db')">C# / Db</button>
-          <button class="pad-key-btn" onclick="setPadKey('D')">D</button>
-          <button class="pad-key-btn" onclick="setPadKey('Eb')">D# / Eb</button>
-          <button class="pad-key-btn" onclick="setPadKey('E')">E</button>
-          <button class="pad-key-btn" onclick="setPadKey('F')">F</button>
-          <button class="pad-key-btn" onclick="setPadKey('F#')">F# / Gb</button>
-          <button class="pad-key-btn" onclick="setPadKey('G')">G</button>
-          <button class="pad-key-btn" onclick="setPadKey('Ab')">G# / Ab</button>
-          <button class="pad-key-btn" onclick="setPadKey('A')">A</button>
-          <button class="pad-key-btn" onclick="setPadKey('Bb')">A# / Bb</button>
-          <button class="pad-key-btn" onclick="setPadKey('B')">B</button>
+        <div class="pad-key-grid" style="margin-top:10px;">
+          <button class="pad-key-btn active" data-key="C" onclick="setPadKey('C')">C</button>
+          <button class="pad-key-btn" data-key="Db" onclick="setPadKey('Db')">C# / Db</button>
+          <button class="pad-key-btn" data-key="D" onclick="setPadKey('D')">D</button>
+          <button class="pad-key-btn" data-key="Eb" onclick="setPadKey('Eb')">D# / Eb</button>
+          <button class="pad-key-btn" data-key="E" onclick="setPadKey('E')">E</button>
+          <button class="pad-key-btn" data-key="F" onclick="setPadKey('F')">F</button>
+          <button class="pad-key-btn" data-key="F#" onclick="setPadKey('F#')">F# / Gb</button>
+          <button class="pad-key-btn" data-key="G" onclick="setPadKey('G')">G</button>
+          <button class="pad-key-btn" data-key="Ab" onclick="setPadKey('Ab')">G# / Ab</button>
+          <button class="pad-key-btn" data-key="A" onclick="setPadKey('A')">A</button>
+          <button class="pad-key-btn" data-key="Bb" onclick="setPadKey('Bb')">A# / Bb</button>
+          <button class="pad-key-btn" data-key="B" onclick="setPadKey('B')">B</button>
         </div>
       </div>
 
@@ -2469,82 +2473,99 @@ Lord, I'll worship Your holy name.`
     }
   }
 
+  // AUTHENTIC PEACE WORSHIP PADS (Peaceful Vol. 5) PRESET ENGINE
+  const PAD_AUDIO_FILES = {
+    'C': '/audio/pads/C.mp3',
+    'Db': '/audio/pads/Db.mp3',
+    'C#': '/audio/pads/Db.mp3',
+    'D': '/audio/pads/D.mp3',
+    'Eb': '/audio/pads/Eb.mp3',
+    'D#': '/audio/pads/Eb.mp3',
+    'E': '/audio/pads/E.mp3',
+    'F': '/audio/pads/F.mp3',
+    'Gb': '/audio/pads/Gb.mp3',
+    'F#': '/audio/pads/Gb.mp3',
+    'G': '/audio/pads/G.mp3',
+    'Ab': '/audio/pads/Ab.mp3',
+    'G#': '/audio/pads/Ab.mp3',
+    'A': '/audio/pads/A.mp3',
+    'Bb': '/audio/pads/Bb.mp3',
+    'A#': '/audio/pads/Bb.mp3',
+    'B': '/audio/pads/B.mp3'
+  };
+
+  let ambientPadAudio = null;
+  let padVolume = 0.85;
+  let padFadeInterval = null;
+
+  function setPadVolume(val) {
+    padVolume = Math.max(0, Math.min(1, parseFloat(val)));
+    if (ambientPadAudio && !padFadeInterval) {
+      ambientPadAudio.volume = padVolume;
+    }
+  }
+
   function toggleAmbientPad() {
-    initAudioContext();
-    if (ambientPadNode) {
+    if (ambientPadAudio && !ambientPadAudio.paused) {
       stopAmbientPad();
     } else {
       startAmbientPad(activePadKey);
     }
   }
 
-  const KEY_FREQUENCIES = {
-    'C': 130.81, 'Db': 138.59, 'D': 146.83, 'Eb': 155.56,
-    'E': 164.81, 'F': 174.61, 'F#': 185.00, 'G': 196.00,
-    'Ab': 207.65, 'A': 220.00, 'Bb': 233.08, 'B': 246.94
-  };
-
-  let activePadInstance = null;
-
   function startAmbientPad(keyName) {
-    initAudioContext();
-    stopAmbientPad(true); // Stop any previous node immediately
-
-    const rootFreq = KEY_FREQUENCIES[keyName] || 130.81;
-    const fifthFreq = rootFreq * 1.4983; // Perfect Fifth
-
-    const masterGain = audioCtx.createGain();
-    masterGain.gain.setValueAtTime(0.001, audioCtx.currentTime);
-    masterGain.gain.exponentialRampToValueAtTime(0.28, audioCtx.currentTime + 1.2);
-
-    // Warm Low-pass filter for lush ambient sound
-    const filter = audioCtx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(440, audioCtx.currentTime);
-    filter.Q.setValueAtTime(1.8, audioCtx.currentTime);
-
-    // Subtle chorus / LFO
-    const lfo = audioCtx.createOscillator();
-    const lfoGain = audioCtx.createGain();
-    lfo.frequency.setValueAtTime(0.25, audioCtx.currentTime);
-    lfoGain.gain.setValueAtTime(45, audioCtx.currentTime);
-    lfo.connect(lfoGain);
-    lfoGain.connect(filter.frequency);
-    lfo.start();
-
-    // 3 warm oscillators: Root, Fifth, Sub
-    const oscRoot = audioCtx.createOscillator();
-    oscRoot.type = 'sawtooth';
-    oscRoot.frequency.setValueAtTime(rootFreq, audioCtx.currentTime);
-
-    const oscFifth = audioCtx.createOscillator();
-    oscFifth.type = 'sawtooth';
-    oscFifth.frequency.setValueAtTime(fifthFreq, audioCtx.currentTime);
-
-    const oscSub = audioCtx.createOscillator();
-    oscSub.type = 'sine';
-    oscSub.frequency.setValueAtTime(rootFreq / 2, audioCtx.currentTime);
-
-    oscRoot.connect(filter);
-    oscFifth.connect(filter);
-    oscSub.connect(filter);
-    filter.connect(masterGain);
-    masterGain.connect(audioCtx.destination);
-
-    oscRoot.start();
-    oscFifth.start();
-    oscSub.start();
-
-    activePadInstance = { oscRoot, oscFifth, oscSub, lfo, masterGain };
-    ambientPadNode = activePadInstance;
-    padGainNode = masterGain;
-
+    const filePath = PAD_AUDIO_FILES[keyName] || '/audio/pads/C.mp3';
     const btn = document.getElementById('padToggleBtn');
-    if (btn) {
-      btn.textContent = '⏹ Stop Pad';
-      btn.classList.remove('primary');
+
+    // If already playing this key, keep playing
+    if (ambientPadAudio && !ambientPadAudio.paused && ambientPadAudio.src.endsWith(filePath)) {
+      return;
     }
-    showToast(`Ambient Pad playing in Key ${keyName}`);
+
+    if (padFadeInterval) {
+      clearInterval(padFadeInterval);
+      padFadeInterval = null;
+    }
+
+    const oldAudio = ambientPadAudio;
+    const newAudio = new Audio(filePath);
+    newAudio.loop = true;
+    newAudio.volume = 0;
+
+    newAudio.play().then(() => {
+      ambientPadAudio = newAudio;
+      if (btn) {
+        btn.textContent = '⏹ Stop Pad';
+        btn.classList.remove('primary');
+      }
+      const displayKey = KEY_DISPLAY_MAP[keyName] || keyName;
+      showToast(`Worship Pad playing in Key ${displayKey}`);
+
+      // Smooth 1.5s crossfade between keys
+      let step = 0;
+      const totalSteps = 30;
+      const intervalTime = 50; // 30 * 50ms = 1500ms
+      padFadeInterval = setInterval(() => {
+        step++;
+        const progress = step / totalSteps;
+        newAudio.volume = Math.min(padVolume, padVolume * progress);
+        if (oldAudio && !oldAudio.paused) {
+          oldAudio.volume = Math.max(0, padVolume * (1 - progress));
+        }
+        if (step >= totalSteps) {
+          clearInterval(padFadeInterval);
+          padFadeInterval = null;
+          newAudio.volume = padVolume;
+          if (oldAudio) {
+            oldAudio.pause();
+            oldAudio.src = '';
+          }
+        }
+      }, intervalTime);
+    }).catch(err => {
+      console.warn('Pad audio playback blocked or failed:', err);
+      showToast('Tap to allow audio playback');
+    });
   }
 
   function stopAmbientPad(immediate = false) {
@@ -2554,63 +2575,51 @@ Lord, I'll worship Your holy name.`
       btn.classList.add('primary');
     }
 
-    if (!activePadInstance) return;
+    if (!ambientPadAudio) return;
 
-    const instance = activePadInstance;
-    activePadInstance = null;
-    ambientPadNode = null;
-    padGainNode = null;
+    if (padFadeInterval) {
+      clearInterval(padFadeInterval);
+      padFadeInterval = null;
+    }
 
-    try {
-      if (immediate || !audioCtx) {
-        instance.masterGain.disconnect();
-        instance.oscRoot.stop();
-        instance.oscFifth.stop();
-        instance.oscSub.stop();
-        instance.lfo.stop();
-      } else {
-        const now = audioCtx.currentTime;
-        instance.masterGain.gain.cancelScheduledValues(now);
-        instance.masterGain.gain.setValueAtTime(instance.masterGain.gain.value, now);
-        instance.masterGain.gain.linearRampToValueAtTime(0.0001, now + 0.5);
-        setTimeout(() => {
-          try {
-            instance.masterGain.disconnect();
-            instance.oscRoot.stop();
-            instance.oscFifth.stop();
-            instance.oscSub.stop();
-            instance.lfo.stop();
-          } catch {}
-        }, 550);
+    const audioToStop = ambientPadAudio;
+    ambientPadAudio = null;
+
+    if (immediate) {
+      audioToStop.pause();
+      audioToStop.src = '';
+      return;
+    }
+
+    // Smooth 1.0s fade out
+    let step = 0;
+    const totalSteps = 20;
+    const startVol = audioToStop.volume;
+    padFadeInterval = setInterval(() => {
+      step++;
+      const progress = step / totalSteps;
+      audioToStop.volume = Math.max(0, startVol * (1 - progress));
+      if (step >= totalSteps) {
+        clearInterval(padFadeInterval);
+        padFadeInterval = null;
+        audioToStop.pause();
+        audioToStop.src = '';
       }
-    } catch {}
+    }, 50);
   }
 
   function setPadKey(key) {
     activePadKey = key;
     document.querySelectorAll('.pad-key-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.textContent.trim() === key);
+      const btnKey = btn.getAttribute('data-key') || btn.textContent.trim();
+      btn.classList.toggle('active', btnKey === key);
     });
-    document.getElementById('padCurrentKeyLabel').textContent = key;
+    const displayKey = KEY_DISPLAY_MAP[key] || key;
+    document.getElementById('padCurrentKeyLabel').textContent = displayKey;
 
-    // Smoothly morph frequencies in real-time if currently playing
-    if (activePadInstance && audioCtx) {
-      const rootFreq = KEY_FREQUENCIES[key] || 130.81;
-      const fifthFreq = rootFreq * 1.4983;
-      const now = audioCtx.currentTime;
-      try {
-        activePadInstance.oscRoot.frequency.cancelScheduledValues(now);
-        activePadInstance.oscRoot.frequency.exponentialRampToValueAtTime(rootFreq, now + 0.45);
-
-        activePadInstance.oscFifth.frequency.cancelScheduledValues(now);
-        activePadInstance.oscFifth.frequency.exponentialRampToValueAtTime(fifthFreq, now + 0.45);
-
-        activePadInstance.oscSub.frequency.cancelScheduledValues(now);
-        activePadInstance.oscSub.frequency.exponentialRampToValueAtTime(rootFreq / 2, now + 0.45);
-        showToast(`Pad morphed to Key ${key}`);
-      } catch (e) {
-        startAmbientPad(key);
-      }
+    // If currently playing, crossfade seamlessly into the new key
+    if (ambientPadAudio && !ambientPadAudio.paused) {
+      startAmbientPad(key);
     }
   }
 

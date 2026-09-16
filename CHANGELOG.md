@@ -5,6 +5,15 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.53.7] — 2026-09-16
+### Added & Enhanced — Authentic Peace Worship Pads (Peaceful Vol. 5) & Crossfade Engine
+- **Preset Peace Worship Pad Audio (12 Keys)**:
+  - Extracted and packaged all 12 chromatic keys (C, C#/Db, D, D#/Eb, E, F, F#/Gb, G, G#/Ab, A, A#/Bb, B) from the Peaceful Vol. 5 album.
+  - Replaced artificial Web Audio computer synth oscillators with authentic, warm 8.5-minute continuous worship pad audio tracks.
+- **Stage Seamless Crossfade Engine**:
+  - Implemented 1.5-second crossfading when switching keys so pad transitions during worship flows are smooth and free of pops or clicks.
+  - Added infinite seamless looping and an intuitive ambient pad volume mix slider.
+
 ## [v2.53.6] — 2026-09-16
 ### Added & Enhanced — Chord Sheet Live Preview Before Import & Clear Key Badges
 - **Interactive Chord Sheet Preview Before Import**:

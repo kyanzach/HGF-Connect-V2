@@ -48,4 +48,5 @@ CREDENTIALS_REFERENCE.md
 
 # Server-side data (TheWordTool scripts, etc.)
 /data/
+/public/audio/
 .aider*
