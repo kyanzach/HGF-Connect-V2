@@ -5,6 +5,17 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.53.17] — 2026-09-16
+### Fixed — Confirmation Modal Stacking Context & Setlist Startup Key Preference Bug
+- **Confirmation Modal Top-Layer Stacking (`z-index: 99999`)**:
+  - Fixed issue where `#confirmDeleteModal` rendered behind parent modals (`#bandAdminModal`) due to DOM ordering and shared `z-index: 200`.
+  - Elevated `#confirmDeleteModal` to `z-index: 99999 !important;` and its inner `.edit-modal` to `z-index: 100000 !important;` with distinct drop-shadows.
+  - Added `#confirmDeleteWarning` support so deleting band members or setlists shows relevant context-specific warnings instead of hardcoded song library text.
+- **Setlist Key Preference ReferenceError Fix & Song List Restoration**:
+  - Replaced legacy `getUserKeyPreference` reference in `loadSongFromSet()` with session-scoped setlist key check (`setlistSessionKeys`), and added backward-compatible aliases (`const getUserKeyPreference = getLibraryKeyPreference`).
+  - Resolved uncaught `ReferenceError` during page boot that halted script execution, restoring the song list and active setlist lineup.
+  - Enforced MD key reset: whenever a setlist is opened or revisited, songs reset to the MD's official setlist keys. Custom key changes within a setlist prompt the musician to keep for that session only. Returning to All Songs mode automatically restores personal library keys.
+
 ## [v2.53.16] — 2026-09-16
 ### Fixed & Enhanced — Tablet/Laptop Topbar Layout, Device-Only Offline Audio Storage (IndexedDB), and Personal Key Recall with MD Key Sync Reminders
 - **Tablet & Laptop Topbar Layout Refinement**:
