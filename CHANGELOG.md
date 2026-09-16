@@ -5,6 +5,17 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.53.5] — 2026-09-16
+### Fixed — Drawing Canvas Coordinate Offset & Touch Gestures on Mobile / Tablet / Desktop
+- **Canvas Vertical Sizing & Coordinate Fix**:
+  - Removed CSS `height: 100%` on `#drawCanvas` that was compressing the scrollable canvas into the viewport height, causing strokes to appear far above the cursor/finger.
+  - Sized canvas explicit CSS layout dimensions (`canvas.style.width` and `height`) to match `Math.max(wrapper.scrollWidth, wrapper.clientWidth)` and `Math.max(wrapper.scrollHeight, wrapper.clientHeight)` dynamically.
+  - Normalized coordinates using `getBoundingClientRect().width` and `height`, mapping directly to canvas bitmap scaled with `window.devicePixelRatio` for 100% pixel-perfect accuracy.
+- **Mobile & Tablet Touch Enhancement**:
+  - Added `touch-action: none;` to prevent mobile browser gestures from interfering with freehand drawing.
+  - Permitted two-finger gestures (`touches.length > 1`) so users can smoothly pan or zoom while drawing mode is active.
+  - Added orientation change and font-zoom resize hooks to maintain canvas alignment across device rotations and zoom levels.
+
 ## [v2.53.4] — 2026-09-16
 ### Added & Enhanced — Section Roadmap, 1-Tap Playback Duration & Enharmonic Keys
 - **Section Order Arrangement Roadmap**:

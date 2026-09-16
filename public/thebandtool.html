@@ -490,13 +490,14 @@
       position: absolute;
       top: 0;
       left: 0;
-      width: 100%;
-      height: 100%;
       pointer-events: none;
       z-index: 10;
+      display: block;
+      touch-action: none;
     }
     #drawCanvas.active {
       pointer-events: auto;
+      touch-action: none;
     }
 
     /* Song Title Header in Sheet */
@@ -2369,6 +2370,10 @@ Lord, I'll worship Your holy name.`
   function adjustFontSize(delta) {
     fontSizePx = Math.max(12, Math.min(32, fontSizePx + delta));
     document.getElementById('sheetContent').style.fontSize = fontSizePx + 'px';
+    setTimeout(() => {
+      resizeCanvas();
+      redrawCanvasStrokes();
+    }, 50);
   }
 
   // AUTO-SCROLL
@@ -2625,9 +2630,16 @@ Lord, I'll worship Your holy name.`
     canvas = document.getElementById('drawCanvas');
     ctx = canvas.getContext('2d');
     resizeCanvas();
+
     window.addEventListener('resize', () => {
       resizeCanvas();
       redrawCanvasStrokes();
+    });
+    window.addEventListener('orientationchange', () => {
+      setTimeout(() => {
+        resizeCanvas();
+        redrawCanvasStrokes();
+      }, 100);
     });
 
     canvas.addEventListener('mousedown', startDrawing);
@@ -2636,26 +2648,50 @@ Lord, I'll worship Your holy name.`
 
     canvas.addEventListener('touchstart', (e) => {
       if (!isMarkupActive) return;
+      if (e.touches && e.touches.length > 1) return; // Allow 2-finger scroll
       if (e.cancelable) e.preventDefault();
       const t = e.touches[0];
-      startDrawing({ clientX: t.clientX, clientY: t.clientY, cancelable: false });
+      startDrawing({ clientX: t.clientX, clientY: t.clientY, touches: [t], cancelable: false });
     }, { passive: false });
 
     canvas.addEventListener('touchmove', (e) => {
       if (!isMarkupActive) return;
+      if (e.touches && e.touches.length > 1) return; // Allow 2-finger scroll
       if (e.cancelable) e.preventDefault();
       const t = e.touches[0];
-      draw({ clientX: t.clientX, clientY: t.clientY, cancelable: false });
+      draw({ clientX: t.clientX, clientY: t.clientY, touches: [t], cancelable: false });
     }, { passive: false });
 
-    canvas.addEventListener('touchend', stopDrawing);
+    canvas.addEventListener('touchend', (e) => {
+      if (!isMarkupActive) return;
+      stopDrawing();
+    });
   }
 
   function resizeCanvas() {
     const wrapper = document.getElementById('sheetWrapper');
     if (!canvas || !wrapper) return;
-    canvas.width = wrapper.scrollWidth;
-    canvas.height = wrapper.scrollHeight;
+
+    // Temporarily reset inline dimensions so canvas doesn't artificially stretch wrapper
+    canvas.style.width = '0px';
+    canvas.style.height = '0px';
+
+    const contentW = Math.max(wrapper.scrollWidth, wrapper.clientWidth);
+    const contentH = Math.max(wrapper.scrollHeight, wrapper.clientHeight);
+
+    // Apply explicit CSS dimensions matching actual scrollable content
+    canvas.style.width = contentW + 'px';
+    canvas.style.height = contentH + 'px';
+
+    // High-resolution bitmap scaling (crisp rendering on Retina / iPad / mobile)
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const bitmapW = Math.round(contentW * dpr);
+    const bitmapH = Math.round(contentH * dpr);
+
+    if (canvas.width !== bitmapW || canvas.height !== bitmapH) {
+      canvas.width = bitmapW;
+      canvas.height = bitmapH;
+    }
   }
 
   function toggleMarkupBar() {
@@ -2676,13 +2712,25 @@ Lord, I'll worship Your holy name.`
 
   function getCanvasCoords(e) {
     const rect = canvas.getBoundingClientRect();
-    const clientX = e.clientX ?? (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
-    const clientY = e.clientY ?? (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
-    const x = clientX - rect.left;
-    const y = clientY - rect.top;
-    const nx = canvas.width > 0 ? (x / canvas.width) : 0;
-    const ny = canvas.height > 0 ? (y / canvas.height) : 0;
-    return { x, y, nx: Math.max(0, Math.min(1, nx)), ny: Math.max(0, Math.min(1, ny)) };
+    const touch = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]);
+    const clientX = touch ? touch.clientX : (e.clientX ?? 0);
+    const clientY = touch ? touch.clientY : (e.clientY ?? 0);
+
+    const cssX = clientX - rect.left;
+    const cssY = clientY - rect.top;
+
+    const nx = rect.width > 0 ? (cssX / rect.width) : 0;
+    const ny = rect.height > 0 ? (cssY / rect.height) : 0;
+
+    const clampedNx = Math.max(0, Math.min(1, nx));
+    const clampedNy = Math.max(0, Math.min(1, ny));
+
+    return {
+      x: clampedNx * canvas.width,
+      y: clampedNy * canvas.height,
+      nx: clampedNx,
+      ny: clampedNy
+    };
   }
 
   function startDrawing(e) {
@@ -2690,16 +2738,18 @@ Lord, I'll worship Your holy name.`
     if (e.cancelable) e.preventDefault();
     isDrawing = true;
     const pos = getCanvasCoords(e);
+    const rect = canvas.getBoundingClientRect();
+    const dpr = canvas.width / Math.max(rect.width, 1);
 
     activeStroke = {
       color: drawColor,
-      widthRatio: drawLineWidth / Math.max(canvas.width, 360),
+      widthRatio: (drawLineWidth * dpr) / Math.max(canvas.width, 360),
       isEraser: drawColor === 'eraser',
       points: [[pos.nx, pos.ny]]
     };
 
     ctx.beginPath();
-    ctx.lineWidth = drawLineWidth;
+    ctx.lineWidth = drawLineWidth * dpr;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     if (activeStroke.isEraser) {
@@ -2718,7 +2768,9 @@ Lord, I'll worship Your holy name.`
     const pos = getCanvasCoords(e);
     activeStroke.points.push([pos.nx, pos.ny]);
 
-    ctx.lineWidth = drawLineWidth;
+    const rect = canvas.getBoundingClientRect();
+    const dpr = canvas.width / Math.max(rect.width, 1);
+    ctx.lineWidth = drawLineWidth * dpr;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     if (activeStroke.isEraser) {
