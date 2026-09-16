@@ -5,6 +5,26 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.53.8] — 2026-09-16
+### Added & Fixed — Worship Setlists Management, Infinite Pad Loop with 3s Fade In/Out, & Exact 1:1 Pointer Drawing
+- **Worship Setlists Management System (`The Band Tool`)**:
+  - Activated the Sets tab (`switchLibraryTab('sets')`) in the sidebar: view worship sets with service dates, leader names, and song counts.
+  - Added `+ New Set` modal to create worship sets with name, date, leader, notes, and optional inclusion of the active song.
+  - Added `Add to Set...` modal to attach songs into existing or new sets with a designated performance key.
+  - Interactive Setlist Detail view in sidebar with 1-tap stage loading, song reordering, and removal.
+  - Added on-stage Setlist Stepper banner (`🎼 Sunday Set • Song 2 of 4 [◀ Prev] [Next ▶]`) for 1-tap live song transitions during service.
+- **Ambient Pad Infinite Looping with 3.0s Fade-In & Fade-Out**:
+  - Implemented infinite pad looping (`audio.loop = true` plus `ended` fallback restart) that never stops until explicitly told to stop.
+  - Added smooth **3.0-second fade-in** curve on start and **3.0-second fade-out** curve on stop to eliminate abrupt silence.
+  - Added smooth **3.0-second crossfade** when morphing keys during live worship.
+  - Real-time UI indicator: button reflects `⏹ Fading Out...` until completion.
+- **Drawing Canvas & Pointer Coordinate Precision**:
+  - Encapsulated canvas and song sheet inside `#sheetScrollBody` with matching physical dimensions (`position: relative; width: 100%; min-height: 100%`).
+  - Switched to unified `PointerEvents` (`pointerdown`, `pointermove`, `pointerup`, `pointercancel`) with `setPointerCapture`.
+  - Exact 1:1 coordinate calculation using `getBoundingClientRect()` without scroll or header offset discrepancy across laptop, tablet, and mobile.
+- **Service Worker Cache Busting**:
+  - Updated `public/theband-sw.js` cache to `theband-v2.53.8` with network-first strategy for `thebandtool.html`.
+
 ## [v2.53.7] — 2026-09-16
 ### Added & Enhanced — Authentic Peace Worship Pads (Peaceful Vol. 5) & Crossfade Engine
 - **Preset Peace Worship Pad Audio (12 Keys)**:

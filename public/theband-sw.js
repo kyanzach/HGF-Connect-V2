@@ -1,7 +1,8 @@
 // THE BAND — Musician Songbook & Live Chord Transposer Service Worker
-const CACHE_NAME = 'theband-v1.0.0';
+const CACHE_NAME = 'theband-v2.53.8';
 const ASSETS = [
   '/thebandtool.html',
+  '/theband-manifest.json',
   '/manifest.json',
   '/favicon.ico'
 ];
@@ -36,7 +37,21 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // Stale-while-revalidate for app shell
+  // For the main HTML app shell, try network first to always get latest version, fallback to cache
+  if (url.pathname === '/thebandtool.html' || url.pathname === '/') {
+    e.respondWith(
+      fetch(e.request).then((networkRes) => {
+        if (networkRes && networkRes.status === 200) {
+          const resClone = networkRes.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(e.request, resClone));
+        }
+        return networkRes;
+      }).catch(() => caches.match(e.request))
+    );
+    return;
+  }
+
+  // Stale-while-revalidate for static assets
   e.respondWith(
     caches.match(e.request).then((cached) => {
       const fetchPromise = fetch(e.request).then((networkRes) => {

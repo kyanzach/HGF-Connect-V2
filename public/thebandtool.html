@@ -485,11 +485,18 @@
       scroll-behavior: smooth;
     }
 
-    /* Fullscreen Drawing Canvas Overlay */
+    /* Fullscreen Drawing Canvas Overlay on Sheet Body */
+    .sheet-scroll-body {
+      position: relative;
+      width: 100%;
+      min-height: 100%;
+    }
     #drawCanvas {
       position: absolute;
       top: 0;
       left: 0;
+      width: 100%;
+      height: 100%;
       pointer-events: none;
       z-index: 10;
       display: block;
@@ -498,6 +505,102 @@
     #drawCanvas.active {
       pointer-events: auto;
       touch-action: none;
+      cursor: crosshair;
+    }
+
+    /* Active Setlist Stage Stepper Banner */
+    .active-set-stage-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 14px;
+      margin-bottom: 14px;
+      background: linear-gradient(135deg, rgba(8, 145, 178, 0.25) 0%, rgba(15, 23, 42, 0.95) 100%);
+      border: 1px solid var(--primary);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      position: relative;
+      z-index: 20;
+    }
+    .active-set-stage-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .set-step-btn {
+      padding: 5px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: #161c26;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s;
+    }
+    .set-step-btn:hover {
+      background: #232d3d;
+      border-color: var(--primary);
+    }
+    .set-step-btn.primary {
+      background: var(--primary);
+      color: #000;
+      border-color: var(--primary);
+    }
+    .set-step-btn.primary:hover {
+      background: #38bdf8;
+    }
+
+    /* Setlist Sidebar Cards & Rows */
+    .set-item-card {
+      padding: 12px 14px;
+      margin: 8px 12px;
+      background: #111622;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .set-item-card:hover {
+      background: #182030;
+      border-color: var(--primary);
+    }
+    .set-item-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    .set-item-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .set-song-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .set-song-row:hover {
+      background: #161f2e;
+    }
+    .set-song-row.active {
+      background: rgba(8, 145, 178, 0.18);
+      border-left: 3px solid var(--primary);
     }
 
     /* Song Title Header in Sheet */
@@ -1261,12 +1364,17 @@
       <!-- Injected alphabetically with #, A, B, etc. -->
     </div>
 
+    <!-- Setlists List (for Sets Tab) -->
+    <div class="song-list-scroll" id="setListContainer" style="display:none;">
+      <!-- Injected setlists cards or active setlist songs -->
+    </div>
+
     <!-- Sidebar Bottom Action Bar -->
-    <div class="sidebar-actions-bar">
-      <button class="sidebar-action-btn primary" onclick="openNewSongModal()">
+    <div class="sidebar-actions-bar" id="sidebarActionsBar">
+      <button class="sidebar-action-btn primary" id="sidebarActionLeft" onclick="onSidebarActionLeft()">
         <span>+</span> New Song
       </button>
-      <button class="sidebar-action-btn" onclick="openSetlistModal()">
+      <button class="sidebar-action-btn" id="sidebarActionRight" onclick="onSidebarActionRight()">
         Add to Set...
       </button>
     </div>
@@ -1334,33 +1442,51 @@
 
     <!-- SHEET VIEWPORT -->
     <div class="sheet-wrapper" id="sheetWrapper">
-      <!-- Annotation Canvas -->
-      <canvas id="drawCanvas"></canvas>
-
-      <!-- Song Header inside sheet -->
-      <div class="song-sheet-header">
-        <h1 class="sheet-song-title" id="sheetTitle">10,000 Reasons</h1>
-        <div class="sheet-song-meta">
-          <span id="sheetArtist" style="font-weight:600;color:#cbd5e1;">Bethel Music, Matt Redman</span>
-          <span class="meta-tag" id="sheetKeyBadge">Key: C</span>
-          <span class="meta-tag" id="sheetCapoBadge">Capo: 0</span>
-          <span class="meta-tag" id="sheetTempoBadge">
-            <span class="metronome-dot" id="metronomeDot"></span>
-            <span id="tempoLabel">73 BPM</span>
-          </span>
-          <span class="meta-tag" id="sheetTimeSigBadge">4/4</span>
-          <button class="meta-tag" id="sheetPlaybackBtn" onclick="toggleAudioPlay()" style="display:none;align-items:center;gap:6px;cursor:pointer;background:#0369a1;color:#fff;border:1px solid #38bdf8;font-weight:700;" title="Tap to Play / Pause Backing Track">
-            <span id="sheetPlaybackIcon">▶</span>
-            <span id="sheetDurationLabel">0:00</span>
-          </button>
+      <!-- Active Setlist Live Stage Stepper Banner -->
+      <div class="active-set-stage-banner" id="activeSetStageBanner" style="display:none;">
+        <div class="active-set-stage-info">
+          <span style="font-size:18px;">🎼</span>
+          <div>
+            <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--primary);font-weight:800;" id="activeSetNameBadge">WORSHIP SET</div>
+            <div style="font-size:13px;font-weight:700;color:#fff;" id="activeSetSongStepperLabel">Song 1 of 4</div>
+          </div>
         </div>
-        <!-- SECTION ORDER ARRANGEMENT ROADMAP BAR -->
-        <div id="sheetSectionOrderBar" style="display:none;flex-wrap:wrap;gap:6px;margin-top:10px;"></div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button class="set-step-btn" id="setPrevSongBtn" onclick="stepActiveSet(-1)" title="Previous Song in Set">◀ Prev</button>
+          <button class="set-step-btn primary" id="setNextSongBtn" onclick="stepActiveSet(1)" title="Next Song in Set">Next ▶</button>
+          <button class="icon-btn" onclick="exitActiveSetStage()" style="width:26px;height:26px;font-size:11px;" title="Exit Setlist Mode">✕</button>
+        </div>
       </div>
 
-      <!-- Chords & Lyrics Display -->
-      <div class="chord-sheet-container" id="sheetContent">
-        <!-- Live rendered chord sheet -->
+      <div class="sheet-scroll-body" id="sheetScrollBody">
+        <!-- Annotation Canvas Overlay -->
+        <canvas id="drawCanvas"></canvas>
+
+        <!-- Song Header inside sheet -->
+        <div class="song-sheet-header">
+          <h1 class="sheet-song-title" id="sheetTitle">10,000 Reasons</h1>
+          <div class="sheet-song-meta">
+            <span id="sheetArtist" style="font-weight:600;color:#cbd5e1;">Bethel Music, Matt Redman</span>
+            <span class="meta-tag" id="sheetKeyBadge">Key: C</span>
+            <span class="meta-tag" id="sheetCapoBadge">Capo: 0</span>
+            <span class="meta-tag" id="sheetTempoBadge">
+              <span class="metronome-dot" id="metronomeDot"></span>
+              <span id="tempoLabel">73 BPM</span>
+            </span>
+            <span class="meta-tag" id="sheetTimeSigBadge">4/4</span>
+            <button class="meta-tag" id="sheetPlaybackBtn" onclick="toggleAudioPlay()" style="display:none;align-items:center;gap:6px;cursor:pointer;background:#0369a1;color:#fff;border:1px solid #38bdf8;font-weight:700;" title="Tap to Play / Pause Backing Track">
+              <span id="sheetPlaybackIcon">▶</span>
+              <span id="sheetDurationLabel">0:00</span>
+            </button>
+          </div>
+          <!-- SECTION ORDER ARRANGEMENT ROADMAP BAR -->
+          <div id="sheetSectionOrderBar" style="display:none;flex-wrap:wrap;gap:6px;margin-top:10px;"></div>
+        </div>
+
+        <!-- Chords & Lyrics Display -->
+        <div class="chord-sheet-container" id="sheetContent">
+          <!-- Live rendered chord sheet -->
+        </div>
       </div>
     </div>
 
@@ -1783,6 +1909,87 @@
   </div>
 </div>
 
+<!-- CREATE NEW SETLIST MODAL -->
+<div class="modal-overlay" id="newSetModal">
+  <div class="edit-modal" style="max-width: 500px; height: auto; max-height: 90vh;">
+    <div class="modal-header">
+      <div class="modal-header-title">Create New Worship Set</div>
+      <button class="icon-btn" onclick="closeNewSetModal()" style="width:28px;height:28px;">✕</button>
+    </div>
+    <div class="modal-body" style="padding: 16px; display:flex; flex-direction:column; gap: 14px;">
+      <div class="form-group" style="display:flex;flex-direction:column;gap:6px;">
+        <label style="font-size:13px;font-weight:700;color:#cbd5e1;">Setlist Name *</label>
+        <input type="text" id="newSetNameInput" class="search-input" style="background:#090d15;border:1px solid var(--border);border-radius:6px;padding:8px 12px;color:#fff;" placeholder="e.g. Sunday Morning Worship" required>
+      </div>
+      <div style="display:flex;gap:12px;">
+        <div style="flex:1;display:flex;flex-direction:column;gap:6px;">
+          <label style="font-size:13px;font-weight:700;color:#cbd5e1;">Service Date</label>
+          <input type="date" id="newSetDateInput" class="search-input" style="background:#090d15;border:1px solid var(--border);border-radius:6px;padding:8px 12px;color:#fff;">
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:6px;">
+          <label style="font-size:13px;font-weight:700;color:#cbd5e1;">Worship Leader</label>
+          <input type="text" id="newSetLeaderInput" class="search-input" style="background:#090d15;border:1px solid var(--border);border-radius:6px;padding:8px 12px;color:#fff;" placeholder="e.g. Pastor Ryan">
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <label style="font-size:13px;font-weight:700;color:#cbd5e1;">Notes / Theme (Optional)</label>
+        <textarea id="newSetNotesInput" class="search-input" rows="2" style="background:#090d15;border:1px solid var(--border);border-radius:6px;padding:8px 12px;color:#fff;font-family:inherit;resize:vertical;" placeholder="e.g. Fast praise into deep intimate worship..."></textarea>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
+        <input type="checkbox" id="newSetIncludeCurrentCheck" checked style="width:18px;height:18px;cursor:pointer;">
+        <label for="newSetIncludeCurrentCheck" style="font-size:13px;color:#cbd5e1;cursor:pointer;">Include current song (<span id="newSetCurrentSongLabel" style="color:var(--primary);font-weight:700;"></span>)</label>
+      </div>
+    </div>
+    <div style="padding: 12px 16px; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--border); background: #0a0e14;">
+      <button class="sidebar-action-btn" onclick="closeNewSetModal()">Cancel</button>
+      <button class="sidebar-action-btn primary" onclick="submitNewSetlist()">Create Setlist</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD TO SETLIST MODAL -->
+<div class="modal-overlay" id="addToSetModal">
+  <div class="edit-modal" style="max-width: 500px; height: auto; max-height: 90vh;">
+    <div class="modal-header">
+      <div class="modal-header-title">Add Song to Worship Set</div>
+      <button class="icon-btn" onclick="closeAddToSetModal()" style="width:28px;height:28px;">✕</button>
+    </div>
+    <div class="modal-body" style="padding: 16px; display:flex; flex-direction:column; gap: 14px;">
+      <div style="padding: 10px 14px; background: #161c26; border-radius: 8px; border: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
+        <div>
+          <div style="font-weight: 700; color: #fff; font-size: 15px;" id="addToSetSongTitle">Song Title</div>
+          <div style="font-size: 12px; color: var(--text-muted);" id="addToSetSongArtist">Artist</div>
+        </div>
+        <div class="meta-tag" id="addToSetSongKeyBadge" style="color:var(--accent-chord);font-weight:700;">Key: C</div>
+      </div>
+
+      <div id="addToSetSelectWrap" style="display:flex;flex-direction:column;gap:6px;">
+        <label style="font-size:13px;font-weight:700;color:#cbd5e1;">Select Worship Set</label>
+        <select id="addToSetSelect" class="order-select" style="width:100%;padding:10px;background:#090d15;border-radius:6px;font-size:14px;color:#fff;cursor:pointer;"></select>
+      </div>
+
+      <div id="noSetsWarningWrap" style="display:none;padding:12px;background:rgba(245,158,11,0.12);border:1px solid #f59e0b;border-radius:6px;font-size:13px;color:#fde68a;">
+        No worship sets found yet! Create your first setlist below.
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <label style="font-size:13px;font-weight:700;color:#cbd5e1;">Key for this Set</label>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <input type="text" id="addToSetCustomKeyInput" class="search-input" style="width:110px;text-align:center;font-weight:700;color:var(--accent-chord);font-size:15px;background:#090d15;border:1px solid var(--border);border-radius:6px;padding:8px 12px;" placeholder="e.g. Db">
+          <span style="font-size:12px;color:var(--text-muted);">Transposed key for this performance</span>
+        </div>
+      </div>
+    </div>
+    <div style="padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); background: #0a0e14;">
+      <button class="sidebar-action-btn" onclick="openNewSetModal()" style="font-size:12px;">+ New Set</button>
+      <div style="display:flex;gap:8px;">
+        <button class="sidebar-action-btn" onclick="closeAddToSetModal()">Cancel</button>
+        <button class="sidebar-action-btn primary" id="addToSetConfirmBtn" onclick="submitAddToSet()">Add to Set</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toast">Link copied to clipboard!</div>
 
@@ -1990,6 +2197,7 @@ Lord, I'll worship Your holy name.`
     initCanvas();
     buildKeyGrid();
     await loadSongsFromCloud();
+    await loadSetlists();
     setupPedalControls();
     registerServiceWorker();
 
@@ -1999,7 +2207,7 @@ Lord, I'll worship Your holy name.`
 
   function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/theband-sw.js').catch(() => {});
+      navigator.serviceWorker.register('/theband-sw.js?v=2.53.8').catch(() => {});
     }
   }
 
@@ -2532,6 +2740,12 @@ Lord, I'll worship Your holy name.`
     newAudio.loop = true;
     newAudio.volume = 0;
 
+    // Redundant loop safety for all mobile and desktop browsers
+    newAudio.addEventListener('ended', () => {
+      newAudio.currentTime = 0;
+      newAudio.play().catch(() => {});
+    });
+
     newAudio.play().then(() => {
       ambientPadAudio = newAudio;
       if (btn) {
@@ -2541,10 +2755,10 @@ Lord, I'll worship Your holy name.`
       const displayKey = KEY_DISPLAY_MAP[keyName] || keyName;
       showToast(`Worship Pad playing in Key ${displayKey}`);
 
-      // Smooth 1.5s crossfade between keys
+      // Smooth 3.0s fade-in (and 3.0s crossfade if replacing an old key)
       let step = 0;
-      const totalSteps = 30;
-      const intervalTime = 50; // 30 * 50ms = 1500ms
+      const totalSteps = 60;
+      const intervalTime = 50; // 60 * 50ms = 3000ms (3.0 seconds)
       padFadeInterval = setInterval(() => {
         step++;
         const progress = step / totalSteps;
@@ -2570,12 +2784,14 @@ Lord, I'll worship Your holy name.`
 
   function stopAmbientPad(immediate = false) {
     const btn = document.getElementById('padToggleBtn');
-    if (btn) {
-      btn.textContent = '▶ Play Pad';
-      btn.classList.add('primary');
-    }
 
-    if (!ambientPadAudio) return;
+    if (!ambientPadAudio) {
+      if (btn) {
+        btn.textContent = '▶ Play Pad';
+        btn.classList.add('primary');
+      }
+      return;
+    }
 
     if (padFadeInterval) {
       clearInterval(padFadeInterval);
@@ -2586,14 +2802,25 @@ Lord, I'll worship Your holy name.`
     ambientPadAudio = null;
 
     if (immediate) {
+      if (btn) {
+        btn.textContent = '▶ Play Pad';
+        btn.classList.add('primary');
+      }
       audioToStop.pause();
       audioToStop.src = '';
       return;
     }
 
-    // Smooth 1.0s fade out
+    // Set UI to indicate graceful fade out
+    if (btn) {
+      btn.textContent = '⏹ Fading Out...';
+      btn.classList.remove('primary');
+    }
+
+    // Smooth 3.0s fade out
     let step = 0;
-    const totalSteps = 20;
+    const totalSteps = 60;
+    const intervalTime = 50; // 60 * 50ms = 3000ms (3.0 seconds)
     const startVol = audioToStop.volume;
     padFadeInterval = setInterval(() => {
       step++;
@@ -2604,8 +2831,12 @@ Lord, I'll worship Your holy name.`
         padFadeInterval = null;
         audioToStop.pause();
         audioToStop.src = '';
+        if (btn) {
+          btn.textContent = '▶ Play Pad';
+          btn.classList.add('primary');
+        }
       }
-    }, 50);
+    }, intervalTime);
   }
 
   function setPadKey(key) {
@@ -2658,69 +2889,56 @@ Lord, I'll worship Your holy name.`
 
   function initCanvas() {
     canvas = document.getElementById('drawCanvas');
+    if (!canvas) return;
     ctx = canvas.getContext('2d');
     resizeCanvas();
 
     window.addEventListener('resize', () => {
       resizeCanvas();
-      redrawCanvasStrokes();
     });
     window.addEventListener('orientationchange', () => {
-      setTimeout(() => {
-        resizeCanvas();
-        redrawCanvasStrokes();
-      }, 100);
+      setTimeout(resizeCanvas, 100);
     });
 
-    canvas.addEventListener('mousedown', startDrawing);
-    canvas.addEventListener('mousemove', draw);
-    canvas.addEventListener('mouseup', stopDrawing);
-
-    canvas.addEventListener('touchstart', (e) => {
+    // Modern unified PointerEvents for 1:1 precision across mouse, touch, and stylus
+    canvas.addEventListener('pointerdown', (e) => {
       if (!isMarkupActive) return;
-      if (e.touches && e.touches.length > 1) return; // Allow 2-finger scroll
-      if (e.cancelable) e.preventDefault();
-      const t = e.touches[0];
-      startDrawing({ clientX: t.clientX, clientY: t.clientY, touches: [t], cancelable: false });
-    }, { passive: false });
+      try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+      startDrawing(e);
+    });
 
-    canvas.addEventListener('touchmove', (e) => {
+    canvas.addEventListener('pointermove', (e) => {
+      if (!isMarkupActive || !isDrawing) return;
+      draw(e);
+    });
+
+    canvas.addEventListener('pointerup', (e) => {
       if (!isMarkupActive) return;
-      if (e.touches && e.touches.length > 1) return; // Allow 2-finger scroll
-      if (e.cancelable) e.preventDefault();
-      const t = e.touches[0];
-      draw({ clientX: t.clientX, clientY: t.clientY, touches: [t], cancelable: false });
-    }, { passive: false });
+      try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
+      stopDrawing();
+    });
 
-    canvas.addEventListener('touchend', (e) => {
+    canvas.addEventListener('pointercancel', (e) => {
       if (!isMarkupActive) return;
       stopDrawing();
     });
   }
 
   function resizeCanvas() {
-    const wrapper = document.getElementById('sheetWrapper');
-    if (!canvas || !wrapper) return;
+    const inner = document.getElementById('sheetScrollBody');
+    if (!canvas || !inner) return;
 
-    // Temporarily reset inline dimensions so canvas doesn't artificially stretch wrapper
-    canvas.style.width = '0px';
-    canvas.style.height = '0px';
+    const rect = inner.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
 
-    const contentW = Math.max(wrapper.scrollWidth, wrapper.clientWidth);
-    const contentH = Math.max(wrapper.scrollHeight, wrapper.clientHeight);
-
-    // Apply explicit CSS dimensions matching actual scrollable content
-    canvas.style.width = contentW + 'px';
-    canvas.style.height = contentH + 'px';
-
-    // High-resolution bitmap scaling (crisp rendering on Retina / iPad / mobile)
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const bitmapW = Math.round(contentW * dpr);
-    const bitmapH = Math.round(contentH * dpr);
+    const bitmapW = Math.round(rect.width * dpr);
+    const bitmapH = Math.round(rect.height * dpr);
 
     if (canvas.width !== bitmapW || canvas.height !== bitmapH) {
       canvas.width = bitmapW;
       canvas.height = bitmapH;
+      redrawCanvasStrokes();
     }
   }
 
@@ -2742,24 +2960,23 @@ Lord, I'll worship Your holy name.`
 
   function getCanvasCoords(e) {
     const rect = canvas.getBoundingClientRect();
-    const touch = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]);
-    const clientX = touch ? touch.clientX : (e.clientX ?? 0);
-    const clientY = touch ? touch.clientY : (e.clientY ?? 0);
+    const clientX = e.clientX ?? 0;
+    const clientY = e.clientY ?? 0;
 
     const cssX = clientX - rect.left;
     const cssY = clientY - rect.top;
 
+    const scaleX = rect.width > 0 ? (canvas.width / rect.width) : 1;
+    const scaleY = rect.height > 0 ? (canvas.height / rect.height) : 1;
+
     const nx = rect.width > 0 ? (cssX / rect.width) : 0;
     const ny = rect.height > 0 ? (cssY / rect.height) : 0;
 
-    const clampedNx = Math.max(0, Math.min(1, nx));
-    const clampedNy = Math.max(0, Math.min(1, ny));
-
     return {
-      x: clampedNx * canvas.width,
-      y: clampedNy * canvas.height,
-      nx: clampedNx,
-      ny: clampedNy
+      x: cssX * scaleX,
+      y: cssY * scaleY,
+      nx: Math.max(0, Math.min(1, nx)),
+      ny: Math.max(0, Math.min(1, ny))
     };
   }
 
@@ -2769,7 +2986,7 @@ Lord, I'll worship Your holy name.`
     isDrawing = true;
     const pos = getCanvasCoords(e);
     const rect = canvas.getBoundingClientRect();
-    const dpr = canvas.width / Math.max(rect.width, 1);
+    const dpr = rect.width > 0 ? (canvas.width / rect.width) : 1;
 
     activeStroke = {
       color: drawColor,
@@ -2798,18 +3015,6 @@ Lord, I'll worship Your holy name.`
     const pos = getCanvasCoords(e);
     activeStroke.points.push([pos.nx, pos.ny]);
 
-    const rect = canvas.getBoundingClientRect();
-    const dpr = canvas.width / Math.max(rect.width, 1);
-    ctx.lineWidth = drawLineWidth * dpr;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    if (activeStroke.isEraser) {
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.strokeStyle = 'rgba(0,0,0,1)';
-    } else {
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.strokeStyle = drawColor;
-    }
     ctx.lineTo(pos.x, pos.y);
     ctx.stroke();
   }
@@ -2843,7 +3048,6 @@ Lord, I'll worship Your holy name.`
 
   function redrawCanvasStrokes() {
     if (!canvas || !ctx) return;
-    resizeCanvas();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (!currentSong || !Array.isArray(currentSong.drawingStrokes)) return;
 
@@ -2889,6 +3093,486 @@ Lord, I'll worship Your holy name.`
     if (confirmClear && currentSong) {
       currentSong.drawingStrokes = [];
       scheduleSaveSongDrawings();
+    }
+  }
+
+  // ==========================================
+  // WORSHIP SETLISTS MANAGEMENT SYSTEM
+  // ==========================================
+  let setlists = [];
+  let currentSetlist = null;
+  let currentSetlistSongIndex = -1;
+  let currentLibraryTab = 'songs'; // 'songs' | 'sets'
+
+  function switchLibraryTab(tab) {
+    currentLibraryTab = tab;
+    const dockSongs = document.getElementById('navDockSongs');
+    const dockSets = document.getElementById('navDockSets');
+    const songListWrap = document.getElementById('songListContainer');
+    const setListWrap = document.getElementById('setListContainer');
+    const actionLeft = document.getElementById('sidebarActionLeft');
+    const actionRight = document.getElementById('sidebarActionRight');
+    const orderBar = document.querySelector('.order-bar');
+
+    if (dockSongs) dockSongs.classList.toggle('active', tab === 'songs');
+    if (dockSets) dockSets.classList.toggle('active', tab === 'sets');
+
+    if (tab === 'sets') {
+      if (songListWrap) songListWrap.style.display = 'none';
+      if (setListWrap) setListWrap.style.display = 'block';
+      if (orderBar) orderBar.style.display = 'none';
+      if (actionLeft) actionLeft.innerHTML = '<span>+</span> New Set';
+      if (actionRight) actionRight.textContent = '+ Add Current';
+      renderSetlistsList();
+    } else {
+      if (songListWrap) songListWrap.style.display = 'block';
+      if (setListWrap) setListWrap.style.display = 'none';
+      if (orderBar) orderBar.style.display = 'flex';
+      if (actionLeft) actionLeft.innerHTML = '<span>+</span> New Song';
+      if (actionRight) actionRight.textContent = 'Add to Set...';
+      renderSongList();
+    }
+  }
+
+  function onSidebarActionLeft() {
+    if (currentLibraryTab === 'sets') {
+      openNewSetModal();
+    } else {
+      openNewSongModal();
+    }
+  }
+
+  function onSidebarActionRight() {
+    openSetlistModal();
+  }
+
+  async function loadSetlists() {
+    try {
+      const res = await fetch('/api/worship/setlists');
+      if (res.ok) {
+        setlists = await res.json();
+        localStorage.setItem('hgf_band_setlists', JSON.stringify(setlists));
+      } else {
+        throw new Error('Server error');
+      }
+    } catch (e) {
+      const local = localStorage.getItem('hgf_band_setlists');
+      setlists = local ? JSON.parse(local) : [];
+    }
+    if (currentLibraryTab === 'sets') {
+      renderSetlistsList();
+    }
+  }
+
+  function renderSetlistsList() {
+    const container = document.getElementById('setListContainer');
+    if (!container) return;
+
+    if (currentSetlist) {
+      renderActiveSetlistDetail();
+      return;
+    }
+
+    if (!setlists || setlists.length === 0) {
+      container.innerHTML = `
+        <div style="padding: 30px 20px; text-align: center; color: var(--text-muted);">
+          <div style="font-size: 32px; margin-bottom: 8px;">🎼</div>
+          <div style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 4px;">No Worship Sets Yet</div>
+          <div style="font-size: 12px; margin-bottom: 16px;">Create a set for Sunday celebration, youth night, or prayer service.</div>
+          <button class="sidebar-action-btn primary" onclick="openNewSetModal()" style="margin: 0 auto; display: inline-flex;">
+            <span>+</span> Create New Set
+          </button>
+        </div>
+      `;
+      return;
+    }
+
+    let html = `
+      <div style="padding: 10px 14px 6px; display:flex; align-items:center; justify-content:space-between;">
+        <span style="font-size: 11px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: var(--primary);">All Worship Sets (${setlists.length})</span>
+        <button class="icon-btn" onclick="openNewSetModal()" style="width:24px;height:24px;font-size:12px;" title="New Set">+</button>
+      </div>
+    `;
+
+    for (const set of setlists) {
+      const count = set.songCount || (Array.isArray(set.songs) ? set.songs.length : 0);
+      const dateStr = set.serviceDate ? `📅 ${set.serviceDate}` : '';
+      const leaderStr = set.leader ? `👤 ${escapeHtml(set.leader)}` : '';
+      html += `
+        <div class="set-item-card" onclick="viewSetlistDetails('${escapeHtml(set.id)}')">
+          <div class="set-item-title">
+            <span>${escapeHtml(set.name || 'Untitled Set')}</span>
+            <span class="meta-tag" style="font-size:11px;">${count} songs</span>
+          </div>
+          <div class="set-item-meta">
+            ${dateStr ? `<span>${dateStr}</span>` : ''}
+            ${leaderStr ? `<span>${leaderStr}</span>` : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    container.innerHTML = html;
+  }
+
+  async function viewSetlistDetails(id) {
+    try {
+      const res = await fetch(`/api/worship/setlists?id=${encodeURIComponent(id)}`);
+      if (res.ok) {
+        currentSetlist = await res.json();
+      } else {
+        currentSetlist = setlists.find(s => s.id === id) || null;
+      }
+    } catch {
+      currentSetlist = setlists.find(s => s.id === id) || null;
+    }
+    renderActiveSetlistDetail();
+  }
+
+  function exitSetlistView() {
+    currentSetlist = null;
+    renderSetlistsList();
+  }
+
+  function renderActiveSetlistDetail() {
+    const container = document.getElementById('setListContainer');
+    if (!container || !currentSetlist) return;
+
+    const songsList = Array.isArray(currentSetlist.songs) ? currentSetlist.songs : [];
+
+    let html = `
+      <div style="padding: 10px 14px; border-bottom: 1px solid var(--border); background: #0c1018;">
+        <button class="sidebar-action-btn" onclick="exitSetlistView()" style="padding: 4px 10px; font-size: 11px; margin-bottom: 8px;">
+          ← Back to All Sets
+        </button>
+        <div style="font-size: 16px; font-weight: 800; color: #fff; margin-bottom: 2px;">
+          ${escapeHtml(currentSetlist.name)}
+        </div>
+        <div style="font-size: 12px; color: var(--text-muted); display:flex; align-items:center; gap: 8px; flex-wrap:wrap;">
+          ${currentSetlist.serviceDate ? `<span>📅 ${currentSetlist.serviceDate}</span>` : ''}
+          ${currentSetlist.leader ? `<span>👤 ${escapeHtml(currentSetlist.leader)}</span>` : ''}
+          <span class="meta-tag" style="font-size:10px;">${songsList.length} songs</span>
+        </div>
+      </div>
+    `;
+
+    if (songsList.length === 0) {
+      html += `
+        <div style="padding: 24px 16px; text-align: center; color: var(--text-muted); font-size: 13px;">
+          No songs in this setlist yet.<br>
+          <button class="sidebar-action-btn primary" onclick="addCurrentSongToActiveSet()" style="margin: 12px auto 0; font-size: 12px;">
+            + Add "${escapeHtml(currentSong?.title || 'Current Song')}" to Set
+          </button>
+        </div>
+      `;
+    } else {
+      html += `<div style="padding: 6px 0;">`;
+      songsList.forEach((s, idx) => {
+        const songId = typeof s === 'string' ? s : (s.id || '');
+        const songTitle = typeof s === 'string' ? s : (s.title || songId);
+        const songArtist = typeof s === 'object' ? (s.artist || '') : '';
+        const songKey = typeof s === 'object' ? (s.key || '') : '';
+        const isActive = currentSong && currentSong.id === songId;
+
+        html += `
+          <div class="set-song-row ${isActive ? 'active' : ''}" onclick="loadSongFromSet('${escapeHtml(songId)}', '${escapeHtml(songKey)}', ${idx})">
+            <div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1;">
+              <span style="font-size:12px;font-weight:700;color:var(--primary);width:16px;">${idx + 1}</span>
+              <div style="min-width:0;">
+                <div style="font-size:13px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                  ${escapeHtml(songTitle)}
+                </div>
+                <div style="font-size:11px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                  ${escapeHtml(songArtist)}
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+              ${songKey ? `<span class="meta-tag" style="font-size:11px;color:var(--accent-chord);">${escapeHtml(songKey)}</span>` : ''}
+              <button class="icon-btn" onclick="event.stopPropagation(); removeSongFromSet(${idx})" style="width:22px;height:22px;font-size:10px;color:var(--accent-red);" title="Remove from Set">✕</button>
+            </div>
+          </div>
+        `;
+      });
+      html += `</div>`;
+    }
+
+    html += `
+      <div style="padding: 12px 14px; display:flex; flex-direction:column; gap:8px;">
+        <button class="sidebar-action-btn" onclick="addCurrentSongToActiveSet()" style="font-size:12px;">
+          + Add "${escapeHtml(currentSong?.title || 'Current Song')}" to Set
+        </button>
+        <button class="sidebar-action-btn" onclick="deleteSetlistPrompt('${escapeHtml(currentSetlist.id)}')" style="font-size:11px;color:var(--accent-red);">
+          🗑 Delete Setlist
+        </button>
+      </div>
+    `;
+
+    container.innerHTML = html;
+  }
+
+  function loadSongFromSet(songId, songKey, songIndex = 0) {
+    currentSetlistSongIndex = songIndex;
+    const targetSong = songs.find(s => s.id === songId);
+    if (targetSong) {
+      loadSong(targetSong);
+      if (songKey) {
+        // Transpose to stored key
+        const baseRoot = getRootNote(targetSong.key || 'C');
+        const targetRoot = getRootNote(songKey);
+        const baseSemi = NOTE_TO_SEMITONE[baseRoot] ?? 0;
+        const targetSemi = NOTE_TO_SEMITONE[targetRoot] ?? 0;
+        let diff = targetSemi - baseSemi;
+        if (diff > 6) diff -= 12;
+        if (diff < -6) diff += 12;
+        currentTransposeOffset = diff;
+        currentSong.transposedKey = songKey;
+        renderSheet();
+      }
+    }
+    updateActiveSetStageBanner();
+    toggleSidebar(false);
+  }
+
+  function updateActiveSetStageBanner() {
+    const banner = document.getElementById('activeSetStageBanner');
+    if (!banner) return;
+    if (!currentSetlist || !Array.isArray(currentSetlist.songs) || currentSetlist.songs.length === 0) {
+      banner.style.display = 'none';
+      return;
+    }
+
+    const songsList = currentSetlist.songs;
+    banner.style.display = 'flex';
+    document.getElementById('activeSetNameBadge').textContent = currentSetlist.name || 'WORSHIP SET';
+    const total = songsList.length;
+    const currentNum = Math.max(1, currentSetlistSongIndex + 1);
+    document.getElementById('activeSetSongStepperLabel').textContent = `Song ${currentNum} of ${total}: ${currentSong?.title || ''}`;
+
+    const prevBtn = document.getElementById('setPrevSongBtn');
+    const nextBtn = document.getElementById('setNextSongBtn');
+    if (prevBtn) prevBtn.disabled = currentSetlistSongIndex <= 0;
+    if (nextBtn) nextBtn.disabled = currentSetlistSongIndex >= total - 1;
+  }
+
+  function stepActiveSet(delta) {
+    if (!currentSetlist || !Array.isArray(currentSetlist.songs)) return;
+    const newIdx = currentSetlistSongIndex + delta;
+    if (newIdx >= 0 && newIdx < currentSetlist.songs.length) {
+      const item = currentSetlist.songs[newIdx];
+      const songId = typeof item === 'string' ? item : (item.id || '');
+      const songKey = typeof item === 'object' ? (item.key || '') : '';
+      loadSongFromSet(songId, songKey, newIdx);
+    }
+  }
+
+  function exitActiveSetStage() {
+    currentSetlist = null;
+    currentSetlistSongIndex = -1;
+    const banner = document.getElementById('activeSetStageBanner');
+    if (banner) banner.style.display = 'none';
+  }
+
+  function openNewSetModal() {
+    const modal = document.getElementById('newSetModal');
+    if (!modal) return;
+    document.getElementById('newSetNameInput').value = '';
+    document.getElementById('newSetDateInput').value = new Date().toISOString().split('T')[0];
+    document.getElementById('newSetLeaderInput').value = '';
+    document.getElementById('newSetNotesInput').value = '';
+    document.getElementById('newSetCurrentSongLabel').textContent = currentSong?.title || 'None';
+    modal.classList.add('visible');
+  }
+
+  function closeNewSetModal() {
+    const modal = document.getElementById('newSetModal');
+    if (modal) modal.classList.remove('visible');
+  }
+
+  async function submitNewSetlist() {
+    const name = document.getElementById('newSetNameInput').value.trim();
+    if (!name) {
+      showToast('Please enter a setlist name');
+      return;
+    }
+    const serviceDate = document.getElementById('newSetDateInput').value;
+    const leader = document.getElementById('newSetLeaderInput').value.trim();
+    const notes = document.getElementById('newSetNotesInput').value.trim();
+    const includeCurrent = document.getElementById('newSetIncludeCurrentCheck').checked;
+
+    const songsArr = [];
+    if (includeCurrent && currentSong) {
+      songsArr.push({
+        id: currentSong.id,
+        title: currentSong.title,
+        artist: currentSong.artist || '',
+        key: currentSong.transposedKey || currentSong.key || 'C',
+        tempo: currentSong.tempo || 73
+      });
+    }
+
+    const payload = {
+      name,
+      serviceDate,
+      leader,
+      notes,
+      songs: songsArr
+    };
+
+    try {
+      const res = await fetch('/api/worship/setlists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        currentSetlist = data.setlist;
+        await loadSetlists();
+        closeNewSetModal();
+        switchLibraryTab('sets');
+        showToast(`Setlist "${name}" created!`);
+      } else {
+        throw new Error('Save failed');
+      }
+    } catch (e) {
+      showToast('Failed to save setlist to server');
+    }
+  }
+
+  function openSetlistModal() {
+    const modal = document.getElementById('addToSetModal');
+    if (!modal) return;
+    if (!currentSong) {
+      showToast('Please select a song first');
+      return;
+    }
+
+    document.getElementById('addToSetSongTitle').textContent = currentSong.title;
+    document.getElementById('addToSetSongArtist').textContent = currentSong.artist || 'Unknown';
+    const activeKey = currentSong.transposedKey || currentSong.key || 'C';
+    document.getElementById('addToSetSongKeyBadge').textContent = `Key: ${activeKey}`;
+    document.getElementById('addToSetCustomKeyInput').value = activeKey;
+
+    const select = document.getElementById('addToSetSelect');
+    const selectWrap = document.getElementById('addToSetSelectWrap');
+    const noSetsWrap = document.getElementById('noSetsWarningWrap');
+    const confirmBtn = document.getElementById('addToSetConfirmBtn');
+
+    if (!setlists || setlists.length === 0) {
+      selectWrap.style.display = 'none';
+      noSetsWrap.style.display = 'block';
+      confirmBtn.disabled = true;
+    } else {
+      selectWrap.style.display = 'flex';
+      noSetsWrap.style.display = 'none';
+      confirmBtn.disabled = false;
+      select.innerHTML = setlists.map(s => `
+        <option value="${escapeHtml(s.id)}" ${currentSetlist && currentSetlist.id === s.id ? 'selected' : ''}>
+          ${escapeHtml(s.name)} (${s.serviceDate || 'No date'})
+        </option>
+      `).join('');
+    }
+
+    modal.classList.add('visible');
+  }
+
+  function closeAddToSetModal() {
+    const modal = document.getElementById('addToSetModal');
+    if (modal) modal.classList.remove('visible');
+  }
+
+  async function submitAddToSet() {
+    const select = document.getElementById('addToSetSelect');
+    const setlistId = select.value;
+    const targetSet = setlists.find(s => s.id === setlistId);
+    if (!targetSet) {
+      showToast('Please choose a setlist');
+      return;
+    }
+
+    const key = document.getElementById('addToSetCustomKeyInput').value.trim() || currentSong.key || 'C';
+
+    if (!Array.isArray(targetSet.songs)) targetSet.songs = [];
+    targetSet.songs.push({
+      id: currentSong.id,
+      title: currentSong.title,
+      artist: currentSong.artist || '',
+      key: key,
+      tempo: currentSong.tempo || 73
+    });
+
+    try {
+      await fetch('/api/worship/setlists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(targetSet)
+      });
+      await loadSetlists();
+      closeAddToSetModal();
+      showToast(`Added "${currentSong.title}" to ${targetSet.name}!`);
+    } catch {
+      showToast('Failed to update setlist');
+    }
+  }
+
+  async function addCurrentSongToActiveSet() {
+    if (!currentSetlist || !currentSong) return;
+    if (!Array.isArray(currentSetlist.songs)) currentSetlist.songs = [];
+    const activeKey = currentSong.transposedKey || currentSong.key || 'C';
+
+    currentSetlist.songs.push({
+      id: currentSong.id,
+      title: currentSong.title,
+      artist: currentSong.artist || '',
+      key: activeKey,
+      tempo: currentSong.tempo || 73
+    });
+
+    try {
+      await fetch('/api/worship/setlists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(currentSetlist)
+      });
+      renderActiveSetlistDetail();
+      updateActiveSetStageBanner();
+      showToast(`Added "${currentSong.title}" to set!`);
+    } catch {
+      showToast('Error updating set');
+    }
+  }
+
+  async function removeSongFromSet(songIndex) {
+    if (!currentSetlist || !Array.isArray(currentSetlist.songs)) return;
+    currentSetlist.songs.splice(songIndex, 1);
+    try {
+      await fetch('/api/worship/setlists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(currentSetlist)
+      });
+      renderActiveSetlistDetail();
+      updateActiveSetStageBanner();
+      showToast('Song removed from set');
+    } catch {
+      showToast('Error updating set');
+    }
+  }
+
+  async function deleteSetlistPrompt(id) {
+    const s = setlists.find(item => item.id === id);
+    const name = s ? s.name : 'this setlist';
+    showToast(`Deleting setlist "${name}"...`);
+
+    try {
+      await fetch(`/api/worship/setlists?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+      currentSetlist = null;
+      await loadSetlists();
+      renderSetlistsList();
+      showToast('Setlist deleted');
+    } catch {
+      showToast('Error deleting setlist');
     }
   }
 
@@ -3754,7 +4438,7 @@ Lord, I'll worship Your holy name.`
   }
 
   async function deleteAudioTrackFile(filename) {
-    if (!confirm(`Delete "${filename}" from server storage buffer to reclaim space?`)) return;
+    showToast(`Deleting "${filename}"...`);
 
     try {
       const songId = currentSong ? currentSong.id : '';
@@ -3768,10 +4452,10 @@ Lord, I'll worship Your holy name.`
         }
         fetchStorageAudioFiles();
       } else {
-        alert('Failed to delete file');
+        showToast('Failed to delete file');
       }
     } catch (e) {
-      alert('Error deleting file: ' + e.message);
+      showToast('Error deleting file: ' + e.message);
     }
   }
 </script>
