@@ -5,6 +5,18 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.53.18] — 2026-09-16
+### Fixed — Setlist Lineup Restoration, Active Set Persistence, and Edge Chevron Cleanup
+- **Setlist Lineup Crash Fix (`getRootNote`)**:
+  - Defined missing `getRootNote` utility in music theory transposition engine. This resolves an uncaught `ReferenceError` during `loadSongFromSet()` that previously crashed script execution and caused the active setlist's song lineup to fail rendering in both the sidebar and topbar stage banners.
+- **Active Setlist Persistence**:
+  - Stored `hgf_band_active_setlist_id` in `localStorage` so refreshing the browser retains the active setlist instead of reverting to `null` while the dropdown retained the old selection.
+  - Sidebar now remains open when a musician switches setlists within the sidebar dropdown so the song lineup is immediately visible.
+- **Floating Edge Chevron Removal & Overlap Fix**:
+  - Removed obsolete fixed edge chevrons (`stageEdgePrevBtn` / `stageEdgeNextBtn`) that scrolled awkwardly with lyrics/chords and collided with the floating action button (FAB) dock on the bottom right. Full-screen horizontal swipe gestures and stepper banners remain the streamlined navigation mechanism.
+- **Topbar Emoji Clean-up**:
+  - Removed duplicate static emoji prefix in the topbar setlist pill to eliminate double emojis (`🎼 🎼`).
+
 ## [v2.53.17] — 2026-09-16
 ### Fixed — Confirmation Modal Stacking Context & Setlist Startup Key Preference Bug
 - **Confirmation Modal Top-Layer Stacking (`z-index: 99999`)**:
