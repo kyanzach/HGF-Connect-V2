@@ -901,6 +901,7 @@
       user-select: text;
       position: relative;
       z-index: 5;
+      padding-bottom: 280px;
     }
 
     /* Section Header: Intro, Verse 1, Chorus, Bridge, etc. */
@@ -951,6 +952,9 @@
     body.has-playback-dock #sheetWrapper {
       padding-bottom: 140px !important;
     }
+    .sheet-wrapper.is-autoscrolling {
+      scroll-behavior: auto !important;
+    }
     .fab-btn {
       width: 46px;
       height: 46px;
@@ -974,6 +978,62 @@
       background: var(--primary);
       color: #000;
       border-color: var(--primary);
+    }
+
+    /* Master Play/Stop FAB Button */
+    .fab-master-btn {
+      background: linear-gradient(135deg, #059669 0%, #10b981 100%) !important;
+      border: 1px solid #34d399 !important;
+      color: #ffffff !important;
+      font-size: 18px !important;
+      box-shadow: 0 4px 15px rgba(16, 185, 129, 0.45) !important;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+    .fab-master-btn.is-playing {
+      background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%) !important;
+      border: 1px solid #f87171 !important;
+      box-shadow: 0 4px 18px rgba(239, 68, 68, 0.65) !important;
+      animation: masterPulseGlow 1.6s infinite ease-in-out;
+    }
+    @keyframes masterPulseGlow {
+      0%, 100% { transform: scale(1); box-shadow: 0 4px 12px rgba(239, 68, 68, 0.5); }
+      50% { transform: scale(1.08); box-shadow: 0 6px 22px rgba(239, 68, 68, 0.85); }
+    }
+
+    /* Stage Pulsing BPM Badge (Worship Tool style) */
+    .stage-bpm-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: #0f172a;
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      color: #fbbf24;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.3px;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.2s ease;
+    }
+    .stage-bpm-badge:hover, .stage-bpm-badge.active {
+      background: rgba(245, 158, 11, 0.2);
+      border-color: #fbbf24;
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.35);
+    }
+    .bpm-pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #f59e0b;
+      display: inline-block;
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+    }
+    .bpm-pulse-dot.pulse, .metronome-dot.flash {
+      background: #fbbf24 !important;
+      transform: scale(1.6) !important;
+      box-shadow: 0 0 10px #fbbf24, 0 0 18px rgba(245, 158, 11, 0.8) !important;
     }
 
     /* Auto-Scroll Bar */
@@ -1746,13 +1806,19 @@
           <button class="trans-step-btn" onclick="transposeCurrentSong(1)" title="Transpose up 1 semitone">+</button>
         </div>
 
-        <!-- STAGE ACTION BUTTONS -->
+        <!-- PULSING BPM METRONOME BADGE (Worship Tool style - Screenshot 4) -->
+        <div class="stage-bpm-badge" id="topbarBpmBadge" onclick="toggleMetronomeAudio()" title="Tap to toggle audible metronome click">
+          <span class="bpm-pulse-dot" id="topbarBpmDot"></span>
+          <span id="topbarBpmVal">72 BPM</span>
+        </div>
+
+        <!-- STAGE ACTION BUTTONS (Edit, Draw, Backtrack, Notes, Ambient Pad - No Redundancy) -->
         <div class="stage-actions-group">
-          <button class="icon-btn stage-action-btn" id="markupToggleBtn" onclick="toggleMarkupBar()" title="Draw / Annotate">✏️ <span class="btn-text">Draw</span></button>
-          <button class="icon-btn stage-action-btn" onclick="openSourceModal()" title="Ambient Pads & Backing Tracks">🎨 <span class="btn-text">Pad</span></button>
+          <button class="icon-btn stage-action-btn" onclick="openEditCurrentSong()" title="Edit Song Chords & Details">✏️ <span class="btn-text">Edit</span></button>
+          <button class="icon-btn stage-action-btn" id="markupToggleBtn" onclick="toggleMarkupBar()" title="Draw / Annotate Canvas">🎨 <span class="btn-text">Draw</span></button>
           <button class="icon-btn stage-action-btn" onclick="openAudioManagerModal()" title="Playback Track Audio">🎧 <span class="btn-text">Track</span></button>
           <button class="icon-btn stage-action-btn" id="scratchpadTopBtn" onclick="openScratchpadModal()" title="Song Scratchpad & MD Notes">🗒️ <span class="btn-text">Notes</span></button>
-          <button class="icon-btn stage-action-btn stop-all-btn" onclick="stopAllAudioAndScroll()" title="Instant Stop: Any Playback, Pad & Auto-Scroll">⏹ <span class="btn-text">Stop</span></button>
+          <button class="icon-btn stage-action-btn" onclick="openSourceModal()" title="Ambient Worship Pads">🎹 <span class="btn-text">Pad</span></button>
         </div>
       </div>
     </header>
@@ -1797,9 +1863,9 @@
             <span id="sheetArtist" style="font-weight:600;color:#cbd5e1;">Bethel Music, Matt Redman</span>
             <span class="meta-tag" id="sheetKeyBadge">Key: C</span>
             <span class="meta-tag" id="sheetCapoBadge">Capo: 0</span>
-            <span class="meta-tag" id="sheetTempoBadge">
-              <span class="metronome-dot" id="metronomeDot"></span>
-              <span id="tempoLabel">73 BPM</span>
+            <span class="meta-tag stage-bpm-badge" id="sheetTempoBadge" onclick="toggleMetronomeAudio()" title="Tap to toggle audible metronome click">
+              <span class="bpm-pulse-dot" id="sheetBpmDot"></span>
+              <span id="tempoLabel">72 BPM</span>
             </span>
             <span class="meta-tag" id="sheetTimeSigBadge">4/4</span>
             <button class="meta-tag" id="sheetPlaybackBtn" onclick="handleStagePlaybackClick()" style="display:none;align-items:center;gap:6px;cursor:pointer;background:#0369a1;color:#fff;border:1px solid #38bdf8;font-weight:700;" title="Tap to Play / Pause Backing Track">
@@ -1822,12 +1888,14 @@
       </div>
     </div>
 
-    <!-- FLOATING ACTION DOCK (Screenshot 1: Zoom, Metronome, Section Jump, Stop All, Duration Harmony) -->
+    <!-- FLOATING ACTION DOCK (Screenshot 1: Master Play/Stop, Duration, Auto-Scroll, Metronome, Section Jump) -->
     <div class="stage-fab-dock">
-      <button class="fab-btn fab-stop-btn" onclick="stopAllAudioAndScroll()" title="Instant Stop: Any Playback, Pad & Scroll">⏹</button>
+      <button class="fab-btn fab-master-btn" id="masterPlayStopFab" onclick="toggleMasterPlayStop()" title="Master Play: Backtrack & Scroll / Metronome & Scroll">
+        <span id="masterFabIcon">▶</span>
+      </button>
       <button class="fab-btn fab-duration-btn" id="floatingDurationBtn" onclick="openDurationModal()" title="Set Song Duration (Harmonizes Auto-Scroll & Playback)">⏱️</button>
       <button class="fab-btn" id="floatingAutoScrollBtn" onclick="toggleAutoScroll()" title="Toggle Auto-Scroll">📜</button>
-      <button class="fab-btn" id="metronomeFab" onclick="toggleMetronome()" title="Toggle Metronome Sound">🔔</button>
+      <button class="fab-btn" id="metronomeFab" onclick="toggleMetronomeAudio()" title="Toggle Metronome Sound">🔔</button>
       <button class="fab-btn" onclick="adjustFontSize(1)" title="Zoom In Chords">🔍+</button>
       <button class="fab-btn" onclick="adjustFontSize(-1)" title="Zoom Out Chords">🔍-</button>
       <button class="fab-btn" onclick="jumpToNextSection()" title="Jump to Next Section">⬇</button>
@@ -2737,6 +2805,10 @@
   let scrollInterval = null;
   let isMetronomePlaying = false;
   let metronomeTimer = null;
+  let isMetronomeAudioActive = false;
+  let visualBpmInterval = null;
+  let bpmBeatCounter = 0;
+  let pendingOpenScratchpad = false;
   let isMarkupActive = false;
   let audioCtx = null;
   let ambientPadNode = null;
@@ -3175,9 +3247,20 @@ Lord, I'll worship Your holy name.`
     document.getElementById('keyLabel').textContent = `Key: ${displayKey}${currentTransposeOffset !== 0 ? ` (${currentTransposeOffset > 0 ? '+' : ''}${currentTransposeOffset})` : ''}`;
     document.getElementById('sheetKeyBadge').textContent = `Key: ${displayKey}`;
     document.getElementById('sheetCapoBadge').textContent = `Capo: ${currentCapo || 0}`;
-    document.getElementById('sheetTempoBadge').style.display = currentSong.tempo ? 'inline-flex' : 'none';
-    document.getElementById('tempoLabel').textContent = `${currentSong.tempo || 70} BPM`;
     document.getElementById('sheetTimeSigBadge').textContent = currentSong.timeSignature || '4/4';
+    const bpmVal = parseInt(currentSong.tempo, 10) || 72;
+    const tempoText = `${bpmVal} BPM`;
+    const sheetTempoBadge = document.getElementById('sheetTempoBadge');
+    if (sheetTempoBadge) sheetTempoBadge.style.display = 'inline-flex';
+    const tempoLabel = document.getElementById('tempoLabel');
+    if (tempoLabel) tempoLabel.textContent = tempoText;
+
+    const topbarBpmBadge = document.getElementById('topbarBpmBadge');
+    if (topbarBpmBadge) topbarBpmBadge.style.display = 'inline-flex';
+    const topbarBpmVal = document.getElementById('topbarBpmVal');
+    if (topbarBpmVal) topbarBpmVal.textContent = tempoText;
+
+    startVisualBpmPulse(bpmVal);
     document.getElementById('padCurrentKeyLabel').textContent = displayKey;
     activePadKey = effectiveKey.replace('m', '');
 
@@ -3447,52 +3530,73 @@ Lord, I'll worship Your holy name.`
 
   function startAutoScroll() {
     isAutoScrolling = true;
+    const container = document.getElementById('sheetWrapper');
+    if (!container) return;
+
+    // Disable smooth scroll during continuous auto-scrolling to prevent browser stutter/lag
+    container.classList.add('is-autoscrolling');
     const playBtn = document.getElementById('scrollPlayBtn');
     if (playBtn) playBtn.textContent = '⏸';
-    const container = document.getElementById('sheetWrapper');
+    updateMasterPlayFabUI(true);
+
     if (scrollInterval) clearInterval(scrollInterval);
 
-    // If audio is playing, onAudioTimeUpdate handles smooth lockstep with track
-    if (isAudioPlaying && backingAudio && backingAudio.duration > 0) {
-      return;
-    }
-
-    // Check if song has explicit duration (e.g. "4:30")
+    // Calculate effective duration in seconds
     let durationSeconds = 0;
-    if (currentSong && currentSong.duration && currentSong.duration.includes(':')) {
+    if (isAudioPlaying && backingAudio && backingAudio.duration > 0) {
+      durationSeconds = backingAudio.duration;
+    } else if (currentSong && currentSong.duration && currentSong.duration.includes(':')) {
       const parts = currentSong.duration.split(':');
-      const m = parseInt(parts[0], 10) || 0;
-      const s = parseInt(parts[1], 10) || 0;
-      durationSeconds = m * 60 + s;
+      durationSeconds = (parseInt(parts[0], 10) || 0) * 60 + (parseInt(parts[1], 10) || 0);
+    }
+    if (!durationSeconds || durationSeconds < 15) {
+      durationSeconds = 210; // Default 3.5 minutes
     }
 
-    if (durationSeconds > 15 && container) {
-      // Calculate smooth progression across song duration
-      const intervalMs = 50;
-      scrollInterval = setInterval(() => {
-        const maxScroll = container.scrollHeight - container.clientHeight;
-        if (maxScroll <= 0) return;
-        const step = maxScroll / (durationSeconds * (1000 / intervalMs));
-        container.scrollTop += Math.max(0.2, step);
-        if (container.scrollTop + container.clientHeight >= container.scrollHeight - 2) {
-          stopAutoScroll();
+    const intervalMs = 40; // 25 fps continuous smooth glide
+    scrollInterval = setInterval(() => {
+      if (!isAutoScrolling) return;
+      const maxScroll = container.scrollHeight - container.clientHeight;
+      if (maxScroll <= 0) return;
+
+      if (isAudioPlaying && backingAudio && backingAudio.duration > 0) {
+        // Track synchronization: position in lockstep with audio currentTime
+        const targetScroll = (backingAudio.currentTime / backingAudio.duration) * maxScroll;
+        const diff = targetScroll - container.scrollTop;
+        if (Math.abs(diff) > 25) {
+          // Quick catch-up when scrubbing or jumping
+          container.scrollTop += diff * 0.18;
+        } else {
+          // Continuous smooth progression
+          const step = maxScroll / (backingAudio.duration * (1000 / intervalMs));
+          container.scrollTop += Math.max(0.3, step);
         }
-      }, intervalMs);
-    } else {
-      // Manual slider fallback
-      scrollInterval = setInterval(() => {
-        container.scrollTop += 1;
-        if (container.scrollTop + container.clientHeight >= container.scrollHeight) {
-          stopAutoScroll();
-        }
-      }, Math.max(15, 75 - (scrollSpeed * 6)));
-    }
+      } else {
+        // Generic scroll based on song duration & scrollSpeed slider
+        const speedFactor = (scrollSpeed || 5) / 5;
+        const step = (maxScroll / (durationSeconds * (1000 / intervalMs))) * speedFactor;
+        container.scrollTop += Math.max(0.35, step);
+      }
+
+      if (container.scrollTop + container.clientHeight >= container.scrollHeight - 2) {
+        stopAutoScroll();
+      }
+    }, intervalMs);
   }
 
   function stopAutoScroll() {
     isAutoScrolling = false;
-    document.getElementById('scrollPlayBtn').textContent = '▶';
-    if (scrollInterval) clearInterval(scrollInterval);
+    const container = document.getElementById('sheetWrapper');
+    if (container) container.classList.remove('is-autoscrolling');
+    const playBtn = document.getElementById('scrollPlayBtn');
+    if (playBtn) playBtn.textContent = '▶';
+    if (scrollInterval) {
+      clearInterval(scrollInterval);
+      scrollInterval = null;
+    }
+    if (!isAudioPlaying && !isMetronomeAudioActive) {
+      updateMasterPlayFabUI(false);
+    }
   }
 
   function setScrollSpeed(val) {
@@ -3701,32 +3805,131 @@ Lord, I'll worship Your holy name.`
     }
   }
 
-  // VISUAL & AUDIO METRONOME
-  function toggleMetronome() {
-    isMetronomePlaying = !isMetronomePlaying;
-    const fab = document.getElementById('metronomeFab');
-    fab.classList.toggle('active', isMetronomePlaying);
-    if (isMetronomePlaying) {
-      startMetronome();
-    } else {
-      stopMetronome();
-    }
+  // VISUAL & AUDIO METRONOME (Worship Tool Style)
+  function playMetronomeClick(isDownbeat = false) {
+    try {
+      initAudioContext();
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.frequency.setValueAtTime(isDownbeat ? 1300 : 850, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.7, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04);
+      osc.start(audioCtx.currentTime);
+      osc.stop(audioCtx.currentTime + 0.04);
+    } catch (err) {}
   }
 
-  function startMetronome() {
-    stopMetronome();
-    const bpm = currentSong?.tempo || 73;
-    const intervalMs = (60 / bpm) * 1000;
-    const dot = document.getElementById('metronomeDot');
+  function startVisualBpmPulse(bpm) {
+    stopVisualBpmPulse();
+    const tempo = parseInt(bpm, 10) || (currentSong?.tempo ? parseInt(currentSong.tempo, 10) : 72);
+    const intervalMs = (60 / Math.max(30, tempo)) * 1000;
+    bpmBeatCounter = 0;
 
-    metronomeTimer = setInterval(() => {
-      dot.classList.add('flash');
-      setTimeout(() => dot.classList.remove('flash'), 100);
+    visualBpmInterval = setInterval(() => {
+      bpmBeatCounter = (bpmBeatCounter % 4) + 1;
+      const isDownbeat = bpmBeatCounter === 1;
+
+      // Pulse all visual dots
+      const dots = [
+        document.getElementById('topbarBpmDot'),
+        document.getElementById('sheetBpmDot'),
+        document.getElementById('metronomeDot')
+      ];
+      dots.forEach(d => {
+        if (d) d.classList.add('pulse');
+      });
+      setTimeout(() => {
+        dots.forEach(d => {
+          if (d) d.classList.remove('pulse');
+        });
+      }, 120);
+
+      // Play click if audible metronome active
+      if (isMetronomeAudioActive) {
+        playMetronomeClick(isDownbeat);
+      }
     }, intervalMs);
   }
 
-  function stopMetronome() {
-    if (metronomeTimer) clearInterval(metronomeTimer);
+  function stopVisualBpmPulse() {
+    if (visualBpmInterval) {
+      clearInterval(visualBpmInterval);
+      visualBpmInterval = null;
+    }
+  }
+
+  function toggleMetronomeAudio() {
+    isMetronomeAudioActive = !isMetronomeAudioActive;
+    updateMetronomeUI();
+    showToast(isMetronomeAudioActive ? `Metronome Sound ON (${currentSong?.tempo || 72} BPM)` : 'Metronome Sound OFF');
+    if (isMetronomeAudioActive) {
+      initAudioContext();
+      startVisualBpmPulse(currentSong?.tempo || 72);
+    }
+  }
+
+  function toggleMetronome() {
+    toggleMetronomeAudio();
+  }
+
+  function updateMetronomeUI() {
+    const fab = document.getElementById('metronomeFab');
+    if (fab) fab.classList.toggle('active', isMetronomeAudioActive);
+    const topPill = document.getElementById('topbarBpmBadge');
+    if (topPill) topPill.classList.toggle('active', isMetronomeAudioActive);
+    const sheetPill = document.getElementById('sheetTempoBadge');
+    if (sheetPill) sheetPill.classList.toggle('active', isMetronomeAudioActive);
+  }
+
+  // MASTER PLAY / STOP CONTROLLER (Floating Stage FAB)
+  function updateMasterPlayFabUI(isPlaying) {
+    const fab = document.getElementById('masterPlayStopFab');
+    const icon = document.getElementById('masterFabIcon');
+    if (!fab || !icon) return;
+    if (isPlaying) {
+      fab.classList.add('is-playing');
+      icon.textContent = '⏹';
+      fab.title = 'Stop All: Stop Audio, Metronome & Auto-Scroll';
+    } else {
+      fab.classList.remove('is-playing');
+      icon.textContent = '▶';
+      fab.title = 'Master Play: Backtrack & Scroll / Metronome & Scroll';
+    }
+  }
+
+  function toggleMasterPlayStop() {
+    const isPlaying = isAudioPlaying || isAutoScrolling || isMetronomeAudioActive;
+    if (isPlaying) {
+      stopAllAudioAndScroll();
+    } else {
+      startMasterPlay();
+    }
+  }
+
+  function startMasterPlay() {
+    initAudioPlayerElement();
+    const hasBacktrack = currentSong && currentSong.audioTrack && currentSong.audioTrack.url && currentSong.useBacktrack !== false;
+    
+    if (hasBacktrack && backingAudio && backingAudio.src && backingAudio.src !== window.location.href) {
+      // Song has backtrack audio: play audio + auto-scroll in lockstep
+      backingAudio.play().then(() => {
+        showToast('Playing Backtrack & Auto-Scrolling');
+      }).catch(e => {
+        showToast('Tap again to allow audio playback');
+      });
+      updateMasterPlayFabUI(true);
+    } else {
+      // Song does NOT have backtrack audio: start auto-scroll + generic audible metronome
+      startAutoScroll();
+      isMetronomeAudioActive = true;
+      initAudioContext();
+      updateMetronomeUI();
+      updateMasterPlayFabUI(true);
+      showToast(`Auto-Scrolling & Metronome (${currentSong?.tempo || 72} BPM)`);
+    }
   }
 
   // CANVAS ANNOTATION & VECTOR DRAWING SYSTEM (Cross-device synced across Laptop, Tablet, & Mobile)
@@ -5379,6 +5582,7 @@ Lord, I'll worship Your holy name.`
       if (pBtn) pBtn.style.background = '#0284c7';
       // Automatically trigger harmonious auto-scroll lockstep with backing audio
       startAutoScroll();
+      updateMasterPlayFabUI(true);
     });
     backingAudio.addEventListener('pause', () => {
       isAudioPlaying = false;
@@ -5390,19 +5594,12 @@ Lord, I'll worship Your holy name.`
       const durLabel = document.getElementById('sheetDurationLabel');
       if (durLabel && currentSong) durLabel.textContent = currentSong.duration || 'Play Track';
       stopAutoScroll();
+      if (!isMetronomeAudioActive) updateMasterPlayFabUI(false);
     });
     backingAudio.addEventListener('ended', () => {
       if (!isAudioLooping) {
-        isAudioPlaying = false;
-        document.getElementById('playbackPlayBtn').textContent = '▶';
-        const pIcon = document.getElementById('sheetPlaybackIcon');
-        if (pIcon) pIcon.textContent = '▶';
-        const pBtn = document.getElementById('sheetPlaybackBtn');
-        if (pBtn) pBtn.style.background = '#0369a1';
-        document.getElementById('playbackScrubber').value = 0;
-        const durLabel = document.getElementById('sheetDurationLabel');
-        if (durLabel && currentSong) durLabel.textContent = currentSong.duration || 'Play Track';
-        stopAutoScroll();
+        stopAudioPlayback();
+        updateMasterPlayFabUI(false);
       }
     });
     backingAudio.addEventListener('error', () => {
@@ -5410,6 +5607,7 @@ Lord, I'll worship Your holy name.`
       isAudioPlaying = false;
       document.getElementById('playbackPlayBtn').textContent = '▶';
       stopAutoScroll();
+      if (!isMetronomeAudioActive) updateMasterPlayFabUI(false);
     });
   }
 
@@ -5480,6 +5678,7 @@ Lord, I'll worship Your holy name.`
     const pBtn = document.getElementById('sheetPlaybackBtn');
     if (pBtn) pBtn.style.background = '#0369a1';
     stopAutoScroll();
+    if (!isMetronomeAudioActive) updateMasterPlayFabUI(false);
     const container = document.getElementById('sheetWrapper');
     if (container) container.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -6043,6 +6242,10 @@ Lord, I'll worship Your holy name.`
         updateUserPillUI();
         closeBandAuthModal();
         if (currentSong) loadScratchpadData(currentSong.id);
+        if (pendingOpenScratchpad) {
+          pendingOpenScratchpad = false;
+          setTimeout(openScratchpadModal, 250);
+        }
       } else {
         showToast(data.error || 'Login failed');
       }
@@ -6066,6 +6269,10 @@ Lord, I'll worship Your holy name.`
         updateUserPillUI();
         closeBandAuthModal();
         if (currentSong) loadScratchpadData(currentSong.id);
+        if (pendingOpenScratchpad) {
+          pendingOpenScratchpad = false;
+          setTimeout(openScratchpadModal, 250);
+        }
       } else {
         showToast(data.error || 'Quick login failed');
       }
@@ -6191,6 +6398,12 @@ Lord, I'll worship Your holy name.`
   function openScratchpadModal() {
     if (!currentSong) {
       showToast('Select a song first to open its scratchpad');
+      return;
+    }
+    if (!currentBandUser || currentBandUser.role === 'guest') {
+      pendingOpenScratchpad = true;
+      showToast('Please login with your band username to access your personal scratchpad & MD cues');
+      openBandAuthModal();
       return;
     }
     currentScratchSongId = currentSong.id;
@@ -6405,7 +6618,6 @@ Lord, I'll worship Your holy name.`
   function stopAllAudioAndScroll() {
     // 1. Backing audio
     stopAudioPlayback();
-    togglePlaybackDock(false);
 
     // 2. Ambient pad (smooth 3-second exponential fade out)
     stopAmbientPad();
@@ -6413,7 +6625,14 @@ Lord, I'll worship Your holy name.`
     // 3. Auto-scroll
     stopAutoScroll();
 
-    showToast('⏹ All audio & scrolling stopped');
+    // 4. Metronome audio
+    isMetronomeAudioActive = false;
+    updateMetronomeUI();
+
+    // 5. Master FAB UI
+    updateMasterPlayFabUI(false);
+
+    showToast('⏹ All audio, metronome & scrolling stopped');
   }
 
   // ==========================================

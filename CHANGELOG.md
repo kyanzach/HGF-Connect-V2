@@ -5,6 +5,31 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.53.13] — 2026-09-16
+### Fixed & Enhanced — Active Auto-Scroll Loop, Master Play/Stop FAB, Real-time Visual BPM Pulse, Song Edit Emoji Restoration, & Scratchpad Auth Flow
+- **Active 40ms Auto-Scroll Animation Loop**:
+  - Replaced sporadic `timeupdate` auto-scroll with a continuous 25fps (40ms) animation loop.
+  - Added `.is-autoscrolling` class to `#sheetWrapper` to prevent CSS `scroll-behavior: smooth` from fighting programmatic scrolling.
+  - Added generous `padding-bottom: 280px` to `.chord-sheet-container` ensuring songs of all lengths have ample scrolling clearance.
+  - Seamless lockstep interpolation when scrubbing or playing backtrack audio; smooth progression based on duration and speed when running without backtrack.
+- **Unified Master Play / Stop FAB Button**:
+  - Removed redundant stop button from the top stage bar.
+  - Transformed the top floating action button into a unified Master Play / Stop controller (`#masterPlayStopFab`).
+  - When stopped: displays green/emerald `▶` Play button.
+  - Tapping Play: if song has a backtrack attached, starts backtrack audio and auto-scrolls; if no backtrack is attached, starts auto-scroll and generic audible metronome at song's BPM.
+  - When playing: transforms into vivid red pulsing `⏹` Stop button. Tapping Stop cleanly halts all audio, metronome, auto-scroll, and smoothly resets to the top.
+- **Worship Tool-Style Real-time Pulsing BPM Badge**:
+  - Added real-time pulsing amber dot (`●`) and BPM label (`[ ● 74 BPM ]`) right next to the Key widget in the stage bar and on the song header.
+  - Automatically pulses silently in real time to the song's exact tempo (`(60 / bpm) * 1000` ms).
+  - Tapping the badge toggles crisp WebAudio synthesized metronome click (accented downbeat).
+- **Restored Song Edit & Drawing Emojis**:
+  - Restored `✏️` as dedicated **Edit Song** (`openEditCurrentSong()`).
+  - Restored `🎨` as dedicated **Draw / Annotate** (`toggleMarkupBar()`).
+  - Cleaned up top action buttons: `✏️ Edit`, `🎨 Draw`, `🎧 Track`, `🗒️ Notes`, `🎹 Pad`.
+- **Scratchpad Auth Flow**:
+  - Clicking `🗒️ Notes` when not logged in displays a friendly toast and immediately opens the login modal.
+  - Logging in automatically opens the requested song's scratchpad once authenticated.
+
 ## [v2.53.12] — 2026-09-16
 ### Fixed & Enhanced — Floating Buttons Dock Clearance, Playback/Scroll Harmony, Login Modal Repair, & User Management with 'Godisgood' Password
 - **Floating Buttons & Playback Dock Overlap Fix**:
