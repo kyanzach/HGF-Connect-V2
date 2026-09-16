@@ -30,56 +30,177 @@ interface ParsedPdfSong {
   sourceFilename: string;
 }
 
+interface PdfItem {
+  str: string;
+  x: number;
+  y: number;
+  width: number;
+}
+
+function formatLineItems(items: PdfItem[], minX: number): string {
+  items.sort((a, b) => a.x - b.x);
+  let lineStr = '';
+  let cursorX = 0;
+  const charWidth = 6.2;
+
+  for (const it of items) {
+    const relX = Math.max(0, it.x - minX);
+    const targetCol = Math.max(0, Math.round(relX / charWidth));
+
+    if (targetCol > cursorX) {
+      lineStr += ' '.repeat(targetCol - cursorX);
+      cursorX = targetCol;
+    } else if (lineStr.length > 0 && !lineStr.endsWith(' ')) {
+      lineStr += ' ';
+      cursorX++;
+    }
+    lineStr += it.str;
+    cursorX += it.str.length;
+  }
+  return lineStr;
+}
+
+function processColumnItems(items: PdfItem[]): string[] {
+  if (items.length === 0) return [];
+  items.sort((a, b) => {
+    const yDiff = b.y - a.y;
+    if (Math.abs(yDiff) > 3.2) return yDiff;
+    return a.x - b.x;
+  });
+
+  const lines: { y: number; items: PdfItem[] }[] = [];
+  let curLine: { y: number; items: PdfItem[] } | null = null;
+
+  for (const it of items) {
+    if (!it.str || !it.str.trim()) continue;
+    if (curLine === null || Math.abs(it.y - curLine.y) <= 3.2) {
+      if (curLine === null) {
+        curLine = { y: it.y, items: [] };
+        lines.push(curLine);
+      }
+      curLine.items.push(it);
+    } else {
+      curLine = { y: it.y, items: [it] };
+      lines.push(curLine);
+    }
+  }
+
+  const minX = Math.min(...items.map((it) => it.x));
+  const result: string[] = [];
+  for (const line of lines) {
+    const str = formatLineItems(line.items, minX);
+    if (/^\s*\d+\s*$/.test(str)) continue;
+    result.push(str);
+  }
+  return result;
+}
+
 // Coordinate-aware page renderer that maintains precise horizontal chord-over-lyric column positions
-function createPagerender() {
+// and seamlessly supports SongbookPro 2-column or 1-column layouts
+function createPagerender(metaRef: {
+  detectedTitle: string;
+  detectedArtist: string;
+  detectedKey: string;
+  detectedBpm: number | null;
+}) {
   return function render_page(pageData: any) {
     return pageData
       .getTextContent({ normalizeWhitespace: false, disableCombineTextItems: false })
       .then(function (textContent: any) {
-        const lines: { y: number; items: { x: number; str: string; width: number }[] }[] = [];
-        let currentLine: { y: number; items: { x: number; str: string; width: number }[] } | null = null;
+        const pageNum = pageData.pageIndex + 1;
+        const rawItems = (textContent.items || []).filter((it: any) => it && it.str && it.str.trim());
+        const items: PdfItem[] = rawItems.map((it: any) => ({
+          str: it.str,
+          x: it.transform[4],
+          y: it.transform[5],
+          width: it.width || it.str.length * 6.2,
+        }));
 
-        const items = (textContent.items || []).filter((it: any) => it && it.str && it.str.trim());
+        // 1. Scan grouped lines across the page for Key and BPM if not yet detected
+        const yGroups: Record<number, { str: string; x: number }[]> = {};
+        for (const it of items) {
+          const yKey = Math.round(it.y / 3.5) * 3.5;
+          if (!yGroups[yKey]) yGroups[yKey] = [];
+          yGroups[yKey].push(it);
+        }
 
-        // Sort items: top-to-bottom (Y desc), left-to-right (X asc)
-        items.sort((a: any, b: any) => {
-          const yDiff = b.transform[5] - a.transform[5];
-          if (Math.abs(yDiff) > 3) return yDiff;
-          return a.transform[4] - b.transform[4];
+        for (const y in yGroups) {
+          const lineText = yGroups[y]
+            .sort((a, b) => a.x - b.x)
+            .map((it) => it.str)
+            .join(' ');
+          const keyM = lineText.match(/\bKey:\s*([A-G][b#]?(?:m|maj|min)?)\b/i);
+          if (keyM && !metaRef.detectedKey) metaRef.detectedKey = keyM[1].toUpperCase();
+
+          const bpmM = lineText.match(/\b(\d{2,3})\s*BPM\b/i);
+          if (bpmM && !metaRef.detectedBpm) metaRef.detectedBpm = parseInt(bpmM[1], 10);
+        }
+
+        // 2. Header extraction on Page 1 (Title and Artist)
+        if (pageNum === 1) {
+          const headerItems = items.filter((it: PdfItem) => it.y >= 740);
+          headerItems.sort((a: PdfItem, b: PdfItem) => {
+            const yDiff = b.y - a.y;
+            if (Math.abs(yDiff) > 3) return yDiff;
+            return a.x - b.x;
+          });
+
+          const hLines: { y: number; items: PdfItem[] }[] = [];
+          let curH: { y: number; items: PdfItem[] } | null = null;
+          for (const it of headerItems) {
+            if (curH === null || Math.abs(it.y - curH.y) <= 3) {
+              if (curH === null) {
+                curH = { y: it.y, items: [] };
+                hLines.push(curH);
+              }
+              curH.items.push(it);
+            } else {
+              curH = { y: it.y, items: [it] };
+              hLines.push(curH);
+            }
+          }
+
+          for (const line of hLines) {
+            const leftItems = line.items.filter((it: PdfItem) => it.x < 300);
+            if (leftItems.length > 0) {
+              const leftText = leftItems
+                .map((it: PdfItem) => it.str)
+                .join(' ')
+                .replace(/\bKey:.*$/i, '')
+                .trim();
+              if (leftText && !/^\d+$/.test(leftText) && !/\bBPM\b/i.test(leftText) && !/^Key:/i.test(leftText)) {
+                if (!metaRef.detectedTitle) {
+                  metaRef.detectedTitle = leftText;
+                } else if (!metaRef.detectedArtist) {
+                  metaRef.detectedArtist = leftText;
+                }
+              }
+            }
+          }
+        }
+
+        // 3. Filter content items: exclude page footer (page numbers) and page 1 header items
+        const contentItems = items.filter((it: any) => {
+          if (it.y < 35 && /^\d+$/.test(it.str.trim())) return false;
+          if (pageNum === 1 && it.y >= 745) return false;
+          return true;
         });
 
-        // Find minimum X coordinate to eliminate page margin offset
-        let minX = 9999;
-        for (const it of items) {
-          if (it.transform[4] < minX) minX = it.transform[4];
-        }
-        if (minX === 9999) minX = 0;
+        // 4. Multi-column detection:
+        // SongbookPro 2-column format: Column 1 is X < 285. Column 2 is X >= 285.
+        // A true 2-column page has substantial independent content in both halves.
+        const col1Items = contentItems.filter((it: any) => it.x < 285);
+        const col2Items = contentItems.filter((it: any) => it.x >= 285);
+        const isTwoColumn = col1Items.length >= 10 && col2Items.length >= 15;
 
-        for (const item of items) {
-          const y = item.transform[5];
-          const x = item.transform[4];
-          if (!currentLine || Math.abs(currentLine.y - y) > 3) {
-            currentLine = { y, items: [] };
-            lines.push(currentLine);
-          }
-          currentLine.items.push({ x, str: item.str, width: item.width || item.str.length * 6.2 });
+        if (isTwoColumn) {
+          const col1Lines = processColumnItems(col1Items);
+          const col2Lines = processColumnItems(col2Items);
+          return [...col1Lines, ...col2Lines].join('\n');
+        } else {
+          const singleLines = processColumnItems(contentItems);
+          return singleLines.join('\n');
         }
-
-        const formattedLines: string[] = [];
-        for (const line of lines) {
-          let lineStr = '';
-          let lastX = minX;
-          for (const it of line.items) {
-            const charSpacing = Math.max(lineStr === '' ? 0 : 1, Math.round((it.x - lastX) / 6.2));
-            lineStr += ' '.repeat(charSpacing) + it.str;
-            lastX = it.x + (it.width || it.str.length * 6.2);
-          }
-          // Filter out isolated standalone page numbers (e.g. "1", "2", "3")
-          if (/^\s*\d+\s*$/.test(lineStr)) continue;
-          formattedLines.push(lineStr);
-        }
-
-        return formattedLines.join('\n');
       });
   };
 }
@@ -112,91 +233,58 @@ export async function POST(req: NextRequest) {
 
     for (const file of files) {
       const buffer = Buffer.from(await file.arrayBuffer());
+      const metaRef = {
+        detectedTitle: '',
+        detectedArtist: '',
+        detectedKey: '',
+        detectedBpm: null as number | null,
+      };
+
       const pdfData = await pdfParse(buffer, {
-        pagerender: createPagerender(),
+        pagerender: createPagerender(metaRef),
       });
 
       const rawText = pdfData.text || '';
       const lines = rawText.split('\n');
 
-      // Metadata extraction
-      let detectedKey = '';
-      let detectedBpm: number | null = null;
-      let detectedTitle = '';
-      let detectedArtist = '';
-
-      // Clean filename for fallback title: e.g. "2-God Is Here.pdf" -> "God Is Here"
-      const cleanFileName = file.name
+      // Clean filename for fallback: e.g. "1-Faith.pdf" -> "Faith"
+      let cleanFileName = file.name
         .replace(/\.pdf$/i, '')
         .replace(/^\d+[\s\-_.]*/, '')
         .trim();
 
-      const bodyLines: string[] = [];
-      let headerPhase = true;
-
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        const trimmed = line.trim();
-
-        if (!trimmed) {
-          if (!headerPhase) bodyLines.push(line);
-          continue;
+      // If filename had "Chords by Artist", e.g. "Oceans Where Feet May Fail Chords by Hillsong United"
+      const chordsByMatch = cleanFileName.match(/^(.*?)\s+Chords\s+by\s+(.*)$/i);
+      if (chordsByMatch) {
+        if (!metaRef.detectedTitle || metaRef.detectedTitle.includes('Chords by')) {
+          metaRef.detectedTitle = chordsByMatch[1].trim();
         }
-
-        // Look for Key declaration: e.g. "Key: D" or "Key: G"
-        const keyMatch = trimmed.match(/\bKey:\s*([A-G][b#]?(?:m|maj|min)?)\b/i);
-        if (keyMatch) {
-          detectedKey = keyMatch[1].toUpperCase();
-          // If the line only contains the key, don't include in song body
-          if (trimmed.replace(keyMatch[0], '').trim().length === 0) {
-            continue;
-          }
+        if (!metaRef.detectedArtist) {
+          metaRef.detectedArtist = chordsByMatch[2].trim();
         }
-
-        // Look for BPM declaration: e.g. "65 BPM"
-        const bpmMatch = trimmed.match(/\b(\d{2,3})\s*BPM\b/i);
-        if (bpmMatch) {
-          detectedBpm = parseInt(bpmMatch[1], 10);
-          if (trimmed.replace(bpmMatch[0], '').trim().length === 0) {
-            continue;
-          }
-        }
-
-        // Check if header phase
-        if (headerPhase) {
-          // If it starts with common section markers, header phase is done
-          if (/^(intro|verse|chorus|bridge|interlude|instrumental|pre-chorus|ending|outro|hold)\b/i.test(trimmed)) {
-            headerPhase = false;
-            bodyLines.push(line);
-            continue;
-          }
-
-          // First header text line -> Title
-          if (!detectedTitle) {
-            // Remove trailing "Key: X" if attached
-            let cleanTitle = trimmed;
-            if (keyMatch) cleanTitle = cleanTitle.replace(keyMatch[0], '').trim();
-            if (cleanTitle) {
-              detectedTitle = cleanTitle;
-              continue;
-            }
-          } else if (!detectedArtist) {
-            // Second header text line -> Artist
-            let cleanArtist = trimmed;
-            if (keyMatch) cleanArtist = cleanArtist.replace(keyMatch[0], '').trim();
-            if (cleanArtist) {
-              detectedArtist = cleanArtist;
-              continue;
-            }
-          }
-        }
-
-        bodyLines.push(line);
       }
 
-      const finalTitle = detectedTitle || cleanFileName || 'Untitled Song';
-      const finalArtist = detectedArtist || 'House of Grace';
-      const finalKey = detectedKey || 'C';
+      if (metaRef.detectedTitle && /Chords\s+by/i.test(metaRef.detectedTitle)) {
+        const m = metaRef.detectedTitle.match(/^(.*?)\s+Chords\s+by\s+(.*)$/i);
+        if (m) {
+          metaRef.detectedTitle = m[1].trim();
+          if (!metaRef.detectedArtist) metaRef.detectedArtist = m[2].trim();
+        }
+      }
+
+      // Filter out redundant Key or BPM lines from top of body lines if already extracted
+      const bodyLines: string[] = [];
+      for (let i = 0; i < lines.length; i++) {
+        const trimmed = lines[i].trim();
+        if (i < 5 && (/^Key:\s*[A-G][b#]?/i.test(trimmed) || /^\d+\s*BPM$/i.test(trimmed))) {
+          continue;
+        }
+        bodyLines.push(lines[i]);
+      }
+
+      const finalTitle = metaRef.detectedTitle || cleanFileName || 'Untitled Song';
+      const finalArtist = metaRef.detectedArtist || 'House of Grace';
+      const finalKey = metaRef.detectedKey || 'C';
       const finalChords = bodyLines.join('\n').trim();
 
       const songId = sanitize(`${finalTitle}-${finalArtist}`.toLowerCase().replace(/\s+/g, '-'));
@@ -206,7 +294,7 @@ export async function POST(req: NextRequest) {
         title: finalTitle,
         artist: finalArtist,
         key: finalKey,
-        tempo: detectedBpm,
+        tempo: metaRef.detectedBpm,
         chords: finalChords,
         chordFormat: 'chords_over_lyrics',
         sourceFilename: file.name,
@@ -226,7 +314,7 @@ export async function POST(req: NextRequest) {
           chords: finalChords,
           chordFormat: 'chords_over_lyrics',
           capo: '0',
-          tempo: detectedBpm || null,
+          tempo: metaRef.detectedBpm || null,
           timeSignature: '4/4',
           duration: '',
           sectionOrder: '',

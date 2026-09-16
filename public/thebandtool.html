@@ -379,16 +379,31 @@
 
     /* TOP BAR */
     .topbar {
-      height: calc(56px + var(--safe-top));
+      min-height: calc(56px + var(--safe-top));
       padding-top: var(--safe-top);
       background: #090d13;
       border-bottom: 1px solid var(--border);
       display: flex;
-      align-items: center;
-      justify-content: space-between;
+      flex-direction: column;
+      justify-content: center;
       padding-left: 12px;
       padding-right: 12px;
+      padding-bottom: 8px;
       z-index: 50;
+      gap: 8px;
+    }
+    .topbar-row-main {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      gap: 10px;
+    }
+    .topbar-row-stage {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
       gap: 8px;
     }
     .topbar-left {
@@ -396,6 +411,57 @@
       align-items: center;
       gap: 8px;
       min-width: 0;
+    }
+    .stage-actions-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .stage-action-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 0 10px;
+      width: auto;
+      height: 38px;
+      font-size: 13px;
+      font-weight: 700;
+      border-radius: 8px;
+    }
+    .stage-action-btn .btn-text {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+    .stop-all-btn {
+      background: rgba(239, 68, 68, 0.15) !important;
+      border-color: rgba(239, 68, 68, 0.4) !important;
+      color: #f87171 !important;
+    }
+    .stop-all-btn:hover {
+      background: #ef4444 !important;
+      color: #fff !important;
+      border-color: #ef4444 !important;
+    }
+    .user-pill-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(78, 177, 203, 0.1);
+      border: 1px solid rgba(78, 177, 203, 0.3);
+      color: var(--primary);
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .user-pill-btn:hover {
+      background: rgba(78, 177, 203, 0.2);
+      border-color: var(--primary);
     }
     .icon-btn {
       background: #161c26;
@@ -1410,9 +1476,16 @@
         line-height: 1.5;
       }
       .topbar {
-        height: calc(50px + var(--safe-top));
-        padding-left: 6px;
-        padding-right: 6px;
+        padding-top: calc(var(--safe-top) + 6px);
+        padding-bottom: 8px;
+        padding-left: 8px;
+        padding-right: 8px;
+        gap: 6px;
+      }
+      .topbar-row-main {
+        gap: 6px;
+      }
+      .topbar-row-stage {
         gap: 4px;
       }
       .brand-sub {
@@ -1430,41 +1503,49 @@
         padding: 1px 3px;
       }
       .transpose-widget {
-        padding: 1px;
-        gap: 1px;
+        padding: 2px;
+        gap: 2px;
       }
       .trans-step-btn {
-        width: 24px;
-        height: 28px;
-        font-size: 12px;
+        width: 32px;
+        height: 38px;
+        font-size: 15px;
       }
       .current-key-pill {
-        padding: 1px 6px;
-        font-size: 11px;
+        padding: 2px 8px;
+        font-size: 12px;
       }
-      .topbar-right {
-        gap: 3px;
-      }
-      .icon-btn {
-        width: 32px;
-        height: 32px;
-        border-radius: 6px;
+      .stage-action-btn {
+        height: 38px;
+        padding: 0 8px;
         font-size: 13px;
       }
-      /* Compact floating controls on mobile */
+      .stage-action-btn .btn-text {
+        display: none;
+      }
+      .icon-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        font-size: 14px;
+      }
+      /* Floating controls on mobile */
       .stage-fab-dock {
         right: 12px;
         bottom: calc(var(--safe-bottom) + 14px);
-        gap: 6px;
+        gap: 8px;
       }
       .fab-btn {
-        width: 38px;
-        height: 38px;
-        font-size: 11px;
-        background: rgba(18, 24, 34, 0.75);
-        border: 1px solid rgba(255,255,255,0.1);
+        width: 44px;
+        height: 44px;
+        font-size: 13px;
+        background: rgba(18, 24, 34, 0.85);
+        border: 1px solid rgba(255,255,255,0.15);
         backdrop-filter: blur(8px);
         box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      }
+      .fab-stop-btn {
+        font-size: 18px !important;
       }
       /* Sleek Native Bottom Sheet on Mobile */
       .modal-overlay {
@@ -1609,40 +1690,53 @@
   <main class="main-viewport">
     <!-- TOP BAR -->
     <header class="topbar">
-      <div class="topbar-left">
-        <button class="icon-btn" onclick="toggleSidebar(true)" title="Songbook Menu">☰</button>
-        <div class="brand-wrap" onclick="copyMusicianLink()" title="Click to copy shortlink https://hgfapp.link/chords">
-          <div class="brand-title">
-            <span>THE BAND</span>
-            <span class="brand-badge">CHORDS</span>
+      <!-- ROW 1: BRAND, SETLIST SELECTOR, USER PROFILE -->
+      <div class="topbar-row-main">
+        <div class="topbar-left">
+          <button class="icon-btn" onclick="toggleSidebar(true)" title="Songbook Menu">☰</button>
+          <div class="brand-wrap" onclick="copyMusicianLink()" title="Click to copy shortlink https://hgfapp.link/chords">
+            <div class="brand-title">
+              <span>THE BAND</span>
+              <span class="brand-badge">CHORDS</span>
+            </div>
+            <div class="brand-sub">HGF Connect • 1-tap copy</div>
           </div>
-          <div class="brand-sub">HGF Connect • 1-tap copy</div>
         </div>
-      </div>
 
-      <!-- STAGE SETLIST QUICK SELECTOR -->
-      <div class="topbar-setlist-pill" id="topbarSetlistPill" title="Active Worship Setlist">
-        <span style="font-size:12px;">🎼</span>
-        <select id="topbarSetlistSelect" class="topbar-setlist-select" onchange="onSidebarSetlistSelect(this.value)">
-          <option value="">All Songs</option>
-        </select>
-      </div>
-
-      <!-- LIVE TRANSPOSE WIDGET (Like Ultimate Guitar) -->
-      <div class="transpose-widget">
-        <button class="trans-step-btn" onclick="transposeCurrentSong(-1)" title="Transpose down 1 semitone">-</button>
-        <div class="current-key-pill" id="currentKeyPill" onclick="openKeyPickerModal()" title="Click to choose key / capo">
-          <span id="keyLabel">Key: C</span>
+        <!-- STAGE SETLIST QUICK SELECTOR -->
+        <div class="topbar-setlist-pill" id="topbarSetlistPill" title="Active Worship Setlist">
+          <span style="font-size:12px;">🎼</span>
+          <select id="topbarSetlistSelect" class="topbar-setlist-select" onchange="onSidebarSetlistSelect(this.value)">
+            <option value="">All Songs</option>
+          </select>
         </div>
-        <button class="trans-step-btn" onclick="transposeCurrentSong(1)" title="Transpose up 1 semitone">+</button>
+
+        <!-- USER PROFILE / LOGIN PILL -->
+        <button class="user-pill-btn" id="topbarUserBtn" onclick="openBandAuthModal()" title="Musician Profile & Scratchpad Login">
+          <span id="topbarUserIcon">👤</span>
+          <span id="topbarUserName">Login</span>
+        </button>
       </div>
 
-      <!-- STAGE ACTIONS -->
-      <div class="topbar-right">
-        <button class="icon-btn" onclick="openEditCurrentSong()" title="Edit Song (SongBook Pro Style)">✏️</button>
-        <button class="icon-btn" id="markupToggleBtn" onclick="toggleMarkupBar()" title="Draw / Annotate (Screenshot 1)">🎨</button>
-        <button class="icon-btn" onclick="openSourceModal()" title="Pad Backing Tracks & Audio Sources (Screenshot 5)">🎧</button>
-        <button class="icon-btn" id="autoScrollToggleBtn" onclick="toggleAutoScroll()" title="Auto-Scroll">📜</button>
+      <!-- ROW 2: DEDICATED STAGE ACTION BAR (Big & easy to tap on mobile phones) -->
+      <div class="topbar-row-stage">
+        <!-- LIVE TRANSPOSE WIDGET -->
+        <div class="transpose-widget">
+          <button class="trans-step-btn" onclick="transposeCurrentSong(-1)" title="Transpose down 1 semitone">-</button>
+          <div class="current-key-pill" id="currentKeyPill" onclick="openKeyPickerModal()" title="Click to choose key / capo">
+            <span id="keyLabel">Key: C</span>
+          </div>
+          <button class="trans-step-btn" onclick="transposeCurrentSong(1)" title="Transpose up 1 semitone">+</button>
+        </div>
+
+        <!-- STAGE ACTION BUTTONS -->
+        <div class="stage-actions-group">
+          <button class="icon-btn stage-action-btn" id="markupToggleBtn" onclick="toggleMarkupBar()" title="Draw / Annotate">✏️ <span class="btn-text">Draw</span></button>
+          <button class="icon-btn stage-action-btn" onclick="openSourceModal()" title="Ambient Pads & Backing Tracks">🎨 <span class="btn-text">Pad</span></button>
+          <button class="icon-btn stage-action-btn" onclick="openAudioManagerModal()" title="Playback Track Audio">🎧 <span class="btn-text">Track</span></button>
+          <button class="icon-btn stage-action-btn" id="scratchpadTopBtn" onclick="openScratchpadModal()" title="Song Scratchpad & MD Notes">🗒️ <span class="btn-text">Notes</span></button>
+          <button class="icon-btn stage-action-btn stop-all-btn" onclick="stopAllAudioAndScroll()" title="Instant Stop: Any Playback, Pad & Auto-Scroll">⏹ <span class="btn-text">Stop</span></button>
+        </div>
       </div>
     </header>
 
@@ -1707,11 +1801,14 @@
       </div>
     </div>
 
-    <!-- FLOATING ACTION DOCK (Screenshot 1: Zoom, Metronome, Section Jump) -->
+    <!-- FLOATING ACTION DOCK (Screenshot 1: Zoom, Metronome, Section Jump, Stop All, Duration Harmony) -->
     <div class="stage-fab-dock">
+      <button class="fab-btn fab-stop-btn" onclick="stopAllAudioAndScroll()" title="Instant Stop: Any Playback, Pad & Scroll">⏹</button>
+      <button class="fab-btn fab-duration-btn" id="floatingDurationBtn" onclick="openDurationModal()" title="Set Song Duration (Harmonizes Auto-Scroll & Playback)">⏱️</button>
+      <button class="fab-btn" id="floatingAutoScrollBtn" onclick="toggleAutoScroll()" title="Toggle Auto-Scroll">📜</button>
+      <button class="fab-btn" id="metronomeFab" onclick="toggleMetronome()" title="Toggle Metronome Sound">🔔</button>
       <button class="fab-btn" onclick="adjustFontSize(1)" title="Zoom In Chords">🔍+</button>
       <button class="fab-btn" onclick="adjustFontSize(-1)" title="Zoom Out Chords">🔍-</button>
-      <button class="fab-btn" id="metronomeFab" onclick="toggleMetronome()" title="Toggle Metronome Sound">⏱️</button>
       <button class="fab-btn" onclick="jumpToNextSection()" title="Jump to Next Section">⬇</button>
     </div>
 
@@ -2295,6 +2392,217 @@
         </button>
       </div>
     </div>
+</div>
+
+<!-- SCRATCHPAD MODAL (Personal Notes + MD Global Notes) -->
+<div class="modal-overlay" id="scratchpadModal" style="display:none;" onclick="if(event.target===this)closeScratchpadModal()">
+  <div class="edit-modal" style="max-width:560px; height:auto; max-height:90vh; display:flex; flex-direction:column;" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-header-title" style="display:flex;align-items:center;gap:8px;">
+        <span>🗒️</span> Song Scratchpad
+      </div>
+      <button class="icon-btn" onclick="closeScratchpadModal()" style="width:28px;height:28px;">✕</button>
+    </div>
+
+    <div class="modal-body" style="padding:16px; overflow-y:auto; flex:1;">
+      <div style="font-size:12px; color:var(--text-muted); margin-bottom:12px;" id="scratchSongTitleSub">
+        Notes & cues for current song
+      </div>
+
+      <!-- MD Global Cues Section -->
+      <div class="scratch-card" id="scratchMdCard" style="background:rgba(78,177,203,0.08); border:1px solid rgba(78,177,203,0.3); border-radius:12px; padding:14px; margin-bottom:16px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+          <div style="font-size:13px; font-weight:800; color:var(--primary); display:flex; align-items:center; gap:6px;">
+            <span>👑</span>
+            <span>MUSICAL DIRECTOR CUES (SHARED)</span>
+          </div>
+          <span id="scratchMdMeta" style="font-size:11px; color:var(--text-muted);"></span>
+        </div>
+
+        <!-- If MD / Admin: Editable with broadcast toggle -->
+        <div id="scratchMdEditWrap" style="display:none;">
+          <textarea id="scratchMdText" class="form-textarea" style="width:100%; height:90px; font-size:13px; line-height:1.4; margin-bottom:8px; background:#0c111a; border:1px solid var(--border); border-radius:8px; color:#fff; padding:10px;" placeholder="Enter band-wide cues (e.g. Intro 4 bars, key change on bridge, quiet chorus)..."></textarea>
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <label style="font-size:12px; color:var(--text); display:flex; align-items:center; gap:6px; cursor:pointer;">
+              <input type="checkbox" id="scratchMdBroadcastCheck" checked>
+              <span>Broadcast to all band members</span>
+            </label>
+            <button class="sidebar-action-btn primary" onclick="saveMdScratchpad()" style="padding:5px 14px; font-size:12px;">Save MD Cues</button>
+          </div>
+        </div>
+
+        <!-- If Regular Musician: Read-only display -->
+        <div id="scratchMdViewWrap" style="display:none;">
+          <div id="scratchMdContent" style="font-size:13px; color:#fff; white-space:pre-wrap; line-height:1.45; background:rgba(0,0,0,0.3); padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.05);">No MD cues posted yet for this song.</div>
+        </div>
+      </div>
+
+      <!-- Personal Musician Notes Section -->
+      <div class="scratch-card" style="background:rgba(22,28,38,0.7); border:1px solid var(--border); border-radius:12px; padding:14px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+          <div style="font-size:13px; font-weight:800; color:#facc15; display:flex; align-items:center; gap:6px;">
+            <span>📝</span>
+            <span id="scratchUserCardTitle">MY PERSONAL NOTES</span>
+          </div>
+          <span style="font-size:11px; color:var(--text-muted);">(Private to you)</span>
+        </div>
+        <textarea id="scratchUserText" class="form-textarea" style="width:100%; height:110px; font-size:13px; line-height:1.4; margin-bottom:10px; background:#0c111a; border:1px solid var(--border); border-radius:8px; color:#fff; padding:10px;" placeholder="Write your personal cues: capo, chord voicings, guitar patch, vocal cues..."></textarea>
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <span id="scratchUserSaveStatus" style="font-size:11px; color:var(--text-muted);">Synced to your account</span>
+          <button class="sidebar-action-btn" onclick="saveUserScratchpad()" style="padding:6px 14px; font-size:12px; background:#f59e0b; border-color:#f59e0b; color:#000; font-weight:700;">Save My Notes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- BAND AUTH MODAL -->
+<div class="modal-overlay" id="bandAuthModal" style="display:none;" onclick="if(event.target===this)closeBandAuthModal()">
+  <div class="edit-modal" style="max-width:440px; height:auto;" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-header-title" style="display:flex;align-items:center;gap:8px;">
+        <span>👤</span> Musician Profile & Login
+      </div>
+      <button class="icon-btn" onclick="closeBandAuthModal()" style="width:28px;height:28px;">✕</button>
+    </div>
+    <div class="modal-body" style="padding:20px;">
+      <!-- Logged Out View -->
+      <div id="bandAuthLoggedOut">
+        <div style="margin-bottom:14px;">
+          <label class="form-label" style="font-size:12px;font-weight:700;color:#cbd5e1;display:block;margin-bottom:4px;">Username</label>
+          <input type="text" id="bandAuthUsername" class="search-input" placeholder="e.g. md, guitar, alex" autocapitalize="none" style="width:100%;padding:10px 14px;">
+        </div>
+        <div style="margin-bottom:18px;">
+          <label class="form-label" style="font-size:12px;font-weight:700;color:#cbd5e1;display:block;margin-bottom:4px;">Password</label>
+          <input type="password" id="bandAuthPassword" class="search-input" placeholder="Enter password" style="width:100%;padding:10px 14px;">
+        </div>
+        <button class="sidebar-action-btn primary" onclick="loginBandUser()" style="width:100%;height:44px;font-size:14px;margin-bottom:16px;">Sign In to THE BAND</button>
+
+        <!-- Quick Rehearsal Shortcuts -->
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;text-align:center;text-transform:uppercase;">Quick Rehearsal Accounts (Default: password)</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;">
+          <button class="sidebar-action-btn" onclick="quickLoginUser('md')">👑 MD</button>
+          <button class="sidebar-action-btn" onclick="quickLoginUser('guitar')">🎸 Guitar</button>
+          <button class="sidebar-action-btn" onclick="quickLoginUser('bass')">🎸 Bass</button>
+          <button class="sidebar-action-btn" onclick="quickLoginUser('keys')">🎹 Keys</button>
+          <button class="sidebar-action-btn" onclick="quickLoginUser('drums')">🥁 Drums</button>
+          <button class="sidebar-action-btn" onclick="quickLoginUser('vocals')">🎤 Vocals</button>
+          <button class="sidebar-action-btn" onclick="quickLoginUser('admin')">⚙️ Admin</button>
+        </div>
+      </div>
+
+      <!-- Logged In View -->
+      <div id="bandAuthLoggedIn" style="display:none;text-align:center;padding:10px 0;">
+        <div style="font-size:40px;margin-bottom:8px;" id="authProfileEmoji">👤</div>
+        <div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:4px;" id="authProfileName">Musician Name</div>
+        <div style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:800;text-transform:uppercase;background:rgba(78,177,203,0.15);color:var(--primary);margin-bottom:20px;" id="authProfileRoleBadge">GUITARIST</div>
+
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <button class="sidebar-action-btn primary" id="authAdminBtn" onclick="openBandAdminModal()" style="display:none;height:40px;font-size:13px;">⚙️ Manage Band Members & Roles</button>
+          <button class="sidebar-action-btn" onclick="logoutBandUser()" style="height:40px;color:var(--accent-red);border-color:rgba(239,68,68,0.3);">Switch User / Log Out</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- BAND ADMIN MODAL (Manage Members & Roles) -->
+<div class="modal-overlay" id="bandAdminModal" style="display:none;" onclick="if(event.target===this)closeBandAdminModal()">
+  <div class="edit-modal" style="max-width:600px; height:auto; max-height:85vh; display:flex; flex-direction:column;" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-header-title" style="display:flex;align-items:center;gap:8px;">
+        <span>⚙️</span> Band Members & Roles
+      </div>
+      <button class="icon-btn" onclick="closeBandAdminModal()" style="width:28px;height:28px;">✕</button>
+    </div>
+    <div class="modal-body" style="padding:16px; overflow-y:auto; flex:1;">
+      <!-- Create Member Form -->
+      <div style="background:#161c26;border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:18px;">
+        <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:10px;">+ Add New Band Member</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+          <div>
+            <label style="font-size:11px;font-weight:700;color:#cbd5e1;display:block;margin-bottom:4px;">Username</label>
+            <input type="text" id="newMemberUsername" class="search-input" placeholder="e.g. joshua" style="height:36px;font-size:13px;width:100%;padding:0 10px;">
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:700;color:#cbd5e1;display:block;margin-bottom:4px;">Password</label>
+            <input type="text" id="newMemberPassword" class="search-input" placeholder="password" style="height:36px;font-size:13px;width:100%;padding:0 10px;">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+          <div>
+            <label style="font-size:11px;font-weight:700;color:#cbd5e1;display:block;margin-bottom:4px;">Display Name</label>
+            <input type="text" id="newMemberDisplayName" class="search-input" placeholder="e.g. Joshua G." style="height:36px;font-size:13px;width:100%;padding:0 10px;">
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:700;color:#cbd5e1;display:block;margin-bottom:4px;">Role</label>
+            <select id="newMemberRole" class="order-select" style="height:36px;font-size:13px;width:100%;padding:0 10px;background:#0d1117;">
+              <option value="MD">👑 Musical Director (MD)</option>
+              <option value="guitarist">🎸 Guitarist</option>
+              <option value="bassist">🎸 Bassist</option>
+              <option value="keyboardist">🎹 Keyboardist</option>
+              <option value="drummer">🥁 Drummer</option>
+              <option value="vocalist">🎤 Vocalist</option>
+              <option value="sound">🎛️ Sound / AV</option>
+              <option value="admin">⚙️ Full Admin</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;">
+          <button class="sidebar-action-btn primary" onclick="createBandMember()" style="padding:6px 14px;font-size:12px;">Add Member</button>
+        </div>
+      </div>
+
+      <!-- Members Table -->
+      <div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;">Existing Members</div>
+      <div id="bandMembersList" style="display:flex;flex-direction:column;gap:6px;">
+        <!-- Loaded dynamically -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DURATION MODAL (Auto-Scroll & Playback Harmony) -->
+<div class="modal-overlay" id="durationModal" style="display:none;" onclick="if(event.target===this)closeDurationModal()">
+  <div class="edit-modal" style="max-width:440px; height:auto;" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-header-title" style="display:flex;align-items:center;gap:8px;">
+        <span>⏱️</span> Song Duration & Harmony
+      </div>
+      <button class="icon-btn" onclick="closeDurationModal()" style="width:28px;height:28px;">✕</button>
+    </div>
+    <div class="modal-body" style="padding:20px;">
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.4;">
+        Set target duration. Auto-scroll speed will automatically calculate itself to smoothly scroll the entire chord sheet over this exact time.
+      </div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:20px;">
+        <div style="text-align:center;">
+          <input type="number" id="durMinutesInput" min="0" max="30" style="width:74px;height:48px;font-size:24px;text-align:center;background:#161c26;border:1px solid var(--border);border-radius:10px;color:#fff;font-weight:700;" placeholder="04">
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">MINUTES</div>
+        </div>
+        <span style="font-size:28px;font-weight:800;color:var(--primary);">:</span>
+        <div style="text-align:center;">
+          <input type="number" id="durSecondsInput" min="0" max="59" style="width:74px;height:48px;font-size:24px;text-align:center;background:#161c26;border:1px solid var(--border);border-radius:10px;color:#fff;font-weight:700;" placeholder="30">
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">SECONDS</div>
+        </div>
+      </div>
+
+      <!-- Quick presets -->
+      <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;">Quick Presets</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;">
+        <button class="sidebar-action-btn" onclick="setDurationPreset(3, 30)">3:30</button>
+        <button class="sidebar-action-btn" onclick="setDurationPreset(4, 0)">4:00</button>
+        <button class="sidebar-action-btn" onclick="setDurationPreset(4, 30)">4:30</button>
+        <button class="sidebar-action-btn" onclick="setDurationPreset(5, 0)">5:00</button>
+        <button class="sidebar-action-btn" onclick="setDurationPreset(5, 30)">5:30</button>
+        <button class="sidebar-action-btn" onclick="setDurationPreset(6, 0)">6:00</button>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:10px;">
+        <button class="sidebar-action-btn" onclick="closeDurationModal()">Cancel</button>
+        <button class="sidebar-action-btn primary" onclick="saveSongDurationFromModal()">Save & Harmonize ⏱️</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -2502,6 +2810,8 @@ Lord, I'll worship Your holy name.`
 
   // INITIALIZATION
   window.addEventListener('DOMContentLoaded', async () => {
+    initBandAuth();
+    initSwipeNavigation();
     initCanvas();
     buildKeyGrid();
     await loadSongsFromCloud();
@@ -2768,6 +3078,10 @@ Lord, I'll worship Your holy name.`
     renderSheet();
     renderSongList();
     initSongAudio(song);
+    const scratchModal = document.getElementById('scratchpadModal');
+    if (scratchModal && scratchModal.style.display === 'flex') {
+      loadScratchpadData(song.id);
+    }
   }
 
   // RENDER SHEET & LIVE TRANSPOSITION
@@ -3032,15 +3346,46 @@ Lord, I'll worship Your holy name.`
 
   function startAutoScroll() {
     isAutoScrolling = true;
-    document.getElementById('scrollPlayBtn').textContent = '⏸';
+    const playBtn = document.getElementById('scrollPlayBtn');
+    if (playBtn) playBtn.textContent = '⏸';
     const container = document.getElementById('sheetWrapper');
     if (scrollInterval) clearInterval(scrollInterval);
-    scrollInterval = setInterval(() => {
-      container.scrollTop += 1;
-      if (container.scrollTop + container.clientHeight >= container.scrollHeight) {
-        stopAutoScroll();
-      }
-    }, Math.max(15, 75 - (scrollSpeed * 6)));
+
+    // If audio is playing, onAudioTimeUpdate handles smooth lockstep with track
+    if (isAudioPlaying && backingAudio && backingAudio.duration > 0) {
+      return;
+    }
+
+    // Check if song has explicit duration (e.g. "4:30")
+    let durationSeconds = 0;
+    if (currentSong && currentSong.duration && currentSong.duration.includes(':')) {
+      const parts = currentSong.duration.split(':');
+      const m = parseInt(parts[0], 10) || 0;
+      const s = parseInt(parts[1], 10) || 0;
+      durationSeconds = m * 60 + s;
+    }
+
+    if (durationSeconds > 15 && container) {
+      // Calculate smooth progression across song duration
+      const intervalMs = 50;
+      scrollInterval = setInterval(() => {
+        const maxScroll = container.scrollHeight - container.clientHeight;
+        if (maxScroll <= 0) return;
+        const step = maxScroll / (durationSeconds * (1000 / intervalMs));
+        container.scrollTop += Math.max(0.2, step);
+        if (container.scrollTop + container.clientHeight >= container.scrollHeight - 2) {
+          stopAutoScroll();
+        }
+      }, intervalMs);
+    } else {
+      // Manual slider fallback
+      scrollInterval = setInterval(() => {
+        container.scrollTop += 1;
+        if (container.scrollTop + container.clientHeight >= container.scrollHeight) {
+          stopAutoScroll();
+        }
+      }, Math.max(15, 75 - (scrollSpeed * 6)));
+    }
   }
 
   function stopAutoScroll() {
@@ -5009,6 +5354,16 @@ Lord, I'll worship Your holy name.`
     if (pDurLabel) pDurLabel.textContent = formattedProgress;
     if (dur > 0) {
       document.getElementById('playbackScrubber').value = (cur / dur) * 100;
+      // Harmonious auto-scroll lockstep with backing track
+      if (isAutoScrolling) {
+        const container = document.getElementById('sheetWrapper');
+        if (container) {
+          const maxScroll = container.scrollHeight - container.clientHeight;
+          if (maxScroll > 0) {
+            container.scrollTop = (cur / dur) * maxScroll;
+          }
+        }
+      }
     }
   }
 
@@ -5149,15 +5504,36 @@ Lord, I'll worship Your holy name.`
     if (!fileList || fileList.length === 0) return;
     const file = fileList[0];
 
+    // INSTANT LOCAL PLAYBACK FALLBACK (Google Drive / offline / zero latency)
+    try {
+      const localBlobUrl = URL.createObjectURL(file);
+      const instantTrack = {
+        url: localBlobUrl,
+        filename: file.name,
+        originalName: file.name,
+        sizeMb: (file.size / (1024 * 1024)).toFixed(1),
+        type: file.type || 'audio/wav',
+        updatedAt: new Date().toISOString()
+      };
+      if (currentSong) {
+        currentSong.audioTrack = instantTrack;
+        updateAudioModalAttachedStatus();
+        loadAudioTrack(instantTrack, false);
+      }
+      showToast(`Loaded "${file.name}" locally for instant playback!`);
+    } catch (err) {
+      console.warn('Local blob URL fallback failed:', err);
+    }
+
     const progressWrap = document.getElementById('uploadProgressWrap');
     const barFill = document.getElementById('uploadProgressBarFill');
     const nameLabel = document.getElementById('uploadFileNameLabel');
     const percentLabel = document.getElementById('uploadPercentLabel');
 
-    progressWrap.style.display = 'block';
-    nameLabel.textContent = `Uploading ${file.name}...`;
-    barFill.style.width = '10%';
-    percentLabel.textContent = '10%';
+    if (progressWrap) progressWrap.style.display = 'block';
+    if (nameLabel) nameLabel.textContent = `Syncing ${file.name} to band server...`;
+    if (barFill) barFill.style.width = '10%';
+    if (percentLabel) percentLabel.textContent = '10%';
 
     const formData = new FormData();
     formData.append('file', file);
@@ -5168,46 +5544,58 @@ Lord, I'll worship Your holy name.`
     try {
       const xhr = new XMLHttpRequest();
       xhr.open('POST', '/api/worship/audio');
+      xhr.timeout = 180000; // 3 minute timeout for large audio files on mobile
 
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) {
           const pct = Math.round((e.loaded / e.total) * 100);
-          barFill.style.width = pct + '%';
-          percentLabel.textContent = pct + '%';
+          if (barFill) barFill.style.width = pct + '%';
+          if (percentLabel) percentLabel.textContent = pct + '%';
         }
       };
 
       xhr.onload = () => {
-        progressWrap.style.display = 'none';
-        document.getElementById('audioFileInput').value = '';
+        if (progressWrap) progressWrap.style.display = 'none';
+        const fileInput = document.getElementById('audioFileInput');
+        if (fileInput) fileInput.value = '';
+
         if (xhr.status >= 200 && xhr.status < 300) {
-          const res = JSON.parse(xhr.responseText);
-          showToast(`Uploaded "${file.name}" to server buffer!`);
-          if (currentSong && res.audioTrack) {
-            currentSong.audioTrack = res.audioTrack;
-            updateAudioModalAttachedStatus();
-            loadAudioTrack(res.audioTrack, false);
+          try {
+            const res = JSON.parse(xhr.responseText);
+            showToast(`Uploaded "${file.name}" to server buffer!`);
+            if (currentSong && res.audioTrack) {
+              currentSong.audioTrack = res.audioTrack;
+              updateAudioModalAttachedStatus();
+              loadAudioTrack(res.audioTrack, false);
+            }
+            fetchStorageAudioFiles();
+          } catch (parseErr) {
+            showToast('Uploaded, audio track ready');
           }
-          fetchStorageAudioFiles();
         } else {
           try {
             const err = JSON.parse(xhr.responseText);
-            alert(err.error || 'Upload failed');
+            showToast(err.error || 'Server sync failed, playing locally');
           } catch {
-            alert('Upload failed with status ' + xhr.status);
+            showToast('Sync warning: file available locally on device');
           }
         }
       };
 
+      xhr.ontimeout = () => {
+        if (progressWrap) progressWrap.style.display = 'none';
+        showToast('Upload timed out. Retaining local playback on this device.');
+      };
+
       xhr.onerror = () => {
-        progressWrap.style.display = 'none';
-        alert('Network error during upload');
+        if (progressWrap) progressWrap.style.display = 'none';
+        showToast('Google Drive/network stream: using local playback');
       };
 
       xhr.send(formData);
     } catch (err) {
-      progressWrap.style.display = 'none';
-      alert('Error uploading file: ' + err.message);
+      if (progressWrap) progressWrap.style.display = 'none';
+      showToast('Local playback ready');
     }
   }
 
@@ -5267,6 +5655,537 @@ Lord, I'll worship Your holy name.`
     } catch (e) {
       showToast('Error deleting file: ' + e.message);
     }
+  }
+
+  // ==========================================
+  // USER AUTH & BAND MEMBER SYSTEM
+  // ==========================================
+  let currentBandUser = null;
+
+  function initBandAuth() {
+    try {
+      const saved = localStorage.getItem('hgf_band_user');
+      if (saved) {
+        currentBandUser = JSON.parse(saved);
+      }
+    } catch (e) {
+      currentBandUser = null;
+    }
+    updateUserPillUI();
+  }
+
+  function updateUserPillUI() {
+    const label = document.getElementById('topbarUserLabel');
+    const loggedOutWrap = document.getElementById('bandAuthLoggedOut');
+    const loggedInWrap = document.getElementById('bandAuthLoggedIn');
+    const profileEmoji = document.getElementById('authProfileEmoji');
+    const profileName = document.getElementById('authProfileName');
+    const profileRoleBadge = document.getElementById('authProfileRoleBadge');
+    const authAdminBtn = document.getElementById('authAdminBtn');
+
+    if (currentBandUser && currentBandUser.username) {
+      const roleIcons = {
+        md: '👑', MD: '👑',
+        guitar: '🎸', guitarist: '🎸',
+        bass: '🎸', bassist: '🎸',
+        keys: '🎹', keyboardist: '🎹',
+        drums: '🥁', drummer: '🥁',
+        vocals: '🎤', vocalist: '🎤',
+        sound: '🎛️',
+        admin: '⚙️'
+      };
+      const icon = roleIcons[currentBandUser.role] || '👤';
+      if (label) label.textContent = `${icon} ${currentBandUser.displayName || currentBandUser.username}`;
+
+      if (loggedOutWrap) loggedOutWrap.style.display = 'none';
+      if (loggedInWrap) loggedInWrap.style.display = 'block';
+      if (profileEmoji) profileEmoji.textContent = icon;
+      if (profileName) profileName.textContent = currentBandUser.displayName || currentBandUser.username;
+      if (profileRoleBadge) {
+        profileRoleBadge.textContent = (currentBandUser.role || 'Member').toUpperCase();
+      }
+      const isAdmin = currentBandUser.role === 'admin' || currentBandUser.role === 'MD' || currentBandUser.role === 'md';
+      if (authAdminBtn) {
+        authAdminBtn.style.display = isAdmin ? 'block' : 'none';
+      }
+    } else {
+      if (label) label.textContent = '👤 Sign In';
+      if (loggedOutWrap) loggedOutWrap.style.display = 'block';
+      if (loggedInWrap) loggedInWrap.style.display = 'none';
+    }
+  }
+
+  function openBandAuthModal() {
+    const modal = document.getElementById('bandAuthModal');
+    if (modal) modal.style.display = 'flex';
+    updateUserPillUI();
+  }
+
+  function closeBandAuthModal() {
+    const modal = document.getElementById('bandAuthModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  async function loginBandUser() {
+    const uInput = document.getElementById('bandAuthUsername');
+    const pInput = document.getElementById('bandAuthPassword');
+    const username = uInput ? uInput.value.trim() : '';
+    const password = pInput ? pInput.value.trim() : '';
+
+    if (!username) {
+      showToast('Please enter username');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/worship/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'login', username, password })
+      });
+      const data = await res.json();
+      if (res.ok && data.user) {
+        currentBandUser = data.user;
+        localStorage.setItem('hgf_band_user', JSON.stringify(currentBandUser));
+        showToast(`Welcome, ${currentBandUser.displayName || currentBandUser.username}! (${currentBandUser.role})`);
+        updateUserPillUI();
+        closeBandAuthModal();
+        if (currentSong) loadScratchpadData(currentSong.id);
+      } else {
+        showToast(data.error || 'Login failed');
+      }
+    } catch (e) {
+      showToast('Login error: ' + e.message);
+    }
+  }
+
+  async function quickLoginUser(username) {
+    try {
+      const res = await fetch('/api/worship/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'login', username, password: 'password' })
+      });
+      const data = await res.json();
+      if (res.ok && data.user) {
+        currentBandUser = data.user;
+        localStorage.setItem('hgf_band_user', JSON.stringify(currentBandUser));
+        showToast(`Logged in as ${currentBandUser.displayName} (${currentBandUser.role})`);
+        updateUserPillUI();
+        closeBandAuthModal();
+        if (currentSong) loadScratchpadData(currentSong.id);
+      } else {
+        showToast(data.error || 'Quick login failed');
+      }
+    } catch (e) {
+      showToast('Login error: ' + e.message);
+    }
+  }
+
+  function logoutBandUser() {
+    currentBandUser = null;
+    localStorage.removeItem('hgf_band_user');
+    updateUserPillUI();
+    showToast('Signed out of band profile');
+  }
+
+  // ==========================================
+  // BAND ADMIN PANEL (ROLES & MEMBERS)
+  // ==========================================
+  function openBandAdminModal() {
+    const modal = document.getElementById('bandAdminModal');
+    if (modal) modal.style.display = 'flex';
+    loadBandMembersList();
+  }
+
+  function closeBandAdminModal() {
+    const modal = document.getElementById('bandAdminModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  async function loadBandMembersList() {
+    const container = document.getElementById('bandMembersList');
+    if (!container) return;
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:12px;text-align:center;padding:12px;">Loading members...</div>';
+    try {
+      const res = await fetch('/api/worship/users');
+      if (res.ok) {
+        const data = await res.json();
+        const users = data.users || [];
+        if (users.length === 0) {
+          container.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">No members found.</div>';
+          return;
+        }
+        container.innerHTML = users.map(u => `
+          <div style="display:flex;align-items:center;justify-content:space-between;background:#0d1117;padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);">
+            <div>
+              <div style="font-weight:700;color:#fff;font-size:13px;">${escapeHtml(u.displayName || u.username)} <span style="font-weight:400;color:var(--text-muted);font-size:11px;">(@${escapeHtml(u.username)})</span></div>
+              <div style="font-size:11px;color:var(--primary);margin-top:2px;">Role: <b>${escapeHtml(u.role || 'member')}</b></div>
+            </div>
+            <div>
+              ${u.username !== 'admin' ? `
+                <button class="icon-btn" onclick="deleteBandMember('${escapeHtml(u.id)}', '${escapeHtml(u.username)}')" style="width:28px;height:28px;color:var(--accent-red);font-size:11px;" title="Delete Member">🗑️</button>
+              ` : '<span style="font-size:11px;color:var(--text-muted);">Protected</span>'}
+            </div>
+          </div>
+        `).join('');
+      }
+    } catch (e) {
+      container.innerHTML = `<div style="color:var(--accent-red);font-size:12px;">Failed to load members: ${e.message}</div>`;
+    }
+  }
+
+  async function createBandMember() {
+    const uInput = document.getElementById('newMemberUsername');
+    const pInput = document.getElementById('newMemberPassword');
+    const dInput = document.getElementById('newMemberDisplayName');
+    const rInput = document.getElementById('newMemberRole');
+
+    const username = uInput ? uInput.value.trim() : '';
+    const password = pInput ? pInput.value.trim() : '';
+    const displayName = dInput ? dInput.value.trim() : '';
+    const role = rInput ? rInput.value : 'guitarist';
+
+    if (!username || !password) {
+      showToast('Username & password required');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/worship/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create', username, password, displayName, role })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(`Added member @${username}`);
+        if (uInput) uInput.value = '';
+        if (pInput) pInput.value = '';
+        if (dInput) dInput.value = '';
+        loadBandMembersList();
+      } else {
+        showToast(data.error || 'Failed to add member');
+      }
+    } catch (e) {
+      showToast('Error: ' + e.message);
+    }
+  }
+
+  async function deleteBandMember(userId, username) {
+    if (username === 'admin') return;
+    try {
+      const res = await fetch(`/api/worship/users?id=${encodeURIComponent(userId)}`, { method: 'DELETE' });
+      if (res.ok) {
+        showToast(`Member @${username} removed`);
+        loadBandMembersList();
+      } else {
+        showToast('Failed to remove member');
+      }
+    } catch (e) {
+      showToast('Error: ' + e.message);
+    }
+  }
+
+  // ==========================================
+  // DUAL-LAYER SCRATCHPAD (MD CUES + USER PRIVATE)
+  // ==========================================
+  let currentScratchSongId = null;
+
+  function openScratchpadModal() {
+    if (!currentSong) {
+      showToast('Select a song first to open its scratchpad');
+      return;
+    }
+    currentScratchSongId = currentSong.id;
+    const modal = document.getElementById('scratchpadModal');
+    const songTitle = document.getElementById('scratchpadSongTitle');
+    if (songTitle) songTitle.textContent = currentSong.title;
+    if (modal) modal.style.display = 'flex';
+    loadScratchpadData(currentSong.id);
+  }
+
+  function closeScratchpadModal() {
+    const modal = document.getElementById('scratchpadModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  async function loadScratchpadData(songId) {
+    if (!songId) return;
+    const userId = currentBandUser ? currentBandUser.id : 'guest';
+    const role = currentBandUser ? currentBandUser.role : 'member';
+    const isMd = role === 'MD' || role === 'md' || role === 'admin';
+
+    const mdEditWrap = document.getElementById('scratchMdEditWrap');
+    const mdViewWrap = document.getElementById('scratchMdViewWrap');
+    const mdText = document.getElementById('scratchMdText');
+    const mdContent = document.getElementById('scratchMdContent');
+    const mdMeta = document.getElementById('scratchMdMeta');
+    const mdCheck = document.getElementById('scratchMdBroadcastCheck');
+    const userText = document.getElementById('scratchUserText');
+    const userCardTitle = document.getElementById('scratchUserCardTitle');
+
+    if (userCardTitle) {
+      userCardTitle.textContent = currentBandUser 
+        ? `MY NOTES (${(currentBandUser.role || 'Musician').toUpperCase()})` 
+        : 'MY NOTES (DEVICE GUEST)';
+    }
+
+    if (isMd) {
+      if (mdEditWrap) mdEditWrap.style.display = 'block';
+      if (mdViewWrap) mdViewWrap.style.display = 'none';
+    } else {
+      if (mdEditWrap) mdEditWrap.style.display = 'none';
+      if (mdViewWrap) mdViewWrap.style.display = 'block';
+    }
+
+    try {
+      const res = await fetch(`/api/worship/scratch?songId=${encodeURIComponent(songId)}&userId=${encodeURIComponent(userId)}`);
+      if (res.ok) {
+        const data = await res.json();
+        // MD note
+        if (data.md) {
+          if (mdText) mdText.value = data.md.content || '';
+          if (mdCheck) mdCheck.checked = !!data.md.isPublic;
+          if (mdContent) {
+            mdContent.textContent = data.md.content ? data.md.content : 'No MD cues posted yet for this song.';
+          }
+          if (mdMeta && data.md.updatedAt) {
+            mdMeta.textContent = `Updated: ${new Date(data.md.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+          }
+        } else {
+          if (mdText) mdText.value = '';
+          if (mdContent) mdContent.textContent = 'No MD cues posted yet for this song.';
+          if (mdMeta) mdMeta.textContent = '';
+        }
+
+        // User note
+        if (data.user) {
+          if (userText) userText.value = data.user.content || '';
+        } else {
+          if (userText) userText.value = '';
+        }
+      }
+    } catch (e) {
+      console.warn('Could not fetch scratchpad', e);
+    }
+  }
+
+  async function saveMdScratchpad() {
+    if (!currentScratchSongId) return;
+    const content = document.getElementById('scratchMdText') ? document.getElementById('scratchMdText').value : '';
+    const isPublic = document.getElementById('scratchMdBroadcastCheck') ? document.getElementById('scratchMdBroadcastCheck').checked : true;
+    const userId = currentBandUser ? currentBandUser.id : 'md';
+
+    try {
+      const res = await fetch('/api/worship/scratch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'md',
+          songId: currentScratchSongId,
+          content,
+          isPublic,
+          userId
+        })
+      });
+      if (res.ok) {
+        showToast('MD Cues saved & broadcast to band!');
+        loadScratchpadData(currentScratchSongId);
+      } else {
+        showToast('Failed to save MD cues');
+      }
+    } catch (e) {
+      showToast('Error: ' + e.message);
+    }
+  }
+
+  async function saveUserScratchpad() {
+    if (!currentScratchSongId) return;
+    const content = document.getElementById('scratchUserText') ? document.getElementById('scratchUserText').value : '';
+    const userId = currentBandUser ? currentBandUser.id : 'guest';
+
+    try {
+      const res = await fetch('/api/worship/scratch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'user',
+          songId: currentScratchSongId,
+          content,
+          userId
+        })
+      });
+      if (res.ok) {
+        showToast('Your personal notes saved!');
+        const status = document.getElementById('scratchUserSaveStatus');
+        if (status) {
+          status.textContent = 'Saved just now';
+          status.style.color = '#10b981';
+        }
+      } else {
+        showToast('Failed to save personal notes');
+      }
+    } catch (e) {
+      showToast('Error: ' + e.message);
+    }
+  }
+
+  // ==========================================
+  // DURATION MODAL & HARMONY
+  // ==========================================
+  function openDurationModal() {
+    if (!currentSong) {
+      showToast('Select a song first');
+      return;
+    }
+    const modal = document.getElementById('durationModal');
+    const mInput = document.getElementById('durMinutesInput');
+    const sInput = document.getElementById('durSecondsInput');
+
+    let m = 4, s = 30;
+    if (currentSong.duration && currentSong.duration.includes(':')) {
+      const parts = currentSong.duration.split(':');
+      m = parseInt(parts[0], 10) || 0;
+      s = parseInt(parts[1], 10) || 0;
+    }
+    if (mInput) mInput.value = m;
+    if (sInput) sInput.value = s < 10 ? '0' + s : s;
+
+    if (modal) modal.style.display = 'flex';
+  }
+
+  function closeDurationModal() {
+    const modal = document.getElementById('durationModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  function setDurationPreset(min, sec) {
+    const mInput = document.getElementById('durMinutesInput');
+    const sInput = document.getElementById('durSecondsInput');
+    if (mInput) mInput.value = min;
+    if (sInput) sInput.value = sec < 10 ? '0' + sec : sec;
+  }
+
+  async function saveSongDurationFromModal() {
+    if (!currentSong) return;
+    const mInput = document.getElementById('durMinutesInput');
+    const sInput = document.getElementById('durSecondsInput');
+    const m = parseInt(mInput ? mInput.value : '4', 10) || 0;
+    const s = parseInt(sInput ? sInput.value : '0', 10) || 0;
+    const formatted = `${m}:${s < 10 ? '0' + s : s}`;
+
+    currentSong.duration = formatted;
+    const durLabel = document.getElementById('sheetDurationLabel');
+    if (durLabel) durLabel.textContent = formatted;
+    const editDurInput = document.getElementById('editDurationInput');
+    if (editDurInput) editDurInput.value = formatted;
+
+    closeDurationModal();
+    showToast(`Duration set to ${formatted} (Auto-scroll harmonized)`);
+
+    // Silently save song update
+    try {
+      await fetch('/api/worship', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(currentSong)
+      });
+    } catch (e) {}
+
+    // If auto-scroll is running, restart to recalculate speed
+    if (isAutoScrolling) {
+      startAutoScroll();
+    }
+  }
+
+  // ==========================================
+  // STOP ALL (BACKING TRACK + PAD FADE + SCROLL)
+  // ==========================================
+  function stopAllAudioAndScroll() {
+    // 1. Backing audio
+    stopAudioPlayback();
+    togglePlaybackDock(false);
+
+    // 2. Ambient pad (smooth 3-second exponential fade out)
+    stopAmbientPad();
+
+    // 3. Auto-scroll
+    stopAutoScroll();
+
+    showToast('⏹ All audio & scrolling stopped');
+  }
+
+  // ==========================================
+  // TOUCH SWIPE NAVIGATION (LEFT/RIGHT SONG SLIDE)
+  // ==========================================
+  function getActiveSongList() {
+    if (currentSetlist && Array.isArray(currentSetlist.songs) && currentSetlist.songs.length > 0) {
+      return currentSetlist.songs.map(item => {
+        const id = typeof item === 'string' ? item : item.id;
+        return songs.find(s => s.id === id) || (typeof item === 'object' ? item : null);
+      }).filter(Boolean);
+    }
+    return songs;
+  }
+
+  function selectNextSong() {
+    if (!currentSong) return;
+    const list = getActiveSongList();
+    if (!list || list.length <= 1) return;
+    const currentIndex = list.findIndex(s => s.id === currentSong.id);
+    if (currentIndex === -1) return;
+    const nextIndex = (currentIndex + 1) % list.length;
+    selectSong(list[nextIndex]);
+    showToast(`Next: ${list[nextIndex].title}`);
+  }
+
+  function selectPreviousSong() {
+    if (!currentSong) return;
+    const list = getActiveSongList();
+    if (!list || list.length <= 1) return;
+    const currentIndex = list.findIndex(s => s.id === currentSong.id);
+    if (currentIndex === -1) return;
+    const prevIndex = (currentIndex - 1 + list.length) % list.length;
+    selectSong(list[prevIndex]);
+    showToast(`Prev: ${list[prevIndex].title}`);
+  }
+
+  function initSwipeNavigation() {
+    const target = document.getElementById('sheetWrapper');
+    if (!target) return;
+
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchStartTime = 0;
+
+    target.addEventListener('touchstart', (e) => {
+      // If drawing markup canvas is active, do not navigate songs
+      if (isDrawingActive) return;
+      if (e.touches.length !== 1) return;
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      touchStartTime = Date.now();
+    }, { passive: true });
+
+    target.addEventListener('touchend', (e) => {
+      if (isDrawingActive) return;
+      if (e.changedTouches.length !== 1) return;
+      const touchEndX = e.changedTouches[0].clientX;
+      const touchEndY = e.changedTouches[0].clientY;
+      const dx = touchEndX - touchStartX;
+      const dy = touchEndY - touchStartY;
+      const dt = Date.now() - touchStartTime;
+
+      // Horizontal swipe threshold: > 60px distance, > 1.8x vertical movement, < 600ms duration
+      if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.8 && dt < 600) {
+        if (dx < 0) {
+          selectNextSong(); // Swipe left -> next song
+        } else {
+          selectPreviousSong(); // Swipe right -> previous song
+        }
+      }
+    }, { passive: true });
   }
 </script>
 

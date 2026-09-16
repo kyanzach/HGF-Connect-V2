@@ -5,6 +5,31 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.53.10] — 2026-09-16
+### Added & Enhanced — Single-Column PDF Layout, Dual Scratchpad (MD + User), Auth & Roles, Playback Harmony, & Touch Swipe
+- **Single-Column Vertical Sequence for SongbookPro PDF Import (`/api/worship/pdf`)**:
+  - Eliminated 2-column horizontal cramping on mobile devices.
+  - Automatically isolates Column 1 (left) and Column 2 (right) using coordinate boundaries.
+  - Normalizes Column 2's starting X-offset back to zero and appends it sequentially underneath Column 1.
+  - Ensures standard worship progression (Intro → Verse → Pre-Cho → Chorus → Bridge → Outro) flows continuously top-to-bottom without line-wrapping or cramped columns.
+- **Dual-Layer Scratchpad Notepad (`/api/worship/scratch` & `#scratchpadModal`)**:
+  - **MD Global Broadcast Cues**: Musical Directors (`role: MD`) can publish arrangement notes, key change alerts, and structure cues visible across the whole band.
+  - **Musician Private Notepad**: Individual band members (guitarist, bassist, keyboardist, drummer, etc.) have private scratchpads for instrument-specific cues, capo/fret markers, and pedal presets.
+  - Displays both pads harmoniously for each song (up to 2 notepads per song).
+- **Musician Authentication & Role Administration (`/api/worship/users` & `#bandAuthModal`, `#bandAdminModal`)**:
+  - Clean username/password authentication for band members.
+  - Pre-seeded rehearsal profiles: `md` (👑 MD), `guitar` (🎸 Guitarist), `bass` (🎸 Bassist), `keys` (🎹 Keyboardist), `drums` (🥁 Drummer), `vocals` (🎤 Vocalist), and `admin` (⚙️ Full Admin).
+  - Admin management modal allowing creation, role assignment, and deletion of band member accounts.
+- **Resilient Mobile WAV Playback & Google Drive Support**:
+  - Added synchronous `URL.createObjectURL(file)` instant local playback fallback for files picked via mobile Files / Google Drive, eliminating upload latency and network stream errors.
+  - Extended upload timeout to 180 seconds with upload progress indicators.
+  - Eliminated all native `alert()` dialogs in compliance with application standards, replacing with non-blocking toast notifications.
+- **Stage Navigation, Floating Controls & Playback Harmony**:
+  - Mobile topbar redesigned into an ergonomic 2-row layout with large (42-44px) touch targets for stage use.
+  - Added floating action dock buttons: instant **`⏹ Stop All`** (stops backing track, smoothly fades out ambient pad over 3 seconds, and halts auto-scroll), **`⏱ Duration`** quick-setter, and **`📜 Auto-Scroll`** toggle.
+  - Harmonized auto-scroll: when backing audio plays, auto-scroll stays in lockstep with track elapsed percentage; when scrolling solo, scroll rate dynamically calculates to complete the chord sheet across the exact song duration.
+  - Added touch swipe navigation on the chord sheet: swipe left for next song, swipe right for previous song (automatically paused when markup drawing canvas is active).
+
 ## [v2.53.9] — 2026-09-16
 ### Added & Enhanced — SongbookPro PDF Import, Song Deletion with Confirm Modal, & Setlist Selector Bar
 - **SongbookPro PDF Import Engine (`/api/worship/pdf` & `The Band Tool`)**:
