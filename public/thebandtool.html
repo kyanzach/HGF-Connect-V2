@@ -214,12 +214,14 @@
       z-index: 2;
     }
     .song-item {
-      padding: 11px 14px;
-      border-bottom: 1px solid rgba(255,255,255,0.03);
+      padding: 9px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
       cursor: pointer;
       display: flex;
-      flex-direction: column;
-      gap: 3px;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
       transition: background 0.15s;
     }
     .song-item:hover, .song-item.active {
@@ -228,13 +230,21 @@
     .song-item.active {
       border-left: 3px solid var(--primary);
     }
+    .song-item-info {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
     .song-item-title {
-      font-size: 14px;
+      font-size: 13.5px;
       font-weight: 700;
       color: #ffffff;
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 6px;
     }
     .song-item-key-badge {
       font-size: 11px;
@@ -244,13 +254,61 @@
       color: var(--accent-chord);
       font-weight: 700;
       font-family: var(--font-chords);
+      flex-shrink: 0;
     }
     .song-item-artist {
-      font-size: 12px;
+      font-size: 11.5px;
       color: var(--text-muted);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+    .song-item-actions {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+    .song-quick-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      color: var(--text-muted);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 6px;
+      border-radius: 5px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .song-quick-btn:hover {
+      background: rgba(78, 177, 203, 0.2);
+      border-color: var(--primary);
+      color: #fff;
+    }
+    .song-quick-btn.in-set {
+      background: rgba(78, 177, 203, 0.22);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    .song-del-btn {
+      background: transparent;
+      border: none;
+      color: #64748b;
+      font-size: 12px;
+      padding: 3px 5px;
+      border-radius: 4px;
+      cursor: pointer;
+      opacity: 0.7;
+      transition: all 0.15s;
+    }
+    .song-del-btn:hover {
+      opacity: 1;
+      color: var(--accent-red);
+      background: rgba(239, 68, 68, 0.12);
     }
 
     /* Sidebar Footer Docks */
@@ -601,6 +659,133 @@
     .set-song-row.active {
       background: rgba(8, 145, 178, 0.18);
       border-left: 3px solid var(--primary);
+    }
+
+    /* Sidebar Setlist Bar & Selector */
+    .sidebar-setlist-bar {
+      padding: 10px 14px 10px 14px;
+      background: #0d121c;
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-setlist-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .sidebar-setlist-label {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .setlist-new-link {
+      font-size: 11px;
+      color: var(--primary);
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: background 0.15s;
+    }
+    .setlist-new-link:hover {
+      background: rgba(78, 177, 203, 0.15);
+    }
+    .sidebar-setlist-select-wrap {
+      position: relative;
+    }
+    .sidebar-setlist-select {
+      width: 100%;
+      background: #070a10;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 7px 10px;
+      outline: none;
+      cursor: pointer;
+    }
+    .sidebar-setlist-select:focus {
+      border-color: var(--primary);
+    }
+    .setlist-filter-pills {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .setlist-pill-btn {
+      flex: 1;
+      padding: 5px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: #131924;
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+    }
+    .setlist-pill-btn:hover {
+      color: #fff;
+      border-color: rgba(255,255,255,0.2);
+    }
+    .setlist-pill-btn.active {
+      background: rgba(78, 177, 203, 0.2);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    /* Topbar Setlist Dropdown */
+    .topbar-setlist-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      padding: 3px 8px;
+      border-radius: 6px;
+      max-width: 220px;
+    }
+    .topbar-setlist-select {
+      background: transparent;
+      border: none;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      outline: none;
+      cursor: pointer;
+      max-width: 180px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* PDF Dropzone */
+    .pdf-dropzone {
+      border: 2px dashed rgba(78, 177, 203, 0.4);
+      border-radius: 10px;
+      padding: 24px 16px;
+      text-align: center;
+      background: rgba(78, 177, 203, 0.04);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    .pdf-dropzone:hover, .pdf-dropzone.dragover {
+      border-color: var(--primary);
+      background: rgba(78, 177, 203, 0.1);
     }
 
     /* Song Title Header in Sheet */
@@ -1339,6 +1524,27 @@
       <button class="sidebar-pin-btn" title="Pin / Options">📌</button>
     </div>
 
+    <!-- Setlist Selector Bar in Sidebar -->
+    <div class="sidebar-setlist-bar">
+      <div class="sidebar-setlist-header">
+        <span class="sidebar-setlist-label">🎼 Active Setlist</span>
+        <button class="setlist-new-link" onclick="openNewSetModal()" title="Create New Worship Setlist">+ New Set</button>
+      </div>
+      <div class="sidebar-setlist-select-wrap">
+        <select id="sidebarSetlistSelect" class="sidebar-setlist-select" onchange="onSidebarSetlistSelect(this.value)">
+          <option value="">📚 All Songs (Full Library)</option>
+        </select>
+      </div>
+      <div id="setlistFilterPills" class="setlist-filter-pills" style="display:none;">
+        <button id="pillSetlistOnly" class="setlist-pill-btn active" onclick="setSongFilterMode('setlist')">
+          Setlist (<span id="pillSetlistCount">0</span>)
+        </button>
+        <button id="pillAllSongs" class="setlist-pill-btn" onclick="setSongFilterMode('all')">
+          Browse All (<span id="pillAllCount">0</span>)
+        </button>
+      </div>
+    </div>
+
     <!-- Search Box with Clear Button -->
     <div class="sidebar-search-box">
       <div class="search-input-wrap">
@@ -1377,6 +1583,9 @@
       <button class="sidebar-action-btn" id="sidebarActionRight" onclick="onSidebarActionRight()">
         Add to Set...
       </button>
+      <button class="sidebar-action-btn" onclick="openPdfImportModal()" title="Import SongbookPro PDF(s)" style="color:var(--primary);border-color:rgba(78,177,203,0.35);font-size:12px;padding:6px 10px;">
+        📄 PDF
+      </button>
     </div>
 
     <!-- Sidebar Navigation Dock: Songs | Sets | Settings -->
@@ -1409,6 +1618,14 @@
           </div>
           <div class="brand-sub">HGF Connect • 1-tap copy</div>
         </div>
+      </div>
+
+      <!-- STAGE SETLIST QUICK SELECTOR -->
+      <div class="topbar-setlist-pill" id="topbarSetlistPill" title="Active Worship Setlist">
+        <span style="font-size:12px;">🎼</span>
+        <select id="topbarSetlistSelect" class="topbar-setlist-select" onchange="onSidebarSetlistSelect(this.value)">
+          <option value="">All Songs</option>
+        </select>
       </div>
 
       <!-- LIVE TRANSPOSE WIDGET (Like Ultimate Guitar) -->
@@ -1617,6 +1834,12 @@
         <div class="form-group">
           <label class="form-label">Add tags...</label>
           <input type="text" id="editTagsInput" class="form-input" placeholder="Worship, Fast, Communion, Sunday">
+        </div>
+
+        <div style="margin-top:20px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.08);">
+          <button type="button" class="sidebar-action-btn" onclick="promptDeleteCurrentSong()" style="width:100%;color:#ef4444;border:1px solid rgba(239,68,68,0.35);background:rgba(239,68,68,0.08);padding:10px;font-size:13px;font-weight:700;">
+            🗑 Delete Song from Library
+          </button>
         </div>
       </div>
 
@@ -1871,6 +2094,16 @@
 
     <!-- 1. SEARCH RESULTS VIEW -->
     <div id="scraperSearchView" class="modal-body" style="padding:14px;display:flex;flex-direction:column;flex:1;overflow:hidden;">
+      <!-- SongbookPro PDF Import Banner -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;margin-bottom:10px;background:rgba(78,177,203,0.08);border:1px solid rgba(78,177,203,0.25);border-radius:8px;">
+        <div style="font-size:12.5px;color:#e2e8f0;display:flex;align-items:center;gap:6px;">
+          <span>📄</span> <span>Have <strong>SongbookPro PDF</strong> files?</span>
+        </div>
+        <button type="button" class="sidebar-action-btn primary" onclick="closeScraperModal(); openPdfImportModal();" style="font-size:12px;padding:4px 10px;">
+          Import PDF(s)
+        </button>
+      </div>
+
       <!-- Search Input -->
       <div style="display:flex;gap:8px;">
         <input type="text" id="scraperQueryInput" class="form-input" style="flex:1;" placeholder="Search title, artist, or lyrics (e.g. oceans hillsong, 10000 reasons)..." onkeydown="if(event.key==='Enter') executeScraperSearch()">
@@ -1985,6 +2218,81 @@
       <div style="display:flex;gap:8px;">
         <button class="sidebar-action-btn" onclick="closeAddToSetModal()">Cancel</button>
         <button class="sidebar-action-btn primary" id="addToSetConfirmBtn" onclick="submitAddToSet()">Add to Set</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM DELETE MODAL (In-App Custom Modal — No native alert/confirm) -->
+<div class="modal-overlay" id="confirmDeleteModal">
+  <div class="edit-modal" style="max-width: 440px; height: auto; padding: 0;">
+    <div class="modal-header" style="border-bottom: 1px solid rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.08);">
+      <div class="modal-header-title" style="color: #f87171; display:flex; align-items:center; gap:8px;">
+        <span>🗑️</span> <span id="confirmDeleteTitle">Delete Song</span>
+      </div>
+      <button class="icon-btn" onclick="closeConfirmDeleteModal()" style="width:28px;height:28px;">✕</button>
+    </div>
+    <div class="modal-body" style="padding: 20px;">
+      <div style="font-size: 14px; color: #e2e8f0; line-height: 1.5;" id="confirmDeleteMessage">
+        Are you sure you want to delete this song?
+      </div>
+      <div style="margin-top: 14px; padding: 10px 12px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25); border-radius: 8px; font-size: 12px; color: #fca5a5;">
+        ⚠️ This action cannot be undone. The song and all custom notes will be removed from your cloud library and active setlists.
+      </div>
+    </div>
+    <div style="padding: 12px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; background: #0c1018;">
+      <button class="sidebar-action-btn" onclick="closeConfirmDeleteModal()" style="font-size: 13px;">Cancel</button>
+      <button class="sidebar-action-btn" id="confirmDeleteBtn" style="font-size: 13px; background: #ef4444; border-color: #ef4444; color: #fff; font-weight: 700;">
+        🗑 Delete Song
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- SONGBOOKPRO PDF IMPORT MODAL -->
+<div class="modal-overlay" id="pdfImportModal">
+  <div class="edit-modal" style="max-width: 580px; height: auto; max-height: 90vh; display:flex; flex-direction:column;">
+    <div class="modal-header">
+      <div class="modal-header-title" style="display:flex;align-items:center;gap:8px;">
+        <span>📄</span> Import SongbookPro PDF(s)
+      </div>
+      <button class="icon-btn" onclick="closePdfImportModal()" style="width:28px;height:28px;">✕</button>
+    </div>
+    <div class="modal-body" style="padding: 16px; display:flex; flex-direction:column; gap: 14px; overflow-y:auto;">
+      <!-- Dropzone -->
+      <label for="pdfFilesInput" class="pdf-dropzone" id="pdfDropzone" ondragover="event.preventDefault(); this.classList.add('dragover');" ondragleave="this.classList.remove('dragover');" ondrop="handlePdfDrop(event)">
+        <input type="file" id="pdfFilesInput" accept=".pdf,application/pdf" multiple style="display:none;" onchange="handlePdfFilesSelect(this.files)">
+        <div style="font-size: 32px; margin-bottom: 6px;">📥</div>
+        <div style="font-size: 15px; font-weight: 700; color: #fff;">Drag & Drop SongbookPro PDF(s) here</div>
+        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px; margin-bottom: 12px;">Batch import supported (preserves 'Hold', chords over lyrics, and original keys)</div>
+        <span class="sidebar-action-btn primary" style="pointer-events:none; padding: 6px 14px; font-size: 13px;">📁 Choose PDF Files</span>
+      </label>
+
+      <!-- Target Setlist Selection -->
+      <div style="padding: 10px 12px; background: #111722; border: 1px solid var(--border); border-radius: 8px; display:flex; flex-direction:column; gap: 6px;">
+        <label style="font-size: 12px; font-weight: 700; color: #cbd5e1;">Target Setlist (Optional)</label>
+        <select id="pdfTargetSetlistSelect" class="order-select" style="width:100%; padding:8px 10px; background:#070a10; font-size:13px; color:#fff; border-radius:6px; cursor:pointer;">
+          <option value="">Do not add to setlist (Library only)</option>
+        </select>
+      </div>
+
+      <!-- Parsing Spinner -->
+      <div id="pdfParsingSpinner" style="display:none; text-align:center; padding: 18px; color: var(--primary);">
+        <div style="font-size: 24px; margin-bottom: 6px;">⏳</div>
+        <div style="font-weight: 700; font-size: 13.5px;">Parsing SongbookPro PDF layout & chords...</div>
+        <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">Preserving column coordinates and section markers ('Hold', etc.)</div>
+      </div>
+
+      <!-- Songs Preview List -->
+      <div id="pdfSongsPreviewList" style="display:flex; flex-direction:column; gap: 8px;"></div>
+    </div>
+    <div style="padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); background: #0a0e14;">
+      <span id="pdfSongsCountBadge" style="font-size: 12px; color: var(--text-muted);">0 files selected</span>
+      <div style="display:flex; gap: 8px;">
+        <button class="sidebar-action-btn" onclick="closePdfImportModal()">Cancel</button>
+        <button class="sidebar-action-btn primary" id="pdfSubmitImportBtn" onclick="submitPdfImport()" disabled style="background:#059669; border-color:#10b981;">
+          📥 Import to Library
+        </button>
       </div>
     </div>
   </div>
@@ -2207,7 +2515,7 @@ Lord, I'll worship Your holy name.`
 
   function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/theband-sw.js?v=2.53.8').catch(() => {});
+      navigator.serviceWorker.register('/theband-sw.js?v=2.53.9').catch(() => {});
     }
   }
 
@@ -2285,12 +2593,90 @@ Lord, I'll worship Your holy name.`
     renderSongList();
   }
 
+  let songFilterMode = 'setlist'; // 'setlist' | 'all'
+
+  function setSongFilterMode(mode) {
+    songFilterMode = mode;
+    const btnSetlist = document.getElementById('pillSetlistOnly');
+    const btnAll = document.getElementById('pillAllSongs');
+    if (btnSetlist) btnSetlist.classList.toggle('active', mode === 'setlist');
+    if (btnAll) btnAll.classList.toggle('active', mode === 'all');
+    renderSongList(document.getElementById('songSearchInput')?.value || '');
+  }
+
   function renderSongList(filterText = '') {
     const container = document.getElementById('songListContainer');
-    const orderBy = document.getElementById('orderBySelect').value;
+    if (!container) return;
+    const orderBy = document.getElementById('orderBySelect')?.value || 'title';
+    const q = (filterText || '').trim().toLowerCase();
+
+    // 1. ACTIVE SETLIST LINEUP MODE
+    if (currentSetlist && songFilterMode === 'setlist') {
+      const setSongs = Array.isArray(currentSetlist.songs) ? currentSetlist.songs : [];
+      let setlistList = [];
+      setSongs.forEach((item, idx) => {
+        const id = typeof item === 'string' ? item : item.id;
+        const libraryMatch = songs.find(x => x.id === id);
+        const title = (typeof item === 'object' && item.title) || libraryMatch?.title || id;
+        const artist = (typeof item === 'object' && item.artist) || libraryMatch?.artist || 'House of Grace';
+        const key = (typeof item === 'object' && item.key) || libraryMatch?.key || '';
+        setlistList.push({ id, title, artist, key, setlistIndex: idx });
+      });
+
+      if (q) {
+        setlistList = setlistList.filter(s =>
+          (s.title || '').toLowerCase().includes(q) ||
+          (s.artist || '').toLowerCase().includes(q) ||
+          (s.key || '').toLowerCase().includes(q)
+        );
+      }
+
+      let html = `
+        <div style="padding: 7px 12px; font-size: 11px; font-weight: 700; color: var(--primary); display:flex; justify-content:space-between; align-items:center; background: rgba(78,177,203,0.06); border-bottom: 1px solid var(--border);">
+          <span>🎼 ${escapeHtml(currentSetlist.name || 'Setlist')} (${setlistList.length})</span>
+          <button class="setlist-new-link" onclick="setSongFilterMode('all')" style="font-size:11px;">+ Add More Songs</button>
+        </div>
+      `;
+
+      if (setlistList.length === 0) {
+        html += `
+          <div style="padding: 30px 16px; text-align:center; color: var(--text-muted); font-size: 13px;">
+            No songs in this setlist yet.<br>
+            <button class="sidebar-action-btn primary" onclick="setSongFilterMode('all')" style="margin: 12px auto 0; font-size: 12px;">
+              Browse Library & Add Songs
+            </button>
+          </div>
+        `;
+      } else {
+        setlistList.forEach((s) => {
+          const isActive = currentSong && currentSong.id === s.id;
+          html += `
+            <div class="song-item ${isActive ? 'active' : ''}" onclick="loadSongFromSet('${escapeHtml(s.id)}', '${escapeHtml(s.key || '')}', ${s.setlistIndex})">
+              <div class="song-item-info">
+                <div class="song-item-title">
+                  <div style="display:flex;align-items:center;gap:6px;min-width:0;">
+                    <span style="color:var(--primary);font-weight:800;font-size:11px;width:14px;flex-shrink:0;">${s.setlistIndex + 1}</span>
+                    <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(s.title)}</span>
+                  </div>
+                  ${s.key ? `<span class="song-item-key-badge">${escapeHtml(s.key)}</span>` : ''}
+                </div>
+                <div class="song-item-artist" style="padding-left:20px;">${escapeHtml(s.artist)}</div>
+              </div>
+              <div class="song-item-actions">
+                <button class="song-del-btn" onclick="event.stopPropagation(); removeSongFromSet(${s.setlistIndex})" title="Remove from Setlist" style="color:var(--text-muted);font-size:12px;padding:3px 6px;">✕</button>
+                <button class="song-del-btn" onclick="promptDeleteSong('${s.id}', event)" title="Delete from Library">🗑</button>
+              </div>
+            </div>
+          `;
+        });
+      }
+      container.innerHTML = html;
+      return;
+    }
+
+    // 2. FULL LIBRARY BROWSE MODE
     let list = [...songs];
 
-    const q = (filterText || '').trim().toLowerCase();
     if (q) {
       list = list.filter(s =>
         (s.title || '').toLowerCase().includes(q) ||
@@ -2332,13 +2718,28 @@ Lord, I'll worship Your holy name.`
       html += `<div class="group-letter">${key}</div>`;
       for (const s of groups[key]) {
         const isActive = currentSong && currentSong.id === s.id;
+        const isInSet = currentSetlist && Array.isArray(currentSetlist.songs) && currentSetlist.songs.some(item => {
+          const id = typeof item === 'string' ? item : item.id;
+          return id === s.id;
+        });
+
         html += `
           <div class="song-item ${isActive ? 'active' : ''}" onclick="onSongItemClick('${s.id}')">
-            <div class="song-item-title">
-              <span>${escapeHtml(s.title)}</span>
-              ${s.key ? `<span class="song-item-key-badge">${s.key}</span>` : ''}
+            <div class="song-item-info">
+              <div class="song-item-title">
+                <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(s.title)}</span>
+                ${s.key ? `<span class="song-item-key-badge">${s.key}</span>` : ''}
+              </div>
+              <div class="song-item-artist">${escapeHtml(s.artist || 'House of Grace')}</div>
             </div>
-            <div class="song-item-artist">${escapeHtml(s.artist || 'House of Grace')}</div>
+            <div class="song-item-actions">
+              <button class="song-quick-btn ${isInSet ? 'in-set' : ''}" onclick="quickAddSongToSet('${s.id}', event)" title="${isInSet ? 'Already in active set' : (currentSetlist ? `Add to ${currentSetlist.name}` : 'Add to Setlist')}">
+                ${isInSet ? '✓ In Set' : '+ Set'}
+              </button>
+              <button class="song-del-btn" onclick="promptDeleteSong('${s.id}', event)" title="Delete Song">
+                🗑
+              </button>
+            </div>
           </div>
         `;
       }
@@ -3134,6 +3535,83 @@ Lord, I'll worship Your holy name.`
     }
   }
 
+  function onSidebarSetlistSelect(setlistId) {
+    if (!setlistId) {
+      currentSetlist = null;
+      currentSetlistSongIndex = -1;
+      songFilterMode = 'all';
+      const banner = document.getElementById('activeSetStageBanner');
+      if (banner) banner.style.display = 'none';
+    } else {
+      currentSetlist = setlists.find(s => s.id === setlistId) || null;
+      currentSetlistSongIndex = 0;
+      songFilterMode = 'setlist';
+
+      if (currentSetlist && Array.isArray(currentSetlist.songs) && currentSetlist.songs.length > 0) {
+        const first = currentSetlist.songs[0];
+        const sId = typeof first === 'string' ? first : first.id;
+        const sKey = typeof first === 'object' ? first.key : '';
+        loadSongFromSet(sId, sKey, 0);
+      } else {
+        updateActiveSetStageBanner();
+      }
+    }
+
+    renderSetlistDropdowns();
+    renderSongList();
+  }
+
+  function renderSetlistDropdowns() {
+    const sidebarSelect = document.getElementById('sidebarSetlistSelect');
+    const topbarSelect = document.getElementById('topbarSetlistSelect');
+    const pdfSelect = document.getElementById('pdfTargetSetlistSelect');
+    const addToSetSelect = document.getElementById('addToSetSelect');
+    const activeId = currentSetlist ? currentSetlist.id : '';
+
+    const optionsHtml = [
+      `<option value="">📚 All Songs (Full Library)</option>`,
+      ...setlists.map(s => {
+        const count = Array.isArray(s.songs) ? s.songs.length : (s.songCount || 0);
+        return `<option value="${escapeHtml(s.id)}" ${s.id === activeId ? 'selected' : ''}>🎼 ${escapeHtml(s.name)} (${count})</option>`;
+      })
+    ].join('');
+
+    if (sidebarSelect) {
+      sidebarSelect.innerHTML = optionsHtml;
+      sidebarSelect.value = activeId;
+    }
+    if (topbarSelect) {
+      topbarSelect.innerHTML = optionsHtml;
+      topbarSelect.value = activeId;
+    }
+    if (pdfSelect) {
+      pdfSelect.innerHTML = `
+        <option value="">Do not add to setlist (Library only)</option>
+        ${setlists.map(s => `<option value="${escapeHtml(s.id)}" ${s.id === activeId ? 'selected' : ''}>🎼 ${escapeHtml(s.name)}</option>`).join('')}
+      `;
+    }
+    if (addToSetSelect) {
+      addToSetSelect.innerHTML = setlists.map(s => `
+        <option value="${escapeHtml(s.id)}" ${s.id === activeId ? 'selected' : ''}>
+          ${escapeHtml(s.name)} (${s.serviceDate || 'No date'})
+        </option>
+      `).join('');
+    }
+
+    // Filter pills visibility & counts
+    const pillsWrap = document.getElementById('setlistFilterPills');
+    if (currentSetlist && pillsWrap) {
+      pillsWrap.style.display = 'flex';
+      const count = Array.isArray(currentSetlist.songs) ? currentSetlist.songs.length : 0;
+      const countEl = document.getElementById('pillSetlistCount');
+      const allEl = document.getElementById('pillAllCount');
+      if (countEl) countEl.textContent = count;
+      if (allEl) allEl.textContent = songs.length;
+    } else if (pillsWrap) {
+      pillsWrap.style.display = 'none';
+    }
+  }
+
   function onSidebarActionLeft() {
     if (currentLibraryTab === 'sets') {
       openNewSetModal();
@@ -3159,6 +3637,7 @@ Lord, I'll worship Your holy name.`
       const local = localStorage.getItem('hgf_band_setlists');
       setlists = local ? JSON.parse(local) : [];
     }
+    renderSetlistDropdowns();
     if (currentLibraryTab === 'sets') {
       renderSetlistsList();
     }
@@ -3227,11 +3706,15 @@ Lord, I'll worship Your holy name.`
       currentSetlist = setlists.find(s => s.id === id) || null;
     }
     renderActiveSetlistDetail();
+    renderSetlistDropdowns();
   }
 
   function exitSetlistView() {
     currentSetlist = null;
+    songFilterMode = 'all';
     renderSetlistsList();
+    renderSetlistDropdowns();
+    renderSongList();
   }
 
   function renderActiveSetlistDetail() {
@@ -3315,7 +3798,7 @@ Lord, I'll worship Your holy name.`
     currentSetlistSongIndex = songIndex;
     const targetSong = songs.find(s => s.id === songId);
     if (targetSong) {
-      loadSong(targetSong);
+      selectSong(targetSong);
       if (songKey) {
         // Transpose to stored key
         const baseRoot = getRootNote(targetSong.key || 'C');
@@ -3355,22 +3838,25 @@ Lord, I'll worship Your holy name.`
     if (nextBtn) nextBtn.disabled = currentSetlistSongIndex >= total - 1;
   }
 
-  function stepActiveSet(delta) {
-    if (!currentSetlist || !Array.isArray(currentSetlist.songs)) return;
-    const newIdx = currentSetlistSongIndex + delta;
+  function stepActiveSet(dir) {
+    if (!currentSetlist || !Array.isArray(currentSetlist.songs) || currentSetlist.songs.length === 0) return;
+    const newIdx = currentSetlistSongIndex + dir;
     if (newIdx >= 0 && newIdx < currentSetlist.songs.length) {
-      const item = currentSetlist.songs[newIdx];
-      const songId = typeof item === 'string' ? item : (item.id || '');
-      const songKey = typeof item === 'object' ? (item.key || '') : '';
-      loadSongFromSet(songId, songKey, newIdx);
+      const nextItem = currentSetlist.songs[newIdx];
+      const nextId = typeof nextItem === 'string' ? nextItem : nextItem.id;
+      const nextKey = typeof nextItem === 'object' ? nextItem.key : '';
+      loadSongFromSet(nextId, nextKey, newIdx);
     }
   }
 
   function exitActiveSetStage() {
     currentSetlist = null;
     currentSetlistSongIndex = -1;
+    songFilterMode = 'all';
     const banner = document.getElementById('activeSetStageBanner');
     if (banner) banner.style.display = 'none';
+    renderSetlistDropdowns();
+    renderSongList();
   }
 
   function openNewSetModal() {
@@ -3428,10 +3914,12 @@ Lord, I'll worship Your holy name.`
       if (res.ok) {
         const data = await res.json();
         currentSetlist = data.setlist;
+        songFilterMode = 'setlist';
         await loadSetlists();
         closeNewSetModal();
-        switchLibraryTab('sets');
         showToast(`Setlist "${name}" created!`);
+        renderSongList();
+        updateActiveSetStageBanner();
       } else {
         throw new Error('Save failed');
       }
@@ -3440,17 +3928,20 @@ Lord, I'll worship Your holy name.`
     }
   }
 
-  function openSetlistModal() {
+  let pendingSetlistSong = null;
+
+  function openSetlistModal(song = null) {
     const modal = document.getElementById('addToSetModal');
     if (!modal) return;
-    if (!currentSong) {
+    pendingSetlistSong = song || currentSong;
+    if (!pendingSetlistSong) {
       showToast('Please select a song first');
       return;
     }
 
-    document.getElementById('addToSetSongTitle').textContent = currentSong.title;
-    document.getElementById('addToSetSongArtist').textContent = currentSong.artist || 'Unknown';
-    const activeKey = currentSong.transposedKey || currentSong.key || 'C';
+    document.getElementById('addToSetSongTitle').textContent = pendingSetlistSong.title;
+    document.getElementById('addToSetSongArtist').textContent = pendingSetlistSong.artist || 'Unknown';
+    const activeKey = pendingSetlistSong.transposedKey || pendingSetlistSong.key || 'C';
     document.getElementById('addToSetSongKeyBadge').textContent = `Key: ${activeKey}`;
     document.getElementById('addToSetCustomKeyInput').value = activeKey;
 
@@ -3480,9 +3971,16 @@ Lord, I'll worship Your holy name.`
   function closeAddToSetModal() {
     const modal = document.getElementById('addToSetModal');
     if (modal) modal.classList.remove('visible');
+    pendingSetlistSong = null;
   }
 
   async function submitAddToSet() {
+    const targetSong = pendingSetlistSong || currentSong;
+    if (!targetSong) {
+      showToast('No song selected');
+      return;
+    }
+
     const select = document.getElementById('addToSetSelect');
     const setlistId = select.value;
     const targetSet = setlists.find(s => s.id === setlistId);
@@ -3491,15 +3989,15 @@ Lord, I'll worship Your holy name.`
       return;
     }
 
-    const key = document.getElementById('addToSetCustomKeyInput').value.trim() || currentSong.key || 'C';
+    const key = document.getElementById('addToSetCustomKeyInput').value.trim() || targetSong.key || 'C';
 
     if (!Array.isArray(targetSet.songs)) targetSet.songs = [];
     targetSet.songs.push({
-      id: currentSong.id,
-      title: currentSong.title,
-      artist: currentSong.artist || '',
+      id: targetSong.id,
+      title: targetSong.title,
+      artist: targetSong.artist || '',
       key: key,
-      tempo: currentSong.tempo || 73
+      tempo: targetSong.tempo || 73
     });
 
     try {
@@ -3510,23 +4008,41 @@ Lord, I'll worship Your holy name.`
       });
       await loadSetlists();
       closeAddToSetModal();
-      showToast(`Added "${currentSong.title}" to ${targetSet.name}!`);
+      showToast(`✓ Added "${targetSong.title}" to ${targetSet.name}!`);
+      renderSongList();
     } catch {
       showToast('Failed to update setlist');
     }
   }
 
-  async function addCurrentSongToActiveSet() {
-    if (!currentSetlist || !currentSong) return;
-    if (!Array.isArray(currentSetlist.songs)) currentSetlist.songs = [];
-    const activeKey = currentSong.transposedKey || currentSong.key || 'C';
+  async function quickAddSongToSet(songId, e) {
+    if (e && e.stopPropagation) e.stopPropagation();
+    const song = songs.find(s => s.id === songId);
+    if (!song) return;
 
+    if (!currentSetlist) {
+      openSetlistModal(song);
+      return;
+    }
+
+    if (!Array.isArray(currentSetlist.songs)) currentSetlist.songs = [];
+    const alreadyExists = currentSetlist.songs.some(item => {
+      const id = typeof item === 'string' ? item : item.id;
+      return id === songId;
+    });
+
+    if (alreadyExists) {
+      showToast(`"${song.title}" is already in ${currentSetlist.name}`);
+      return;
+    }
+
+    const activeKey = song.transposedKey || song.key || 'C';
     currentSetlist.songs.push({
-      id: currentSong.id,
-      title: currentSong.title,
-      artist: currentSong.artist || '',
+      id: song.id,
+      title: song.title,
+      artist: song.artist || '',
       key: activeKey,
-      tempo: currentSong.tempo || 73
+      tempo: song.tempo || 73
     });
 
     try {
@@ -3535,12 +4051,18 @@ Lord, I'll worship Your holy name.`
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(currentSetlist)
       });
-      renderActiveSetlistDetail();
+      showToast(`✓ Added "${song.title}" to ${currentSetlist.name}!`);
+      renderSongList();
+      renderSetlistDropdowns();
       updateActiveSetStageBanner();
-      showToast(`Added "${currentSong.title}" to set!`);
     } catch {
-      showToast('Error updating set');
+      showToast('Failed to update setlist');
     }
+  }
+
+  async function addCurrentSongToActiveSet() {
+    if (!currentSetlist || !currentSong) return;
+    await quickAddSongToSet(currentSong.id);
   }
 
   async function removeSongFromSet(songIndex) {
@@ -3553,6 +4075,8 @@ Lord, I'll worship Your holy name.`
         body: JSON.stringify(currentSetlist)
       });
       renderActiveSetlistDetail();
+      renderSongList();
+      renderSetlistDropdowns();
       updateActiveSetStageBanner();
       showToast('Song removed from set');
     } catch {
@@ -3560,19 +4084,305 @@ Lord, I'll worship Your holy name.`
     }
   }
 
-  async function deleteSetlistPrompt(id) {
+  // ==========================================
+  // IN-APP CONFIRMATION & DELETION ENGINE
+  // ==========================================
+  let pendingDeleteAction = null;
+
+  function openConfirmDeleteModal({ title, message, warning, confirmText, onConfirm }) {
+    const modal = document.getElementById('confirmDeleteModal');
+    if (!modal) return;
+    document.getElementById('confirmDeleteTitle').textContent = title || 'Delete Item';
+    document.getElementById('confirmDeleteMessage').innerHTML = message || 'Are you sure you want to delete this item?';
+    const btn = document.getElementById('confirmDeleteBtn');
+    btn.textContent = confirmText || '🗑 Delete';
+    pendingDeleteAction = onConfirm;
+    btn.onclick = async () => {
+      if (pendingDeleteAction) {
+        const action = pendingDeleteAction;
+        pendingDeleteAction = null;
+        await action();
+      }
+      closeConfirmDeleteModal();
+    };
+    modal.classList.add('visible');
+  }
+
+  function closeConfirmDeleteModal() {
+    const modal = document.getElementById('confirmDeleteModal');
+    if (modal) modal.classList.remove('visible');
+    pendingDeleteAction = null;
+  }
+
+  function promptDeleteSong(songId, e) {
+    if (e && e.stopPropagation) e.stopPropagation();
+    const song = songs.find(s => s.id === songId);
+    if (!song) return;
+
+    openConfirmDeleteModal({
+      title: 'Delete Song from Library',
+      message: `Are you sure you want to permanently delete <strong>"${escapeHtml(song.title)}"</strong>${song.artist ? ` by <em>${escapeHtml(song.artist)}</em>` : ''}?`,
+      confirmText: '🗑 Delete Song',
+      onConfirm: async () => {
+        await executeDeleteSong(songId);
+      }
+    });
+  }
+
+  function promptDeleteCurrentSong() {
+    if (!currentSong) return;
+    promptDeleteSong(currentSong.id);
+  }
+
+  async function executeDeleteSong(songId) {
+    const song = songs.find(s => s.id === songId);
+    const songTitle = song ? song.title : 'Song';
+    showToast(`Deleting "${songTitle}"...`);
+
+    // 1. Remove from memory
+    songs = songs.filter(s => s.id !== songId);
+    localStorage.setItem('hgf_band_songs', JSON.stringify(songs));
+
+    // 2. Remove from setlists
+    let setlistsModified = false;
+    for (const sl of setlists) {
+      if (Array.isArray(sl.songs)) {
+        const initialLen = sl.songs.length;
+        sl.songs = sl.songs.filter(item => {
+          const id = typeof item === 'string' ? item : (item.id || '');
+          return id !== songId;
+        });
+        if (sl.songs.length !== initialLen) {
+          setlistsModified = true;
+          try {
+            await fetch('/api/worship/setlists', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(sl)
+            });
+          } catch (err) {
+            console.error('Error updating setlist:', err);
+          }
+        }
+      }
+    }
+    if (setlistsModified) {
+      localStorage.setItem('hgf_band_setlists', JSON.stringify(setlists));
+    }
+
+    // 3. Call backend DELETE
+    try {
+      await fetch(`/api/worship?id=${encodeURIComponent(songId)}`, { method: 'DELETE' });
+    } catch (err) {
+      console.error('Failed to delete on server:', err);
+    }
+
+    // 4. Close edit modal if open
+    closeEditModal();
+
+    // 5. Select next available song
+    if (currentSong && currentSong.id === songId) {
+      if (songs.length > 0) {
+        selectSong(songs[0]);
+      } else {
+        currentSong = null;
+        renderSheet();
+      }
+    }
+
+    renderSongList();
+    renderSetlistDropdowns();
+    showToast(`🗑 Permanently deleted "${songTitle}"`);
+  }
+
+  function deleteSetlistPrompt(id) {
     const s = setlists.find(item => item.id === id);
     const name = s ? s.name : 'this setlist';
-    showToast(`Deleting setlist "${name}"...`);
+
+    openConfirmDeleteModal({
+      title: 'Delete Worship Setlist',
+      message: `Are you sure you want to delete setlist <strong>"${escapeHtml(name)}"</strong>?<br><br><span style="font-size:12px;color:var(--text-muted);">All songs in this lineup will remain safe in your library.</span>`,
+      confirmText: '🗑 Delete Setlist',
+      onConfirm: async () => {
+        showToast(`Deleting setlist "${name}"...`);
+        try {
+          await fetch(`/api/worship/setlists?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+          if (currentSetlist && currentSetlist.id === id) {
+            currentSetlist = null;
+            songFilterMode = 'all';
+          }
+          await loadSetlists();
+          renderSetlistsList();
+          renderSongList();
+          showToast('Setlist deleted');
+        } catch {
+          showToast('Error deleting setlist');
+        }
+      }
+    });
+  }
+
+  // ==========================================
+  // SONGBOOKPRO PDF IMPORT ENGINE
+  // ==========================================
+  let selectedPdfFiles = [];
+  let parsedPdfPreviewSongs = [];
+
+  function openPdfImportModal() {
+    const modal = document.getElementById('pdfImportModal');
+    if (!modal) return;
+    selectedPdfFiles = [];
+    parsedPdfPreviewSongs = [];
+    const fileInput = document.getElementById('pdfFilesInput');
+    if (fileInput) fileInput.value = '';
+    const listEl = document.getElementById('pdfSongsPreviewList');
+    if (listEl) listEl.innerHTML = '';
+    const countBadge = document.getElementById('pdfSongsCountBadge');
+    if (countBadge) countBadge.textContent = '0 files selected';
+    const submitBtn = document.getElementById('pdfSubmitImportBtn');
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = '📥 Import to Library';
+    }
+    const spinner = document.getElementById('pdfParsingSpinner');
+    if (spinner) spinner.style.display = 'none';
+
+    renderSetlistDropdowns();
+    modal.classList.add('visible');
+  }
+
+  function closePdfImportModal() {
+    const modal = document.getElementById('pdfImportModal');
+    if (modal) modal.classList.remove('visible');
+  }
+
+  function handlePdfDrop(e) {
+    e.preventDefault();
+    const dropzone = document.getElementById('pdfDropzone');
+    if (dropzone) dropzone.classList.remove('dragover');
+    if (e.dataTransfer && e.dataTransfer.files) {
+      handlePdfFilesSelect(e.dataTransfer.files);
+    }
+  }
+
+  async function handlePdfFilesSelect(files) {
+    if (!files || files.length === 0) return;
+    selectedPdfFiles = Array.from(files).filter(f => f.name.toLowerCase().endsWith('.pdf') || f.type === 'application/pdf');
+    if (selectedPdfFiles.length === 0) {
+      showToast('Please select valid .pdf file(s)');
+      return;
+    }
+
+    document.getElementById('pdfSongsCountBadge').textContent = `${selectedPdfFiles.length} file(s) selected`;
+    const spinner = document.getElementById('pdfParsingSpinner');
+    const previewList = document.getElementById('pdfSongsPreviewList');
+    spinner.style.display = 'block';
+    previewList.innerHTML = '';
+    document.getElementById('pdfSubmitImportBtn').disabled = true;
+
+    const fd = new FormData();
+    for (const f of selectedPdfFiles) {
+      fd.append('files', f);
+    }
+    fd.append('save', 'false');
 
     try {
-      await fetch(`/api/worship/setlists?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
-      currentSetlist = null;
+      const res = await fetch('/api/worship/pdf', {
+        method: 'POST',
+        body: fd
+      });
+      const data = await res.json();
+      spinner.style.display = 'none';
+
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || 'Failed to parse PDF files');
+      }
+
+      parsedPdfPreviewSongs = data.songs || [];
+      document.getElementById('pdfSubmitImportBtn').disabled = false;
+
+      let html = '';
+      for (const s of parsedPdfPreviewSongs) {
+        const previewSnippet = (s.chords || '').split('\n').slice(0, 5).join('\n');
+        html += `
+          <div style="padding: 10px 12px; background: #161c26; border: 1px solid var(--border); border-radius: 8px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+              <div>
+                <div style="font-weight:700; color:#fff; font-size:14px;">${escapeHtml(s.title)}</div>
+                <div style="font-size:12px; color:var(--text-muted);">${escapeHtml(s.artist)}</div>
+              </div>
+              <div style="display:flex; gap:6px; align-items:center;">
+                <span class="meta-tag" style="color:var(--accent-chord); font-weight:700;">Key: ${escapeHtml(s.key)}</span>
+                ${s.tempo ? `<span class="meta-tag">${s.tempo} BPM</span>` : ''}
+              </div>
+            </div>
+            <pre style="margin-top:6px; font-size:11px; font-family:var(--font-chords); color:var(--text-dim); background:#0a0e14; padding:6px 8px; border-radius:4px; max-height:80px; overflow:hidden; white-space:pre-wrap; opacity:0.85;">${escapeHtml(previewSnippet)}</pre>
+          </div>
+        `;
+      }
+      previewList.innerHTML = html;
+      showToast(`Parsed ${parsedPdfPreviewSongs.length} song(s) from PDF!`);
+    } catch (err) {
+      spinner.style.display = 'none';
+      previewList.innerHTML = `<div style="color:var(--accent-red); padding:10px; font-size:13px; text-align:center;">Failed to parse PDFs: ${escapeHtml(err.message)}</div>`;
+      showToast('Error parsing PDF files');
+    }
+  }
+
+  async function submitPdfImport() {
+    if (!selectedPdfFiles || selectedPdfFiles.length === 0) {
+      showToast('No PDF files to import');
+      return;
+    }
+
+    const targetSetlistId = document.getElementById('pdfTargetSetlistSelect').value;
+    const btn = document.getElementById('pdfSubmitImportBtn');
+    btn.disabled = true;
+    btn.textContent = 'Importing...';
+
+    const fd = new FormData();
+    for (const f of selectedPdfFiles) {
+      fd.append('files', f);
+    }
+    fd.append('save', 'true');
+    if (targetSetlistId) {
+      fd.append('setlistId', targetSetlistId);
+    }
+
+    try {
+      const res = await fetch('/api/worship/pdf', {
+        method: 'POST',
+        body: fd
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || 'Failed to save songs');
+      }
+
+      showToast(`✓ Successfully imported ${data.count} song(s) from SongbookPro!`);
+      closePdfImportModal();
+
+      await loadSongsFromCloud();
       await loadSetlists();
-      renderSetlistsList();
-      showToast('Setlist deleted');
-    } catch {
-      showToast('Error deleting setlist');
+
+      if (targetSetlistId) {
+        currentSetlist = setlists.find(s => s.id === targetSetlistId) || null;
+        if (currentSetlist) {
+          songFilterMode = 'setlist';
+        }
+      }
+
+      if (data.songs && data.songs.length > 0) {
+        const firstMatch = songs.find(s => s.id === data.songs[0].id) || data.songs[0];
+        selectSong(firstMatch);
+      }
+
+      renderSongList();
+      renderSetlistDropdowns();
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = '📥 Import to Library';
+      showToast('Import failed: ' + err.message);
     }
   }
 

@@ -1,5 +1,5 @@
 // THE BAND — Musician Songbook & Live Chord Transposer Service Worker
-const CACHE_NAME = 'theband-v2.53.8';
+const CACHE_NAME = 'theband-v2.53.9';
 const ASSETS = [
   '/thebandtool.html',
   '/theband-manifest.json',

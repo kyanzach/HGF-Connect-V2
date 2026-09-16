@@ -5,6 +5,23 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.53.9] — 2026-09-16
+### Added & Enhanced — SongbookPro PDF Import, Song Deletion with Confirm Modal, & Setlist Selector Bar
+- **SongbookPro PDF Import Engine (`/api/worship/pdf` & `The Band Tool`)**:
+  - Implemented coordinate-based PDF text and chord extraction preserving exact horizontal character positions of chords directly over lyrics.
+  - Verbatim preservation of custom structural and performance markings including **`Hold`**, **`HOLD`**, **`Intro`**, **`Verse`**, **`Chorus`**, **`Bridge`**, **`Interlude`**, and repetitions (e.g. `x5`).
+  - Automatic detection of sounding key (`Key: D`), tempo/BPM (`65 BPM`), song title, and artist.
+  - Multi-file drag & drop batch upload with preview cards and optional 1-click auto-add into the active or chosen worship setlist.
+- **Song Deletion with In-App Confirmation Modal (`#confirmDeleteModal`)**:
+  - Replaced native system dialogs with a custom dark-mode glassmorphic confirmation modal displaying the song title, artist, and irreversible warning.
+  - Added delete actions (`🗑`) on every song row in the sidebar library and a prominent `🗑 Delete Song from Library` button inside the Song Editor General tab.
+  - Safely deletes the song from the cloud filesystem (`DELETE /api/worship?id=...`), removes it from memory and localStorage, and cleans it up from all saved setlists.
+- **Active Setlist Selector Bar & 1-Tap Add to Setlist**:
+  - Added an **Active Setlist Bar** at the top of the sidebar with a selector dropdown (`📚 All Songs (Full Library)` vs saved worship sets) and a `+ New Set` shortcut.
+  - Added a matching topbar setlist pill on stage so musicians can jump between setlists without opening the sidebar.
+  - Dynamic filter pills: switch between `🎼 Setlist Lineup (N)` (shows songs in performance order with keys and remove `✕` buttons) and `📚 Browse All (Total)` (full library).
+  - 1-Tap `+ Set` / `✓ In Set` quick buttons on every song row to instantly add library songs into the active setlist with zero friction.
+
 ## [v2.53.8] — 2026-09-16
 ### Added & Fixed — Worship Setlists Management, Infinite Pad Loop with 3s Fade In/Out, & Exact 1:1 Pointer Drawing
 - **Worship Setlists Management System (`The Band Tool`)**:
