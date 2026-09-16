@@ -5,6 +5,22 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.53.15] — 2026-09-16
+### Fixed & Enhanced — Mobile Browser Dock Clearance, Horizontal Swipe & Edge Navigation, Full Member Deletion, and Ryan Admin Credential Management
+- **Mobile Browser Bottom Dock Clearance (`100dvh` + `--browser-dock-offset`)**:
+  - Replaced rigid `100vh` with `100dvh` and dynamic visual viewport tracking (`window.visualViewport`) on mobile browsers.
+  - Added `--browser-dock-offset` to automatically elevate the floating action button (FAB) dock and chord sheet viewport above persistent mobile browser toolbars (e.g. Chrome iOS "Ask Gemini / New Tab / All Tabs" dock).
+  - Compacted mobile FAB sizing (38px buttons with 6px gap) so all 7 tools fit without truncation.
+- **Fluid Horizontal Swipe & 1-Tap Thumb Edge Navigation (`◀` / `▶`)**:
+  - Upgraded swipe gesture detection to listen globally on viewport with a forgiving 35px threshold, allowing natural diagonal thumb swipes.
+  - Setlist-aware step navigation: swiping left/right in an active setlist advances to the exact next/previous song with proper setlist key, live stage banner counter (`Song 2 of 5`), and instant scroll-to-top.
+  - Added subtle floating stage edge chevrons (`◀` and `▶`) for 1-tap thumb navigation on mobile phones on stage.
+- **Band Member Administration & Deletion Fix (`/api/worship/users`)**:
+  - Implemented `DELETE` HTTP route handler (`/api/worship/users?id=...` and `?all=true`), fixing the 405 Method Not Allowed "Failed to remove member" error.
+  - Added 1-tap **"🗑️ Remove All"** button with in-app confirmation modal to clear all test/sample members while preserving the Primary Admin.
+  - Upgraded Primary Administrator to **`@ryan`** (`Ryan (Admin)`), with auto-migration of legacy admin records.
+  - Added **"🔑 Change Password"** modal allowing Ryan to change the admin password or any member's password directly from the admin panel.
+
 ## [v2.53.14] — 2026-09-16
 ### Added — Fluid Drag-and-Drop & 1-Tap Touch Sorting for Active Setlists
 - **Touch & Mouse Drag-and-Drop Reordering**:

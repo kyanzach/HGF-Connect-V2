@@ -10,7 +10,7 @@ const USERS_FILE = path.join(DATA_DIR, 'users.json');
 export interface BandUser {
   id: string;
   username: string;
-  password: string; // Basic password as requested
+  password: string; // Stored for band portal management
   displayName: string;
   role: 'MD' | 'guitarist' | 'bassist' | 'keyboardist' | 'drummer' | 'vocalist' | 'sound' | 'admin';
   createdAt: number;
@@ -20,9 +20,9 @@ export interface BandUser {
 const DEFAULT_USERS: BandUser[] = [
   {
     id: 'user-admin',
-    username: 'admin',
+    username: 'ryan',
     password: 'Godisgood',
-    displayName: 'Worship Admin',
+    displayName: 'Ryan (Admin)',
     role: 'admin',
     createdAt: Date.now(),
   },
@@ -82,6 +82,18 @@ async function ensureUsersFile(): Promise<BandUser[]> {
     const raw = await fs.readFile(USERS_FILE, 'utf-8');
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed) && parsed.length > 0) {
+      // Auto-migrate admin -> ryan if found
+      let modified = false;
+      for (const u of parsed) {
+        if (u.id === 'user-admin' && (u.username === 'admin' || !u.username)) {
+          u.username = 'ryan';
+          if (u.displayName === 'Worship Admin') u.displayName = 'Ryan (Admin)';
+          modified = true;
+        }
+      }
+      if (modified) {
+        await fs.writeFile(USERS_FILE, JSON.stringify(parsed, null, 2), 'utf-8');
+      }
       return parsed;
     }
   } catch {}
@@ -91,7 +103,7 @@ async function ensureUsersFile(): Promise<BandUser[]> {
   return DEFAULT_USERS;
 }
 
-// GET /api/worship/users -> List all users (safe profile info)
+// GET /api/worship/users -> List all users (with password visibility for band admin)
 export async function GET() {
   try {
     const users = await ensureUsersFile();
@@ -100,6 +112,7 @@ export async function GET() {
       username: u.username,
       displayName: u.displayName || u.username,
       role: u.role || 'guitarist',
+      password: u.password || 'Godisgood',
       createdAt: u.createdAt,
     }));
     return NextResponse.json({ ok: true, users: safeUsers });
@@ -108,7 +121,7 @@ export async function GET() {
   }
 }
 
-// POST /api/worship/users -> Login, Create, Update, Delete
+// POST /api/worship/users -> Login, Create, Update, UpdatePassword, Delete, DeleteAll
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -124,9 +137,10 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Username and password are required' }, { status: 400 });
       }
 
+      // Allow 'ryan' or 'admin' for primary admin
       const match = users.find(
         (u) =>
-          u.username.toLowerCase() === username &&
+          (u.username.toLowerCase() === username || (username === 'admin' && u.username.toLowerCase() === 'ryan') || (username === 'ryan' && u.username.toLowerCase() === 'admin')) &&
           (u.password === password ||
             (password.toLowerCase() === 'godisgood' && (u.password === 'Godisgood' || u.password === 'password')) ||
             (password.toLowerCase() === 'password' && u.password === 'Godisgood'))
@@ -149,24 +163,25 @@ export async function POST(req: NextRequest) {
 
     // 2. CREATE USER
     if (action === 'create') {
-      const username = (body.username || '').trim().toLowerCase().replace(/[^\w.-]/g, '');
+      const rawUsername = (body.username || '').trim();
+      const username = rawUsername.toLowerCase().replace(/[^a-z0-9._-]/g, '');
       const password = (body.password || '').trim() || 'Godisgood';
-      const displayName = (body.displayName || username).trim();
+      const displayName = (body.displayName || rawUsername).trim();
       const role = body.role || 'guitarist';
 
       if (!username) {
-        return NextResponse.json({ error: 'Username is required' }, { status: 400 });
+        return NextResponse.json({ error: 'Valid username is required' }, { status: 400 });
       }
 
       if (users.some((u) => u.username.toLowerCase() === username)) {
-        return NextResponse.json({ error: 'Username already exists' }, { status: 409 });
+        return NextResponse.json({ error: `Username "@${username}" is already taken` }, { status: 409 });
       }
 
       const newUser: BandUser = {
         id: `user-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         username,
         password,
-        displayName,
+        displayName: displayName || username,
         role,
         createdAt: Date.now(),
       };
@@ -181,17 +196,59 @@ export async function POST(req: NextRequest) {
           username: newUser.username,
           displayName: newUser.displayName,
           role: newUser.role,
+          password: newUser.password,
         },
       });
     }
 
-    // 3. UPDATE USER
+    // 3. CHANGE / UPDATE PASSWORD
+    if (action === 'changePassword' || action === 'updatePassword') {
+      const id = body.id;
+      const username = (body.username || '').trim().toLowerCase();
+      const newPassword = (body.newPassword || body.password || '').trim();
+
+      if (!newPassword) {
+        return NextResponse.json({ error: 'New password cannot be empty' }, { status: 400 });
+      }
+
+      const idx = users.findIndex((u) => (id && u.id === id) || (username && u.username.toLowerCase() === username));
+      if (idx === -1) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      }
+
+      users[idx].password = newPassword;
+      users[idx].updatedAt = Date.now();
+      await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2), 'utf-8');
+
+      return NextResponse.json({
+        ok: true,
+        message: `Password updated for @${users[idx].username}`,
+        user: {
+          id: users[idx].id,
+          username: users[idx].username,
+          displayName: users[idx].displayName,
+          role: users[idx].role,
+        },
+      });
+    }
+
+    // 4. UPDATE USER
     if (action === 'update') {
       const id = body.id;
       if (!id) return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
 
       const idx = users.findIndex((u) => u.id === id);
       if (idx === -1) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+      if (body.username) {
+        const cleanUser = body.username.trim().toLowerCase().replace(/[^a-z0-9._-]/g, '');
+        if (cleanUser && cleanUser !== users[idx].username.toLowerCase()) {
+          if (users.some((u, i) => i !== idx && u.username.toLowerCase() === cleanUser)) {
+            return NextResponse.json({ error: 'Username already in use' }, { status: 409 });
+          }
+          users[idx].username = cleanUser;
+        }
+      }
 
       if (body.displayName) users[idx].displayName = body.displayName.trim();
       if (body.role) users[idx].role = body.role;
@@ -202,22 +259,87 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, user: users[idx] });
     }
 
-    // 4. DELETE USER
+    // 5. DELETE USER
     if (action === 'delete') {
-      const id = body.id;
+      const id = body.id || body.userId;
       if (!id) return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
 
-      if (id === 'user-admin') {
-        return NextResponse.json({ error: 'Primary administrator account cannot be deleted' }, { status: 403 });
+      const target = users.find((u) => u.id === id || u.username.toLowerCase() === id.toLowerCase());
+      if (!target) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+      if (target.username === 'ryan' || (target.role === 'admin' && users.filter((u) => u.role === 'admin').length <= 1)) {
+        return NextResponse.json({ error: 'Primary admin account (@ryan) cannot be deleted' }, { status: 403 });
       }
 
-      const filtered = users.filter((u) => u.id !== id);
+      const filtered = users.filter((u) => u.id !== target.id);
       await fs.writeFile(USERS_FILE, JSON.stringify(filtered, null, 2), 'utf-8');
-      return NextResponse.json({ ok: true, message: 'User deleted' });
+      return NextResponse.json({ ok: true, message: `User @${target.username} deleted` });
+    }
+
+    // 6. DELETE ALL (Remove all non-admin members)
+    if (action === 'deleteAll') {
+      const kept = users.filter((u) => u.role === 'admin' || u.username === 'ryan');
+      if (kept.length === 0) {
+        kept.push({
+          id: 'user-admin',
+          username: 'ryan',
+          password: 'Godisgood',
+          displayName: 'Ryan (Admin)',
+          role: 'admin',
+          createdAt: Date.now(),
+        });
+      }
+      await fs.writeFile(USERS_FILE, JSON.stringify(kept, null, 2), 'utf-8');
+      return NextResponse.json({ ok: true, message: 'All members removed except admin', count: kept.length });
     }
 
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Operation failed' }, { status: 500 });
+  }
+}
+
+// DELETE /api/worship/users?id=... OR ?all=true
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
+    const all = searchParams.get('all') === 'true';
+    const users = await ensureUsersFile();
+
+    if (all) {
+      const kept = users.filter((u) => u.role === 'admin' || u.username === 'ryan');
+      if (kept.length === 0) {
+        kept.push({
+          id: 'user-admin',
+          username: 'ryan',
+          password: 'Godisgood',
+          displayName: 'Ryan (Admin)',
+          role: 'admin',
+          createdAt: Date.now(),
+        });
+      }
+      await fs.writeFile(USERS_FILE, JSON.stringify(kept, null, 2), 'utf-8');
+      return NextResponse.json({ ok: true, message: 'All members removed except admin', count: kept.length });
+    }
+
+    if (!id) {
+      return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
+    }
+
+    const target = users.find((u) => u.id === id || u.username.toLowerCase() === id.toLowerCase());
+    if (!target) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    if (target.username === 'ryan' || (target.role === 'admin' && users.filter((u) => u.role === 'admin').length <= 1)) {
+      return NextResponse.json({ error: 'Primary admin account (@ryan) cannot be deleted' }, { status: 403 });
+    }
+
+    const filtered = users.filter((u) => u.id !== target.id);
+    await fs.writeFile(USERS_FILE, JSON.stringify(filtered, null, 2), 'utf-8');
+    return NextResponse.json({ ok: true, message: `User @${target.username} deleted` });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Deletion failed' }, { status: 500 });
   }
 }
