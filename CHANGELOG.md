@@ -5,6 +5,19 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.53.14] — 2026-09-16
+### Added — Fluid Drag-and-Drop & 1-Tap Touch Sorting for Active Setlists
+- **Touch & Mouse Drag-and-Drop Reordering**:
+  - Added dedicated drag handles (`⠿`) on all songs in the active setlist (both in the sidebar lineup and setlist manager detail view).
+  - Built cross-platform drag engine supporting both HTML5 Drag & Drop (desktop mouse) and Touch drag events (iOS Safari / Android touchscreens).
+  - Visual insertion indicator (`drag-over-top` / `drag-over-bottom`) highlights exactly where the dragged song will drop.
+- **1-Tap Quick Step Buttons (`▲` / `▼`)**:
+  - Added micro-step reorder buttons on each setlist song for instant 1-tap reordering on mobile phones without needing full drag gestures.
+- **Instant Persistence & Stage Sync**:
+  - Reordering automatically updates song position numbers (1, 2, 3, 4, 5...) in real time.
+  - Automatically persists to local storage and syncs to `/api/worship/setlists` backend.
+  - Instantly syncs with the stage setlist stepper banner (`Song 1 of 5`, etc.).
+
 ## [v2.53.13] — 2026-09-16
 ### Fixed & Enhanced — Active Auto-Scroll Loop, Master Play/Stop FAB, Real-time Visual BPM Pulse, Song Edit Emoji Restoration, & Scratchpad Auth Flow
 - **Active 40ms Auto-Scroll Animation Loop**:

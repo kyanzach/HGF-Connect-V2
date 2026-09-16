@@ -1036,6 +1036,68 @@
       box-shadow: 0 0 10px #fbbf24, 0 0 18px rgba(245, 158, 11, 0.8) !important;
     }
 
+    /* Setlist Drag & Drop Reordering */
+    .setlist-drag-handle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 32px;
+      color: var(--text-muted);
+      cursor: grab;
+      user-select: none;
+      touch-action: none;
+      font-size: 16px;
+      letter-spacing: -1px;
+      flex-shrink: 0;
+      transition: color 0.15s;
+    }
+    .setlist-drag-handle:hover, .setlist-drag-handle:active {
+      cursor: grabbing;
+      color: var(--primary);
+    }
+    .setlist-reorder-btns {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      margin-right: 4px;
+      flex-shrink: 0;
+    }
+    .reorder-step-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: var(--text-muted);
+      border-radius: 3px;
+      width: 18px;
+      height: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8px;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+      transition: all 0.15s;
+    }
+    .reorder-step-btn:hover:not(:disabled) {
+      background: var(--primary);
+      color: #000;
+      border-color: var(--primary);
+    }
+    .song-item.is-dragging, .set-song-row.is-dragging {
+      opacity: 0.35 !important;
+      background: rgba(78, 177, 203, 0.12) !important;
+      border: 1px dashed var(--primary) !important;
+    }
+    .song-item.drag-over-top, .set-song-row.drag-over-top {
+      border-top: 2px solid var(--primary) !important;
+      background: rgba(78, 177, 203, 0.08) !important;
+    }
+    .song-item.drag-over-bottom, .set-song-row.drag-over-bottom {
+      border-bottom: 2px solid var(--primary) !important;
+      background: rgba(78, 177, 203, 0.08) !important;
+    }
+
     /* Auto-Scroll Bar */
     .autoscroll-bar {
       position: absolute;
@@ -3108,7 +3170,28 @@ Lord, I'll worship Your holy name.`
         setlistList.forEach((s) => {
           const isActive = currentSong && currentSong.id === s.id;
           html += `
-            <div class="song-item ${isActive ? 'active' : ''}" onclick="loadSongFromSet('${escapeHtml(s.id)}', '${escapeHtml(s.key || '')}', ${s.setlistIndex})">
+            <div class="song-item setlist-drag-item ${isActive ? 'active' : ''}"
+                 data-setlist-index="${s.setlistIndex}"
+                 draggable="true"
+                 ondragstart="handleSetlistDragStart(event, ${s.setlistIndex})"
+                 ondragover="handleSetlistDragOver(event)"
+                 ondragenter="handleSetlistDragEnter(event)"
+                 ondragleave="handleSetlistDragLeave(event)"
+                 ondrop="handleSetlistDrop(event, ${s.setlistIndex})"
+                 ondragend="handleSetlistDragEnd(event)"
+                 onclick="loadSongFromSet('${escapeHtml(s.id)}', '${escapeHtml(s.key || '')}', ${s.setlistIndex})">
+              <div class="setlist-drag-handle" 
+                   title="Drag to reorder" 
+                   onclick="event.stopPropagation()"
+                   ontouchstart="handleSetlistTouchStart(event, ${s.setlistIndex})"
+                   ontouchmove="handleSetlistTouchMove(event)"
+                   ontouchend="handleSetlistTouchEnd(event)">
+                ⠿
+              </div>
+              <div class="setlist-reorder-btns" onclick="event.stopPropagation()">
+                <button class="reorder-step-btn" onclick="moveSongInSet(${s.setlistIndex}, ${s.setlistIndex - 1})" ${s.setlistIndex === 0 ? 'disabled style="opacity:0.25;"' : ''} title="Move Up">▲</button>
+                <button class="reorder-step-btn" onclick="moveSongInSet(${s.setlistIndex}, ${s.setlistIndex + 1})" ${s.setlistIndex === setlistList.length - 1 ? 'disabled style="opacity:0.25;"' : ''} title="Move Down">▼</button>
+              </div>
               <div class="song-item-info">
                 <div class="song-item-title">
                   <div style="display:flex;align-items:center;gap:6px;min-width:0;">
@@ -4422,7 +4505,28 @@ Lord, I'll worship Your holy name.`
         const isActive = currentSong && currentSong.id === songId;
 
         html += `
-          <div class="set-song-row ${isActive ? 'active' : ''}" onclick="loadSongFromSet('${escapeHtml(songId)}', '${escapeHtml(songKey)}', ${idx})">
+          <div class="set-song-row setlist-drag-item ${isActive ? 'active' : ''}"
+               data-setlist-index="${idx}"
+               draggable="true"
+               ondragstart="handleSetlistDragStart(event, ${idx})"
+               ondragover="handleSetlistDragOver(event)"
+               ondragenter="handleSetlistDragEnter(event)"
+               ondragleave="handleSetlistDragLeave(event)"
+               ondrop="handleSetlistDrop(event, ${idx})"
+               ondragend="handleSetlistDragEnd(event)"
+               onclick="loadSongFromSet('${escapeHtml(songId)}', '${escapeHtml(songKey)}', ${idx})">
+            <div class="setlist-drag-handle" 
+                 title="Drag to reorder" 
+                 onclick="event.stopPropagation()"
+                 ontouchstart="handleSetlistTouchStart(event, ${idx})"
+                 ontouchmove="handleSetlistTouchMove(event)"
+                 ontouchend="handleSetlistTouchEnd(event)">
+              ⠿
+            </div>
+            <div class="setlist-reorder-btns" onclick="event.stopPropagation()">
+              <button class="reorder-step-btn" onclick="moveSongInSet(${idx}, ${idx - 1})" ${idx === 0 ? 'disabled style="opacity:0.25;"' : ''} title="Move Up">▲</button>
+              <button class="reorder-step-btn" onclick="moveSongInSet(${idx}, ${idx + 1})" ${idx === songsList.length - 1 ? 'disabled style="opacity:0.25;"' : ''} title="Move Down">▼</button>
+            </div>
             <div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1;">
               <span style="font-size:12px;font-weight:700;color:var(--primary);width:16px;">${idx + 1}</span>
               <div style="min-width:0;">
@@ -4746,6 +4850,157 @@ Lord, I'll worship Your holy name.`
     } catch {
       showToast('Error updating set');
     }
+  }
+
+  // ==========================================
+  // SETLIST REORDER & DRAG-AND-DROP ENGINE
+  // ==========================================
+  let draggedSetlistIndex = null;
+  let touchDragElement = null;
+  let touchDragStartIndex = null;
+  let touchTargetIndex = null;
+
+  async function moveSongInSet(fromIndex, toIndex) {
+    if (!currentSetlist || !Array.isArray(currentSetlist.songs)) return;
+    if (fromIndex < 0 || fromIndex >= currentSetlist.songs.length) return;
+    if (toIndex < 0 || toIndex >= currentSetlist.songs.length) return;
+    if (fromIndex === toIndex) return;
+
+    // Move item in array
+    const moved = currentSetlist.songs.splice(fromIndex, 1)[0];
+    currentSetlist.songs.splice(toIndex, 0, moved);
+
+    // Persist locally
+    const slIdx = setlists.findIndex(x => x.id === currentSetlist.id);
+    if (slIdx !== -1) {
+      setlists[slIdx] = currentSetlist;
+      localStorage.setItem('hgf_band_setlists', JSON.stringify(setlists));
+    }
+
+    // Sync to server
+    try {
+      await fetch('/api/worship/setlists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(currentSetlist)
+      });
+    } catch (e) {
+      console.error('Failed to sync reordered setlist:', e);
+    }
+
+    renderSongList();
+    renderActiveSetlistDetail();
+    updateActiveSetStageBanner();
+    showToast(`✓ Moved to position #${toIndex + 1}`);
+  }
+
+  // Desktop Mouse Drag & Drop
+  function handleSetlistDragStart(e, index) {
+    draggedSetlistIndex = index;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
+    const row = e.target.closest('.song-item, .set-song-row');
+    if (row) {
+      setTimeout(() => row.classList.add('is-dragging'), 0);
+    }
+  }
+
+  function handleSetlistDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const row = e.target.closest('.song-item, .set-song-row');
+    if (!row) return;
+    const rect = row.getBoundingClientRect();
+    const mid = rect.top + rect.height / 2;
+    if (e.clientY < mid) {
+      row.classList.add('drag-over-top');
+      row.classList.remove('drag-over-bottom');
+    } else {
+      row.classList.add('drag-over-bottom');
+      row.classList.remove('drag-over-top');
+    }
+  }
+
+  function handleSetlistDragLeave(e) {
+    const row = e.target.closest('.song-item, .set-song-row');
+    if (row) {
+      row.classList.remove('drag-over-top', 'drag-over-bottom');
+    }
+  }
+
+  function handleSetlistDrop(e, targetIndex) {
+    e.preventDefault();
+    const row = e.target.closest('.song-item, .set-song-row');
+    if (row) {
+      row.classList.remove('drag-over-top', 'drag-over-bottom');
+    }
+    const fromIndex = draggedSetlistIndex !== null ? draggedSetlistIndex : parseInt(e.dataTransfer.getData('text/plain'), 10);
+    if (fromIndex !== null && !isNaN(fromIndex) && fromIndex !== targetIndex) {
+      moveSongInSet(fromIndex, targetIndex);
+    }
+    draggedSetlistIndex = null;
+  }
+
+  function handleSetlistDragEnd(e) {
+    draggedSetlistIndex = null;
+    document.querySelectorAll('.song-item, .set-song-row').forEach(el => {
+      el.classList.remove('is-dragging', 'drag-over-top', 'drag-over-bottom');
+    });
+  }
+
+  // Mobile Touch Drag & Drop
+  function handleSetlistTouchStart(e, index) {
+    touchDragStartIndex = index;
+    touchTargetIndex = index;
+    touchDragElement = e.target.closest('.song-item, .set-song-row');
+    if (touchDragElement) {
+      touchDragElement.classList.add('is-dragging');
+    }
+  }
+
+  function handleSetlistTouchMove(e) {
+    if (touchDragStartIndex === null) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
+    const row = targetEl?.closest('.song-item, .set-song-row');
+    
+    document.querySelectorAll('.song-item, .set-song-row').forEach(el => {
+      if (el !== touchDragElement) {
+        el.classList.remove('drag-over-top', 'drag-over-bottom');
+      }
+    });
+
+    if (row && row !== touchDragElement) {
+      const idxAttr = row.getAttribute('data-setlist-index');
+      if (idxAttr !== null) {
+        const idx = parseInt(idxAttr, 10);
+        if (!isNaN(idx)) {
+          touchTargetIndex = idx;
+          const rect = row.getBoundingClientRect();
+          if (touch.clientY < rect.top + rect.height / 2) {
+            row.classList.add('drag-over-top');
+          } else {
+            row.classList.add('drag-over-bottom');
+          }
+        }
+      }
+    }
+  }
+
+  function handleSetlistTouchEnd(e) {
+    if (touchDragStartIndex !== null && touchTargetIndex !== null && touchDragStartIndex !== touchTargetIndex) {
+      moveSongInSet(touchDragStartIndex, touchTargetIndex);
+    }
+    touchDragStartIndex = null;
+    touchTargetIndex = null;
+    if (touchDragElement) {
+      touchDragElement.classList.remove('is-dragging');
+      touchDragElement = null;
+    }
+    document.querySelectorAll('.song-item, .set-song-row').forEach(el => {
+      el.classList.remove('drag-over-top', 'drag-over-bottom', 'is-dragging');
+    });
   }
 
   // ==========================================
