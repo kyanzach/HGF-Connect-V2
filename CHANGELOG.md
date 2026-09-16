@@ -5,6 +5,23 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.53.11] — 2026-09-16
+### Fixed & Enhanced — Instant Song Save Reflection, Zero-Flicker Drawing Sync, & Universal Backtrack Attachment with Live Bypass
+- **Instant Song Edit Reflection ("Edit Twice" Fix)**:
+  - Fixed race condition where 2.5s `silentSync()` background poll would fetch pre-save data from disk before write completion, reverting single edits and requiring a second save.
+  - Added `localSongModifiedAt` tracking map: cloud songs are only accepted if strictly newer (`>`) than local modification timestamp.
+  - Automatically pauses `silentSync()` whenever edit modal is open or musician is drawing.
+  - `saveSongFromEditor()` updates in-memory `currentSong`, chord sheet DOM, and `localStorage` immediately upon clicking Save, ensuring zero delay.
+- **Zero-Flicker Drawing Stroke Synchronization**:
+  - Eliminated stroke disappearance bug where drawn markings vanished upon finger/stylus release and reappeared seconds later.
+  - Removed canvas-clearing redraws during pointer release (`stopDrawing()`) since canvas 2D context already holds rendered stroke.
+  - Reduced cloud sync debounce from 800ms to 250ms with instantaneous `localStorage` backup and protected 4-second local edit window.
+- **Universal Backtrack Attachment & Live Band Bypass**:
+  - Added **Target Song Selector** in Audio Manager modal, enabling musicians to attach MP3/WAV tracks to *any* library song directly from the audio browser.
+  - Added **`useBacktrack` Toggle**: seamlessly switch each song between **In-Ear Backing Track Mode** (`🎧 Track ON`) and **Live Band Mode** (`🎸 Live Mode`).
+  - Added stage header pill `[🎧 Track ON] / [🎸 Live Mode]` for quick 1-tap toggle during rehearsal.
+  - When in Live Band Mode, the stage play button dynamically operates as 1-tap duration-based smooth auto-scroll, bypassing audio loading while keeping track attached for future use.
+
 ## [v2.53.10] — 2026-09-16
 ### Added & Enhanced — Single-Column PDF Layout, Dual Scratchpad (MD + User), Auth & Roles, Playback Harmony, & Touch Swipe
 - **Single-Column Vertical Sequence for SongbookPro PDF Import (`/api/worship/pdf`)**:

@@ -61,6 +61,7 @@ export async function GET(req: NextRequest) {
           lyrics: s.lyrics || '',
           tags: s.tags || [],
           audioTrack: s.audioTrack || null,
+          useBacktrack: s.useBacktrack !== undefined ? !!s.useBacktrack : true,
           drawingStrokes: s.drawingStrokes || [],
           updatedAt: s.updatedAt || Date.now(),
         });
@@ -133,8 +134,9 @@ export async function POST(req: NextRequest) {
       arrangement: Array.isArray(arrangement) ? arrangement : [],
       tags: Array.isArray(tags) ? tags : [],
       audioTrack: audioTrack || null,
+      useBacktrack: body.useBacktrack !== undefined ? !!body.useBacktrack : true,
       drawingStrokes: Array.isArray(drawingStrokes) ? drawingStrokes : [],
-      updatedAt: Date.now(),
+      updatedAt: Math.max(Number(body.updatedAt) || 0, Date.now()),
     };
 
     const filePath = path.join(SONGS_DIR, `${songId}.json`);

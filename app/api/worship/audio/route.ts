@@ -127,6 +127,7 @@ export async function POST(req: NextRequest) {
       songId: songId || null,
     };
 
+    let attachedSong: any = null;
     // If songId provided, attach audioTrack metadata directly to song json
     if (songId) {
       try {
@@ -135,8 +136,10 @@ export async function POST(req: NextRequest) {
         const songRaw = await fs.readFile(songPath, 'utf-8');
         const songData = JSON.parse(songRaw);
         songData.audioTrack = audioTrackInfo;
+        songData.useBacktrack = true;
         songData.updatedAt = Date.now();
         await fs.writeFile(songPath, JSON.stringify(songData, null, 2), 'utf-8');
+        attachedSong = songData;
       } catch (e) {
         console.warn('Could not attach audio track to song JSON:', e);
       }
@@ -148,6 +151,8 @@ export async function POST(req: NextRequest) {
       ok: true,
       audioTrack: audioTrackInfo,
       metrics: updatedMetrics,
+      attachedSong,
+      attachedSongId: songId || null,
     });
   } catch (err: any) {
     console.error('Audio upload error:', err);

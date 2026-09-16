@@ -1785,9 +1785,13 @@
               <span id="tempoLabel">73 BPM</span>
             </span>
             <span class="meta-tag" id="sheetTimeSigBadge">4/4</span>
-            <button class="meta-tag" id="sheetPlaybackBtn" onclick="toggleAudioPlay()" style="display:none;align-items:center;gap:6px;cursor:pointer;background:#0369a1;color:#fff;border:1px solid #38bdf8;font-weight:700;" title="Tap to Play / Pause Backing Track">
+            <button class="meta-tag" id="sheetPlaybackBtn" onclick="handleStagePlaybackClick()" style="display:none;align-items:center;gap:6px;cursor:pointer;background:#0369a1;color:#fff;border:1px solid #38bdf8;font-weight:700;" title="Tap to Play / Pause Backing Track">
               <span id="sheetPlaybackIcon">▶</span>
               <span id="sheetDurationLabel">0:00</span>
+            </button>
+            <button class="meta-tag" id="sheetBacktrackPill" onclick="toggleCurrentSongBacktrack()" style="display:none;align-items:center;gap:5px;cursor:pointer;font-weight:700;" title="Toggle Backtrack ON / OFF for this song">
+              <span id="sheetBacktrackPillIcon">🎧</span>
+              <span id="sheetBacktrackPillText">Track ON</span>
             </button>
           </div>
           <!-- SECTION ORDER ARRANGEMENT ROADMAP BAR -->
@@ -2086,13 +2090,22 @@
     <div class="modal-body" style="padding:14px;gap:12px;">
 
       <!-- ACTIVE SONG ATTACHMENT CARD -->
-      <div style="background:#161c26;border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;align-items:center;justify-content:space-between;">
-        <div>
-          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;font-weight:700;">Active Song</div>
-          <div style="font-size:14px;font-weight:800;color:#fff;" id="audioModalActiveSongTitle">10,000 Reasons</div>
-          <div style="font-size:11px;color:#38bdf8;margin-top:2px;" id="audioModalAttachedStatus">No track attached</div>
+      <div style="background:#161c26;border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <div style="flex:1;min-width:200px;">
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;font-weight:700;margin-bottom:4px;">Target Song for Backtrack</div>
+          <select id="audioModalSongSelector" class="order-select" style="width:100%;height:34px;font-size:13px;font-weight:700;background:#0d1117;color:#fff;border:1px solid var(--border);border-radius:6px;" onchange="onAudioTargetSongChange(this.value)">
+            <!-- Populated dynamically -->
+          </select>
+          <div style="font-size:11px;color:#38bdf8;margin-top:4px;" id="audioModalAttachedStatus">No track attached</div>
+          <div id="audioModalBacktrackToggleWrap" style="margin-top:6px;display:none;">
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#fff;cursor:pointer;">
+              <input type="checkbox" id="audioModalUseBacktrackCheck" onchange="toggleCurrentSongBacktrack(this.checked)">
+              <span style="font-weight:700;">Use Backtrack for this song</span>
+              <span id="audioModalUseBacktrackLabel" style="font-size:11px;color:var(--text-muted);">(Enabled)</span>
+            </label>
+          </div>
         </div>
-        <div id="audioModalSongActions">
+        <div id="audioModalSongActions" style="display:flex;gap:6px;align-items:center;">
           <!-- Populated dynamically -->
         </div>
       </div>
@@ -2858,24 +2871,50 @@ Lord, I'll worship Your holy name.`
     renderSongList();
   }
 
+  const localSongModifiedAt = {};
+  let lastLocalActionTime = 0;
+  let isEditingActive = false;
+
   async function silentSync() {
     try {
+      // Do not interrupt active editing in modal or pointer drawing
+      if (isEditingActive || isDrawing) return;
+
       const res = await fetch('/api/worship', { cache: 'no-store' });
       if (res.ok) {
         const cloudSongs = await res.json();
         if (Array.isArray(cloudSongs) && cloudSongs.length > 0) {
-          const prevHash = JSON.stringify(songs.map(s => ({ id: s.id, updated: s.updatedAt })));
-          const nextHash = JSON.stringify(cloudSongs.map(s => ({ id: s.id, updated: s.updatedAt })));
-          if (prevHash !== nextHash) {
-            songs = cloudSongs;
+          let hasListChanges = false;
+          let currentSongChanged = false;
+
+          for (const cs of cloudSongs) {
+            const localIdx = songs.findIndex(s => s.id === cs.id);
+            const local = localIdx >= 0 ? songs[localIdx] : null;
+            const localMod = localSongModifiedAt[cs.id] || (local ? (local.updatedAt || 0) : 0);
+
+            // ONLY accept cloud song if it is STRICTLY NEWER than our local modifications
+            if (!local) {
+              songs.push(cs);
+              hasListChanges = true;
+            } else if (cs.updatedAt && cs.updatedAt > localMod) {
+              // If this is currentSong and user recently interacted with it, protect local state
+              if (currentSong && cs.id === currentSong.id && Date.now() - lastLocalActionTime < 4000) {
+                continue;
+              }
+              songs[localIdx] = cs;
+              hasListChanges = true;
+              if (currentSong && cs.id === currentSong.id) {
+                currentSong = cs;
+                currentSongChanged = true;
+              }
+            }
+          }
+
+          if (hasListChanges) {
             localStorage.setItem('hgf_band_songs', JSON.stringify(songs));
             renderSongList();
-            if (currentSong) {
-              const updated = songs.find(s => s.id === currentSong.id);
-              if (updated && updated.updatedAt !== currentSong.updatedAt) {
-                currentSong = updated;
-                renderSheet();
-              }
+            if (currentSongChanged) {
+              renderSheet();
             }
           }
         }
@@ -3110,17 +3149,42 @@ Lord, I'll worship Your holy name.`
     const playBtn = document.getElementById('sheetPlaybackBtn');
     const durLabel = document.getElementById('sheetDurationLabel');
     const playIcon = document.getElementById('sheetPlaybackIcon');
+    const trackPill = document.getElementById('sheetBacktrackPill');
     const hasAudio = !!(currentSong.audioTrack && currentSong.audioTrack.url);
-    const dur = currentSong.duration || (hasAudio ? 'Play Track' : '');
+    const useTrack = hasAudio && currentSong.useBacktrack !== false;
+    const dur = currentSong.duration || (useTrack ? 'Play Track' : '');
+
+    if (trackPill) {
+      if (hasAudio) {
+        trackPill.style.display = 'inline-flex';
+        trackPill.style.background = useTrack ? 'rgba(16,185,129,0.18)' : 'rgba(100,116,139,0.2)';
+        trackPill.style.borderColor = useTrack ? '#10b981' : '#64748b';
+        trackPill.style.color = useTrack ? '#34d399' : '#94a3b8';
+        const pillIcon = document.getElementById('sheetBacktrackPillIcon');
+        const pillText = document.getElementById('sheetBacktrackPillText');
+        if (pillIcon) pillIcon.textContent = useTrack ? '🎧' : '🎸';
+        if (pillText) pillText.textContent = useTrack ? 'Track ON' : 'Live Mode';
+        trackPill.title = useTrack ? 'Backtrack active. Tap to switch to Live Band Mode (bypasses track)' : 'Live Band Mode. Tap to enable Backtrack playback';
+      } else {
+        trackPill.style.display = 'none';
+      }
+    }
 
     if (playBtn && durLabel) {
-      if (dur || hasAudio) {
+      if (useTrack) {
         durLabel.textContent = isAudioPlaying && backingAudio && backingAudio.duration
           ? `${formatSeconds(backingAudio.currentTime)} / ${formatSeconds(backingAudio.duration)}`
-          : (dur || 'Play Track');
+          : (currentSong.duration ? `${currentSong.duration} • Track` : 'Play Track');
         playIcon.textContent = isAudioPlaying ? '⏸' : '▶';
         playBtn.style.display = 'inline-flex';
         playBtn.style.background = isAudioPlaying ? '#0284c7' : '#0369a1';
+        playBtn.title = isAudioPlaying ? 'Tap to Pause Backing Track' : 'Tap to Play In-Ear Backing Track';
+      } else if (dur) {
+        durLabel.textContent = isAutoScrolling ? 'Scrolling...' : `⏱ ${dur}`;
+        playIcon.textContent = isAutoScrolling ? '⏸' : '▶';
+        playBtn.style.display = 'inline-flex';
+        playBtn.style.background = isAutoScrolling ? '#059669' : '#1e293b';
+        playBtn.title = isAutoScrolling ? 'Tap to Pause Auto-Scroll' : 'Tap to Start Auto-Scroll (Live Band Mode)';
       } else {
         playBtn.style.display = 'none';
       }
@@ -3774,26 +3838,41 @@ Lord, I'll worship Your holy name.`
       if (!Array.isArray(currentSong.drawingStrokes)) currentSong.drawingStrokes = [];
       currentSong.drawingStrokes.push(activeStroke);
       activeStroke = null;
+
+      const now = Date.now();
+      currentSong.updatedAt = now;
+      localSongModifiedAt[currentSong.id] = now;
+      lastLocalActionTime = now;
+      localStorage.setItem('hgf_band_songs', JSON.stringify(songs));
+
       scheduleSaveSongDrawings();
     }
   }
 
   function scheduleSaveSongDrawings() {
     clearTimeout(saveDrawTimeout);
-    saveDrawTimeout = setTimeout(() => {
+    saveDrawTimeout = setTimeout(async () => {
       if (!currentSong) return;
-      currentSong.updatedAt = Date.now();
-      localStorage.setItem('hgf_band_songs', JSON.stringify(songs));
-      fetch('/api/worship', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(currentSong)
-      }).catch(() => {});
-    }, 800);
+      try {
+        const res = await fetch('/api/worship', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(currentSong)
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.song && data.song.updatedAt) {
+            currentSong.updatedAt = data.song.updatedAt;
+            localSongModifiedAt[currentSong.id] = data.song.updatedAt;
+            localStorage.setItem('hgf_band_songs', JSON.stringify(songs));
+          }
+        }
+      } catch (_) {}
+    }, 250);
   }
 
   function redrawCanvasStrokes() {
-    if (!canvas || !ctx) return;
+    if (!canvas || !ctx || isDrawing) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (!currentSong || !Array.isArray(currentSong.drawingStrokes)) return;
 
@@ -4734,6 +4813,7 @@ Lord, I'll worship Your holy name.`
   // SONGBOOK PRO STYLE SONG EDITOR (Screenshots 2 & 3)
   function openEditCurrentSong() {
     if (!currentSong) return;
+    isEditingActive = true;
     document.getElementById('editModalTitle').textContent = 'Edit Song';
     document.getElementById('editTitleInput').value = currentSong.title || '';
     document.getElementById('editAltTitleInput').value = currentSong.alternativeTitle || '';
@@ -4765,6 +4845,7 @@ Lord, I'll worship Your holy name.`
   }
 
   function openNewSongModal() {
+    isEditingActive = true;
     document.getElementById('editModalTitle').textContent = 'New Song';
     document.getElementById('editTitleInput').value = '';
     document.getElementById('editAltTitleInput').value = '';
@@ -4786,6 +4867,7 @@ Lord, I'll worship Your holy name.`
   }
 
   function closeEditModal() {
+    isEditingActive = false;
     document.getElementById('editSongModal').classList.remove('visible');
   }
 
@@ -4835,7 +4917,7 @@ Lord, I'll worship Your holy name.`
   async function saveSongFromEditor() {
     const title = document.getElementById('editTitleInput').value.trim();
     if (!title) {
-      alert('Please enter a song title');
+      showToast('Please enter a song title');
       return;
     }
 
@@ -4845,8 +4927,10 @@ Lord, I'll worship Your holy name.`
     const chords = document.getElementById('editSheetTextarea').value;
     const tags = document.getElementById('editTagsInput').value.split(',').map(t => t.trim()).filter(Boolean);
 
+    const now = Date.now();
+    const songId = currentSong ? currentSong.id : title.toLowerCase().replace(/[^a-z0-9]/g, '-');
     const songData = {
-      id: currentSong ? currentSong.id : title.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+      id: songId,
       title,
       alternativeTitle: document.getElementById('editAltTitleInput').value.trim(),
       artist,
@@ -4863,27 +4947,45 @@ Lord, I'll worship Your holy name.`
       songNumber: document.getElementById('editSongNumberInput').value.trim(),
       copyright: document.getElementById('editCopyrightInput').value.trim(),
       webUrl: document.getElementById('editWebUrlInput').value.trim(),
-      updatedAt: Date.now()
+      // Preserve existing attached audio track, backtrack settings, and drawing strokes
+      audioTrack: currentSong ? (currentSong.audioTrack || null) : null,
+      useBacktrack: currentSong && currentSong.useBacktrack !== undefined ? currentSong.useBacktrack : true,
+      drawingStrokes: currentSong && Array.isArray(currentSong.drawingStrokes) ? currentSong.drawingStrokes : [],
+      updatedAt: now
     };
 
-    // Save locally
+    // Protect local state from silentSync rollback
+    localSongModifiedAt[songData.id] = now;
+    lastLocalActionTime = now;
+
+    // Save locally immediately
     const idx = songs.findIndex(s => s.id === songData.id);
     if (idx >= 0) songs[idx] = songData;
     else songs.unshift(songData);
 
     localStorage.setItem('hgf_band_songs', JSON.stringify(songs));
+    currentSong = songData;
     selectSong(songData);
+    renderSongList();
     closeEditModal();
     showToast('Song saved successfully!');
 
-    // Persist to server
+    // Persist to server in background
     try {
-      await fetch('/api/worship', {
+      const res = await fetch('/api/worship', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(songData)
       });
-    } catch {}
+      if (res.ok) {
+        const data = await res.json();
+        if (data.song && data.song.updatedAt) {
+          songData.updatedAt = data.song.updatedAt;
+          localSongModifiedAt[songData.id] = data.song.updatedAt;
+          localStorage.setItem('hgf_band_songs', JSON.stringify(songs));
+        }
+      }
+    } catch (_) {}
   }
 
   // SIMPLE WORD SEARCH & CHORD SCRAPER MODAL (With Live Chord Preview & Key Labels)
@@ -5271,12 +5373,12 @@ Lord, I'll worship Your holy name.`
 
   function initSongAudio(song) {
     initAudioPlayerElement();
-    if (song && song.audioTrack && song.audioTrack.url) {
+    if (song && song.audioTrack && song.audioTrack.url && song.useBacktrack !== false) {
       loadAudioTrack(song.audioTrack, false);
     } else {
       stopAudioPlayback();
       togglePlaybackDock(false);
-      activeAudioTrack = null;
+      activeAudioTrack = (song && song.audioTrack && song.audioTrack.url) ? song.audioTrack : null;
     }
   }
 
@@ -5390,9 +5492,33 @@ Lord, I'll worship Your holy name.`
   }
 
   // AUDIO MANAGER MODAL & SERVER STORAGE BUFFER METER
+  function getAudioTargetSong() {
+    const sel = document.getElementById('audioModalSongSelector');
+    if (sel && sel.value) {
+      return songs.find(s => s.id === sel.value) || currentSong;
+    }
+    return currentSong;
+  }
+
+  function onAudioTargetSongChange(songId) {
+    updateAudioModalAttachedStatus();
+    renderAudioTracksList(currentStorageData ? currentStorageData.files : []);
+  }
+
+  function populateAudioModalSongSelector() {
+    const sel = document.getElementById('audioModalSongSelector');
+    if (!sel) return;
+    const activeId = currentSong ? currentSong.id : '';
+    sel.innerHTML = songs.map(s => `
+      <option value="${s.id}" ${s.id === activeId ? 'selected' : ''}>
+        ${escapeHtml(s.title)}${s.audioTrack && s.audioTrack.url ? ' 🎵' : ''}
+      </option>
+    `).join('');
+  }
+
   function openAudioManagerModal() {
     closeSourceModal();
-    document.getElementById('audioModalActiveSongTitle').textContent = currentSong ? currentSong.title : 'No song selected';
+    populateAudioModalSongSelector();
     updateAudioModalAttachedStatus();
     fetchStorageAudioFiles();
     document.getElementById('audioManagerModal').classList.add('visible');
@@ -5415,20 +5541,83 @@ Lord, I'll worship Your holy name.`
   }
 
   function updateAudioModalAttachedStatus() {
+    const targetSong = getAudioTargetSong();
     const statusEl = document.getElementById('audioModalAttachedStatus');
     const actionsEl = document.getElementById('audioModalSongActions');
+    const toggleWrap = document.getElementById('audioModalBacktrackToggleWrap');
+    const toggleCheck = document.getElementById('audioModalUseBacktrackCheck');
+    const toggleLabel = document.getElementById('audioModalUseBacktrackLabel');
 
-    if (currentSong && currentSong.audioTrack && currentSong.audioTrack.url) {
-      statusEl.textContent = `Attached: ${currentSong.audioTrack.originalName || currentSong.audioTrack.filename} (${currentSong.audioTrack.sizeMb || '0'} MB)`;
-      statusEl.style.color = '#10b981';
+    if (targetSong && targetSong.audioTrack && targetSong.audioTrack.url) {
+      const isUsed = targetSong.useBacktrack !== false;
+      statusEl.textContent = `Attached: ${targetSong.audioTrack.originalName || targetSong.audioTrack.filename} (${targetSong.audioTrack.sizeMb || '0'} MB)`;
+      statusEl.style.color = isUsed ? '#10b981' : '#f59e0b';
+
+      if (toggleWrap) toggleWrap.style.display = 'block';
+      if (toggleCheck) toggleCheck.checked = isUsed;
+      if (toggleLabel) {
+        toggleLabel.textContent = isUsed ? '(Enabled for Bluetooth In-Ear)' : '(Bypassed / Live Band Mode)';
+        toggleLabel.style.color = isUsed ? '#10b981' : '#f59e0b';
+      }
+
       actionsEl.innerHTML = `
-        <button class="sidebar-action-btn primary" onclick="loadAudioTrack(currentSong.audioTrack, true); closeAudioManagerModal();">▶ Play In-Ear</button>
-        <button class="sidebar-action-btn" onclick="detachTrackFromCurrentSong()" style="margin-left:6px;color:var(--accent-red);">Detach</button>
+        <button class="sidebar-action-btn primary" onclick="loadAudioTrack(getAudioTargetSong().audioTrack, true); closeAudioManagerModal();">▶ Play</button>
+        <button class="sidebar-action-btn" onclick="detachTrackFromSelectedSong()" style="margin-left:6px;color:var(--accent-red);">Detach</button>
       `;
     } else {
-      statusEl.textContent = 'No track attached to this song';
+      statusEl.textContent = targetSong ? `No track attached to "${targetSong.title}"` : 'No song selected';
       statusEl.style.color = '#38bdf8';
+      if (toggleWrap) toggleWrap.style.display = 'none';
       actionsEl.innerHTML = '';
+    }
+  }
+
+  async function toggleCurrentSongBacktrack(forceState) {
+    const targetSong = getAudioTargetSong() || currentSong;
+    if (!targetSong) return;
+
+    if (forceState !== undefined) {
+      targetSong.useBacktrack = forceState;
+    } else {
+      targetSong.useBacktrack = targetSong.useBacktrack === false ? true : false;
+    }
+
+    if (!targetSong.useBacktrack && isAudioPlaying && targetSong.id === currentSong?.id) {
+      stopAudioPlayback();
+    }
+
+    const now = Date.now();
+    targetSong.updatedAt = now;
+    localSongModifiedAt[targetSong.id] = now;
+    lastLocalActionTime = now;
+    localStorage.setItem('hgf_band_songs', JSON.stringify(songs));
+
+    renderSheet();
+    updateAudioModalAttachedStatus();
+    if (targetSong.id === currentSong?.id) {
+      initSongAudio(currentSong);
+    }
+
+    showToast(targetSong.useBacktrack ? `🎧 Backtrack ENABLED for "${targetSong.title}"` : `🎸 Live Mode (Backtrack Bypassed for "${targetSong.title}")`);
+
+    try {
+      await fetch('/api/worship', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(targetSong)
+      });
+    } catch (_) {}
+  }
+
+  function handleStagePlaybackClick() {
+    if (!currentSong) return;
+    const hasAudio = !!(currentSong.audioTrack && currentSong.audioTrack.url);
+    const useTrack = hasAudio && currentSong.useBacktrack !== false;
+
+    if (useTrack) {
+      toggleAudioPlay();
+    } else {
+      toggleScrollPlay();
     }
   }
 
@@ -5469,9 +5658,10 @@ Lord, I'll worship Your holy name.`
       return;
     }
 
+    const targetSong = getAudioTargetSong() || currentSong;
     let html = '';
     for (const f of files) {
-      const isAttachedToCurrent = currentSong && currentSong.audioTrack && currentSong.audioTrack.filename === f.filename;
+      const isAttachedToTarget = targetSong && targetSong.audioTrack && targetSong.audioTrack.filename === f.filename;
       html += `
         <div class="audio-track-item">
           <div style="min-width:0;flex:1;">
@@ -5480,15 +5670,15 @@ Lord, I'll worship Your holy name.`
             </div>
             <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">
               ${f.sizeMb} MB • ${new Date(f.updatedAt).toLocaleDateString()}
-              ${isAttachedToCurrent ? '<span style="color:#10b981;font-weight:700;margin-left:6px;">● Attached to this song</span>' : ''}
+              ${isAttachedToTarget ? `<span style="color:#10b981;font-weight:700;margin-left:6px;">● Attached to ${escapeHtml(targetSong.title)}</span>` : ''}
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
             <button class="sidebar-action-btn primary" onclick="loadAudioTrack(${JSON.stringify(f).replace(/"/g, '&quot;')}, true); closeAudioManagerModal();" title="Play through In-Ear Bluetooth">
               ▶ Play
             </button>
-            <button class="sidebar-action-btn" onclick="attachTrackToCurrentSong(${JSON.stringify(f).replace(/"/g, '&quot;')})" title="Attach track to ${escapeHtml(currentSong ? currentSong.title : 'song')}">
-              Attach
+            <button class="sidebar-action-btn" onclick="attachTrackToSelectedSong(${JSON.stringify(f).replace(/"/g, '&quot;')})" title="Attach track to ${escapeHtml(targetSong ? targetSong.title : 'song')}">
+              ${isAttachedToTarget ? '✓ Attached' : 'Attach'}
             </button>
             <button class="icon-btn" onclick="deleteAudioTrackFile('${escapeHtml(f.filename)}')" style="width:28px;height:28px;font-size:11px;color:var(--accent-red);" title="Delete file to free server storage">
               🗑️
@@ -5503,6 +5693,7 @@ Lord, I'll worship Your holy name.`
   async function handleAudioFileSelect(fileList) {
     if (!fileList || fileList.length === 0) return;
     const file = fileList[0];
+    const targetSong = getAudioTargetSong() || currentSong;
 
     // INSTANT LOCAL PLAYBACK FALLBACK (Google Drive / offline / zero latency)
     try {
@@ -5515,10 +5706,14 @@ Lord, I'll worship Your holy name.`
         type: file.type || 'audio/wav',
         updatedAt: new Date().toISOString()
       };
-      if (currentSong) {
-        currentSong.audioTrack = instantTrack;
+      if (targetSong) {
+        targetSong.audioTrack = instantTrack;
+        targetSong.useBacktrack = true;
         updateAudioModalAttachedStatus();
-        loadAudioTrack(instantTrack, false);
+        if (targetSong.id === currentSong?.id) {
+          loadAudioTrack(instantTrack, false);
+          renderSheet();
+        }
       }
       showToast(`Loaded "${file.name}" locally for instant playback!`);
     } catch (err) {
@@ -5537,8 +5732,8 @@ Lord, I'll worship Your holy name.`
 
     const formData = new FormData();
     formData.append('file', file);
-    if (currentSong) {
-      formData.append('songId', currentSong.id);
+    if (targetSong) {
+      formData.append('songId', targetSong.id);
     }
 
     try {
@@ -5562,13 +5757,23 @@ Lord, I'll worship Your holy name.`
         if (xhr.status >= 200 && xhr.status < 300) {
           try {
             const res = JSON.parse(xhr.responseText);
-            showToast(`Uploaded "${file.name}" to server buffer!`);
-            if (currentSong && res.audioTrack) {
-              currentSong.audioTrack = res.audioTrack;
+            showToast(`Uploaded "${file.name}" and attached to ${targetSong ? targetSong.title : 'song'}!`);
+            if (targetSong && res.audioTrack) {
+              targetSong.audioTrack = res.audioTrack;
+              targetSong.useBacktrack = true;
+              const now = Date.now();
+              targetSong.updatedAt = now;
+              localSongModifiedAt[targetSong.id] = now;
+              lastLocalActionTime = now;
+              localStorage.setItem('hgf_band_songs', JSON.stringify(songs));
               updateAudioModalAttachedStatus();
-              loadAudioTrack(res.audioTrack, false);
+              if (targetSong.id === currentSong?.id) {
+                loadAudioTrack(res.audioTrack, false);
+                renderSheet();
+              }
             }
             fetchStorageAudioFiles();
+            populateAudioModalSongSelector();
           } catch (parseErr) {
             showToast('Uploaded, audio track ready');
           }
@@ -5599,37 +5804,63 @@ Lord, I'll worship Your holy name.`
     }
   }
 
-  async function attachTrackToCurrentSong(track) {
-    if (!currentSong) return;
-    currentSong.audioTrack = track;
+  async function attachTrackToSelectedSong(track) {
+    const targetSong = getAudioTargetSong() || currentSong;
+    if (!targetSong) return;
+    targetSong.audioTrack = track;
+    targetSong.useBacktrack = true;
+
+    const now = Date.now();
+    targetSong.updatedAt = now;
+    localSongModifiedAt[targetSong.id] = now;
+    lastLocalActionTime = now;
+    localStorage.setItem('hgf_band_songs', JSON.stringify(songs));
+
     updateAudioModalAttachedStatus();
-    loadAudioTrack(track, false);
-    showToast(`Attached to "${currentSong.title}"`);
+    if (targetSong.id === currentSong?.id) {
+      loadAudioTrack(track, false);
+      renderSheet();
+    }
+    showToast(`Attached track to "${targetSong.title}"`);
+    populateAudioModalSongSelector();
 
     // Persist song to server
     try {
       await fetch('/api/worship', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(currentSong)
+        body: JSON.stringify(targetSong)
       });
       fetchStorageAudioFiles();
     } catch {}
   }
 
-  async function detachTrackFromCurrentSong() {
-    if (!currentSong || !currentSong.audioTrack) return;
-    delete currentSong.audioTrack;
+  async function detachTrackFromSelectedSong() {
+    const targetSong = getAudioTargetSong() || currentSong;
+    if (!targetSong || !targetSong.audioTrack) return;
+    delete targetSong.audioTrack;
+    delete targetSong.useBacktrack;
+
+    const now = Date.now();
+    targetSong.updatedAt = now;
+    localSongModifiedAt[targetSong.id] = now;
+    lastLocalActionTime = now;
+    localStorage.setItem('hgf_band_songs', JSON.stringify(songs));
+
     updateAudioModalAttachedStatus();
-    stopAudioPlayback();
-    togglePlaybackDock(false);
-    showToast('Track detached from song');
+    if (targetSong.id === currentSong?.id) {
+      stopAudioPlayback();
+      togglePlaybackDock(false);
+      renderSheet();
+    }
+    showToast(`Track detached from "${targetSong.title}"`);
+    populateAudioModalSongSelector();
 
     try {
       await fetch('/api/worship', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(currentSong)
+        body: JSON.stringify(targetSong)
       });
       fetchStorageAudioFiles();
     } catch {}
@@ -5646,7 +5877,7 @@ Lord, I'll worship Your holy name.`
       if (res.ok) {
         showToast(`Deleted "${filename}" — storage buffer reclaimed.`);
         if (currentSong && currentSong.audioTrack && currentSong.audioTrack.filename === filename) {
-          detachTrackFromCurrentSong();
+          detachTrackFromSelectedSong();
         }
         fetchStorageAudioFiles();
       } else {
