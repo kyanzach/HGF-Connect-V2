@@ -5,6 +5,16 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.53.6] — 2026-09-16
+### Added & Enhanced — Chord Sheet Live Preview Before Import & Clear Key Badges
+- **Interactive Chord Sheet Preview Before Import**:
+  - Tapping any search result card or the `👁️ Preview` button opens a live in-modal Preview Pane.
+  - Formatted chord sheet with glowing chords, lyrics, original Key badge, recommended Capo, and BPM.
+  - Dedicated `📥 Import This Song` button inside the preview and `← Back to Results` button without losing search query or results list.
+- **Clarified Key Badges on Search Cards**:
+  - Replaced ambiguous isolated `Bm` badges with explicit `Key: Bm`, `Key: C# / Db`, or `Key: ?` tags.
+  - Added version badges (`Ver 1 (Chords)`) and community rating/votes (`★ 4.9 (1.2k)`) on every search card so musicians know the exact version and key they are selecting.
+
 ## [v2.53.5] — 2026-09-16
 ### Fixed — Drawing Canvas Coordinate Offset & Touch Gestures on Mobile / Tablet / Desktop
 - **Canvas Vertical Sizing & Coordinate Fix**:

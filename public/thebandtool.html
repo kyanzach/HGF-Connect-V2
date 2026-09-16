@@ -1733,19 +1733,21 @@
 
 <!-- 4. SIMPLE WORD SEARCH & CHORD SCRAPER MODAL -->
 <div class="modal-overlay" id="scraperModal">
-  <div class="edit-modal" style="max-width:600px;height:85vh;">
+  <div class="edit-modal" style="max-width:680px;height:88vh;display:flex;flex-direction:column;">
     <div class="modal-header">
-      <div class="modal-header-title">Search & Import Chords</div>
+      <div class="modal-header-title" id="scraperModalTitle">Search & Import Chords</div>
       <button class="icon-btn" onclick="closeScraperModal()" style="width:30px;height:30px;">✕</button>
     </div>
-    <div class="modal-body" style="padding:14px;">
+
+    <!-- 1. SEARCH RESULTS VIEW -->
+    <div id="scraperSearchView" class="modal-body" style="padding:14px;display:flex;flex-direction:column;flex:1;overflow:hidden;">
       <!-- Search Input -->
       <div style="display:flex;gap:8px;">
-        <input type="text" id="scraperQueryInput" class="form-input" style="flex:1;" placeholder="Search title, artist, or lyrics (e.g. bless the lord, 10000 reasons)..." onkeydown="if(event.key==='Enter') executeScraperSearch()">
+        <input type="text" id="scraperQueryInput" class="form-input" style="flex:1;" placeholder="Search title, artist, or lyrics (e.g. oceans hillsong, 10000 reasons)..." onkeydown="if(event.key==='Enter') executeScraperSearch()">
         <button class="sidebar-action-btn primary" id="scraperSearchBtn" onclick="executeScraperSearch()">Search</button>
       </div>
       <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">
-        Search any lyrics or keywords. Top church worship chords will be fetched with 1-tap import.
+        Search any lyrics or keywords. Tap any result or <strong>👁️ Preview</strong> to inspect the chord sheet before importing.
       </div>
 
       <!-- Results Container -->
@@ -1753,6 +1755,25 @@
         <div style="text-align:center;padding:30px 10px;color:var(--text-muted);font-size:13px;">
           Type a song name, lyric phrase, or artist above and click Search.
         </div>
+      </div>
+    </div>
+
+    <!-- 2. LIVE CHORD SHEET PREVIEW VIEW -->
+    <div id="scraperPreviewView" style="display:none;flex-direction:column;flex:1;overflow:hidden;padding:14px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:10px;border-bottom:1px solid #1e293b;margin-bottom:10px;">
+        <button class="sidebar-action-btn" onclick="backToScraperSearch()" style="background:#1e293b;color:#cbd5e1;font-weight:600;">
+          ← Back to Results
+        </button>
+        <button class="sidebar-action-btn primary" id="scraperImportPreviewBtn" onclick="importCurrentPreviewTab()" style="background:#059669;border-color:#10b981;font-weight:700;padding:6px 14px;">
+          📥 Import This Song
+        </button>
+      </div>
+
+      <!-- Song Meta Info -->
+      <div id="scraperPreviewMeta" style="margin-bottom:10px;"></div>
+
+      <!-- Scrollable Preview Chord Sheet -->
+      <div id="scraperPreviewContent" class="chord-sheet-container" style="flex:1;overflow-y:auto;background:#090d16;padding:16px;border-radius:8px;border:1px solid #1e293b;font-size:14px;line-height:1.5;">
       </div>
     </div>
   </div>
@@ -3017,8 +3038,11 @@ Lord, I'll worship Your holy name.`
     } catch {}
   }
 
-  // SIMPLE WORD SEARCH & CHORD SCRAPER MODAL
+  // SIMPLE WORD SEARCH & CHORD SCRAPER MODAL (With Live Chord Preview & Key Labels)
+  let currentPreviewTab = null;
+
   function openScraperModal(initialQuery = '') {
+    backToScraperSearch();
     const input = document.getElementById('scraperQueryInput');
     const q = initialQuery || (currentSong ? currentSong.title : '');
     input.value = q;
@@ -3031,9 +3055,21 @@ Lord, I'll worship Your holy name.`
 
   function closeScraperModal() {
     document.getElementById('scraperModal').classList.remove('visible');
+    backToScraperSearch();
+  }
+
+  function backToScraperSearch() {
+    const searchView = document.getElementById('scraperSearchView');
+    const previewView = document.getElementById('scraperPreviewView');
+    if (searchView) searchView.style.display = 'flex';
+    if (previewView) previewView.style.display = 'none';
+    const title = document.getElementById('scraperModalTitle');
+    if (title) title.textContent = 'Search & Import Chords';
+    currentPreviewTab = null;
   }
 
   async function executeScraperSearch() {
+    backToScraperSearch();
     const q = document.getElementById('scraperQueryInput').value.trim();
     if (!q) return;
 
@@ -3042,7 +3078,7 @@ Lord, I'll worship Your holy name.`
     searchBtn.textContent = 'Searching...';
     searchBtn.disabled = true;
 
-    list.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text-muted);">Searching worship tabs for "<strong>${escapeHtml(q)}</strong>"...</div>`;
+    list.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text-muted);"><div style="font-size:22px;margin-bottom:8px;">🔍</div>Searching worship chords for "<strong>${escapeHtml(q)}</strong>"...</div>`;
 
     try {
       const res = await fetch('/api/worship/scrape', {
@@ -3055,22 +3091,37 @@ Lord, I'll worship Your holy name.`
       const results = data.results || [];
 
       if (results.length === 0) {
-        list.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text-muted);">No tabs found for "${escapeHtml(q)}". Try simpler words or another title.</div>`;
+        list.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text-muted);">No chord sheets found for "${escapeHtml(q)}". Try simpler words or another title.</div>`;
         return;
       }
 
       let html = '';
       for (const r of results) {
+        const displayKey = r.tonality_name ? (KEY_DISPLAY_MAP[r.tonality_name] || r.tonality_name) : null;
+        const keyBadge = displayKey
+          ? `<span class="meta-tag" style="background:#0f766e;color:#5eead4;font-weight:700;font-size:11px;padding:3px 7px;" title="Original Song Key">Key: ${escapeHtml(displayKey)}</span>`
+          : `<span class="meta-tag" style="background:#1e293b;color:#64748b;font-size:11px;padding:3px 7px;" title="Key detected upon preview">Key: ?</span>`;
+
         html += `
-          <div class="source-item" style="flex-direction:column;align-items:stretch;gap:8px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;">
-              <div>
-                <div style="font-weight:700;font-size:15px;color:#fff;">${escapeHtml(r.song_name)}</div>
-                <div style="font-size:12px;color:var(--text-muted);">${escapeHtml(r.artist_name)} • ${r.source || 'Ultimate Guitar'}</div>
+          <div class="source-item" style="flex-direction:column;align-items:stretch;gap:8px;cursor:pointer;" onclick="previewScrapedTab('${encodeURIComponent(r.tab_url)}')">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+              <div style="flex:1;min-width:0;">
+                <div style="font-weight:700;font-size:15px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                  ${escapeHtml(r.song_name)}
+                </div>
+                <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:3px;font-size:12px;color:var(--text-muted);">
+                  <span>${escapeHtml(r.artist_name)}</span>
+                  <span>•</span>
+                  <span style="color:#94a3b8;">Ver ${r.version || 1} (${r.type || 'Chords'})</span>
+                  ${r.rating ? `<span style="color:#f59e0b;">★ ${r.rating} ${r.votes ? `(${r.votes})` : ''}</span>` : ''}
+                </div>
               </div>
-              <div style="display:flex;align-items:center;gap:8px;">
-                ${r.tonality_name ? `<span class="song-item-key-badge">${r.tonality_name}</span>` : ''}
-                <button class="sidebar-action-btn primary" onclick="importScrapedTab('${encodeURIComponent(r.tab_url)}')">
+              <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;" onclick="event.stopPropagation()">
+                ${keyBadge}
+                <button class="sidebar-action-btn" onclick="previewScrapedTab('${encodeURIComponent(r.tab_url)}')" style="background:#1e293b;border:1px solid #334155;color:#38bdf8;padding:5px 9px;font-size:12px;font-weight:600;" title="Preview Chords & Lyrics">
+                  👁️ Preview
+                </button>
+                <button class="sidebar-action-btn primary" onclick="importScrapedTabDirect('${encodeURIComponent(r.tab_url)}')" style="padding:5px 9px;font-size:12px;font-weight:600;" title="1-Tap Import">
                   📥 Import
                 </button>
               </div>
@@ -3080,16 +3131,35 @@ Lord, I'll worship Your holy name.`
       }
       list.innerHTML = html;
     } catch (err) {
-      list.innerHTML = `<div style="text-align:center;padding:30px;color:var(--accent-red);">Search failed. Please try again.</div>`;
+      list.innerHTML = `<div style="text-align:center;padding:30px;color:var(--accent-red);">Search failed. Please check your connection and try again.</div>`;
     } finally {
       searchBtn.textContent = 'Search';
       searchBtn.disabled = false;
     }
   }
 
-  async function importScrapedTab(encodedUrl) {
+  async function previewScrapedTab(encodedUrl) {
     const url = decodeURIComponent(encodedUrl);
-    showToast('Importing tab content...');
+    const searchView = document.getElementById('scraperSearchView');
+    const previewView = document.getElementById('scraperPreviewView');
+    const metaContainer = document.getElementById('scraperPreviewMeta');
+    const contentContainer = document.getElementById('scraperPreviewContent');
+    const importBtn = document.getElementById('scraperImportPreviewBtn');
+
+    if (searchView) searchView.style.display = 'none';
+    if (previewView) previewView.style.display = 'flex';
+    document.getElementById('scraperModalTitle').textContent = 'Preview Chord Sheet';
+
+    metaContainer.innerHTML = '';
+    contentContainer.innerHTML = `
+      <div style="text-align:center;padding:50px 20px;color:var(--text-muted);">
+        <div style="font-size:28px;margin-bottom:8px;">⏳</div>
+        <div style="font-size:15px;font-weight:700;color:#cbd5e1;">Loading chord preview...</div>
+        <div style="font-size:12px;margin-top:4px;color:#64748b;">Fetching tabs, chords, and arrangements</div>
+      </div>
+    `;
+    importBtn.disabled = true;
+    currentPreviewTab = null;
 
     try {
       const res = await fetch('/api/worship/scrape', {
@@ -3100,70 +3170,117 @@ Lord, I'll worship Your holy name.`
 
       const data = await res.json();
       if (!data.chords_over_lyrics && !data.lyrics) {
-        showToast('Could not parse tab chords');
+        contentContainer.innerHTML = `<div style="text-align:center;padding:40px;color:var(--accent-red);">Could not load chord sheet preview for this tab.</div>`;
         return;
       }
 
-      // Check if we should update the currently open song
-      // (e.g. user clicked "Import Chords" on an open song, or current song title matches)
-      const matchesCurrent = currentSong && (
-        !currentSong.chords ||
-        currentSong.title.trim().toLowerCase() === (data.song_name || '').trim().toLowerCase()
-      );
+      currentPreviewTab = data;
+      const displayKey = KEY_DISPLAY_MAP[data.key] || data.key || 'C';
 
-      let targetSong;
-      if (matchesCurrent) {
-        targetSong = currentSong;
-        targetSong.title = data.song_name || targetSong.title;
-        targetSong.artist = data.artist_name || targetSong.artist;
-        targetSong.key = data.key || targetSong.key || 'C';
-        targetSong.originalKey = data.key || targetSong.originalKey || 'C';
-        targetSong.capo = String(data.capo || targetSong.capo || 0);
-        targetSong.tempo = data.bpm || targetSong.tempo || null;
-        targetSong.chords = data.chords_over_lyrics || data.content_with_chords;
-        targetSong.lyrics = data.lyrics || targetSong.lyrics || data.chords_over_lyrics;
-        targetSong.chordFormat = 'chords_over_lyrics';
-        targetSong.updatedAt = Date.now();
+      metaContainer.innerHTML = `
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+          <div>
+            <h2 style="font-size:18px;font-weight:800;color:#fff;margin:0;">${escapeHtml(data.song_name)}</h2>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">${escapeHtml(data.artist_name)} • ${data.source || 'Ultimate Guitar'}</div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+            <span class="meta-tag" style="background:#0f766e;color:#5eead4;font-weight:700;padding:3px 8px;font-size:11px;">Key: ${escapeHtml(displayKey)}</span>
+            <span class="meta-tag" style="background:#1e293b;color:#cbd5e1;padding:3px 8px;font-size:11px;">Capo: ${escapeHtml(data.capo || 0)}</span>
+            ${data.bpm ? `<span class="meta-tag" style="background:#1e293b;color:#38bdf8;padding:3px 8px;font-size:11px;">${escapeHtml(data.bpm)} BPM</span>` : ''}
+          </div>
+        </div>
+      `;
 
-        // Update in songs array
-        const idx = songs.findIndex(s => s.id === targetSong.id);
-        if (idx >= 0) songs[idx] = targetSong;
-      } else {
-        const slugId = data.song_name.toLowerCase().replace(/[^a-z0-9]/g, '-');
-        targetSong = {
-          id: slugId,
-          title: data.song_name,
-          artist: data.artist_name,
-          key: data.key || 'C',
-          originalKey: data.key || 'C',
-          capo: String(data.capo || 0),
-          tempo: data.bpm || null,
-          timeSignature: '4/4',
-          chords: data.chords_over_lyrics || data.content_with_chords,
-          lyrics: data.lyrics || data.chords_over_lyrics,
-          chordFormat: 'chords_over_lyrics',
-          tags: ['Imported', 'Ultimate Guitar'],
-          updatedAt: Date.now()
-        };
-        const idx = songs.findIndex(s => s.id === targetSong.id);
-        if (idx >= 0) songs[idx] = targetSong;
-        else songs.unshift(targetSong);
-      }
+      const rawContent = data.chords_over_lyrics || data.lyrics || '';
+      const formattedHtml = parseAndTransposeSheet(rawContent, 0, false);
+      contentContainer.innerHTML = formattedHtml;
+      importBtn.disabled = false;
+    } catch (err) {
+      contentContainer.innerHTML = `<div style="text-align:center;padding:40px;color:var(--accent-red);">Failed to fetch tab preview. Please try another version.</div>`;
+    }
+  }
 
-      localStorage.setItem('hgf_band_songs', JSON.stringify(songs));
-      selectSong(targetSong);
-      closeScraperModal();
-      showToast(`Imported chords for "${targetSong.title}" in Key ${targetSong.key}!`);
+  function importCurrentPreviewTab() {
+    if (!currentPreviewTab) return;
+    applyImportedTabData(currentPreviewTab);
+  }
 
-      // Persist to server
-      fetch('/api/worship', {
+  async function importScrapedTabDirect(encodedUrl) {
+    const url = decodeURIComponent(encodedUrl);
+    showToast('Importing tab...');
+    try {
+      const res = await fetch('/api/worship/scrape', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(targetSong)
-      }).catch(() => {});
+        body: JSON.stringify({ action: 'fetch', url })
+      });
+      const data = await res.json();
+      if (!data.chords_over_lyrics && !data.lyrics) {
+        showToast('Could not parse tab chords');
+        return;
+      }
+      applyImportedTabData(data);
     } catch (e) {
-      showToast('Failed to import tab: ' + e.message);
+      showToast('Import failed: ' + e.message);
     }
+  }
+
+  function applyImportedTabData(data) {
+    // Check if we should update the currently open song or create a new song
+    const matchesCurrent = currentSong && (
+      !currentSong.chords ||
+      currentSong.title.trim().toLowerCase() === (data.song_name || '').trim().toLowerCase()
+    );
+
+    let targetSong;
+    if (matchesCurrent) {
+      targetSong = currentSong;
+      targetSong.title = data.song_name || targetSong.title;
+      targetSong.artist = data.artist_name || targetSong.artist;
+      targetSong.key = data.key || targetSong.key || 'C';
+      targetSong.originalKey = data.key || targetSong.originalKey || 'C';
+      targetSong.capo = String(data.capo || targetSong.capo || 0);
+      targetSong.tempo = data.bpm || targetSong.tempo || null;
+      targetSong.chords = data.chords_over_lyrics || data.content_with_chords;
+      targetSong.lyrics = data.lyrics || targetSong.lyrics || data.chords_over_lyrics;
+      targetSong.chordFormat = 'chords_over_lyrics';
+      targetSong.updatedAt = Date.now();
+
+      const idx = songs.findIndex(s => s.id === targetSong.id);
+      if (idx >= 0) songs[idx] = targetSong;
+    } else {
+      const slugId = 'song-' + Date.now();
+      targetSong = {
+        id: slugId,
+        title: data.song_name,
+        artist: data.artist_name,
+        key: data.key || 'C',
+        originalKey: data.key || 'C',
+        capo: String(data.capo || 0),
+        tempo: data.bpm || null,
+        timeSignature: '4/4',
+        chords: data.chords_over_lyrics || data.content_with_chords,
+        lyrics: data.lyrics || data.chords_over_lyrics,
+        chordFormat: 'chords_over_lyrics',
+        tags: ['Imported', 'Ultimate Guitar'],
+        updatedAt: Date.now()
+      };
+      const idx = songs.findIndex(s => s.id === targetSong.id);
+      if (idx >= 0) songs[idx] = targetSong;
+      else songs.unshift(targetSong);
+    }
+
+    localStorage.setItem('hgf_band_songs', JSON.stringify(songs));
+    selectSong(targetSong);
+    closeScraperModal();
+    showToast(`Imported "${targetSong.title}" in Key ${KEY_DISPLAY_MAP[targetSong.key] || targetSong.key}!`);
+
+    // Persist to server
+    fetch('/api/worship', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(targetSong)
+    }).catch(() => {});
   }
 
   // OTHER MODALS
