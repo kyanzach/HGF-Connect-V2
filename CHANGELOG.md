@@ -5,6 +5,15 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.55.1] — 2026-09-17
+### Enhanced — Setlist Picker Close Buttons & High-Contrast Visibility
+- **Solid High-Contrast Top Close Button (`SetlistSidebar.tsx`)**:
+  - Replaced subtle red outline with solid red (`#ef4444`, `#ffffff` text, bold `✕ Close`) with `box-shadow` and `flex-shrink: 0`.
+- **Secondary Bottom Close Button (`SetlistSidebar.tsx`)**:
+  - Added a full-width `✕ Close` button at the bottom of the setlists list for fast thumb tapping without having to reach the top header.
+- **Service Worker Cache Refresh (`CACHE_NAME v2.55.1`)**:
+  - Auto-evicts old client assets so mobile Safari / Chrome instantly load the new buttons upon refreshing.
+
 ## [v2.55.0] — 2026-09-17
 ### Added & Enhanced — Audio Backtrack Chapters, Voice Transition Detection, Volume Control & Mobile Dock Clearance
 - **Voice Activity & Energy Section Chapters (`audioAnalysis.ts`, `useAudioPlayback.ts`)**:

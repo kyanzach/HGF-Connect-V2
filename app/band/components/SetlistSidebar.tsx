@@ -542,21 +542,24 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
                                   }}
                                   title="Close popup"
                                   style={{
-                                    background: 'rgba(239, 68, 68, 0.12)',
-                                    border: '1px solid rgba(239, 68, 68, 0.3)',
-                                    color: '#f87171',
+                                    background: '#ef4444',
+                                    border: 'none',
+                                    color: '#ffffff',
                                     fontSize: '10px',
-                                    fontWeight: 700,
-                                    padding: '1px 6px',
+                                    fontWeight: 800,
+                                    padding: '2px 8px',
                                     borderRadius: '4px',
                                     cursor: 'pointer',
                                     display: 'inline-flex',
                                     alignItems: 'center',
                                     gap: '3px',
                                     lineHeight: '16px',
+                                    flexShrink: 0,
+                                    whiteSpace: 'nowrap',
+                                    boxShadow: '0 2px 6px rgba(239, 68, 68, 0.4)',
                                   }}
-                                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(239, 68, 68, 0.25)')}
-                                  onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)')}
+                                  onMouseEnter={(e) => (e.currentTarget.style.background = '#dc2626')}
+                                  onMouseLeave={(e) => (e.currentTarget.style.background = '#ef4444')}
                                 >
                                   ✕ Close
                                 </button>
@@ -597,6 +600,28 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
                                   </button>
                                 ))
                               )}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPickerSongId(null);
+                                }}
+                                style={{
+                                  width: '100%',
+                                  marginTop: '6px',
+                                  padding: '5px 8px',
+                                  background: 'rgba(239, 68, 68, 0.15)',
+                                  border: '1px solid rgba(239, 68, 68, 0.35)',
+                                  borderRadius: '4px',
+                                  color: '#f87171',
+                                  fontSize: '11px',
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  textAlign: 'center',
+                                }}
+                              >
+                                ✕ Close
+                              </button>
                             </div>
                           </>
                         )}
