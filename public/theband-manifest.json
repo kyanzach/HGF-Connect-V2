@@ -2,7 +2,7 @@
   "name": "THE BAND — Chords & Stage Monitor",
   "short_name": "THE BAND",
   "description": "Stage chords transposer, worship tabs scraper, and live musician monitor for House of Grace Fellowship.",
-  "start_url": "/thebandtool.html",
+  "start_url": "/band",
   "scope": "/",
   "display": "standalone",
   "background_color": "#0c0e12",

@@ -79,6 +79,21 @@ const nextConfig = {
         destination: "/band",
         permanent: false,
       },
+      {
+        source: "/the-band",
+        destination: "/band",
+        permanent: false,
+      },
+      {
+        source: "/bandtool",
+        destination: "/band",
+        permanent: false,
+      },
+      {
+        source: "/thebandtool.html",
+        destination: "/band",
+        permanent: false,
+      },
       // Word tool shortlinks
       {
         source: "/word",

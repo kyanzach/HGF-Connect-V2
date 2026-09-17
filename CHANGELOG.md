@@ -5,6 +5,17 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.54.1] — 2026-09-17
+### Changed — Complete Deprecation of Old HTML Monolith & Unified Shortlink Routing to /band
+- **Old Monolith Decommissioned**:
+  - Deleted obsolete 8,000-line vanilla HTML monolith (`public/thebandtool.html`).
+  - Added redirect in `next.config.js` mapping `/thebandtool.html` directly to `/band`.
+- **Unified Shortlink & Navigation Routing**:
+  - Updated all shortcode redirects in `app/s/[code]/route.ts` (`chords`, `band`, `theband`, `musician`, `themusician`) to point directly to `https://connect.houseofgrace.ph/band`.
+  - Updated `theband-manifest.json` PWA start_url to `/band`.
+  - Updated `theworshiptool.html` quick-switch navigation button to `/band`.
+  - Updated `thebandtool-og.html` preview and meta refresh to `https://connect.houseofgrace.ph/band`.
+
 ## [v2.54.0] — 2026-09-17
 ### Added & Architected — Modern Next.js 16 + React 19 + TypeScript App Router for THE BAND
 - **Next.js Modular Architecture for Stage Tool (`/band`)**:

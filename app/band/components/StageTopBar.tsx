@@ -48,7 +48,18 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
   onOpenAmbientPad,
   onToggleSidebar,
 }) => {
+  const [copiedLink, setCopiedLink] = React.useState(false);
   const bpmText = bpm ? `${bpm} BPM` : '72 BPM';
+
+  const handleCopyShortlink = () => {
+    const url = 'https://hgfapp.link/chords';
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(() => {
+        setCopiedLink(true);
+        setTimeout(() => setCopiedLink(false), 2000);
+      }).catch(() => {});
+    }
+  };
 
   return (
     <header
@@ -100,7 +111,11 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
           >
             ☰
           </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div
+            onClick={handleCopyShortlink}
+            title="Tap to copy shortlink (hgfapp.link/chords)"
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+          >
             <span style={{ fontWeight: 800, fontSize: '15px', letterSpacing: '0.5px', color: '#fff' }}>
               THE BAND
             </span>
@@ -108,14 +123,15 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
               style={{
                 fontSize: '10px',
                 fontWeight: 700,
-                backgroundColor: 'rgba(78, 177, 203, 0.18)',
-                color: '#4EB1CB',
+                backgroundColor: copiedLink ? '#059669' : 'rgba(78, 177, 203, 0.18)',
+                color: copiedLink ? '#ffffff' : '#4EB1CB',
                 padding: '2px 6px',
                 borderRadius: '4px',
-                border: '1px solid rgba(78, 177, 203, 0.35)',
+                border: `1px solid ${copiedLink ? '#10b981' : 'rgba(78, 177, 203, 0.35)'}`,
+                transition: 'all 0.2s ease',
               }}
             >
-              CHORDS
+              {copiedLink ? '🔗 COPIED' : 'CHORDS'}
             </span>
           </div>
         </div>
