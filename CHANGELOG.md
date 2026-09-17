@@ -5,6 +5,17 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.55.12] — 2026-09-17
+### Fixed & Hardened — Ambient Worship Pad Dual-Deck Audio Engine & Zero-Ghost Playback
+- **Dual-Deck Audio Engine (`padSynth.ts`)**:
+  - Replaced unbounded `new Audio()` allocations with a dedicated **Dual-Deck architecture** (`deckA` and `deckB`), permanently eliminating mobile Safari hardware decoder exhaustion and silent play button failures.
+  - Implemented high-precision 3.0-second fade-in and crossfade ramps (60 steps @ 50ms) where the incoming deck smoothly increases from 0 to master volume while the outgoing deck cleanly ramps down to 0 and pauses.
+- **Strict Key Selection vs Playback Isolation (`AmbientPadModal.tsx`)**:
+  - Fixed the 12-key grid so when the pad is **Inactive** or **Fading Out**, clicking any key **ONLY selects that key** without triggering unwanted playback.
+  - Playback strictly requires tapping **▶ Play (3s Fade)** or clicking a key while already in an active playing state.
+- **Immediate Hard-Stop on Repeated Taps (`padSynth.ts`, `AmbientPadModal.tsx`)**:
+  - Tapping Stop initiates a smooth 3.0-second fade out. Tapping Stop a second time during the fade-out immediately cuts all audio to zero and pauses all decks, eliminating any possibility of background ghost audio.
+
 ## [v2.55.11] — 2026-09-17
 ### Fixed — Setlist-Level Metadata Preservation (Key, Capo, Planned Duration) on Official Saves
 - **Setlist Metadata Preservation (`page.tsx`, `SetlistAdminModal.tsx`)**:

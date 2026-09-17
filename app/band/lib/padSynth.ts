@@ -1,5 +1,5 @@
 // app/band/lib/padSynth.ts
-// Ambient worship pad audio playback engine with 3-second smooth fade-in / crossfade and 3-second fade-out
+// Ambient worship pad dual-deck audio engine with deterministic 3.0s fade-in, crossfade, and fade-out.
 
 export const PAD_AUDIO_FILES: Record<string, string> = {
   'C': '/audio/pads/C.mp3',
@@ -22,29 +22,57 @@ export const PAD_AUDIO_FILES: Record<string, string> = {
 };
 
 export class AmbientPadPlayer {
-  private currentAudio: HTMLAudioElement | null = null;
+  // Dual-deck architecture to guarantee zero ghost audio and prevent mobile decoder exhaustion
+  private deckA: HTMLAudioElement | null = null;
+  private deckB: HTMLAudioElement | null = null;
+  private activeDeckName: 'A' | 'B' = 'A';
+
   private currentKey: string = 'C';
-  private volume: number = 0.85;
-  private fadeTimer: any = null;
+  private masterVolume: number = 0.85;
+
   private isPlaying: boolean = false;
   private isFadingOut: boolean = false;
+
+  private fadeTimer: any = null;
   private requestId: number = 0;
-  private allActiveAudios: Set<HTMLAudioElement> = new Set();
+
   private onStateChange?: (isPlaying: boolean, key: string, isFadingOut: boolean) => void;
 
   constructor(onStateChange?: (isPlaying: boolean, key: string, isFadingOut: boolean) => void) {
     this.onStateChange = onStateChange;
+    this.initDecks();
+  }
+
+  private initDecks() {
+    if (typeof window === 'undefined') return;
+    try {
+      if (!this.deckA) {
+        this.deckA = new Audio();
+        this.deckA.loop = true;
+        this.deckA.volume = 0;
+        (this.deckA as any).playsInline = true;
+      }
+      if (!this.deckB) {
+        this.deckB = new Audio();
+        this.deckB.loop = true;
+        this.deckB.volume = 0;
+        (this.deckB as any).playsInline = true;
+      }
+    } catch (e) {
+      console.error('Failed to initialize pad decks:', e);
+    }
   }
 
   public setVolume(vol: number) {
-    this.volume = Math.max(0, Math.min(1, vol));
-    if (this.currentAudio && !this.isFadingOut) {
-      this.currentAudio.volume = this.volume;
+    this.masterVolume = Math.max(0, Math.min(1, vol));
+    const activeDeck = this.getActiveDeck();
+    if (activeDeck && this.isPlaying && !this.isFadingOut && !this.fadeTimer) {
+      activeDeck.volume = this.masterVolume;
     }
   }
 
   public getVolume(): number {
-    return this.volume;
+    return this.masterVolume;
   }
 
   public getKey(): string {
@@ -66,10 +94,19 @@ export class AmbientPadPlayer {
     return this.isFadingOut;
   }
 
+  private getActiveDeck(): HTMLAudioElement | null {
+    return this.activeDeckName === 'A' ? this.deckA : this.deckB;
+  }
+
   public toggle(key?: string) {
-    if (this.isPlaying) {
-      this.stop();
+    if (this.isFadingOut) {
+      // User tapped stop again while fading out -> IMMEDIATE HARD CUT
+      this.stop(true);
+    } else if (this.isPlaying) {
+      // Normal stop with 3s fade
+      this.stop(false);
     } else {
+      // Start playing with 3s fade
       this.play(key || this.currentKey);
     }
   }
@@ -78,7 +115,11 @@ export class AmbientPadPlayer {
     const rootKey = keyName.replace('m', '');
     const path = PAD_AUDIO_FILES[rootKey] || '/audio/pads/C.mp3';
 
-    // Increment request token to invalidate any prior pending play/fade operations
+    if (!this.deckA || !this.deckB) {
+      this.initDecks();
+    }
+    if (!this.deckA || !this.deckB) return;
+
     this.requestId++;
     const thisReq = this.requestId;
 
@@ -87,79 +128,92 @@ export class AmbientPadPlayer {
       this.fadeTimer = null;
     }
 
+    const wasPlaying = this.isPlaying;
+    const oldActiveDeck = this.getActiveDeck();
+
+    // Switch active deck if we were already playing to crossfade
+    if (wasPlaying && oldActiveDeck) {
+      this.activeDeckName = this.activeDeckName === 'A' ? 'B' : 'A';
+    }
+
+    const incomingDeck = this.getActiveDeck();
+    const outgoingDeck = wasPlaying ? oldActiveDeck : null;
+
+    if (!incomingDeck) return;
+
     this.currentKey = rootKey;
     this.isPlaying = true;
     this.isFadingOut = false;
-    if (this.onStateChange) this.onStateChange(true, this.currentKey, false);
+    if (this.onStateChange) {
+      this.onStateChange(true, this.currentKey, false);
+    }
 
-    const oldAudios = Array.from(this.allActiveAudios);
-    const newAudio = new Audio(path);
-    newAudio.loop = true;
-    newAudio.volume = 0;
-    this.allActiveAudios.add(newAudio);
+    // Configure incoming deck
+    incomingDeck.src = path;
+    incomingDeck.loop = true;
+    incomingDeck.volume = 0;
+    incomingDeck.currentTime = 0;
 
-    // Safari / iOS loop fallback
-    newAudio.addEventListener('ended', () => {
-      newAudio.currentTime = 0;
-      newAudio.play().catch(() => {});
-    });
-
-    newAudio
-      .play()
-      .then(() => {
-        // If a subsequent stop() or play() was triggered while audio was loading/playing, immediately abort
-        if (thisReq !== this.requestId || !this.isPlaying) {
-          newAudio.pause();
-          newAudio.src = '';
-          this.allActiveAudios.delete(newAudio);
-          return;
-        }
-
-        this.currentAudio = newAudio;
-
-        // Smooth 3.0-second fade in & crossfade (60 steps @ 50ms)
-        let step = 0;
-        const totalSteps = 60;
-        const intervalMs = 50;
-
-        this.fadeTimer = setInterval(() => {
+    const playPromise = incomingDeck.play();
+    if (playPromise !== undefined) {
+      playPromise
+        .then(() => {
           if (thisReq !== this.requestId) {
-            clearInterval(this.fadeTimer);
-            this.fadeTimer = null;
+            incomingDeck.pause();
+            incomingDeck.currentTime = 0;
+            incomingDeck.volume = 0;
             return;
           }
 
-          step++;
-          const progress = Math.min(1, step / totalSteps);
-          newAudio.volume = Math.min(this.volume, this.volume * progress);
+          // 3.0-second fade in (60 steps @ 50ms)
+          let step = 0;
+          const totalSteps = 60;
+          const intervalMs = 50;
+          const targetVol = this.masterVolume;
+          const outgoingStartVol = outgoingDeck ? outgoingDeck.volume : 0;
 
-          // Fade out all previous audios
-          oldAudios.forEach((oa) => {
-            if (!oa.paused) {
-              oa.volume = Math.max(0, this.volume * (1 - progress));
+          this.fadeTimer = setInterval(() => {
+            if (thisReq !== this.requestId) {
+              clearInterval(this.fadeTimer);
+              this.fadeTimer = null;
+              return;
             }
-          });
 
-          if (step >= totalSteps) {
-            clearInterval(this.fadeTimer);
-            this.fadeTimer = null;
-            newAudio.volume = this.volume;
+            step++;
+            const progress = Math.min(1, step / totalSteps);
 
-            oldAudios.forEach((oa) => {
-              oa.pause();
-              oa.src = '';
-              this.allActiveAudios.delete(oa);
-            });
+            // Ramp incoming deck up
+            incomingDeck.volume = Math.min(targetVol, targetVol * progress);
+
+            // Ramp outgoing deck down if active
+            if (outgoingDeck && !outgoingDeck.paused) {
+              outgoingDeck.volume = Math.max(0, outgoingStartVol * (1 - progress));
+            }
+
+            if (step >= totalSteps) {
+              clearInterval(this.fadeTimer);
+              this.fadeTimer = null;
+
+              incomingDeck.volume = targetVol;
+              if (outgoingDeck) {
+                outgoingDeck.pause();
+                outgoingDeck.currentTime = 0;
+                outgoingDeck.volume = 0;
+              }
+            }
+          }, intervalMs);
+        })
+        .catch((err) => {
+          console.error('Ambient pad play error:', err);
+          if (thisReq === this.requestId) {
+            this.isPlaying = false;
+            this.isFadingOut = false;
+            if (this.onStateChange) {
+              this.onStateChange(false, this.currentKey, false);
+            }
           }
-        }, intervalMs);
-      })
-      .catch(() => {
-        this.allActiveAudios.delete(newAudio);
-        if (thisReq === this.requestId) {
-          this.isPlaying = false;
-          if (this.onStateChange) this.onStateChange(false, this.currentKey, false);
-        }
-      });
+        });
+    }
   }
 
   public stop(immediate: boolean = false) {
@@ -171,27 +225,41 @@ export class AmbientPadPlayer {
       this.fadeTimer = null;
     }
 
-    if (immediate || this.allActiveAudios.size === 0) {
-      this.allActiveAudios.forEach((a) => {
-        a.pause();
-        a.src = '';
-      });
-      this.allActiveAudios.clear();
-      this.currentAudio = null;
+    const deckA = this.deckA;
+    const deckB = this.deckB;
+
+    if (immediate || (!this.isPlaying && !this.isFadingOut)) {
+      // Immediate hard stop: kill all sound instantly
+      if (deckA) {
+        deckA.pause();
+        deckA.currentTime = 0;
+        deckA.volume = 0;
+      }
+      if (deckB) {
+        deckB.pause();
+        deckB.currentTime = 0;
+        deckB.volume = 0;
+      }
       this.isPlaying = false;
       this.isFadingOut = false;
-      if (this.onStateChange) this.onStateChange(false, this.currentKey, false);
+      if (this.onStateChange) {
+        this.onStateChange(false, this.currentKey, false);
+      }
       return;
     }
 
+    // 3.0-second smooth fade out
     this.isPlaying = false;
     this.isFadingOut = true;
-    if (this.onStateChange) this.onStateChange(false, this.currentKey, true);
+    if (this.onStateChange) {
+      this.onStateChange(false, this.currentKey, true);
+    }
 
-    const audiosToFade = Array.from(this.allActiveAudios);
-    const initialVols = audiosToFade.map((a) => a.volume);
+    const activeAudios = [deckA, deckB].filter((d): d is HTMLAudioElement => !!d && !d.paused);
+    const startVols = activeAudios.map((a) => a.volume);
+
     let step = 0;
-    const totalSteps = 60; // 3.0s fade out
+    const totalSteps = 60; // 3.0s @ 50ms
     const intervalMs = 50;
 
     this.fadeTimer = setInterval(() => {
@@ -204,23 +272,24 @@ export class AmbientPadPlayer {
       step++;
       const progress = Math.min(1, step / totalSteps);
 
-      audiosToFade.forEach((a, idx) => {
-        a.volume = Math.max(0, initialVols[idx] * (1 - progress));
+      activeAudios.forEach((audio, idx) => {
+        audio.volume = Math.max(0, startVols[idx] * (1 - progress));
       });
 
       if (step >= totalSteps) {
         clearInterval(this.fadeTimer);
         this.fadeTimer = null;
 
-        audiosToFade.forEach((a) => {
-          a.pause();
-          a.src = '';
-          this.allActiveAudios.delete(a);
+        activeAudios.forEach((audio) => {
+          audio.pause();
+          audio.currentTime = 0;
+          audio.volume = 0;
         });
 
-        this.currentAudio = null;
         this.isFadingOut = false;
-        if (this.onStateChange) this.onStateChange(false, this.currentKey, false);
+        if (this.onStateChange) {
+          this.onStateChange(false, this.currentKey, false);
+        }
       }
     }, intervalMs);
   }

@@ -122,7 +122,7 @@ export const AmbientPadModal: React.FC<AmbientPadModalProps> = ({
                 cursor: 'pointer',
               }}
             >
-              {isFadingOut ? '⏹ Fading Out...' : isPlaying ? '⏹ Stop (3s Fade)' : '▶ Play (3s Fade)'}
+              {isFadingOut ? '⏹ Stop Now (Cut)' : isPlaying ? '⏹ Stop (3s Fade)' : '▶ Play (3s Fade)'}
             </button>
           </div>
 
@@ -146,7 +146,7 @@ export const AmbientPadModal: React.FC<AmbientPadModalProps> = ({
           {/* 12-Key Pad Matrix */}
           <div>
             <div style={{ fontSize: '12px', fontWeight: 700, color: '#94a3b8', marginBottom: '8px' }}>
-              SELECT KEY TO CROSSFADE
+              {isPlaying ? 'SELECT KEY TO CROSSFADE (3s)' : 'SELECT KEY (Press Play to Start)'}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
               {ENHARMONIC_KEYS.map((k) => {
@@ -159,7 +159,6 @@ export const AmbientPadModal: React.FC<AmbientPadModalProps> = ({
                         onPlayPad(k.key);
                       } else {
                         if (onSelectKey) onSelectKey(k.key);
-                        else onPlayPad(k.key);
                       }
                     }}
                     style={{
