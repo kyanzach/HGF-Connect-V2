@@ -5,6 +5,17 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.55.10] — 2026-09-17
+### Fixed — Persistent Band User Login Across Page Refreshes & Seamless NextAuth Auto-Link
+- **Band Musician Login Persistence (`app/band/page.tsx`)**:
+  - Persisted the active band user (`BandUser`) to `localStorage` (`hgf_band_current_user`), preventing the top-bar button from resetting to `👤 Login` and forgetting the user's role, permissions, and musician identity upon browser refresh or page reload.
+  - Automatically restores saved session state on mount without UI flicker or hydration mismatch.
+  - Added background revalidation with `/api/worship/users` to ensure display names, assigned instruments, and MD/Admin permissions remain updated if modified on the server.
+- **Church Account NextAuth Auto-Link (`app/band/page.tsx`)**:
+  - Integrated `useSession()` so logged-in church members (e.g. `Ryan (Admin)`) automatically match their band musician profile without being forced to re-type username and password on the band stage page.
+  - Added explicit logout tracking (`hgf_band_explicit_logout`) so manual logouts are respected and won't unexpectedly re-auto-authenticate the user against their wishes.
+  - Ensured Live Drawing, Personal Scratchpad notes, and MD Key permissions remain instantly unlocked across all device reloads.
+
 ## [v2.55.9] — 2026-09-17
 ### Fixed — Instant 1-Tap Auto-Scroll Pacing on Any Song & Continuous Time Accumulator
 - **Instant Default 4:00 Duration Fallback (`page.tsx`, `AutoScrollBar.tsx`, `SongSheet.tsx`)**:

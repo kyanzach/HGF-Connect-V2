@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import ConfirmModal from '@/components/ConfirmModal';
 import { useSetlist } from './hooks/useSetlist';
 import { useMusicTheory } from './hooks/useMusicTheory';
@@ -158,8 +159,115 @@ export default function BandStagePage() {
     };
   }, []);
 
-  // Musician State
+  // Musician State & Storage Keys
+  const STORAGE_BAND_USER = 'hgf_band_current_user';
+  const STORAGE_BAND_EXPLICIT_LOGOUT = 'hgf_band_explicit_logout';
+
+  const { data: session } = useSession();
   const [currentUser, setCurrentUser] = useState<BandUser | null>(null);
+
+  // 1. Restore saved band user from localStorage on mount & silently refresh against API
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_BAND_USER);
+      if (saved) {
+        const parsed: BandUser = JSON.parse(saved);
+        if (parsed && parsed.id && parsed.username) {
+          setCurrentUser(parsed);
+
+          // Silently revalidate against server in background
+          fetch('/api/worship/users')
+            .then((res) => res.json())
+            .then((data) => {
+              const list: BandUser[] = data.users || (Array.isArray(data) ? data : []);
+              const fresh = list.find((u) => u.id === parsed.id || u.username.toLowerCase() === parsed.username.toLowerCase());
+              if (fresh) {
+                setCurrentUser(fresh);
+                localStorage.setItem(STORAGE_BAND_USER, JSON.stringify(fresh));
+              }
+            })
+            .catch(() => {});
+          return;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to parse saved band user:', e);
+    }
+  }, []);
+
+  // 2. Auto-link with NextAuth church account if no band user is logged in
+  useEffect(() => {
+    if (currentUser) return;
+    const isExplicitLogout = typeof window !== 'undefined' && localStorage.getItem(STORAGE_BAND_EXPLICIT_LOGOUT) === '1';
+    if (isExplicitLogout) return;
+
+    if (session?.user) {
+      const matchUsername = ((session.user as any).username || '').toLowerCase();
+      const matchFirstName = (((session.user as any).firstName || session.user.name || '').split(' ')[0] || '').toLowerCase();
+      const isAdmin = (session.user as any).role === 'admin';
+
+      fetch('/api/worship/users')
+        .then((res) => res.json())
+        .then((data) => {
+          const list: BandUser[] = data.users || (Array.isArray(data) ? data : []);
+          if (!list || list.length === 0) return;
+
+          let matched = list.find((u) => u.username.toLowerCase() === matchUsername);
+          if (!matched && matchFirstName) {
+            matched = list.find((u) => u.displayName.toLowerCase().includes(matchFirstName) || u.username.toLowerCase() === matchFirstName);
+          }
+          if (!matched && isAdmin) {
+            matched = list.find((u) => u.username === 'ryan' || u.role === 'admin');
+          }
+
+          if (matched) {
+            setCurrentUser(matched);
+            try {
+              localStorage.setItem(STORAGE_BAND_USER, JSON.stringify(matched));
+            } catch (_) {}
+          }
+        })
+        .catch(() => {});
+    }
+  }, [session, currentUser]);
+
+  const handleSelectUser = (user: BandUser) => {
+    setCurrentUser(user);
+    try {
+      localStorage.setItem(STORAGE_BAND_USER, JSON.stringify(user));
+      localStorage.removeItem(STORAGE_BAND_EXPLICIT_LOGOUT);
+    } catch (e) {
+      console.error('Failed to save band user:', e);
+    }
+  };
+
+  const handleLogoutUser = () => {
+    setCurrentUser(null);
+    try {
+      localStorage.removeItem(STORAGE_BAND_USER);
+      localStorage.setItem(STORAGE_BAND_EXPLICIT_LOGOUT, '1');
+    } catch (e) {
+      console.error('Failed to remove band user:', e);
+    }
+    resetAllSessionOverrides();
+    resetTranspose();
+  };
+
+  const handleUserUpdated = () => {
+    refreshData();
+    if (currentUser) {
+      fetch('/api/worship/users')
+        .then((res) => res.json())
+        .then((data) => {
+          const list: BandUser[] = data.users || (Array.isArray(data) ? data : []);
+          const fresh = list.find((u) => u.id === currentUser.id);
+          if (fresh) {
+            handleSelectUser(fresh);
+          }
+        })
+        .catch(() => {});
+    }
+  };
   const [fontSizePx, setFontSizePx] = useState<number>(17);
   const [isAutoScrolling, setIsAutoScrolling] = useState<boolean>(false);
   const [autoScrollSpeed, setAutoScrollSpeed] = useState<number>(3);
@@ -702,12 +810,8 @@ export default function BandStagePage() {
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         currentUser={currentUser}
-        onSelectUser={setCurrentUser}
-        onLogout={() => {
-          setCurrentUser(null);
-          resetAllSessionOverrides();
-          resetTranspose();
-        }}
+        onSelectUser={handleSelectUser}
+        onLogout={handleLogoutUser}
         onOpenAdminModal={() => setIsBandAdminOpen(true)}
       />
 
@@ -715,7 +819,7 @@ export default function BandStagePage() {
         isOpen={isBandAdminOpen}
         onClose={() => setIsBandAdminOpen(false)}
         currentUser={currentUser}
-        onUserUpdated={refreshData}
+        onUserUpdated={handleUserUpdated}
       />
 
       <MetronomeModal
