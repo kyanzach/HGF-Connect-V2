@@ -206,15 +206,13 @@ export default function BandStagePage() {
     selectSong(newSong.id);
   };
 
-  // Planned arrangement duration in seconds
-  const targetDurationSec = parseDurationToSec(currentSong?.duration);
+  // Planned arrangement duration in seconds (defaults to standard 4:00 if not yet explicitly saved on song)
+  const currentSongDuration = currentSong?.duration || '4:00';
+  const targetDurationSec = parseDurationToSec(currentSongDuration) || 240;
 
-  // Reset elapsed timer and sync scrollMode when currentSong changes
+  // Reset elapsed timer when currentSong changes
   useEffect(() => {
     setElapsedScrollSeconds(0);
-    if (currentSong?.duration && parseDurationToSec(currentSong.duration) > 0) {
-      setScrollMode('duration');
-    }
   }, [currentSong?.id]);
 
   // Sync tempo and time signature when currentSong changes
@@ -517,7 +515,7 @@ export default function BandStagePage() {
         onSwipeRight={prevSong}
         isSessionOverridden={isCurrentSongSessionOverridden}
         worshipLeaderKey={activeSongMdDefaults?.key}
-        plannedDuration={currentSong?.duration}
+        plannedDuration={currentSongDuration}
         onOpenDurationPicker={() => setIsDurationModalOpen(true)}
         scrollMode={scrollMode}
         elapsedScrollSeconds={elapsedScrollSeconds}
@@ -561,7 +559,7 @@ export default function BandStagePage() {
         onOpenMetronome={() => setIsMetronomeModalOpen(true)}
         isMetronomeAudioActive={isMetronomeAudioActive}
         hasPlaybackDock={hasAudio}
-        duration={currentSong?.duration}
+        duration={currentSongDuration}
         onOpenDurationPicker={() => setIsDurationModalOpen(true)}
       />
 
@@ -579,7 +577,7 @@ export default function BandStagePage() {
         hasPlaybackDock={hasAudio}
         scrollMode={scrollMode}
         onToggleScrollMode={() => setScrollMode((prev) => (prev === 'duration' ? 'speed' : 'duration'))}
-        duration={currentSong?.duration}
+        duration={currentSongDuration}
         elapsedSeconds={elapsedScrollSeconds}
         targetDurationSec={targetDurationSec}
         onOpenDurationPicker={() => setIsDurationModalOpen(true)}

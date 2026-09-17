@@ -168,7 +168,7 @@ export const AutoScrollBar: React.FC<AutoScrollBarProps> = ({
             }}
           >
             <span style={{ fontSize: '12px', fontWeight: 800, color: isPlaying ? '#10b981' : '#e2e8f0', fontFamily: 'monospace' }}>
-              {isPlaying ? `${displayElapsed} / ` : ''}{displayTarget}
+              {displayElapsed} / {displayTarget}
             </span>
             <span style={{ fontSize: '10px', color: '#4EB1CB' }}>✏️</span>
           </div>

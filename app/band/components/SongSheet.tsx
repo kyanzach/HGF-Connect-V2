@@ -67,29 +67,37 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
   const scrollPosRef = useRef<number>(0);
+  const elapsedMsRef = useRef<number>(0);
   const lastReportedSecRef = useRef<number>(-1);
 
-  // Sync scrollPosRef on mount or song change
+  const effectiveTargetSec = targetDurationSec > 0 ? targetDurationSec : 240;
+  const totalMs = effectiveTargetSec * 1000;
+
+  // Sync scrollPosRef & elapsedMs on mount or song change
   useEffect(() => {
     if (containerRef.current) {
-      scrollPosRef.current = containerRef.current.scrollTop;
+      containerRef.current.scrollTop = 0;
+      scrollPosRef.current = 0;
     }
+    elapsedMsRef.current = 0;
+    lastReportedSecRef.current = 0;
+    onUpdateElapsed?.(0);
   }, [song?.id]);
 
   // Handle user manual scroll: update scrollPosRef and sync elapsed timer
   const handleScroll = () => {
     if (!containerRef.current) return;
     const currentScroll = containerRef.current.scrollTop;
-    // If difference is large enough, user manually intervened
     if (Math.abs(currentScroll - scrollPosRef.current) > 3) {
       scrollPosRef.current = currentScroll;
       const maxScroll = containerRef.current.scrollHeight - containerRef.current.clientHeight;
-      if (maxScroll > 0 && targetDurationSec > 0) {
-        const currentElapsed = Math.min(targetDurationSec, (currentScroll / maxScroll) * targetDurationSec);
-        const rounded = Math.round(currentElapsed);
-        if (rounded !== lastReportedSecRef.current) {
-          lastReportedSecRef.current = rounded;
-          onUpdateElapsed?.(rounded);
+      if (maxScroll > 0) {
+        const ratio = Math.min(1, Math.max(0, currentScroll / maxScroll));
+        elapsedMsRef.current = ratio * totalMs;
+        const currentSec = Math.floor(elapsedMsRef.current / 1000);
+        if (currentSec !== lastReportedSecRef.current) {
+          lastReportedSecRef.current = currentSec;
+          onUpdateElapsed?.(currentSec);
         }
       }
     }
@@ -111,16 +119,20 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   useEffect(() => {
     if (!isAutoScrolling || playbackState?.isPlaying || !containerRef.current) return;
     const container = containerRef.current;
+    const maxScroll = container.scrollHeight - container.clientHeight;
 
     // If starting at the very bottom, restart smoothly from top
-    const initialMax = container.scrollHeight - container.clientHeight;
-    if (initialMax > 0 && container.scrollTop >= initialMax - 4) {
+    if (maxScroll > 0 && container.scrollTop >= maxScroll - 4) {
       container.scrollTop = 0;
       scrollPosRef.current = 0;
+      elapsedMsRef.current = 0;
       lastReportedSecRef.current = 0;
       onUpdateElapsed?.(0);
     } else {
       scrollPosRef.current = container.scrollTop;
+      if (maxScroll > 0) {
+        elapsedMsRef.current = (container.scrollTop / maxScroll) * totalMs;
+      }
     }
 
     let animId: number;
@@ -132,38 +144,47 @@ export const SongSheet: React.FC<SongSheetProps> = ({
 
       if (containerRef.current) {
         const el = containerRef.current;
-        const maxScroll = el.scrollHeight - el.clientHeight;
+        const currentMaxScroll = el.scrollHeight - el.clientHeight;
 
-        if (maxScroll > 0) {
-          let scrollDelta = 0;
+        if (scrollMode === 'duration') {
+          // Duration mode: advance elapsedMs continuously by dt
+          elapsedMsRef.current = Math.min(totalMs, elapsedMsRef.current + dt);
 
-          if (scrollMode === 'duration' && targetDurationSec > 0) {
-            // Traverse maxScroll smoothly over targetDurationSec seconds
-            const totalMs = targetDurationSec * 1000;
-            scrollDelta = (dt / totalMs) * maxScroll;
-          } else {
-            // Speed mode (1x to 10x): speed 1 = ~18px/s, speed 3 = ~54px/s, speed 10 = ~180px/s
-            const pxPerSec = Math.max(12, (scrollSpeed || 3) * 18);
-            scrollDelta = (dt / 1000) * pxPerSec;
+          if (currentMaxScroll > 0) {
+            const ratio = elapsedMsRef.current / totalMs;
+            scrollPosRef.current = ratio * currentMaxScroll;
+            el.scrollTop = scrollPosRef.current;
           }
 
-          scrollPosRef.current = Math.min(maxScroll, scrollPosRef.current + scrollDelta);
-          el.scrollTop = scrollPosRef.current;
-
-          // Track elapsed time for UI timer and progress bar
-          if (targetDurationSec > 0) {
-            const currentElapsed = Math.min(targetDurationSec, (scrollPosRef.current / maxScroll) * targetDurationSec);
-            const floored = Math.floor(currentElapsed);
-            if (floored !== lastReportedSecRef.current) {
-              lastReportedSecRef.current = floored;
-              onUpdateElapsed?.(floored);
-            }
+          // Report whole-second progression to UI
+          const currentSec = Math.floor(elapsedMsRef.current / 1000);
+          if (currentSec !== lastReportedSecRef.current) {
+            lastReportedSecRef.current = currentSec;
+            onUpdateElapsed?.(currentSec);
           }
 
-          // Check if reached bottom
-          if (scrollPosRef.current >= maxScroll - 0.5) {
+          if (elapsedMsRef.current >= totalMs) {
             onAutoScrollComplete?.();
             return;
+          }
+        } else {
+          // Speed mode: scroll by constant pixels
+          if (currentMaxScroll > 0) {
+            const pxPerSec = Math.max(12, (scrollSpeed || 3) * 18);
+            scrollPosRef.current = Math.min(currentMaxScroll, scrollPosRef.current + (dt / 1000) * pxPerSec);
+            el.scrollTop = scrollPosRef.current;
+
+            elapsedMsRef.current = (scrollPosRef.current / currentMaxScroll) * totalMs;
+            const currentSec = Math.floor(elapsedMsRef.current / 1000);
+            if (currentSec !== lastReportedSecRef.current) {
+              lastReportedSecRef.current = currentSec;
+              onUpdateElapsed?.(currentSec);
+            }
+
+            if (scrollPosRef.current >= currentMaxScroll - 1) {
+              onAutoScrollComplete?.();
+              return;
+            }
           }
         }
       }
@@ -178,7 +199,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     scrollSpeed,
     playbackState?.isPlaying,
     scrollMode,
-    targetDurationSec,
+    totalMs,
     onUpdateElapsed,
     onAutoScrollComplete,
   ]);

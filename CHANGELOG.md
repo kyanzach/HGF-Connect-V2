@@ -5,6 +5,15 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.55.9] — 2026-09-17
+### Fixed — Instant 1-Tap Auto-Scroll Pacing on Any Song & Continuous Time Accumulator
+- **Instant Default 4:00 Duration Fallback (`page.tsx`, `AutoScrollBar.tsx`, `SongSheet.tsx`)**:
+  - Eliminated the requirement to manually touch steppers or open the modal before auto-scroll pacing works on uncalibrated songs.
+  - Songs without a saved duration now immediately fallback to a standard `4:00` (240s) arrangement duration, enabling 1-tap auto-scroll pacing right out of the gate.
+- **Continuous Millisecond Time Accumulator (`SongSheet.tsx`)**:
+  - Replaced scroll-derived elapsed timing with frame-by-frame delta accumulator (`elapsedMsRef.current`), guaranteeing that the stopwatch timer begins ticking `0:00 → 0:01 → 0:02` immediately upon pressing Play on any song.
+  - Aligned the control dock time pill to consistently display `[elapsed] / [target]` (e.g. `0:00 / 4:00`) before, during, and after playback.
+
 ## [v2.55.8] — 2026-09-17
 ### Fixed & Enhanced — 60fps/120fps Silky Smooth Teleprompter Auto-Scroll
 - **Fluid Subpixel Animation Engine (`SongSheet.tsx`)**:
