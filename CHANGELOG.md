@@ -5,6 +5,21 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.54.0] — 2026-09-17
+### Added & Architected — Modern Next.js 16 + React 19 + TypeScript App Router for THE BAND
+- **Next.js Modular Architecture for Stage Tool (`/band`)**:
+  - Decomposed the 8,000-line vanilla HTML/JS monolith (`public/thebandtool.html`) into 26 strongly typed React components and pure TypeScript modules under `app/band/`.
+  - Created pure TypeScript music theory engine (`app/band/lib/musicTheory.ts`) with slash chords (`G/B`), enharmonics (`F# / Gb`), and ChordPro bracket parsing with 100% test coverage.
+  - Implemented Web Audio engines (`metronomeEngine.ts`, `padSynth.ts`) and offline IndexedDB caching (`offlineStorage.ts`) for stage performance resilience.
+  - Built dedicated React hooks: `useMusicTheory`, `useMetronome`, `useAmbientPad`, `useSetlist`, `useAudioPlayback`, and `useFootPedal`.
+  - Built modular UI components: `StageTopBar`, `SongSheet`, `SetlistSidebar`, `DrawingCanvas`, `AudioPlaybackDock`, and `NavigationDock`.
+  - Cleanly encapsulated all modals: `SongEditorModal`, `KeyPickerModal`, `AmbientPadModal`, `AudioStorageModal`, `SetlistAdminModal`, `ScratchpadModal`, and `BandAuthModal`.
+- **Mobile Store & Native Deployment Ready**:
+  - Prepared architecture for native iOS App Store (.ipa) and Google Play Store (.aab) packaging via Capacitor / Expo per the platform transition strategy.
+  - Configured safe-area notch insets, mobile touch swipe gestures, and viewport controls.
+- **Zero-Downtime Routing**:
+  - Maintained `public/thebandtool.html` intact for backward compatibility while routing `/band`, `/chords`, `/theband`, and `/musician` to the Next.js App Router application.
+
 ## [v2.53.19] — 2026-09-16
 ### Fixed — Topbar BPM Badge Rendering, Dynamic Tempo Binding, and Stage Button Spacing
 - **Topbar BPM Metronome Badge Fix**:

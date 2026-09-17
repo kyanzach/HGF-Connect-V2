@@ -61,27 +61,22 @@ const nextConfig = {
       // Musician / Chords tool shortlinks
       {
         source: "/chords",
-        destination: "/thebandtool.html",
-        permanent: false,
-      },
-      {
-        source: "/band",
-        destination: "/thebandtool.html",
+        destination: "/band",
         permanent: false,
       },
       {
         source: "/theband",
-        destination: "/thebandtool.html",
+        destination: "/band",
         permanent: false,
       },
       {
         source: "/musician",
-        destination: "/thebandtool.html",
+        destination: "/band",
         permanent: false,
       },
       {
         source: "/themusician",
-        destination: "/thebandtool.html",
+        destination: "/band",
         permanent: false,
       },
       // Word tool shortlinks
