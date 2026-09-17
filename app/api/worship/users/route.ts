@@ -162,15 +162,37 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Invalid username or password' }, { status: 401 });
       }
 
-      return NextResponse.json({
+      const safeUser = {
+        id: match.id,
+        username: match.username,
+        displayName: match.displayName || match.username,
+        role: match.role,
+      };
+
+      const res = NextResponse.json({
         ok: true,
-        user: {
-          id: match.id,
-          username: match.username,
-          displayName: match.displayName || match.username,
-          role: match.role,
-        },
+        user: safeUser,
       });
+
+      // 10-year persistent cookie for permanent login per device
+      res.cookies.set('hgf_band_user', encodeURIComponent(JSON.stringify(safeUser)), {
+        path: '/',
+        maxAge: 365 * 24 * 60 * 60 * 10,
+        sameSite: 'lax',
+      });
+
+      return res;
+    }
+
+    // 1b. LOGOUT
+    if (action === 'logout') {
+      const res = NextResponse.json({ ok: true });
+      res.cookies.set('hgf_band_user', '', {
+        path: '/',
+        maxAge: 0,
+        sameSite: 'lax',
+      });
+      return res;
     }
 
     // 2. CREATE USER

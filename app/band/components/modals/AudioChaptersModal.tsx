@@ -8,11 +8,12 @@ interface AudioChaptersModalProps {
   isOpen: boolean;
   onClose: () => void;
   markers: AudioMarker[];
-  onSaveMarkers: (markers: AudioMarker[]) => void;
+  onSaveMarkers: (markers: AudioMarker[]) => Promise<void> | void;
   currentTime: number;
   duration: number;
   onSeek: (time: number) => void;
   songTitle?: string;
+  isBandAdmin?: boolean;
 }
 
 function formatSec(sec: number): string {
@@ -56,8 +57,10 @@ export const AudioChaptersModal: React.FC<AudioChaptersModalProps> = ({
   duration,
   onSeek,
   songTitle = 'Song',
+  isBandAdmin = true,
 }) => {
   const [items, setItems] = useState<{ id: string; label: string; timeStr: string; time: number }[]>([]);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -117,17 +120,24 @@ export const AudioChaptersModal: React.FC<AudioChaptersModalProps> = ({
     setItems((prev) => prev.filter((item) => item.id !== id));
   };
 
-  const handleSave = () => {
-    const cleaned: AudioMarker[] = items
-      .map((item) => ({
-        id: item.id,
-        label: item.label.trim() || 'Section',
-        time: parseSec(item.timeStr),
-      }))
-      .sort((a, b) => a.time - b.time);
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const cleaned: AudioMarker[] = items
+        .map((item) => ({
+          id: item.id,
+          label: item.label.trim() || 'Section',
+          time: parseSec(item.timeStr),
+        }))
+        .sort((a, b) => a.time - b.time);
 
-    onSaveMarkers(cleaned);
-    onClose();
+      await onSaveMarkers(cleaned);
+      onClose();
+    } catch (err) {
+      console.error('Failed to save audio markers:', err);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -176,9 +186,14 @@ export const AudioChaptersModal: React.FC<AudioChaptersModalProps> = ({
             <div style={{ fontWeight: 800, fontSize: '15px', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span>🎵</span>
               <span>Audio Chapter Timings & Cues</span>
+              {isBandAdmin && (
+                <span style={{ fontSize: '10px', fontWeight: 800, color: '#f59e0b', background: 'rgba(245, 158, 11, 0.15)', border: '1px solid rgba(245, 158, 11, 0.35)', padding: '2px 6px', borderRadius: '6px', letterSpacing: '0.04em' }}>
+                  ADMIN / MD
+                </span>
+              )}
             </div>
             <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
-              {songTitle} • Total: {formatSec(duration)}
+              {songTitle} • Total: {formatSec(duration)} • Saves to Church Backtrack Library
             </div>
           </div>
           <button
@@ -399,19 +414,23 @@ export const AudioChaptersModal: React.FC<AudioChaptersModalProps> = ({
           </button>
           <button
             onClick={handleSave}
+            disabled={isSaving}
             style={{
               padding: '8px 20px',
               borderRadius: '8px',
               border: 'none',
-              background: '#38bdf8',
-              color: '#000',
+              background: isSaving ? '#64748b' : '#38bdf8',
+              color: isSaving ? '#cbd5e1' : '#000',
               fontSize: '12px',
               fontWeight: 800,
-              cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(56, 189, 248, 0.3)',
+              cursor: isSaving ? 'not-allowed' : 'pointer',
+              boxShadow: isSaving ? 'none' : '0 4px 12px rgba(56, 189, 248, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
             }}
           >
-            💾 Save Chapters
+            {isSaving ? '⏳ Saving Chapters...' : '💾 Save Chapters'}
           </button>
         </div>
       </div>

@@ -5,6 +5,19 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.55.14] — 2026-09-17
+### Fixed — Audio Timecode Chapter Calibration Server Persistence & Permanent Login Sessions
+- **Audio Backtrack Timecode & Cue Persistence (`page.tsx`, `useSetlist.ts`, `AudioChaptersModal.tsx`)**:
+  - Resolved an architectural bug where saving chapter marker timings in `AudioChaptersModal` while inside an active setlist only targeted the setlist structure and skipped `/api/worship`, causing timecodes to be lost upon page refresh or when checking from another device (phone/tablet).
+  - Updated `handleUpdateMarkers` and `handleAttachTrack` to always persist audio tracks and calibrated timecode chapter markers directly to `/api/worship` (master library song), while keeping the active setlist snapshot in sync.
+  - Updated `useSetlist.ts` (`currentLineup`) to preserve `audioTrack` across both setlists and master song records.
+  - Added async `isSaving` state, Admin/MD indicator badge, and error handling in `AudioChaptersModal.tsx`.
+  - Implemented automatic cross-device sync of previously calibrated chapter markers from local storage to `/api/worship` when an Admin or MD opens the song.
+- **Permanent Login Across Devices (`lib/auth.ts`, `users/route.ts`, `page.tsx`)**:
+  - Configured NextAuth JWT session `maxAge` to 10 years (`315360000` seconds) and set explicit `cookies.sessionToken` attributes so church account logins remain active permanently without expiring.
+  - Implemented dual-storage session persistence for `/band` using both a 10-year persistent HTTP/browser cookie (`hgf_band_user`) and `localStorage`, preventing mobile Safari ITP from dropping musician logins across tab closures or PWA launches.
+  - Enhanced NextAuth auto-link on `/band` to immediately authenticate members upon visiting if an active church session is present, clearing stale explicit logout flags.
+
 ## [v2.55.13] — 2026-09-17
 ### Fixed — Ambient Worship Pad Play Button Event Crash & Safari Audio State
 - **Play Button Event Signature Fix (`AmbientPadModal.tsx`, `padSynth.ts`)**:

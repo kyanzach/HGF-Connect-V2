@@ -19,6 +19,7 @@ export interface AudioTrack {
   markers?: AudioMarker[];
   isLocalOnly?: boolean;
   uploadedAt?: number;
+  updatedAt?: number;
 }
 
 export interface DrawingPoint {
@@ -76,6 +77,7 @@ export interface SetlistSongItem {
   notes?: string;
   chords?: string;
   duration?: string;
+  audioTrack?: AudioTrack | null;
 }
 
 export interface Setlist {

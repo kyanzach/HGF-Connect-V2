@@ -34,6 +34,7 @@ import { AudioChaptersModal } from './components/modals/AudioChaptersModal';
 import { DurationPickerModal } from './components/modals/DurationPickerModal';
 
 import { BandUser, Song, Setlist, AudioTrack, AudioMarker, DrawingStroke } from './types/band';
+import { getCachedAudioMarkers, saveCachedAudioMarkers } from './lib/audioAnalysis';
 
 function parseDurationToSec(dur?: string): number {
   if (!dur) return 0;
@@ -163,17 +164,45 @@ export default function BandStagePage() {
   const STORAGE_BAND_USER = 'hgf_band_current_user';
   const STORAGE_BAND_EXPLICIT_LOGOUT = 'hgf_band_explicit_logout';
 
+  function getBandCookie(name: string): string | null {
+    if (typeof document === 'undefined') return null;
+    const match = document.cookie.match(new RegExp('(^|;\\s*)(' + name + ')=([^;]*)'));
+    return match ? decodeURIComponent(match[3]) : null;
+  }
+
+  function setBandCookie(name: string, value: string, days = 3650) {
+    if (typeof document === 'undefined') return;
+    const maxAge = days * 24 * 60 * 60;
+    document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+  }
+
+  function removeBandCookie(name: string) {
+    if (typeof document === 'undefined') return;
+    document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax`;
+  }
+
   const { data: session } = useSession();
   const [currentUser, setCurrentUser] = useState<BandUser | null>(null);
 
-  // 1. Restore saved band user from localStorage on mount & silently refresh against API
+  // 1. Restore saved band user from localStorage or 10-year persistent cookie on mount & silently refresh against API
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_BAND_USER);
+      let saved = localStorage.getItem(STORAGE_BAND_USER);
+      if (!saved) {
+        // Fallback to 10-year persistent cookie if localStorage was cleared on mobile Safari
+        const cookieVal = getBandCookie('hgf_band_user');
+        if (cookieVal) {
+          saved = cookieVal;
+          try {
+            localStorage.setItem(STORAGE_BAND_USER, cookieVal);
+          } catch (_) {}
+        }
+      }
       if (saved) {
         const parsed: BandUser = JSON.parse(saved);
         if (parsed && parsed.id && parsed.username) {
           setCurrentUser(parsed);
+          setBandCookie('hgf_band_user', JSON.stringify(parsed));
 
           // Silently revalidate against server in background
           fetch('/api/worship/users')
@@ -184,6 +213,7 @@ export default function BandStagePage() {
               if (fresh) {
                 setCurrentUser(fresh);
                 localStorage.setItem(STORAGE_BAND_USER, JSON.stringify(fresh));
+                setBandCookie('hgf_band_user', JSON.stringify(fresh));
               }
             })
             .catch(() => {});
@@ -198,10 +228,12 @@ export default function BandStagePage() {
   // 2. Auto-link with NextAuth church account if no band user is logged in
   useEffect(() => {
     if (currentUser) return;
-    const isExplicitLogout = typeof window !== 'undefined' && localStorage.getItem(STORAGE_BAND_EXPLICIT_LOGOUT) === '1';
-    if (isExplicitLogout) return;
 
     if (session?.user) {
+      // Clear explicit logout flag when user is actively logged into NextAuth church portal
+      localStorage.removeItem(STORAGE_BAND_EXPLICIT_LOGOUT);
+      removeBandCookie('hgf_band_logout');
+
       const matchUsername = ((session.user as any).username || '').toLowerCase();
       const matchFirstName = (((session.user as any).firstName || session.user.name || '').split(' ')[0] || '').toLowerCase();
       const isAdmin = (session.user as any).role === 'admin';
@@ -224,6 +256,7 @@ export default function BandStagePage() {
             setCurrentUser(matched);
             try {
               localStorage.setItem(STORAGE_BAND_USER, JSON.stringify(matched));
+              setBandCookie('hgf_band_user', JSON.stringify(matched));
             } catch (_) {}
           }
         })
@@ -235,7 +268,9 @@ export default function BandStagePage() {
     setCurrentUser(user);
     try {
       localStorage.setItem(STORAGE_BAND_USER, JSON.stringify(user));
+      setBandCookie('hgf_band_user', JSON.stringify(user));
       localStorage.removeItem(STORAGE_BAND_EXPLICIT_LOGOUT);
+      removeBandCookie('hgf_band_logout');
     } catch (e) {
       console.error('Failed to save band user:', e);
     }
@@ -245,7 +280,9 @@ export default function BandStagePage() {
     setCurrentUser(null);
     try {
       localStorage.removeItem(STORAGE_BAND_USER);
+      removeBandCookie('hgf_band_user');
       localStorage.setItem(STORAGE_BAND_EXPLICIT_LOGOUT, '1');
+      setBandCookie('hgf_band_logout', '1', 30);
     } catch (e) {
       console.error('Failed to remove band user:', e);
     }
@@ -473,17 +510,128 @@ export default function BandStagePage() {
 
   const handleAttachTrack = async (audioTrack: AudioTrack | null) => {
     if (!currentSong) return;
-    const updated = { ...currentSong, audioTrack };
-    await handleSaveSong(updated);
+    const updatedSong: Song = {
+      ...currentSong,
+      audioTrack,
+      updatedAt: Date.now(),
+    };
+
+    // 1. Always persist audio track to master library song
+    try {
+      await fetch('/api/worship', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedSong),
+      });
+    } catch (err) {
+      console.error('Failed to attach audio track to master song:', err);
+    }
+
+    // 2. If viewing a setlist, keep setlist song item in sync
+    if (activeSetlist) {
+      const updatedSongs = (activeSetlist.songs || []).map((s) => {
+        const id = typeof s === 'string' ? s : s.id;
+        if (id === currentSong.id) {
+          return {
+            ...(typeof s === 'object' ? s : { id }),
+            audioTrack: audioTrack || undefined,
+          };
+        }
+        return s;
+      });
+      try {
+        await fetch('/api/worship/setlists', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...activeSetlist, songs: updatedSongs }),
+        });
+      } catch (err) {
+        console.error('Failed to attach audio track to setlist:', err);
+      }
+    }
+
+    await refreshData();
   };
 
   const handleUpdateMarkers = async (newMarkers: AudioMarker[]) => {
     if (!currentSong) return;
+
+    // 1. Update player markers immediately
     updateAudioMarkers(newMarkers);
-    const updatedTrack = currentSong.audioTrack ? { ...currentSong.audioTrack, markers: newMarkers } : undefined;
-    const updated = { ...currentSong, audioTrack: updatedTrack };
-    await handleSaveSong(updated);
+    if (currentSong.id) {
+      saveCachedAudioMarkers(currentSong.id, newMarkers);
+    }
+
+    const existingTrack = currentSong.audioTrack || {
+      url: '',
+      markers: [],
+    };
+    const updatedTrack: AudioTrack = {
+      ...existingTrack,
+      markers: newMarkers,
+      updatedAt: Date.now(),
+    };
+    const updatedSong: Song = {
+      ...currentSong,
+      audioTrack: updatedTrack,
+      updatedAt: Date.now(),
+    };
+
+    // 2. Always persist timecodes & cues directly to the master library song file (/api/worship)
+    // This guarantees all band members and devices (including phones) get the calibrated markers
+    try {
+      const res = await fetch('/api/worship', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedSong),
+      });
+      if (!res.ok) {
+        console.error('Failed to save markers to master song library:', await res.text());
+      }
+    } catch (err) {
+      console.error('Error saving markers to /api/worship:', err);
+    }
+
+    // 3. Also update active setlist's snapshot if applicable
+    if (activeSetlist) {
+      const updatedSongs = (activeSetlist.songs || []).map((s) => {
+        const id = typeof s === 'string' ? s : s.id;
+        if (id === currentSong.id) {
+          return {
+            ...(typeof s === 'object' ? s : { id }),
+            audioTrack: updatedTrack,
+          };
+        }
+        return s;
+      });
+      try {
+        await fetch('/api/worship/setlists', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...activeSetlist, songs: updatedSongs }),
+        });
+      } catch (err) {
+        console.error('Error saving markers to active setlist:', err);
+      }
+    }
+
+    // 4. Re-sync in-memory songs and setlists across the workspace
+    await refreshData();
   };
+
+  // Auto-sync previously cached localStorage chapter markers to server if missing in library
+  useEffect(() => {
+    if (!currentSong?.id || !currentSong.audioTrack) return;
+    const isBandAdmin = currentUser?.role === 'admin' || currentUser?.role === 'MD';
+    if (!isBandAdmin) return;
+
+    if (!currentSong.audioTrack.markers || currentSong.audioTrack.markers.length === 0) {
+      const cached = getCachedAudioMarkers(currentSong.id);
+      if (cached && cached.length > 0) {
+        handleUpdateMarkers(cached);
+      }
+    }
+  }, [currentSong?.id, currentSong?.audioTrack?.url, currentUser?.role]);
 
   const handleSaveStrokes = (strokes: DrawingStroke[]) => {
     if (!currentSong) return;
@@ -916,6 +1064,7 @@ export default function BandStagePage() {
         duration={backtrackDuration}
         onSeek={seekBacktrack}
         songTitle={currentSong?.title}
+        isBandAdmin={currentUser?.role === 'admin' || currentUser?.role === 'MD'}
       />
 
       {/* Arrangement Duration Picker Modal */}

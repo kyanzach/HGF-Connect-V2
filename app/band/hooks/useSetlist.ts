@@ -97,6 +97,7 @@ export function useSetlist() {
         const mdTimeSig = typeof item === 'object' && item.timeSignature ? item.timeSignature : found.timeSignature;
         const mdChords = typeof item === 'object' && item.chords ? item.chords : found.chords;
         const mdDuration = typeof item === 'object' && item.duration ? item.duration : found.duration;
+        const mdAudioTrack = typeof item === 'object' && item.audioTrack ? item.audioTrack : found.audioTrack;
 
         // Check if there is an active session override for this setlist
         const override = setlistSessionOverrides[`${activeSetlist.id}_${found.id}`];
@@ -109,6 +110,7 @@ export function useSetlist() {
           tempo: override?.tempo !== undefined ? override.tempo : mdTempo,
           timeSignature: override?.timeSignature || mdTimeSig,
           duration: override?.duration || mdDuration || found.duration,
+          audioTrack: mdAudioTrack || found.audioTrack,
         });
       }
     });
