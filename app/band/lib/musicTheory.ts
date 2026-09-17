@@ -62,12 +62,40 @@ export function getRootNote(str: string): string {
   return m ? m[1].toUpperCase() : 'C';
 }
 
-export function transposeNote(note: string, semitones: number, preferFlats = false): string {
-  if (!(note in NOTE_TO_SEMITONE)) return note;
-  const curr = NOTE_TO_SEMITONE[note];
-  let next = (curr + semitones) % 12;
-  if (next < 0) next += 12;
-  return preferFlats ? CHROMATIC_FLATS[next] : CHROMATIC_SHARPS[next];
+export function transposeNote(note: string, semitones: number, preferFlats: boolean): string {
+  const cleanNote = note.trim();
+  const baseSemi = NOTE_TO_SEMITONE[cleanNote];
+  if (baseSemi === undefined) return note;
+
+  const targetSemi = (baseSemi + semitones + 24) % 12;
+  const scale = preferFlats ? CHROMATIC_FLATS : CHROMATIC_SHARPS;
+  return scale[targetSemi];
+}
+
+export function getDiatonicChordsForKey(key: string): string[] {
+  const root = (key || 'C').replace(/m$/, '');
+  const isMinor = (key || '').endsWith('m');
+  const preferFlats = FLAT_KEYS.includes(key);
+  const scale = preferFlats ? CHROMATIC_FLATS : CHROMATIC_SHARPS;
+  const rootSemi = NOTE_TO_SEMITONE[root] ?? 0;
+
+  const intervals = isMinor ? [0, 2, 3, 5, 7, 8, 10] : [0, 2, 4, 5, 7, 9, 11];
+  const suffixes = isMinor ? ['m', 'dim', '', 'm', 'm', '', ''] : ['', 'm', 'm', '', '', 'm', 'dim'];
+
+  const diatonic: string[] = intervals.map((int, i) => {
+    const note = scale[(rootSemi + int) % 12];
+    return `${note}${suffixes[i]}`;
+  });
+
+  // Add popular worship variations (e.g. Isus4, I2, V/VII, I/III)
+  const I = scale[rootSemi % 12];
+  const IV = scale[(rootSemi + 5) % 12];
+  const V = scale[(rootSemi + 7) % 12];
+  const III = scale[(rootSemi + 4) % 12];
+  const VII = scale[(rootSemi + 11) % 12];
+
+  diatonic.push(`${I}sus4`, `${I}2`, `${V}sus4`, `${I}/${III}`, `${V}/${VII}`);
+  return Array.from(new Set(diatonic));
 }
 
 export function transposeChord(chord: string, semitones: number, preferFlats = false): string {
@@ -96,7 +124,19 @@ export interface SheetLine {
   items?: { text: string; isChord: boolean }[];
 }
 
-const SECTION_REGEX = /^\s*(\[?(Intro|Verse|Chorus|Pre-Chorus|Bridge|Vamp|Tag|Interlude|Outro|Ending|Instrumental|Refrain).*?\]?:?)\s*$/i;
+const SECTION_KEYWORDS = [
+  'intro', 'verse', 'chorus', 'pre-chorus', 'prechorus', 'bridge', 'vamp',
+  'tag', 'interlude', 'outro', 'ending', 'instrumental', 'refrain', 'hook',
+  'coda', 'channel', 'breakdown', 'break', 'drop', 'hold', 'build', 'stop',
+  'solo', 'drums', 'all in', 'band in', 'acoustic', 'keyboards', 'pad'
+];
+
+const SECTION_REGEX = new RegExp(
+  `^\\s*(\\[?(${SECTION_KEYWORDS.join('|')})(\\s+[0-9A-Za-z]+)?\\s*\\]?:?)\\s*$`,
+  'i'
+);
+
+const STANDALONE_CUE_REGEX = /^\s*([A-Za-z0-9\s/–-]+:)\s*$/;
 const CHORD_TOKEN_REGEX = /\b([A-G][b#]?(?:m|maj|min|sus|add|dim|aug|2|4|5|6|7|9|11|13)*(?:\/[A-G][b#]?)?)\b/g;
 
 export function parseAndTransposeSheetLines(
@@ -118,12 +158,17 @@ export function parseAndTransposeSheetLines(
       continue;
     }
 
-    const secMatch = rawLine.match(SECTION_REGEX);
-    if (secMatch) {
+    // Check if line is a section header (e.g., Intro, Intro:, DROP:, HOLD:, [Chorus], etc.)
+    const isStandardSection = SECTION_REGEX.test(trimmed);
+    const isCustomCue = STANDALONE_CUE_REGEX.test(trimmed) && trimmed.length <= 35 && !CHORD_TOKEN_REGEX.test(trimmed);
+    const isBracketedTag = /^\[[^\]]+\]:?$/.test(trimmed);
+
+    if (isStandardSection || isCustomCue || isBracketedTag) {
+      const cleanTitle = trimmed.replace(/^[\[\s]+|[\]:\s]+$/g, '').trim().toUpperCase();
       result.push({
         type: 'section',
         raw: trimmed,
-        sectionName: trimmed.replace(/[\[\]:]/g, '').trim()
+        sectionName: cleanTitle
       });
       continue;
     }

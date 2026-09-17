@@ -28,6 +28,8 @@ export class AmbientPadPlayer {
   private fadeTimer: any = null;
   private isPlaying: boolean = false;
   private isFadingOut: boolean = false;
+  private requestId: number = 0;
+  private allActiveAudios: Set<HTMLAudioElement> = new Set();
   private onStateChange?: (isPlaying: boolean, key: string, isFadingOut: boolean) => void;
 
   constructor(onStateChange?: (isPlaying: boolean, key: string, isFadingOut: boolean) => void) {
@@ -47,6 +49,13 @@ export class AmbientPadPlayer {
 
   public getKey(): string {
     return this.currentKey;
+  }
+
+  public setKey(keyName: string) {
+    this.currentKey = keyName.replace('m', '');
+    if (this.onStateChange) {
+      this.onStateChange(this.isPlaying, this.currentKey, this.isFadingOut);
+    }
   }
 
   public getIsPlaying(): boolean {
@@ -69,102 +78,150 @@ export class AmbientPadPlayer {
     const rootKey = keyName.replace('m', '');
     const path = PAD_AUDIO_FILES[rootKey] || '/audio/pads/C.mp3';
 
-    if (this.isPlaying && this.currentKey === rootKey && this.currentAudio && !this.currentAudio.paused && !this.isFadingOut) {
-      return;
-    }
-
-    this.currentKey = rootKey;
-    this.isFadingOut = false;
+    // Increment request token to invalidate any prior pending play/fade operations
+    this.requestId++;
+    const thisReq = this.requestId;
 
     if (this.fadeTimer) {
       clearInterval(this.fadeTimer);
       this.fadeTimer = null;
     }
 
-    const oldAudio = this.currentAudio;
+    this.currentKey = rootKey;
+    this.isPlaying = true;
+    this.isFadingOut = false;
+    if (this.onStateChange) this.onStateChange(true, this.currentKey, false);
+
+    const oldAudios = Array.from(this.allActiveAudios);
     const newAudio = new Audio(path);
     newAudio.loop = true;
     newAudio.volume = 0;
+    this.allActiveAudios.add(newAudio);
 
-    // Loop backup for iOS/Safari
+    // Safari / iOS loop fallback
     newAudio.addEventListener('ended', () => {
       newAudio.currentTime = 0;
       newAudio.play().catch(() => {});
     });
 
-    newAudio.play().then(() => {
-      this.currentAudio = newAudio;
-      this.isPlaying = true;
-      if (this.onStateChange) this.onStateChange(true, this.currentKey, false);
-
-      // Smooth 3.0-second fade-in & crossfade (60 steps @ 50ms = 3000ms)
-      let step = 0;
-      const totalSteps = 60;
-      const intervalMs = 50;
-
-      this.fadeTimer = setInterval(() => {
-        step++;
-        const progress = Math.min(1, step / totalSteps);
-        newAudio.volume = Math.min(this.volume, this.volume * progress);
-
-        if (oldAudio && !oldAudio.paused) {
-          oldAudio.volume = Math.max(0, this.volume * (1 - progress));
+    newAudio
+      .play()
+      .then(() => {
+        // If a subsequent stop() or play() was triggered while audio was loading/playing, immediately abort
+        if (thisReq !== this.requestId || !this.isPlaying) {
+          newAudio.pause();
+          newAudio.src = '';
+          this.allActiveAudios.delete(newAudio);
+          return;
         }
 
-        if (step >= totalSteps) {
-          clearInterval(this.fadeTimer);
-          this.fadeTimer = null;
-          newAudio.volume = this.volume;
-          if (oldAudio) {
-            oldAudio.pause();
-            oldAudio.src = '';
+        this.currentAudio = newAudio;
+
+        // Smooth 3.0-second fade in & crossfade (60 steps @ 50ms)
+        let step = 0;
+        const totalSteps = 60;
+        const intervalMs = 50;
+
+        this.fadeTimer = setInterval(() => {
+          if (thisReq !== this.requestId) {
+            clearInterval(this.fadeTimer);
+            this.fadeTimer = null;
+            return;
           }
+
+          step++;
+          const progress = Math.min(1, step / totalSteps);
+          newAudio.volume = Math.min(this.volume, this.volume * progress);
+
+          // Fade out all previous audios
+          oldAudios.forEach((oa) => {
+            if (!oa.paused) {
+              oa.volume = Math.max(0, this.volume * (1 - progress));
+            }
+          });
+
+          if (step >= totalSteps) {
+            clearInterval(this.fadeTimer);
+            this.fadeTimer = null;
+            newAudio.volume = this.volume;
+
+            oldAudios.forEach((oa) => {
+              oa.pause();
+              oa.src = '';
+              this.allActiveAudios.delete(oa);
+            });
+          }
+        }, intervalMs);
+      })
+      .catch(() => {
+        this.allActiveAudios.delete(newAudio);
+        if (thisReq === this.requestId) {
+          this.isPlaying = false;
+          if (this.onStateChange) this.onStateChange(false, this.currentKey, false);
         }
-      }, intervalMs);
-    }).catch(() => {
-      this.isPlaying = false;
-      if (this.onStateChange) this.onStateChange(false, this.currentKey, false);
-    });
+      });
   }
 
-  public stop() {
+  public stop(immediate: boolean = false) {
+    this.requestId++;
+    const thisReq = this.requestId;
+
     if (this.fadeTimer) {
       clearInterval(this.fadeTimer);
       this.fadeTimer = null;
     }
 
-    if (this.currentAudio) {
-      this.isFadingOut = true;
-      if (this.onStateChange) this.onStateChange(true, this.currentKey, true);
-
-      const audioToStop = this.currentAudio;
-      const startVol = audioToStop.volume;
-      let step = 0;
-      const totalSteps = 60; // 60 * 50ms = 3000ms = 3.0s fade out
-      const intervalMs = 50;
-
-      this.fadeTimer = setInterval(() => {
-        step++;
-        const progress = Math.min(1, step / totalSteps);
-        audioToStop.volume = Math.max(0, startVol * (1 - progress));
-
-        if (step >= totalSteps) {
-          clearInterval(this.fadeTimer);
-          this.fadeTimer = null;
-          audioToStop.pause();
-          audioToStop.src = '';
-          if (this.currentAudio === audioToStop) {
-            this.currentAudio = null;
-          }
-          this.isPlaying = false;
-          this.isFadingOut = false;
-          if (this.onStateChange) this.onStateChange(false, this.currentKey, false);
-        }
-      }, intervalMs);
-    } else {
+    if (immediate || this.allActiveAudios.size === 0) {
+      this.allActiveAudios.forEach((a) => {
+        a.pause();
+        a.src = '';
+      });
+      this.allActiveAudios.clear();
+      this.currentAudio = null;
       this.isPlaying = false;
       this.isFadingOut = false;
       if (this.onStateChange) this.onStateChange(false, this.currentKey, false);
+      return;
     }
+
+    this.isPlaying = false;
+    this.isFadingOut = true;
+    if (this.onStateChange) this.onStateChange(false, this.currentKey, true);
+
+    const audiosToFade = Array.from(this.allActiveAudios);
+    const initialVols = audiosToFade.map((a) => a.volume);
+    let step = 0;
+    const totalSteps = 60; // 3.0s fade out
+    const intervalMs = 50;
+
+    this.fadeTimer = setInterval(() => {
+      if (thisReq !== this.requestId) {
+        clearInterval(this.fadeTimer);
+        this.fadeTimer = null;
+        return;
+      }
+
+      step++;
+      const progress = Math.min(1, step / totalSteps);
+
+      audiosToFade.forEach((a, idx) => {
+        a.volume = Math.max(0, initialVols[idx] * (1 - progress));
+      });
+
+      if (step >= totalSteps) {
+        clearInterval(this.fadeTimer);
+        this.fadeTimer = null;
+
+        audiosToFade.forEach((a) => {
+          a.pause();
+          a.src = '';
+          this.allActiveAudios.delete(a);
+        });
+
+        this.currentAudio = null;
+        this.isFadingOut = false;
+        if (this.onStateChange) this.onStateChange(false, this.currentKey, false);
+      }
+    }, intervalMs);
   }
 }

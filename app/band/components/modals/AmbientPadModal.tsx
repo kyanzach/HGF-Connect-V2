@@ -12,6 +12,7 @@ interface AmbientPadModalProps {
   activeKey: string;
   volume: number;
   onPlayPad: (key: string) => void;
+  onSelectKey?: (key: string) => void;
   onStopPad: () => void;
   onTogglePad: () => void;
   onChangeVolume: (vol: number) => void;
@@ -25,6 +26,7 @@ export const AmbientPadModal: React.FC<AmbientPadModalProps> = ({
   activeKey,
   volume,
   onPlayPad,
+  onSelectKey,
   onStopPad,
   onTogglePad,
   onChangeVolume,
@@ -152,7 +154,14 @@ export const AmbientPadModal: React.FC<AmbientPadModalProps> = ({
                 return (
                   <button
                     key={k.key}
-                    onClick={() => onPlayPad(k.key)}
+                    onClick={() => {
+                      if (isPlaying) {
+                        onPlayPad(k.key);
+                      } else {
+                        if (onSelectKey) onSelectKey(k.key);
+                        else onPlayPad(k.key);
+                      }
+                    }}
                     style={{
                       height: '42px',
                       borderRadius: '8px',

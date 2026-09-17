@@ -50,6 +50,13 @@ export function useAmbientPad() {
     }
   }, []);
 
+  const selectKey = useCallback((key: string) => {
+    setCurrentKey(key);
+    if (playerRef.current) {
+      playerRef.current.setKey(key);
+    }
+  }, []);
+
   return {
     isPlaying,
     isFadingOut,
@@ -58,6 +65,7 @@ export function useAmbientPad() {
     play,
     stop,
     toggle,
+    selectKey,
     setVolume,
   };
 }

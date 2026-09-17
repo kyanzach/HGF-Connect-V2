@@ -8,6 +8,8 @@ interface MetronomeModalProps {
   onClose: () => void;
   bpm: number;
   onBpmChange: (newBpm: number) => void;
+  timeSignature?: string;
+  onTimeSignatureChange?: (newSig: string) => void;
   isAudioActive: boolean;
   onToggleAudio: () => void;
   isPulsing: boolean;
@@ -18,14 +20,33 @@ export const MetronomeModal: React.FC<MetronomeModalProps> = ({
   onClose,
   bpm,
   onBpmChange,
+  timeSignature: externalSig,
+  onTimeSignatureChange,
   isAudioActive,
   onToggleAudio,
   isPulsing,
 }) => {
-  const [timeSignature, setTimeSignature] = useState<'4/4' | '3/4' | '6/8'>('4/4');
+  const [internalSig, setInternalSig] = useState<string>('4/4');
+  const timeSignature = externalSig || internalSig;
+
+  const setTimeSignature = (sig: string) => {
+    setInternalSig(sig);
+    if (onTimeSignatureChange) onTimeSignatureChange(sig);
+  };
+
+  const [isCustomSig, setIsCustomSig] = useState<boolean>(false);
+  const [customSigInput, setCustomSigInput] = useState<string>('');
   const [metronomeVolume, setMetronomeVolume] = useState<number>(0.8);
   const tapTimesRef = useRef<number[]>([]);
   const [tapDisplay, setTapDisplay] = useState<string>('TAP');
+
+  useEffect(() => {
+    const presets = ['4/4', '3/4', '6/8', '8/8'];
+    if (timeSignature && !presets.includes(timeSignature)) {
+      setIsCustomSig(true);
+      setCustomSigInput(timeSignature);
+    }
+  }, [timeSignature]);
 
   if (!isOpen) return null;
 
@@ -198,28 +219,77 @@ export const MetronomeModal: React.FC<MetronomeModalProps> = ({
               <span>👆</span> {tapDisplay}
             </button>
 
-            {/* Time Signature */}
+            {/* Time Signature Presets + Custom Button */}
             <div style={{ display: 'flex', gap: '4px' }}>
-              {(['4/4', '3/4', '6/8'] as const).map((sig) => (
+              {(['4/4', '3/4', '6/8', '8/8'] as const).map((sig) => (
                 <button
                   key={sig}
-                  onClick={() => setTimeSignature(sig)}
+                  onClick={() => {
+                    setIsCustomSig(false);
+                    setTimeSignature(sig);
+                  }}
                   style={{
                     flex: 1,
                     borderRadius: '8px',
-                    border: `1px solid ${timeSignature === sig ? '#f59e0b' : '#334155'}`,
-                    background: timeSignature === sig ? 'rgba(245, 158, 11, 0.2)' : '#1e293b',
-                    color: timeSignature === sig ? '#f59e0b' : '#cbd5e1',
+                    border: `1px solid ${!isCustomSig && timeSignature === sig ? '#f59e0b' : '#334155'}`,
+                    background: !isCustomSig && timeSignature === sig ? 'rgba(245, 158, 11, 0.2)' : '#1e293b',
+                    color: !isCustomSig && timeSignature === sig ? '#f59e0b' : '#cbd5e1',
                     fontWeight: 800,
-                    fontSize: '12px',
+                    fontSize: '11px',
                     cursor: 'pointer',
+                    padding: '0',
                   }}
                 >
                   {sig}
                 </button>
               ))}
+              <button
+                onClick={() => setIsCustomSig(!isCustomSig)}
+                style={{
+                  borderRadius: '8px',
+                  border: `1px solid ${isCustomSig ? '#38bdf8' : '#334155'}`,
+                  background: isCustomSig ? 'rgba(56, 189, 248, 0.2)' : '#1e293b',
+                  color: isCustomSig ? '#38bdf8' : '#cbd5e1',
+                  fontWeight: 800,
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                  padding: '0 8px',
+                }}
+                title="Input Custom Time Signature"
+              >
+                ✏️
+              </button>
             </div>
           </div>
+
+          {/* Custom Time Signature Input row if active */}
+          {isCustomSig && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#131c2e', padding: '8px 12px', borderRadius: '8px', border: '1px solid #2d3f5e' }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8' }}>Custom Time Sig:</span>
+              <input
+                type="text"
+                value={customSigInput}
+                onChange={(e) => {
+                  const val = e.target.value.trim();
+                  setCustomSigInput(val);
+                  if (val) setTimeSignature(val);
+                }}
+                placeholder="e.g. 5/4, 7/8, 12/8, 2/4"
+                style={{
+                  flex: 1,
+                  height: '30px',
+                  borderRadius: '6px',
+                  background: '#0c1017',
+                  border: '1px solid #38bdf8',
+                  color: '#fff',
+                  padding: '0 8px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  outline: 'none',
+                }}
+              />
+            </div>
+          )}
 
           {/* Audio Click Toggle */}
           <button

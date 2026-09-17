@@ -2,12 +2,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import ConfirmModal from '@/components/ConfirmModal';
 import { useSetlist } from './hooks/useSetlist';
 import { useMusicTheory } from './hooks/useMusicTheory';
 import { useMetronome } from './hooks/useMetronome';
 import { useAmbientPad } from './hooks/useAmbientPad';
 import { useAudioPlayback } from './hooks/useAudioPlayback';
 import { useFootPedal } from './hooks/useFootPedal';
+import { transposeNote } from './lib/musicTheory';
 
 import { StageTopBar } from './components/StageTopBar';
 import { SongSheet } from './components/SongSheet';
@@ -45,6 +47,9 @@ export default function BandStagePage() {
     nextSong,
     prevSong,
     setSongSessionKey,
+    setSongSessionOverride,
+    revertToMdDefault,
+    activeSongMdDefaults,
     addSongToSetlist,
     removeSongFromSetlist,
     refreshData,
@@ -64,10 +69,12 @@ export default function BandStagePage() {
   const {
     tempo,
     setTempo,
+    timeSignature: metronomeSignature,
+    setTimeSignature: setMetronomeSignature,
     isPulsing,
     isAudioActive: isMetronomeAudioActive,
     toggleAudio: toggleMetronomeAudio,
-  } = useMetronome(currentSong?.tempo ? Number(currentSong.tempo) : 72);
+  } = useMetronome(currentSong?.tempo ? Number(currentSong.tempo) : 72, currentSong?.timeSignature || '4/4');
 
   const {
     isPlaying: isPadPlaying,
@@ -77,6 +84,7 @@ export default function BandStagePage() {
     play: playPad,
     stop: stopPad,
     toggle: togglePad,
+    selectKey: selectPadKey,
     setVolume: setPadVolume,
   } = useAmbientPad();
 
@@ -112,6 +120,17 @@ export default function BandStagePage() {
   const [isBandAdminOpen, setIsBandAdminOpen] = useState<boolean>(false);
   const [isMetronomeModalOpen, setIsMetronomeModalOpen] = useState<boolean>(false);
 
+  // Login Gate & MD Setlist Gate Modals
+  const [loginPrompt, setLoginPrompt] = useState<{
+    open: boolean;
+    feature: 'draw' | 'notes' | null;
+  }>({ open: false, feature: null });
+
+  const [mdGateModal, setMdGateModal] = useState<{
+    open: boolean;
+    pendingKey: string;
+  }>({ open: false, pendingKey: '' });
+
   const handleImportScrapedSong = async (newSong: Song, addToSetlist = false) => {
     await handleSaveSong(newSong);
     if (addToSetlist && activeSetlistId) {
@@ -120,12 +139,61 @@ export default function BandStagePage() {
     selectSong(newSong.id);
   };
 
-  // Sync tempo when currentSong changes
+  // Sync tempo and time signature when currentSong changes
   useEffect(() => {
     if (currentSong?.tempo) {
       setTempo(Number(currentSong.tempo));
     }
-  }, [currentSong?.id, currentSong?.tempo, setTempo]);
+    if (currentSong?.timeSignature) {
+      setMetronomeSignature(currentSong.timeSignature);
+    }
+  }, [currentSong?.id, currentSong?.tempo, currentSong?.timeSignature, setTempo, setMetronomeSignature]);
+
+  // Unified Key Change with MD Setlist Gate
+  const handleKeyChangeRequest = (newKey: string) => {
+    if (!currentSong) return;
+
+    // If inside an active setlist with designated MD defaults
+    if (activeSetlistId && activeSongMdDefaults) {
+      const isMdOrAdmin = currentUser?.role === 'admin' || currentUser?.role === 'MD';
+      if (newKey !== activeSongMdDefaults.key && !isMdOrAdmin) {
+        setMdGateModal({
+          open: true,
+          pendingKey: newKey,
+        });
+        return;
+      }
+    }
+
+    // Direct application (All songs mode or MD/admin)
+    setTargetKey(newKey);
+    if (currentSong && activeSetlistId) {
+      setSongSessionKey(currentSong.id, newKey);
+    }
+  };
+
+  const handleTransposeDelta = (delta: number) => {
+    if (!currentSong) return;
+    const nextOffset = transposeOffset + delta;
+    const baseRoot = (currentSong.originalKey || currentSong.key || 'C').replace(/m$/, '');
+    const isFlats = ['F', 'Bb', 'Eb', 'Ab', 'Db', 'Gb'].includes(baseRoot);
+    const nextKey = transposeNote(baseRoot, nextOffset, isFlats);
+    handleKeyChangeRequest(nextKey);
+  };
+
+  const handleConfirmSessionKey = () => {
+    if (!currentSong || !mdGateModal.pendingKey) return;
+    setSongSessionOverride(currentSong.id, { key: mdGateModal.pendingKey });
+    setTargetKey(mdGateModal.pendingKey);
+    setMdGateModal({ open: false, pendingKey: '' });
+  };
+
+  const handleRevertToMdKey = () => {
+    if (!currentSong || !activeSongMdDefaults) return;
+    revertToMdDefault(currentSong.id);
+    setTargetKey(activeSongMdDefaults.key);
+    setMdGateModal({ open: false, pendingKey: '' });
+  };
 
   // Load strokes from localStorage fallback on song switch
   useEffect(() => {
@@ -242,7 +310,7 @@ export default function BandStagePage() {
       <StageTopBar
         currentKey={effectiveKey}
         displayKey={displayKey}
-        onTranspose={transpose}
+        onTranspose={handleTransposeDelta}
         onOpenKeyPicker={() => setIsKeyPickerOpen(true)}
         bpm={tempo}
         isMetronomePulsing={isPulsing}
@@ -259,14 +327,20 @@ export default function BandStagePage() {
           setIsEditModalOpen(true);
         }}
         isDrawingActive={isDrawingActive}
-        onToggleDrawing={() => setIsDrawingActive(!isDrawingActive)}
+        onToggleDrawing={() => {
+          if (!currentUser) {
+            setLoginPrompt({ open: true, feature: 'draw' });
+            return;
+          }
+          setIsDrawingActive(!isDrawingActive);
+        }}
         onOpenAudioManager={() => setIsAudioStorageOpen(true)}
         onOpenScratchpad={() => {
           if (!currentUser) {
-            setIsAuthModalOpen(true);
-          } else {
-            setIsScratchpadOpen(true);
+            setLoginPrompt({ open: true, feature: 'notes' });
+            return;
           }
+          setIsScratchpadOpen(true);
         }}
         onOpenAmbientPad={() => setIsAmbientPadOpen(true)}
         onToggleSidebar={() => setIsSidebarOpen(true)}
@@ -283,6 +357,11 @@ export default function BandStagePage() {
         onToggleAutoScroll={handleToggleAutoScroll}
         onSwipeLeft={nextSong}
         onSwipeRight={prevSong}
+        playbackState={{
+          isPlaying: isBacktrackPlaying,
+          currentTime: backtrackCurrentTime,
+          duration: backtrackDuration,
+        }}
         drawingCanvasElement={
           <DrawingCanvas
             isActive={isDrawingActive}
@@ -382,12 +461,7 @@ export default function BandStagePage() {
         onClose={() => setIsKeyPickerOpen(false)}
         currentKey={effectiveKey}
         capo={capo}
-        onSelectKey={(newKey) => {
-          setTargetKey(newKey);
-          if (currentSong && activeSetlistId) {
-            setSongSessionKey(currentSong.id, newKey);
-          }
-        }}
+        onSelectKey={(newKey) => handleKeyChangeRequest(newKey)}
         onSelectCapo={setCapo}
         isBandAdmin={currentUser?.role === 'admin' || currentUser?.role === 'MD'}
         onSaveAsMdKey={() => handleSaveAsMdKey(effectiveKey)}
@@ -401,6 +475,7 @@ export default function BandStagePage() {
         activeKey={activePadKey}
         volume={padVolume}
         onPlayPad={playPad}
+        onSelectKey={selectPadKey}
         onStopPad={stopPad}
         onTogglePad={togglePad}
         onChangeVolume={setPadVolume}
@@ -452,6 +527,8 @@ export default function BandStagePage() {
         onClose={() => setIsMetronomeModalOpen(false)}
         bpm={tempo}
         onBpmChange={setTempo}
+        timeSignature={metronomeSignature}
+        onTimeSignatureChange={setMetronomeSignature}
         isAudioActive={isMetronomeAudioActive}
         onToggleAudio={toggleMetronomeAudio}
         isPulsing={isPulsing}
@@ -476,6 +553,51 @@ export default function BandStagePage() {
             });
           }
         }}
+      />
+
+      {/* Login Prompt Modal for Draw & Notes */}
+      <ConfirmModal
+        open={loginPrompt.open}
+        title="Band Login Required"
+        message={
+          loginPrompt.feature === 'draw'
+            ? 'You must be logged in to draw live stage annotations and synchronize them with your band.'
+            : 'You must be logged in to access and add private musician notes.'
+        }
+        confirmLabel="Log In Now"
+        confirmColor="#4EB1CB"
+        cancelLabel="Cancel"
+        onConfirm={() => {
+          setLoginPrompt({ open: false, feature: null });
+          setIsAuthModalOpen(true);
+        }}
+        onCancel={() => setLoginPrompt({ open: false, feature: null })}
+      />
+
+      {/* MD Setlist Protection Gate Modal */}
+      <ConfirmModal
+        open={mdGateModal.open}
+        title="MD Setlist Protection Gate"
+        message={
+          <span>
+            The Music Director set this song to{' '}
+            <strong style={{ color: '#4EB1CB' }}>
+              Key {activeSongMdDefaults?.key || 'C'}
+            </strong>{' '}
+            ({activeSongMdDefaults?.tempo || 72} BPM) for setlist{' '}
+            <em>&quot;{activeSetlist?.name}&quot;</em>.
+            <br />
+            <br />
+            Would you like to change it to{' '}
+            <strong style={{ color: '#f59e0b' }}>Key {mdGateModal.pendingKey}</strong>{' '}
+            for this session only?
+          </span>
+        }
+        confirmLabel="Change for This Session Only"
+        confirmColor="#f59e0b"
+        cancelLabel="Revert to MD Key"
+        onConfirm={handleConfirmSessionKey}
+        onCancel={handleRevertToMdKey}
       />
     </div>
   );

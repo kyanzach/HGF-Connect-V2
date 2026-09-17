@@ -18,6 +18,11 @@ interface SongSheetProps {
   onSwipeLeft?: () => void;
   onSwipeRight?: () => void;
   drawingCanvasElement?: React.ReactNode;
+  playbackState?: {
+    isPlaying: boolean;
+    currentTime: number;
+    duration: number;
+  };
 }
 
 export const SongSheet: React.FC<SongSheetProps> = ({
@@ -31,25 +36,34 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   onSwipeLeft,
   onSwipeRight,
   drawingCanvasElement,
+  playbackState,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
 
-  // Auto-scroll loop with variable speed
+  // Playback-synced auto-scroll lockstep
   useEffect(() => {
-    if (!isAutoScrolling || !containerRef.current) return;
+    if (!playbackState?.isPlaying || !playbackState.duration || !containerRef.current) return;
+    const container = containerRef.current;
+    const maxScroll = container.scrollHeight - container.clientHeight;
+    if (maxScroll > 0) {
+      const targetScroll = (playbackState.currentTime / playbackState.duration) * maxScroll;
+      container.scrollTop = targetScroll;
+    }
+  }, [playbackState?.isPlaying, playbackState?.currentTime, playbackState?.duration]);
+
+  // Auto-scroll loop with variable speed (when not driven by audio playback)
+  useEffect(() => {
+    if (!isAutoScrolling || playbackState?.isPlaying || !containerRef.current) return;
     const container = containerRef.current;
     const interval = setInterval(() => {
       const step = Math.max(0.4, (scrollSpeed || 3) * 0.4);
       container.scrollBy({ top: step, behavior: 'auto' });
-      if (container.scrollTop + container.clientHeight >= container.scrollHeight - 2) {
-        // reached bottom
-      }
     }, 40);
 
     return () => clearInterval(interval);
-  }, [isAutoScrolling, scrollSpeed]);
+  }, [isAutoScrolling, scrollSpeed, playbackState?.isPlaying]);
 
   // Section order roadmap parts
   const sectionParts = (song?.sectionOrder || '')
@@ -210,6 +224,35 @@ export const SongSheet: React.FC<SongSheetProps> = ({
               {song.timeSignature}
             </span>
           )}
+          {playbackState && playbackState.duration > 0 && (
+            <span
+              style={{
+                padding: '2px 8px',
+                borderRadius: '6px',
+                background: playbackState.isPlaying ? 'rgba(56, 189, 248, 0.2)' : '#1e293b',
+                border: playbackState.isPlaying ? '1px solid #38bdf8' : '1px solid transparent',
+                color: '#38bdf8',
+                fontSize: '12px',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              <span>🎧</span>
+              <span>
+                {Math.floor(playbackState.currentTime / 60)}:
+                {Math.floor(playbackState.currentTime % 60)
+                  .toString()
+                  .padStart(2, '0')}{' '}
+                /{' '}
+                {Math.floor(playbackState.duration / 60)}:
+                {Math.floor(playbackState.duration % 60)
+                  .toString()
+                  .padStart(2, '0')}
+              </span>
+            </span>
+          )}
         </div>
 
         {/* SECTION ORDER ROADMAP */}
@@ -269,7 +312,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
                   paddingLeft: '8px',
                 }}
               >
-                {line.raw}
+                {line.sectionName || line.raw}
               </div>
             );
           }

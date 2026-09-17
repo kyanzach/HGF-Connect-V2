@@ -6,12 +6,27 @@ export class MetronomeEngine {
   private timerId: any = null;
   private tempo: number = 72;
   private beat: number = 0;
+  private timeSignature: string = '4/4';
+  private beatsPerMeasure: number = 4;
   private isAudioActive: boolean = false;
   private onBeatCallback?: (beat: number, isDownbeat: boolean) => void;
 
-  constructor(tempo = 72, onBeat?: (beat: number, isDownbeat: boolean) => void) {
+  constructor(tempo = 72, timeSignature = '4/4', onBeat?: (beat: number, isDownbeat: boolean) => void) {
     this.tempo = Math.max(30, Math.min(260, tempo));
+    this.setTimeSignature(timeSignature);
     this.onBeatCallback = onBeat;
+  }
+
+  public setTimeSignature(sig: string) {
+    if (!sig) return;
+    this.timeSignature = sig;
+    const num = parseInt(sig.split('/')[0], 10);
+    this.beatsPerMeasure = isNaN(num) || num <= 0 ? 4 : Math.min(32, num);
+    this.beat = 0;
+  }
+
+  public getTimeSignature(): string {
+    return this.timeSignature;
   }
 
   public setTempo(newTempo: number) {
@@ -53,7 +68,7 @@ export class MetronomeEngine {
     const intervalMs = (60 / this.tempo) * 1000;
 
     this.timerId = setInterval(() => {
-      this.beat = (this.beat % 4) + 1;
+      this.beat = (this.beat % this.beatsPerMeasure) + 1;
       const isDownbeat = this.beat === 1;
 
       if (this.onBeatCallback) {

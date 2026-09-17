@@ -5,6 +5,33 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.54.5] — 2026-09-17
+### Added & Fixed — Band Auth Privacy & Gating, MD Setlist Protection Gate, Backtrack Lockstep Scroll, Metronome 8/8 & Custom Sig, Ambient Pad Concurrency Fix
+- **Band Auth Dialog Privacy & Role Management Gating**:
+  - Replaced public user roster list in `BandAuthModal.tsx` with a clean, private username and password login form.
+  - "⚙️ Manage Band Members & Roles" is strictly gated to authenticated `admin` users only.
+- **Login Gating for Notes & Annotations**:
+  - Gated "Draw" and "Notes" features: attempting to access while logged out triggers a clear `ConfirmModal` informing the user they must log in to draw annotations or save personal song notes, with a direct 1-tap "Log In Now" action.
+- **MD Setlist Gating (Session Overrides vs All Songs Free Transpose)**:
+  - In setlists, the Worship Leader / Music Director's key, tempo, and time signature serve as the protected default.
+  - If a musician transposes or changes tempo within a setlist, a `ConfirmModal` alerts them (*"The MD set this song to [Key/BPM/Sig] for this setlist. Would you like to change it for this session only?"*). Confirming applies a session-only override that resets on setlist switch, with a top-bar banner to revert back to MD defaults.
+  - Songs opened under "All Songs" (library) remain fully editable and transposable without prompts.
+- **Backtrack Audio Lockstep Auto-Scroll & Duration Badge**:
+  - Synchronized auto-scrolling with attached backtrack playback (`useAudioPlayback`), calculating scroll speed dynamically to reach the bottom of the chart at track completion.
+  - Added live playback duration badge (`🎧 00:18 / 03:56`) on the song sheet header.
+- **Metronome 8/8 & Custom Time Signatures**:
+  - Added `8/8` quick-preset button and custom time signature input mode (`isCustomSig`) allowing arbitrary signatures (e.g., `2/4`, `5/4`, `7/8`, `12/8`).
+  - Updated `MetronomeEngine` to parse dynamic beats-per-measure and accent downbeats accurately.
+- **Song Editor Improvements & Worship Cues**:
+  - Renamed "🎸 Scrape Chords" to "🔍 Search Chords".
+  - Implemented cursor-aware chord insertion using `selectionStart`/`selectionEnd` on `textareaRef`.
+  - Added dynamic diatonic chord chips based on song key, plus worship cue buttons (`Intro:`, `DROP:`, `HOLD:`, `BREAK:`, `STOP:`).
+  - Extended section formatting regex to recognize trailing colons (`Intro:`, `DROP:`, `HOLD:`) and render them as styled stage section banners.
+  - Added toggleable ChordPro vs Chords-Over-Lyrics cheat sheet in the editor modal.
+- **Ambient Worship Pad Engine Concurrency Fix**:
+  - Fixed audio overlap bug during rapid play/stop toggling by introducing monotonic `requestId` locking and tracking all active HTMLAudioElements in a Set.
+  - Key selection while stopped now only updates the selected key without triggering unwanted audio playback.
+
 ## [v2.54.4] — 2026-09-17
 ### Fixed — Drawing Canvas Targeting Accuracy & Clear Functionality
 - **100% Precise Coordinate Targeting (`DrawingCanvas.tsx`)**:

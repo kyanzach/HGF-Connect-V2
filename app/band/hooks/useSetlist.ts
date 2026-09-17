@@ -9,12 +9,19 @@ const STORAGE_ACTIVE_SETLIST = 'hgf_band_active_setlist_id';
 const STORAGE_LOCAL_SONGS = 'hgf_band_songs';
 const STORAGE_SESSION_KEYS = 'hgf_band_session_keys';
 
+export interface SessionSongOverride {
+  key?: string;
+  tempo?: number;
+  timeSignature?: string;
+  capo?: string | number;
+}
+
 export function useSetlist() {
   const [songs, setSongs] = useState<Song[]>([]);
   const [setlists, setSetlists] = useState<Setlist[]>([]);
   const [activeSetlistId, setActiveSetlistId] = useState<string | null>(null);
   const [currentSongId, setCurrentSongId] = useState<string | null>(null);
-  const [setlistSessionKeys, setSetlistSessionKeys] = useState<Record<string, string>>({});
+  const [setlistSessionOverrides, setSetlistSessionOverrides] = useState<Record<string, SessionSongOverride>>({});
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Fetch all songs and setlists
@@ -77,21 +84,26 @@ export function useSetlist() {
       const sId = typeof item === 'string' ? item : item.id;
       const found = songs.find((s) => s.id === sId);
       if (found) {
-        // Apply MD setlist key preferences if defined
+        // Apply MD setlist key, bpm, and timeSignature preferences
         const mdKey = typeof item === 'object' && item.key ? item.key : found.key;
         const mdCapo = typeof item === 'object' && item.capo !== undefined ? item.capo : found.capo;
-        // Check if there is an active session override
-        const sessionKey = setlistSessionKeys[`${activeSetlist.id}_${found.id}`];
+        const mdTempo = typeof item === 'object' && item.tempo !== undefined ? item.tempo : found.tempo;
+        const mdTimeSig = typeof item === 'object' && item.timeSignature ? item.timeSignature : found.timeSignature;
+
+        // Check if there is an active session override for this setlist
+        const override = setlistSessionOverrides[`${activeSetlist.id}_${found.id}`];
         lineup.push({
           ...found,
-          key: sessionKey || mdKey,
-          capo: mdCapo,
+          key: override?.key || mdKey,
+          capo: override?.capo !== undefined ? override.capo : mdCapo,
+          tempo: override?.tempo !== undefined ? override.tempo : mdTempo,
+          timeSignature: override?.timeSignature || mdTimeSig,
         });
       }
     });
 
     return lineup;
-  }, [activeSetlist, songs, setlistSessionKeys]);
+  }, [activeSetlist, songs, setlistSessionOverrides]);
 
   // Set initial song once lineup is loaded
   useEffect(() => {
@@ -110,12 +122,38 @@ export function useSetlist() {
     return currentLineup.findIndex((s) => s.id === currentSong.id);
   }, [currentSong, currentLineup]);
 
+  // Official MD defaults for the active song inside the active setlist
+  const activeSongMdDefaults = useMemo(() => {
+    if (!activeSetlist || !currentSong) return null;
+    const item = (activeSetlist.songs || []).find((it) =>
+      typeof it === 'string' ? it === currentSong.id : it.id === currentSong.id
+    );
+    if (!item) return null;
+    const foundInLibrary = songs.find((s) => s.id === currentSong.id);
+    return {
+      key: typeof item === 'object' && item.key ? item.key : foundInLibrary?.key || currentSong.key,
+      tempo: typeof item === 'object' && item.tempo !== undefined ? item.tempo : foundInLibrary?.tempo || currentSong.tempo || 72,
+      timeSignature: typeof item === 'object' && item.timeSignature ? item.timeSignature : foundInLibrary?.timeSignature || currentSong.timeSignature || '4/4',
+      capo: typeof item === 'object' && item.capo !== undefined ? item.capo : foundInLibrary?.capo || currentSong.capo || 0,
+    };
+  }, [activeSetlist, currentSong, songs]);
+
   const selectSong = useCallback((songId: string) => {
     setCurrentSongId(songId);
   }, []);
 
   const selectSetlist = useCallback((setId: string | null) => {
     setActiveSetlistId(setId);
+    // When switching setlists, reset session overrides so it loads fresh MD defaults
+    if (setId) {
+      setSetlistSessionOverrides((prev) => {
+        const next = { ...prev };
+        Object.keys(next).forEach((k) => {
+          if (k.startsWith(`${setId}_`)) delete next[k];
+        });
+        return next;
+      });
+    }
     if (typeof window !== 'undefined') {
       if (setId) localStorage.setItem(STORAGE_ACTIVE_SETLIST, setId);
       else localStorage.removeItem(STORAGE_ACTIVE_SETLIST);
@@ -134,14 +172,29 @@ export function useSetlist() {
     }
   }, [currentIndex, currentLineup]);
 
-  const setSongSessionKey = useCallback((songId: string, key: string) => {
+  const setSongSessionOverride = useCallback((songId: string, override: SessionSongOverride) => {
     if (!activeSetlistId) return;
     const token = `${activeSetlistId}_${songId}`;
-    setSetlistSessionKeys((prev) => ({
+    setSetlistSessionOverrides((prev) => ({
       ...prev,
-      [token]: key,
+      [token]: { ...(prev[token] || {}), ...override },
     }));
   }, [activeSetlistId]);
+
+  const revertToMdDefault = useCallback((songId: string) => {
+    if (!activeSetlistId) return;
+    const token = `${activeSetlistId}_${songId}`;
+    setSetlistSessionOverrides((prev) => {
+      const next = { ...prev };
+      delete next[token];
+      return next;
+    });
+  }, [activeSetlistId]);
+
+  // Backward compatibility alias
+  const setSongSessionKey = useCallback((songId: string, key: string) => {
+    setSongSessionOverride(songId, { key });
+  }, [setSongSessionOverride]);
 
   const addSongToSetlist = useCallback(async (songId: string, setlistId?: string) => {
     const targetSetId = setlistId || activeSetlistId;
@@ -206,6 +259,9 @@ export function useSetlist() {
     nextSong,
     prevSong,
     setSongSessionKey,
+    setSongSessionOverride,
+    revertToMdDefault,
+    activeSongMdDefaults,
     addSongToSetlist,
     removeSongFromSetlist,
     refreshData,

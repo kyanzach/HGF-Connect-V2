@@ -1,9 +1,10 @@
 // app/band/components/modals/SongEditorModal.tsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ConfirmModal from '@/components/ConfirmModal';
 import { Song } from '../../types/band';
+import { getDiatonicChordsForKey } from '../../lib/musicTheory';
 
 interface SongEditorModalProps {
   isOpen: boolean;
@@ -34,6 +35,9 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [showGuide, setShowGuide] = useState<boolean>(false);
+
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     setErrorMessage('');
@@ -89,9 +93,40 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
     }
   };
 
-  const insertChordChip = (chip: string) => {
-    setChords((prev) => prev + `[${chip}]`);
+  // Cursor-aware chord and tag insertion
+  const insertTextAtCursor = (textToInsert: string, isBlockTag: boolean = false) => {
+    const el = textareaRef.current;
+    if (!el) {
+      setChords((prev) => prev + textToInsert);
+      return;
+    }
+
+    const start = el.selectionStart ?? chords.length;
+    const end = el.selectionEnd ?? chords.length;
+    const before = chords.substring(0, start);
+    const after = chords.substring(end);
+
+    let prefix = '';
+    let suffix = '';
+    if (isBlockTag) {
+      if (start > 0 && before[before.length - 1] !== '\n') prefix = '\n\n';
+      if (!after.startsWith('\n')) suffix = '\n';
+    }
+
+    const fullInsert = prefix + textToInsert + suffix;
+    const nextVal = before + fullInsert + after;
+    setChords(nextVal);
+
+    setTimeout(() => {
+      if (el) {
+        el.focus();
+        const nextPos = start + fullInsert.length;
+        el.setSelectionRange(nextPos, nextPos);
+      }
+    }, 0);
   };
+
+  const diatonicChords = getDiatonicChordsForKey(key);
 
   return (
     <div
@@ -111,8 +146,8 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
       <div
         style={{
           width: '100%',
-          maxWidth: '680px',
-          maxHeight: '90vh',
+          maxWidth: '720px',
+          maxHeight: '92vh',
           backgroundColor: '#0c1017',
           border: '1px solid #1e293b',
           borderRadius: '16px',
@@ -140,21 +175,21 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
                 type="button"
                 onClick={() => onOpenScraper(title || '')}
                 style={{
-                  padding: '5px 10px',
+                  padding: '6px 12px',
                   borderRadius: '6px',
                   background: 'rgba(59, 130, 246, 0.15)',
                   border: '1px solid rgba(59, 130, 246, 0.35)',
                   color: '#60a5fa',
-                  fontSize: '11px',
+                  fontSize: '12px',
                   fontWeight: 700,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '4px',
+                  gap: '5px',
                 }}
               >
-                <span>🎸</span>
-                <span>Scrape Chords</span>
+                <span>🔍</span>
+                <span>Search Chords</span>
               </button>
             )}
             <button
@@ -191,6 +226,7 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
               ⚠️ {errorMessage}
             </div>
           )}
+
           {/* Row 1: Title & Artist */}
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '10px' }}>
             <div>
@@ -201,7 +237,7 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. 10,000 Reasons"
+                placeholder="e.g. Awesome In This Place"
                 style={{
                   width: '100%',
                   height: '36px',
@@ -223,7 +259,7 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
                 type="text"
                 value={artist}
                 onChange={(e) => setArtist(e.target.value)}
-                placeholder="e.g. Matt Redman"
+                placeholder="e.g. Hillsong"
                 style={{
                   width: '100%',
                   height: '36px',
@@ -314,7 +350,7 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
                 type="text"
                 value={timeSignature}
                 onChange={(e) => setTimeSignature(e.target.value)}
-                placeholder="4/4"
+                placeholder="4/4, 6/8, 8/8"
                 style={{
                   width: '100%',
                   height: '36px',
@@ -355,38 +391,113 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
             />
           </div>
 
-          {/* Quick Chord Chips */}
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 700, color: '#94a3b8' }}>
-                CHORD SHEET (ChordPro or Chords-over-Lyrics)
-              </label>
-              <div style={{ display: 'flex', gap: '4px' }}>
-                {['G', 'C', 'D', 'Em', 'Am', 'F', 'G/B'].map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => insertChordChip(c)}
-                    style={{
-                      background: '#1e293b',
-                      border: '1px solid #334155',
-                      color: '#facc15',
-                      borderRadius: '4px',
-                      padding: '2px 6px',
-                      fontSize: '11px',
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    +{c}
-                  </button>
-                ))}
-              </div>
+          {/* Section Cues Toolbar */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '11px', fontWeight: 800, color: '#38bdf8', textTransform: 'uppercase' }}>
+                Stage Section Cues (Insert at Cursor)
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowGuide(!showGuide)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#94a3b8',
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                }}
+              >
+                {showGuide ? 'Hide Format Guide' : 'What is ChordPro?'}
+              </button>
             </div>
+
+            {showGuide && (
+              <div
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: '8px',
+                  background: 'rgba(56, 189, 248, 0.08)',
+                  border: '1px solid rgba(56, 189, 248, 0.25)',
+                  fontSize: '11px',
+                  color: '#cbd5e1',
+                  lineHeight: '1.5',
+                }}
+              >
+                <div><strong>ChordPro format:</strong> Place chords in brackets inside lyrics (e.g. <code>[D]Awesome in [G2]this place</code>). It automatically aligns above words and transposes instantly.</div>
+                <div style={{ marginTop: '4px' }}><strong>Chords-Over-Lyrics:</strong> Write chord symbols on their own line directly above lyric lines. Both formats are supported!</div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+              {['Intro:', 'Verse 1:', 'Verse 2:', 'Chorus:', 'Bridge:', 'Outro:', 'DROP:', 'HOLD:', 'BREAK:', 'STOP:'].map((cue) => (
+                <button
+                  key={cue}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => insertTextAtCursor(cue, true)}
+                  style={{
+                    background: '#101726',
+                    border: '1px solid #1e3a5f',
+                    color: '#38bdf8',
+                    borderRadius: '4px',
+                    padding: '3px 8px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  +{cue}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Quick Chord Palette (Key-Aware + Insert at Cursor) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <label style={{ fontSize: '12px', fontWeight: 700, color: '#94a3b8' }}>
+                KEY OF {key.toUpperCase()} CHORDS (Insert at Cursor)
+              </label>
+              <span style={{ fontSize: '11px', color: '#64748b' }}>
+                Tap to place <code>[Chord]</code> at cursor position
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+              {diatonicChords.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => insertTextAtCursor(`[${c}]`, false)}
+                  style={{
+                    background: '#131c2e',
+                    border: '1px solid #334155',
+                    color: '#facc15',
+                    borderRadius: '5px',
+                    padding: '3px 8px',
+                    fontSize: '12px',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                  }}
+                >
+                  +{c}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Chords / Sheet Textarea */}
+          <div>
             <textarea
+              ref={textareaRef}
               value={chords}
               onChange={(e) => setChords(e.target.value)}
-              placeholder="Intro:&#10;F  C  G/B  Am&#10;&#10;Verse 1:&#10;      F          C            G          Am&#10;The sun comes up, it's a new day dawning..."
-              rows={12}
+              placeholder="Intro:&#10;D  A/D  G2  repeat&#10;&#10;Verse:&#10;D              Dsus4       D       Dsus4&#10;Here in this house of the great king..."
+              rows={13}
               style={{
                 width: '100%',
                 borderRadius: '8px',

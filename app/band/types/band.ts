@@ -63,6 +63,8 @@ export interface SetlistSongItem {
   title?: string;
   key?: string;
   capo?: string | number;
+  tempo?: number;
+  timeSignature?: string;
   notes?: string;
 }
 
