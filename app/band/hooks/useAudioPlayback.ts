@@ -7,8 +7,6 @@ import { getAudioBlobOffline } from '../lib/offlineStorage';
 import {
   extractRoadmapSections,
   getCachedAudioMarkers,
-  saveCachedAudioMarkers,
-  detectAudioChapters,
   generateFallbackMarkers,
 } from '../lib/audioAnalysis';
 
@@ -22,10 +20,13 @@ export function useAudioPlayback(song: Song | null) {
   const [volume, setVolumeState] = useState<number>(0.85);
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [markers, setMarkers] = useState<AudioMarker[]>([]);
-  const [isAnalyzingAudio, setIsAnalyzingAudio] = useState<boolean>(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Initialize volume from localStorage
+  // Persistent single Audio element across all songs
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const blobUrlRef = useRef<string | null>(null);
+  const playPromiseRef = useRef<Promise<void> | null>(null);
+
+  // Initialize volume once
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_VOLUME_KEY);
@@ -38,7 +39,7 @@ export function useAudioPlayback(song: Song | null) {
     } catch {}
   }, []);
 
-  // Update audio element volume whenever volume/mute changes
+  // Update volume & mute on persistent audio element
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.volume = isMuted ? 0 : volume;
@@ -60,140 +61,186 @@ export function useAudioPlayback(song: Song | null) {
     setIsMuted((prev) => !prev);
   }, []);
 
-  // Load song audio track
+  // Initialize single audio element on mount
   useEffect(() => {
-    if (!song?.audioTrack?.url) {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-      setIsPlaying(false);
-      setCurrentTime(0);
-      setDuration(0);
-      setMarkers([]);
-      return;
-    }
-
-    let isMounted = true;
-    const url = song.audioTrack.url;
-    const filename = song.audioTrack.filename;
-
-    const setupAudio = async () => {
-      let playUrl = url;
-      if (filename) {
-        const cachedBlob = await getAudioBlobOffline(filename);
-        if (cachedBlob && isMounted) {
-          playUrl = URL.createObjectURL(cachedBlob);
-        }
-      }
-
-      if (!isMounted) return;
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
-
-      const audio = new Audio(playUrl);
-      audio.volume = isMuted ? 0 : volume;
+    if (!audioRef.current) {
+      const audio = new Audio();
+      audio.preload = 'auto';
       audioRef.current = audio;
 
       audio.onloadedmetadata = () => {
-        if (isMounted) setDuration(audio.duration || 0);
+        setDuration(audio.duration || 0);
       };
 
       audio.ontimeupdate = () => {
-        if (isMounted && !isScrubbing) {
+        if (!isScrubbing) {
           setCurrentTime(audio.currentTime);
         }
       };
 
       audio.onended = () => {
-        if (isMounted) {
-          setIsPlaying(false);
-          setCurrentTime(0);
-        }
+        setIsPlaying(false);
+        setCurrentTime(0);
       };
 
       audio.onplay = () => {
-        if (isMounted) setIsPlaying(true);
+        setIsPlaying(true);
       };
 
       audio.onpause = () => {
-        if (isMounted) setIsPlaying(false);
+        setIsPlaying(false);
       };
-    };
 
-    setupAudio();
+      audio.onerror = () => {
+        setIsPlaying(false);
+      };
+    }
 
     return () => {
-      isMounted = false;
       if (audioRef.current) {
         audioRef.current.pause();
+        audioRef.current.removeAttribute('src');
+        audioRef.current.load();
         audioRef.current = null;
       }
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
+      }
     };
-  }, [song?.id, song?.audioTrack?.url, song?.audioTrack?.filename]);
+  }, []);
 
-  // Analyze & cache audio markers (vocal onset / song sections)
+  // Fast, synchronous chapter setup (ZERO LIVE DECODING LAG)
   useEffect(() => {
-    if (!song?.id || !song.audioTrack?.url || duration <= 0) return;
+    if (!song?.id || !song.audioTrack) {
+      setMarkers([]);
+      return;
+    }
 
-    let isCancelled = false;
-
-    // 1. Direct song track markers
+    // 1. Direct song markers attached upon upload
     if (song.audioTrack.markers && song.audioTrack.markers.length > 0) {
       setMarkers(song.audioTrack.markers);
       return;
     }
 
-    // 2. Cached markers
+    // 2. Cached markers in localStorage
     const cached = getCachedAudioMarkers(song.id);
     if (cached && cached.length > 0) {
       setMarkers(cached);
       return;
     }
 
-    // 3. Detect via Web Audio API
+    // 3. Instant 0ms synchronous fallback from chord roadmap sections
     const sections = extractRoadmapSections(song.chords);
-    setIsAnalyzingAudio(true);
+    const estDuration = song.audioTrack.durationSec || duration || 210;
+    const fastMarkers = generateFallbackMarkers(estDuration, sections);
+    setMarkers(fastMarkers);
+  }, [song?.id, song?.audioTrack?.markers, song?.audioTrack?.durationSec, duration]);
 
-    detectAudioChapters(song.audioTrack.url, duration, sections)
-      .then((detected) => {
-        if (isCancelled) return;
-        const finalMarkers = detected.length > 0 ? detected : generateFallbackMarkers(duration, sections);
-        setMarkers(finalMarkers);
-        saveCachedAudioMarkers(song.id, finalMarkers);
-      })
-      .catch(() => {
-        if (isCancelled) return;
-        const fallback = generateFallbackMarkers(duration, sections);
-        setMarkers(fallback);
-      })
-      .finally(() => {
-        if (!isCancelled) setIsAnalyzingAudio(false);
-      });
+  // Load song audio source into persistent element
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (!song?.audioTrack || (!song.audioTrack.url && !song.audioTrack.filename)) {
+      audio.pause();
+      audio.removeAttribute('src');
+      setIsPlaying(false);
+      setCurrentTime(0);
+      setDuration(0);
+      return;
+    }
+
+    let isCancelled = false;
+
+    // Pause immediately to prevent overlapping audio
+    if (!audio.paused) {
+      audio.pause();
+      setIsPlaying(false);
+    }
+    setCurrentTime(0);
+
+    const loadTrack = async () => {
+      let playUrl = song.audioTrack?.url || '';
+      const filename = song.audioTrack?.filename;
+
+      // Check local IndexedDB storage first
+      if (filename) {
+        const cachedBlob = await getAudioBlobOffline(filename);
+        if (cachedBlob && !isCancelled) {
+          if (blobUrlRef.current) {
+            URL.revokeObjectURL(blobUrlRef.current);
+          }
+          blobUrlRef.current = URL.createObjectURL(cachedBlob);
+          playUrl = blobUrlRef.current;
+        }
+      }
+
+      if (isCancelled || !audioRef.current) return;
+
+      audio.src = playUrl;
+      audio.volume = isMuted ? 0 : volume;
+      audio.load();
+    };
+
+    loadTrack();
 
     return () => {
       isCancelled = true;
     };
-  }, [song?.id, song?.audioTrack?.url, duration]);
+  }, [song?.id, song?.audioTrack?.url, song?.audioTrack?.filename]);
 
   const togglePlay = useCallback(() => {
-    if (!audioRef.current) return;
-    if (audioRef.current.paused) {
-      audioRef.current.play().catch(() => {});
+    const audio = audioRef.current;
+    if (!audio || !audio.src) return;
+
+    if (audio.paused) {
+      playPromiseRef.current = audio.play();
+      if (playPromiseRef.current !== undefined) {
+        playPromiseRef.current
+          .then(() => {
+            setIsPlaying(true);
+          })
+          .catch((err) => {
+            if (err.name !== 'AbortError') {
+              console.warn('Playback play request was aborted:', err);
+            }
+          })
+          .finally(() => {
+            playPromiseRef.current = null;
+          });
+      }
     } else {
-      audioRef.current.pause();
+      if (playPromiseRef.current) {
+        playPromiseRef.current
+          .then(() => {
+            audio.pause();
+            setIsPlaying(false);
+          })
+          .catch(() => {});
+      } else {
+        audio.pause();
+        setIsPlaying(false);
+      }
     }
   }, []);
 
-  const seek = useCallback((timeSec: number) => {
-    if (!audioRef.current) return;
-    const clamped = Math.max(0, Math.min(duration || 99999, timeSec));
-    audioRef.current.currentTime = clamped;
-    setCurrentTime(clamped);
-  }, [duration]);
+  const seek = useCallback(
+    (timeSec: number) => {
+      const audio = audioRef.current;
+      if (!audio) return;
+      const clamped = Math.max(0, Math.min(duration || 99999, timeSec));
+      if (typeof (audio as any).fastSeek === 'function') {
+        (audio as any).fastSeek(clamped);
+      } else {
+        audio.currentTime = clamped;
+      }
+      setCurrentTime(clamped);
+    },
+    [duration]
+  );
 
-  // Current active marker based on playback time
+  // Active marker based on current time
   const activeMarker = useMemo(() => {
     if (markers.length === 0) return null;
     for (let i = markers.length - 1; i >= 0; i--) {
@@ -204,7 +251,7 @@ export function useAudioPlayback(song: Song | null) {
     return markers[0] || null;
   }, [markers, currentTime]);
 
-  // Jump to previous marker (or restart section if > 2.5s into it)
+  // Jump to previous marker
   const jumpPrevMarker = useCallback(() => {
     if (markers.length === 0) {
       seek(0);
@@ -213,11 +260,9 @@ export function useAudioPlayback(song: Song | null) {
     const curIdx = activeMarker ? markers.findIndex((m) => m.id === activeMarker.id) : 0;
     if (curIdx >= 0) {
       const currentMarker = markers[curIdx];
-      // If we are more than 2.5s into this marker, restart it
       if (currentTime - currentMarker.time > 2.5) {
         seek(currentMarker.time);
       } else if (curIdx > 0) {
-        // Otherwise go to previous marker
         seek(markers[curIdx - 1].time);
       } else {
         seek(0);
@@ -236,7 +281,7 @@ export function useAudioPlayback(song: Song | null) {
     }
   }, [markers, currentTime, seek]);
 
-  const hasAudio = !!(song?.audioTrack && song.audioTrack.url);
+  const hasAudio = !!(song?.audioTrack && (song.audioTrack.url || song.audioTrack.filename));
 
   return {
     hasAudio,
@@ -255,7 +300,6 @@ export function useAudioPlayback(song: Song | null) {
     activeMarker,
     jumpPrevMarker,
     jumpNextMarker,
-    isAnalyzingAudio,
+    isAnalyzingAudio: false,
   };
 }
-

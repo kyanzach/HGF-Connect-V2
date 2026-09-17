@@ -17,6 +17,7 @@ export interface AudioTrack {
   durationSec?: number;
   waveform?: number[];
   markers?: AudioMarker[];
+  isLocalOnly?: boolean;
   uploadedAt?: number;
 }
 

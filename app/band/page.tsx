@@ -280,6 +280,7 @@ export default function BandStagePage() {
             tempo: typeof updatedSong.tempo === 'number' ? updatedSong.tempo : undefined,
             timeSignature: updatedSong.timeSignature,
             chords: updatedSong.chords,
+            audioTrack: updatedSong.audioTrack,
           };
         }
         return s;

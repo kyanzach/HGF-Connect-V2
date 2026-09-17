@@ -16,9 +16,7 @@ export function extractRoadmapSections(chordsText: string): string[] {
     const trimmed = line.trim();
     const match = trimmed.match(sectionRegex);
     if (match) {
-      // Clean up bracket and colon
       let label = match[1].replace(/[\[\]]/g, '').trim();
-      // Capitalize nicely
       label = label.charAt(0).toUpperCase() + label.slice(1);
       if (!found.includes(label)) {
         found.push(label);
@@ -54,25 +52,18 @@ export function saveCachedAudioMarkers(songId: string, markers: AudioMarker[]): 
 }
 
 /**
- * Detect vocal and energy section transitions from audio file using Web Audio API
+ * Analyze audio buffer for vocal activity & dynamic section transitions
  */
-export async function detectAudioChapters(
-  audioUrl: string,
+export async function analyzeAudioArrayBuffer(
+  arrayBuf: ArrayBuffer,
   durationSec: number,
   knownSections: string[]
 ): Promise<AudioMarker[]> {
-  if (!audioUrl || durationSec <= 0) return [];
-
   try {
-    // Attempt Web Audio API analysis
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
     if (!AudioContextClass) {
       return generateFallbackMarkers(durationSec, knownSections);
     }
-
-    const resp = await fetch(audioUrl);
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const arrayBuf = await resp.arrayBuffer();
 
     const audioCtx = new AudioContextClass();
     const audioBuf = await audioCtx.decodeAudioData(arrayBuf);
@@ -104,18 +95,16 @@ export async function detectAudioChapters(
       return generateFallbackMarkers(durationSec, knownSections);
     }
 
-    // Identify significant energy jumps / section onsets
-    // Filter points where energy increases sharply compared to previous 2 seconds
     const minSectionIntervalSec = Math.max(16, Math.floor(durationSec / (knownSections.length + 1)));
-    const detectedTimestamps: number[] = [0]; // Intro is always at 0s
+    const detectedTimestamps: number[] = [0];
 
     let lastMarkTime = 0;
-    const lookbackSteps = 20; // 2 seconds at 100ms step
+    const lookbackSteps = 20;
 
     for (let i = lookbackSteps; i < energyProfile.length - 10; i++) {
       const currentTime = energyProfile[i].time;
       if (currentTime - lastMarkTime < minSectionIntervalSec) continue;
-      if (currentTime > durationSec - 10) break; // Don't mark right at the end
+      if (currentTime > durationSec - 10) break;
 
       let prevEnergy = 0;
       for (let k = 1; k <= lookbackSteps; k++) {
@@ -124,7 +113,6 @@ export async function detectAudioChapters(
       prevEnergy /= lookbackSteps;
 
       const currentEnergy = energyProfile[i].energy;
-      // If significant rise (vocal entry or band drop/chorus) or sudden drop/hold
       const ratio = prevEnergy > 0.001 ? currentEnergy / prevEnergy : 1;
       const absoluteDiff = Math.abs(currentEnergy - prevEnergy);
 
@@ -134,10 +122,45 @@ export async function detectAudioChapters(
       }
     }
 
-    // Align detected timestamps with known sections
     return mapTimestampsToSections(detectedTimestamps, durationSec, knownSections);
   } catch (err) {
     console.warn('[AudioAnalysis] Web Audio decode failed, using intelligent spacing:', err);
+    return generateFallbackMarkers(durationSec, knownSections);
+  }
+}
+
+/**
+ * Detect chapters directly from a local Blob (called upon upload)
+ */
+export async function detectAudioChaptersFromBlob(
+  blob: Blob,
+  durationSec: number,
+  knownSections: string[]
+): Promise<AudioMarker[]> {
+  try {
+    const arrayBuf = await blob.arrayBuffer();
+    return await analyzeAudioArrayBuffer(arrayBuf, durationSec, knownSections);
+  } catch {
+    return generateFallbackMarkers(durationSec, knownSections);
+  }
+}
+
+/**
+ * Detect vocal and energy section transitions from audio file using Web Audio API
+ */
+export async function detectAudioChapters(
+  audioUrl: string,
+  durationSec: number,
+  knownSections: string[]
+): Promise<AudioMarker[]> {
+  if (!audioUrl || durationSec <= 0) return [];
+
+  try {
+    const resp = await fetch(audioUrl);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const arrayBuf = await resp.arrayBuffer();
+    return await analyzeAudioArrayBuffer(arrayBuf, durationSec, knownSections);
+  } catch (err) {
     return generateFallbackMarkers(durationSec, knownSections);
   }
 }
@@ -150,7 +173,6 @@ function mapTimestampsToSections(
   durationSec: number,
   sections: string[]
 ): AudioMarker[] {
-  // Always start with Intro at 0
   const cleanTimes = Array.from(new Set(timestamps)).sort((a, b) => a - b);
   if (cleanTimes[0] !== 0) cleanTimes.unshift(0);
 
@@ -165,7 +187,6 @@ function mapTimestampsToSections(
     });
   }
 
-  // If there are more sections than detected times, space remaining
   if (sections.length > count && count > 0) {
     const lastTime = cleanTimes[count - 1];
     const remainingTime = durationSec - lastTime;
@@ -188,7 +209,7 @@ function mapTimestampsToSections(
 }
 
 /**
- * Generate fallback markers evenly distributed based on song roadmap
+ * Generate fallback markers evenly distributed based on song roadmap (0ms synchronous)
  */
 export function generateFallbackMarkers(durationSec: number, sections: string[]): AudioMarker[] {
   if (durationSec <= 0 || sections.length === 0) return [];
@@ -198,7 +219,7 @@ export function generateFallbackMarkers(durationSec: number, sections: string[])
   sections.forEach((sec, idx) => {
     const time = idx === 0 ? 0 : Math.round(idx * step);
     markers.push({
-      id: `fallback-${idx}-${time}`,
+      id: `section-${idx}-${time}`,
       time,
       label: sec,
     });

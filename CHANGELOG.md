@@ -5,6 +5,22 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.55.2] — 2026-09-17
+### Fixed & Added — Zero-Lag Audio Engine, Upload-Time Chapter Analysis & Local Device Storage (IndexedDB)
+- **Eliminated Live Playback Decoding Lag (`useAudioPlayback.ts`)**:
+  - Removed all live Web Audio `decodeAudioData` calls on song switch or playback start that were freezing the browser CPU and causing random pause/stop stutters.
+  - Replaced multi-instance audio allocation with a single persistent `HTMLAudioElement` singleton, properly revoking blob URLs (`URL.revokeObjectURL`) to eliminate memory leaks.
+  - Protected `play()` / `pause()` calls against unhandled `AbortError` promises during rapid tapping.
+- **One-Time Chapter Detection Upon Upload (`AudioStorageModal.tsx`, `audioAnalysis.ts`)**:
+  - Chapter and vocal transition detection now executes strictly **once upon upload** directly from the selected file's memory buffer (`detectAudioChaptersFromBlob`).
+  - Precalculated chapters are stored permanently on `audioTrack.markers` and in `localStorage`, so stage playback loads instantly in 0ms.
+- **Local Device Storage Only Option (`AudioStorageModal.tsx`, `useAudioPlayback.ts`)**:
+  - Added dedicated **"📱 Local Device Only"** storage mode allowing the Music Director to link backtracks from mobile files / Google Drive / iCloud directly into their phone's local IndexedDB.
+  - Upload to server is completely optional (0MB server bandwidth/storage used).
+  - Attached local tracks stay permanently linked across sessions without repetitive file picking.
+- **Setlist Audio Track Persistence (`page.tsx`)**:
+  - Added `audioTrack` field to setlist song update mapping, ensuring attached audio tracks persist across both active setlists and master library views.
+
 ## [v2.55.1] — 2026-09-17
 ### Enhanced — Setlist Picker Close Buttons & High-Contrast Visibility
 - **Solid High-Contrast Top Close Button (`SetlistSidebar.tsx`)**:
