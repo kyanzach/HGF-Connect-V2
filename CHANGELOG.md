@@ -5,6 +5,13 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.55.5] — 2026-09-17
+### Fixed — Persistent Active Song Across Page Refreshes & Elimination of Library Race Condition
+- **Active Song Persistence Across Refreshes (`useSetlist.ts`)**:
+  - Added `STORAGE_ACTIVE_SONG` (`hgf_band_active_song_id`) to `localStorage` so the currently viewed song is preserved and restored upon browser refresh.
+  - Eliminated the race condition where `songs[0]` (*"All I Need is You"*, the first alphabetical song in the global library) was prematurely selected on page load before the active setlist had finished fetching.
+  - Setlist navigation (`nextSong`, `prevSong`, `selectSong`, and setlist picker) now updates the persisted active song ID in real-time.
+
 ## [v2.55.4] — 2026-09-17
 ### Added & Enhanced — Interactive Audio Chapter Timings & Cue Calibration Modal
 - **Interactive Audio Chapter Editor (`AudioChaptersModal.tsx`, `AudioPlaybackDock.tsx`)**:

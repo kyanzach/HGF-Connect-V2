@@ -6,6 +6,7 @@ import { Song, Setlist, SetlistSongItem } from '../types/band';
 import { getSongsOffline, saveSongsOffline } from '../lib/offlineStorage';
 
 const STORAGE_ACTIVE_SETLIST = 'hgf_band_active_setlist_id';
+const STORAGE_ACTIVE_SONG = 'hgf_band_active_song_id';
 const STORAGE_LOCAL_SONGS = 'hgf_band_songs';
 const STORAGE_SESSION_KEYS = 'hgf_band_session_keys';
 
@@ -67,6 +68,10 @@ export function useSetlist() {
     if (savedSetId) {
       setActiveSetlistId(savedSetId);
     }
+    const savedSongId = localStorage.getItem(STORAGE_ACTIVE_SONG);
+    if (savedSongId) {
+      setCurrentSongId(savedSongId);
+    }
   }, []);
 
   const activeSetlist = useMemo(() => {
@@ -110,10 +115,25 @@ export function useSetlist() {
 
   // Set initial song once lineup is loaded
   useEffect(() => {
-    if (!currentSongId && currentLineup.length > 0) {
-      setCurrentSongId(currentLineup[0].id);
+    if (isLoading) return;
+    if (currentLineup.length === 0) return;
+
+    const isValid = currentSongId && currentLineup.some((s) => s.id === currentSongId);
+
+    if (!isValid) {
+      let targetId = currentLineup[0].id;
+      if (typeof window !== 'undefined') {
+        const savedSongId = localStorage.getItem(STORAGE_ACTIVE_SONG);
+        if (savedSongId && currentLineup.some((s) => s.id === savedSongId)) {
+          targetId = savedSongId;
+        }
+      }
+      setCurrentSongId(targetId);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(STORAGE_ACTIVE_SONG, targetId);
+      }
     }
-  }, [currentLineup, currentSongId]);
+  }, [currentLineup, currentSongId, isLoading]);
 
   const currentSong = useMemo(() => {
     if (!currentSongId) return currentLineup[0] || null;
@@ -149,27 +169,48 @@ export function useSetlist() {
 
   const selectSong = useCallback((songId: string) => {
     setCurrentSongId(songId);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_ACTIVE_SONG, songId);
+    }
   }, []);
 
   const selectSetlist = useCallback((setId: string | null) => {
     setActiveSetlistId(setId);
-    // When switching setlists or going to All Songs, reset session overrides so it loads fresh Worship Leader defaults
     setSetlistSessionOverrides({});
     if (typeof window !== 'undefined') {
       if (setId) localStorage.setItem(STORAGE_ACTIVE_SETLIST, setId);
       else localStorage.removeItem(STORAGE_ACTIVE_SETLIST);
     }
-  }, []);
+    if (setId) {
+      const target = setlists.find((s) => s.id === setId);
+      if (target && target.songs && target.songs.length > 0) {
+        const first = target.songs[0];
+        const firstId = typeof first === 'string' ? first : first.id;
+        setCurrentSongId(firstId);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(STORAGE_ACTIVE_SONG, firstId);
+        }
+      }
+    }
+  }, [setlists]);
 
   const nextSong = useCallback(() => {
     if (currentIndex < currentLineup.length - 1) {
-      setCurrentSongId(currentLineup[currentIndex + 1].id);
+      const nextId = currentLineup[currentIndex + 1].id;
+      setCurrentSongId(nextId);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(STORAGE_ACTIVE_SONG, nextId);
+      }
     }
   }, [currentIndex, currentLineup]);
 
   const prevSong = useCallback(() => {
     if (currentIndex > 0) {
-      setCurrentSongId(currentLineup[currentIndex - 1].id);
+      const prevId = currentLineup[currentIndex - 1].id;
+      setCurrentSongId(prevId);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(STORAGE_ACTIVE_SONG, prevId);
+      }
     }
   }, [currentIndex, currentLineup]);
 
