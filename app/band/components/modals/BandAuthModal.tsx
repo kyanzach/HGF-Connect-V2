@@ -222,7 +222,7 @@ export const BandAuthModal: React.FC<BandAuthModalProps> = ({
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Enter username (e.g. ryan, ren)"
+                  placeholder="Enter username"
                   autoFocus
                   autoCapitalize="none"
                   autoCorrect="off"

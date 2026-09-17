@@ -5,6 +5,16 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.54.7] — 2026-09-17
+### Fixed — Chord Insertion Bracket Removal & Chord Line Detection
+- **Chord Palette Insertion (`SongEditorModal.tsx`)**:
+  - Removed brackets `[Chord]` from quick chord buttons in the editor palette (`+D`, `+Em`, `+Bm`, etc.), inserting clean chord symbols (`Bm `) directly into chords-over-lyrics without breaking line formatting.
+- **Robust Chord Line Parsing (`musicTheory.ts`)**:
+  - Enhanced `parseAndTransposeSheetLines` to evaluate whether a line is purely chords by testing chord tokens regardless of bracket wrapping.
+  - Ensures lines with mixed or bracketed chords (e.g. `D   A   [Bm]`) render all chords in styled amber badges rather than misinterpreting non-bracketed tokens as lyrics.
+- **Login Placeholder Cleanup (`BandAuthModal.tsx`)**:
+  - Removed example usernames `(e.g. ryan, ren)` from the username input placeholder, displaying clean `Enter username`.
+
 ## [v2.54.6] — 2026-09-17
 ### Changed — Relocated Metronome BPM Badge to Song Sheet Header
 - **Menu Edits Bar De-Cluttering**:

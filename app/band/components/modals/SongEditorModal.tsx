@@ -461,7 +461,7 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
                 KEY OF {key.toUpperCase()} CHORDS (Insert at Cursor)
               </label>
               <span style={{ fontSize: '11px', color: '#64748b' }}>
-                Tap to place <code>[Chord]</code> at cursor position
+                Tap chord to insert at cursor position
               </span>
             </div>
 
@@ -471,7 +471,7 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
                   key={c}
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => insertTextAtCursor(`[${c}]`, false)}
+                  onClick={() => insertTextAtCursor(`${c} `, false)}
                   style={{
                     background: '#131c2e',
                     border: '1px solid #334155',

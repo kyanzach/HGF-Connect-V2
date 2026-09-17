@@ -173,7 +173,39 @@ export function parseAndTransposeSheetLines(
       continue;
     }
 
-    // ChordPro bracket format [C]Bless the [G]Lord
+    // Check if line (with or without brackets) is purely chords (e.g., "D   A   Bm" or "D   A   [Bm]" or "[D] [A] [Bm]")
+    const unbracketedLine = rawLine.replace(/\[([A-G][b#]?[^\]]*)\]/g, '$1');
+    const unbracketedTrimmed = unbracketedLine.trim();
+    const words = unbracketedTrimmed.split(/\s+/);
+    const isPureChordLine = words.length > 0 && words.every(w =>
+      /^[A-G][b#]?(?:m|maj|min|sus|add|dim|aug|2|4|5|6|7|9|11|13)*(?:\/[A-G][b#]?)?$/.test(w) ||
+      /^[-–—()|/]+$/.test(w)
+    );
+
+    if (isPureChordLine) {
+      // Split preserving spaces and replace chord tokens (whether in brackets [Bm] or plain Bm)
+      const items: { text: string; isChord: boolean }[] = [];
+      let lastIdx = 0;
+      const CHORD_OR_BRACKETED_REGEX = /\[?([A-G][b#]?(?:m|maj|min|sus|add|dim|aug|2|4|5|6|7|9|11|13)*(?:\/[A-G][b#]?)?)\]?/g;
+      let tokenMatch: RegExpExecArray | null;
+
+      while ((tokenMatch = CHORD_OR_BRACKETED_REGEX.exec(rawLine)) !== null) {
+        if (tokenMatch.index > lastIdx) {
+          items.push({ text: rawLine.substring(lastIdx, tokenMatch.index), isChord: false });
+        }
+        const trans = transposeChord(tokenMatch[1], semitones, preferFlats);
+        items.push({ text: trans, isChord: true });
+        lastIdx = tokenMatch.index + tokenMatch[0].length;
+      }
+      if (lastIdx < rawLine.length) {
+        items.push({ text: rawLine.substring(lastIdx), isChord: false });
+      }
+
+      result.push({ type: 'chord_line', raw: rawLine, items });
+      continue;
+    }
+
+    // ChordPro bracket format inside lyrics: e.g. "[C]Bless the [G]Lord"
     if (/\[[A-G][b#]?.*?\]/.test(rawLine)) {
       const items: { text: string; isChord: boolean }[] = [];
       let lastIdx = 0;
@@ -197,35 +229,7 @@ export function parseAndTransposeSheetLines(
       continue;
     }
 
-    // Check if line is purely chords
-    const words = trimmed.split(/\s+/);
-    const isPureChordLine = words.every(w =>
-      /^[A-G][b#]?(?:m|maj|min|sus|add|dim|aug|2|4|5|6|7|9|11|13)*(?:\/[A-G][b#]?)?$/.test(w) ||
-      /^[-–—()|/]+$/.test(w)
-    );
-
-    if (isPureChordLine) {
-      // Split preserving spaces and replace chord tokens
-      const items: { text: string; isChord: boolean }[] = [];
-      let lastIdx = 0;
-      let tokenMatch: RegExpExecArray | null;
-
-      while ((tokenMatch = CHORD_TOKEN_REGEX.exec(rawLine)) !== null) {
-        if (tokenMatch.index > lastIdx) {
-          items.push({ text: rawLine.substring(lastIdx, tokenMatch.index), isChord: false });
-        }
-        const trans = transposeChord(tokenMatch[1], semitones, preferFlats);
-        items.push({ text: trans, isChord: true });
-        lastIdx = tokenMatch.index + tokenMatch[0].length;
-      }
-      if (lastIdx < rawLine.length) {
-        items.push({ text: rawLine.substring(lastIdx), isChord: false });
-      }
-
-      result.push({ type: 'chord_line', raw: rawLine, items });
-    } else {
-      result.push({ type: 'lyrics', raw: rawLine });
-    }
+    result.push({ type: 'lyrics', raw: rawLine });
   }
 
   return result;
