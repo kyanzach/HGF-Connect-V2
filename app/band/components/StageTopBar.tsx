@@ -13,6 +13,7 @@ interface StageTopBarProps {
   isMetronomePulsing: boolean;
   isMetronomeAudioActive: boolean;
   onToggleMetronomeAudio: () => void;
+  onOpenMetronomeModal?: () => void;
   setlists: Setlist[];
   activeSetlistId: string | null;
   onSelectSetlist: (id: string | null) => void;
@@ -35,6 +36,7 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
   isMetronomePulsing,
   isMetronomeAudioActive,
   onToggleMetronomeAudio,
+  onOpenMetronomeModal,
   setlists,
   activeSetlistId,
   onSelectSetlist,
@@ -270,8 +272,8 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
 
         {/* Pulsing BPM Badge (Worship Tool style) */}
         <div
-          onClick={onToggleMetronomeAudio}
-          title="Live Visual BPM Pulse • Click to toggle metronome audio"
+          onClick={onOpenMetronomeModal || onToggleMetronomeAudio}
+          title="Live Visual BPM Pulse • Click for Metronome Settings"
           style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -377,8 +379,14 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
             <span>Track</span>
           </button>
           <button
-            onClick={onOpenScratchpad}
-            title="Musician Personal Notes & Scratchpad"
+            onClick={() => {
+              if (!currentUser) {
+                onOpenAuthModal();
+              } else {
+                onOpenScratchpad();
+              }
+            }}
+            title={currentUser ? "Musician Personal Notes & Scratchpad" : "Login to view & write your musician notes"}
             style={{
               display: 'inline-flex',
               alignItems: 'center',

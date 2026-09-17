@@ -32,6 +32,7 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
   onOpenSetlistAdmin,
 }) => {
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [sortBy, setSortBy] = useState<'title' | 'key' | 'artist' | 'recent'>('title');
 
   const displayList = useMemo(() => {
     let list: Song[] = [];
@@ -56,12 +57,26 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
       list = list.filter(
         (s) =>
           s.title.toLowerCase().includes(q) ||
-          (s.artist && s.artist.toLowerCase().includes(q))
+          (s.artist && s.artist.toLowerCase().includes(q)) ||
+          (s.key && s.key.toLowerCase().includes(q))
       );
     }
 
+    // Apply sorting
+    if (!activeSetlist || sortBy !== 'title') {
+      if (sortBy === 'title') {
+        list.sort((a, b) => a.title.localeCompare(b.title));
+      } else if (sortBy === 'key') {
+        list.sort((a, b) => (a.key || '').localeCompare(b.key || ''));
+      } else if (sortBy === 'artist') {
+        list.sort((a, b) => (a.artist || '').localeCompare(b.artist || ''));
+      } else if (sortBy === 'recent') {
+        list.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+      }
+    }
+
     return list;
-  }, [activeSetlist, songs, searchQuery]);
+  }, [activeSetlist, songs, searchQuery, sortBy]);
 
   if (!isOpen) return null;
 
@@ -173,6 +188,41 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
               outline: 'none',
             }}
           />
+
+          {/* Sort By Pills */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+            <span style={{ fontSize: '10px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginRight: '4px' }}>
+              Sort:
+            </span>
+            {[
+              { id: 'title', label: 'A-Z' },
+              { id: 'key', label: 'Key' },
+              { id: 'artist', label: 'Artist' },
+              { id: 'recent', label: 'Recent' },
+            ].map((st) => {
+              const active = sortBy === st.id;
+              return (
+                <button
+                  key={st.id}
+                  onClick={() => setSortBy(st.id as any)}
+                  style={{
+                    flex: 1,
+                    height: '24px',
+                    borderRadius: '6px',
+                    border: `1px solid ${active ? '#4EB1CB' : '#334155'}`,
+                    background: active ? 'rgba(78, 177, 203, 0.2)' : '#1e293b',
+                    color: active ? '#4EB1CB' : '#94a3b8',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {st.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* SONG LIST */}

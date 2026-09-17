@@ -11,11 +11,13 @@ interface SongSheetProps {
   parsedLines: SheetLine[];
   fontSizePx: number;
   isAutoScrolling: boolean;
+  scrollSpeed?: number;
   onToggleAutoScroll: () => void;
   onOpenChordDiagram?: (chord: string) => void;
   onJumpSection?: (secName: string) => void;
   onSwipeLeft?: () => void;
   onSwipeRight?: () => void;
+  drawingCanvasElement?: React.ReactNode;
 }
 
 export const SongSheet: React.FC<SongSheetProps> = ({
@@ -24,24 +26,30 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   parsedLines,
   fontSizePx,
   isAutoScrolling,
+  scrollSpeed = 3,
   onOpenChordDiagram,
   onSwipeLeft,
   onSwipeRight,
+  drawingCanvasElement,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
 
-  // Auto-scroll loop
+  // Auto-scroll loop with variable speed
   useEffect(() => {
     if (!isAutoScrolling || !containerRef.current) return;
     const container = containerRef.current;
     const interval = setInterval(() => {
-      container.scrollBy({ top: 1, behavior: 'auto' });
+      const step = Math.max(0.4, (scrollSpeed || 3) * 0.4);
+      container.scrollBy({ top: step, behavior: 'auto' });
+      if (container.scrollTop + container.clientHeight >= container.scrollHeight - 2) {
+        // reached bottom
+      }
     }, 40);
 
     return () => clearInterval(interval);
-  }, [isAutoScrolling]);
+  }, [isAutoScrolling, scrollSpeed]);
 
   // Section order roadmap parts
   const sectionParts = (song?.sectionOrder || '')
@@ -235,6 +243,9 @@ export const SongSheet: React.FC<SongSheetProps> = ({
           position: 'relative',
         }}
       >
+        {/* Persistent Annotation Canvas */}
+        {drawingCanvasElement}
+
         {parsedLines.map((line, lIdx) => {
           if (line.type === 'empty') {
             return <div key={lIdx} style={{ height: '14px' }} />;

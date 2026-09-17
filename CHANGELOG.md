@@ -5,6 +5,28 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.54.2] — 2026-09-17
+### Added & Fixed — Auto-Scroll Speed Bar, 3s Ambient Pad Fades, Stage Metronome, Persistent Tiered Drawings, Per-User Notes & Band Member Roster
+- **Auto-Scroll Floating Speed Bar & Library Sorting**:
+  - Implemented `AutoScrollBar` floating dock with play/pause (`▶ / ⏸`), 1-10 speed slider, step buttons, and real-time multiplier (`Speed: 3x`).
+  - Added multi-criteria sorting to `SetlistSidebar` (`Title A-Z`, `Key`, `Artist`, `Recent`).
+- **Ambient Pad Volume & 3-Second Crossfade / Fade-Out**:
+  - Upgraded `AmbientPadPlayer` engine in `padSynth.ts` so volume adjustments take effect immediately in real time while playing.
+  - Implemented exact 3.0-second fade-in/crossfade and 3.0-second smooth exponential fade-out on stop with visual `● Fading Out (3.0s)...` indicator.
+- **Stage Metronome Modal for Every User**:
+  - Added dedicated `🔔` Metronome FAB to `NavigationDock` and wired top bar BPM badge.
+  - Built `MetronomeModal` with Audio Click toggle, tempo slider, +/- steppers, Tap Tempo detector, time signatures (`4/4`, `3/4`, `6/8`), and volume.
+- **Persistent Tiered Drawing Canvas & Show-All Mode**:
+  - Fixed drawing canvas unmount bug: `<canvas>` now remains permanently mounted over `#sheetScrollBody` with `pointer-events: none` when closed so annotations stay visible and scroll in lockstep with chords and lyrics.
+  - Tiered permissions: strokes by MD/Admin are global (`scope: 'global'`) and visible to all band members; member strokes are private (`scope: 'user'`).
+  - Added `👁️ Show All` toggle for MD/Admin to view all band member markings simultaneously.
+- **Login-Protected Per-User Musician Notes**:
+  - Protected `ScratchpadModal`: unauthenticated users are prompted to log in to access personal notes.
+  - Separate sections for Band Global Cue (set by MD/Admin) and Private Musician Notes (saved per user to `/api/worship/scratch` & localStorage).
+- **Official Band Member Management & Pre-seeded Roster**:
+  - Created `BandAdminModal` ("⚙️ Manage Band Members & Roles") allowing MD & Admin to add, edit, and delete members with 2-letter username support and default password `Godisgood`.
+  - Pre-seeded requested official roster: `ryan` (Admin), `ren` (MD), `la` (Drums), `jl` (Lead Guitar), `joven` (Bass), `rabid` (Drums), `ronnel` (Acoustic Guitar).
+
 ## [v2.54.1] — 2026-09-17
 ### Changed — Complete Deprecation of Old HTML Monolith & Unified Shortlink Routing to /band
 - **Old Monolith Decommissioned**:

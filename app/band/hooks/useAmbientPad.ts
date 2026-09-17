@@ -6,15 +6,17 @@ import { AmbientPadPlayer } from '../lib/padSynth';
 
 export function useAmbientPad() {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [isFadingOut, setIsFadingOut] = useState<boolean>(false);
   const [currentKey, setCurrentKey] = useState<string>('C');
   const [volume, setVolumeState] = useState<number>(0.85);
 
   const playerRef = useRef<AmbientPadPlayer | null>(null);
 
   useEffect(() => {
-    const player = new AmbientPadPlayer((playing, key) => {
+    const player = new AmbientPadPlayer((playing, key, fadingOut) => {
       setIsPlaying(playing);
       setCurrentKey(key);
+      setIsFadingOut(fadingOut);
     });
     playerRef.current = player;
 
@@ -50,6 +52,7 @@ export function useAmbientPad() {
 
   return {
     isPlaying,
+    isFadingOut,
     currentKey,
     volume,
     play,

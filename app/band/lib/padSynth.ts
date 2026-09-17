@@ -1,5 +1,5 @@
 // app/band/lib/padSynth.ts
-// Ambient worship pad audio playback engine with seamless crossfade
+// Ambient worship pad audio playback engine with 3-second smooth fade-in / crossfade and 3-second fade-out
 
 export const PAD_AUDIO_FILES: Record<string, string> = {
   'C': '/audio/pads/C.mp3',
@@ -27,15 +27,16 @@ export class AmbientPadPlayer {
   private volume: number = 0.85;
   private fadeTimer: any = null;
   private isPlaying: boolean = false;
-  private onStateChange?: (isPlaying: boolean, key: string) => void;
+  private isFadingOut: boolean = false;
+  private onStateChange?: (isPlaying: boolean, key: string, isFadingOut: boolean) => void;
 
-  constructor(onStateChange?: (isPlaying: boolean, key: string) => void) {
+  constructor(onStateChange?: (isPlaying: boolean, key: string, isFadingOut: boolean) => void) {
     this.onStateChange = onStateChange;
   }
 
   public setVolume(vol: number) {
     this.volume = Math.max(0, Math.min(1, vol));
-    if (this.currentAudio && !this.fadeTimer) {
+    if (this.currentAudio && !this.isFadingOut) {
       this.currentAudio.volume = this.volume;
     }
   }
@@ -52,6 +53,10 @@ export class AmbientPadPlayer {
     return this.isPlaying;
   }
 
+  public getIsFadingOut(): boolean {
+    return this.isFadingOut;
+  }
+
   public toggle(key?: string) {
     if (this.isPlaying) {
       this.stop();
@@ -64,11 +69,13 @@ export class AmbientPadPlayer {
     const rootKey = keyName.replace('m', '');
     const path = PAD_AUDIO_FILES[rootKey] || '/audio/pads/C.mp3';
 
-    if (this.isPlaying && this.currentKey === rootKey && this.currentAudio && !this.currentAudio.paused) {
+    if (this.isPlaying && this.currentKey === rootKey && this.currentAudio && !this.currentAudio.paused && !this.isFadingOut) {
       return;
     }
 
     this.currentKey = rootKey;
+    this.isFadingOut = false;
+
     if (this.fadeTimer) {
       clearInterval(this.fadeTimer);
       this.fadeTimer = null;
@@ -79,6 +86,7 @@ export class AmbientPadPlayer {
     newAudio.loop = true;
     newAudio.volume = 0;
 
+    // Loop backup for iOS/Safari
     newAudio.addEventListener('ended', () => {
       newAudio.currentTime = 0;
       newAudio.play().catch(() => {});
@@ -87,30 +95,35 @@ export class AmbientPadPlayer {
     newAudio.play().then(() => {
       this.currentAudio = newAudio;
       this.isPlaying = true;
-      if (this.onStateChange) this.onStateChange(true, this.currentKey);
+      if (this.onStateChange) this.onStateChange(true, this.currentKey, false);
 
-      // Smooth 2.5s crossfade
+      // Smooth 3.0-second fade-in & crossfade (60 steps @ 50ms = 3000ms)
       let step = 0;
-      const totalSteps = 50;
+      const totalSteps = 60;
+      const intervalMs = 50;
+
       this.fadeTimer = setInterval(() => {
         step++;
-        const progress = step / totalSteps;
+        const progress = Math.min(1, step / totalSteps);
         newAudio.volume = Math.min(this.volume, this.volume * progress);
+
         if (oldAudio && !oldAudio.paused) {
           oldAudio.volume = Math.max(0, this.volume * (1 - progress));
         }
+
         if (step >= totalSteps) {
           clearInterval(this.fadeTimer);
           this.fadeTimer = null;
+          newAudio.volume = this.volume;
           if (oldAudio) {
             oldAudio.pause();
             oldAudio.src = '';
           }
         }
-      }, 50);
+      }, intervalMs);
     }).catch(() => {
       this.isPlaying = false;
-      if (this.onStateChange) this.onStateChange(false, this.currentKey);
+      if (this.onStateChange) this.onStateChange(false, this.currentKey, false);
     });
   }
 
@@ -119,29 +132,39 @@ export class AmbientPadPlayer {
       clearInterval(this.fadeTimer);
       this.fadeTimer = null;
     }
+
     if (this.currentAudio) {
-      let step = 0;
-      const totalSteps = 20;
+      this.isFadingOut = true;
+      if (this.onStateChange) this.onStateChange(true, this.currentKey, true);
+
       const audioToStop = this.currentAudio;
       const startVol = audioToStop.volume;
+      let step = 0;
+      const totalSteps = 60; // 60 * 50ms = 3000ms = 3.0s fade out
+      const intervalMs = 50;
 
       this.fadeTimer = setInterval(() => {
         step++;
-        const progress = step / totalSteps;
+        const progress = Math.min(1, step / totalSteps);
         audioToStop.volume = Math.max(0, startVol * (1 - progress));
+
         if (step >= totalSteps) {
           clearInterval(this.fadeTimer);
           this.fadeTimer = null;
           audioToStop.pause();
           audioToStop.src = '';
-          this.currentAudio = null;
+          if (this.currentAudio === audioToStop) {
+            this.currentAudio = null;
+          }
           this.isPlaying = false;
-          if (this.onStateChange) this.onStateChange(false, this.currentKey);
+          this.isFadingOut = false;
+          if (this.onStateChange) this.onStateChange(false, this.currentKey, false);
         }
-      }, 50);
+      }, intervalMs);
     } else {
       this.isPlaying = false;
-      if (this.onStateChange) this.onStateChange(false, this.currentKey);
+      this.isFadingOut = false;
+      if (this.onStateChange) this.onStateChange(false, this.currentKey, false);
     }
   }
 }

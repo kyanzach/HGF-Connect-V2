@@ -14,6 +14,8 @@ interface NavigationDockProps {
   onChangeFontSize: (delta: number) => void;
   isAutoScrolling: boolean;
   onToggleAutoScroll: () => void;
+  onOpenMetronome?: () => void;
+  isMetronomeAudioActive?: boolean;
 }
 
 export const NavigationDock: React.FC<NavigationDockProps> = ({
@@ -26,6 +28,8 @@ export const NavigationDock: React.FC<NavigationDockProps> = ({
   onChangeFontSize,
   isAutoScrolling,
   onToggleAutoScroll,
+  onOpenMetronome,
+  isMetronomeAudioActive = false,
 }) => {
   return (
     <div
@@ -62,6 +66,31 @@ export const NavigationDock: React.FC<NavigationDockProps> = ({
       >
         📜
       </button>
+
+      {/* Metronome FAB */}
+      {onOpenMetronome && (
+        <button
+          onClick={onOpenMetronome}
+          title="Open Stage Metronome"
+          style={{
+            width: '44px',
+            height: '44px',
+            borderRadius: '50%',
+            backgroundColor: isMetronomeAudioActive ? '#f59e0b' : 'rgba(22, 28, 38, 0.85)',
+            backdropFilter: 'blur(10px)',
+            border: `1px solid ${isMetronomeAudioActive ? '#f59e0b' : '#334155'}`,
+            color: isMetronomeAudioActive ? '#000' : '#fff',
+            fontSize: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            boxShadow: '0 6px 16px rgba(0,0,0,0.5)',
+          }}
+        >
+          🔔
+        </button>
+      )}
 
       {/* Font Size Zoom Stepper */}
       <div

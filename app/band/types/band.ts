@@ -24,6 +24,11 @@ export interface DrawingStroke {
   color: string;
   width: number;
   points: DrawingPoint[];
+  scope?: 'global' | 'user';
+  userId?: string;
+  authorName?: string;
+  role?: string;
+  timestamp?: number;
 }
 
 export interface Song {
@@ -77,6 +82,7 @@ export interface BandUser {
   username: string;
   displayName: string;
   role: 'MD' | 'guitarist' | 'bassist' | 'keyboardist' | 'drummer' | 'vocalist' | 'sound' | 'admin' | string;
+  password?: string;
   createdAt?: number;
   updatedAt?: number;
 }

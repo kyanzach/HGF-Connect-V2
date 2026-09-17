@@ -8,6 +8,7 @@ interface AmbientPadModalProps {
   isOpen: boolean;
   onClose: () => void;
   isPlaying: boolean;
+  isFadingOut?: boolean;
   activeKey: string;
   volume: number;
   onPlayPad: (key: string) => void;
@@ -20,6 +21,7 @@ export const AmbientPadModal: React.FC<AmbientPadModalProps> = ({
   isOpen,
   onClose,
   isPlaying,
+  isFadingOut = false,
   activeKey,
   volume,
   onPlayPad,
@@ -101,8 +103,8 @@ export const AmbientPadModal: React.FC<AmbientPadModalProps> = ({
               <div style={{ fontWeight: 800, fontSize: '15px', color: '#fff' }}>
                 Peaceful Pad ({activeKey})
               </div>
-              <div style={{ fontSize: '12px', color: isPlaying ? '#10b981' : '#64748b', marginTop: '2px', fontWeight: 600 }}>
-                {isPlaying ? '● Audio Active (Smooth Crossfade)' : 'Inactive'}
+              <div style={{ fontSize: '12px', color: isFadingOut ? '#f59e0b' : isPlaying ? '#10b981' : '#64748b', marginTop: '2px', fontWeight: 600 }}>
+                {isFadingOut ? '● Fading Out (3.0s)...' : isPlaying ? '● Active (3.0s Smooth Crossfade)' : 'Inactive'}
               </div>
             </div>
             <button
@@ -110,7 +112,7 @@ export const AmbientPadModal: React.FC<AmbientPadModalProps> = ({
               style={{
                 padding: '8px 16px',
                 borderRadius: '8px',
-                background: isPlaying ? '#ef4444' : '#10b981',
+                background: isFadingOut ? '#f59e0b' : isPlaying ? '#ef4444' : '#10b981',
                 border: 'none',
                 color: '#fff',
                 fontWeight: 800,
@@ -118,7 +120,7 @@ export const AmbientPadModal: React.FC<AmbientPadModalProps> = ({
                 cursor: 'pointer',
               }}
             >
-              {isPlaying ? '⏹ Stop' : '▶ Play'}
+              {isFadingOut ? '⏹ Fading Out...' : isPlaying ? '⏹ Stop (3s Fade)' : '▶ Play (3s Fade)'}
             </button>
           </div>
 

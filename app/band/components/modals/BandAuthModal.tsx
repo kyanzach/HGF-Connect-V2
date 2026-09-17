@@ -9,6 +9,8 @@ interface BandAuthModalProps {
   onClose: () => void;
   currentUser: BandUser | null;
   onSelectUser: (user: BandUser) => void;
+  onLogout: () => void;
+  onOpenAdminModal: () => void;
 }
 
 export const BandAuthModal: React.FC<BandAuthModalProps> = ({
@@ -16,19 +18,22 @@ export const BandAuthModal: React.FC<BandAuthModalProps> = ({
   onClose,
   currentUser,
   onSelectUser,
+  onLogout,
+  onOpenAdminModal,
 }) => {
   const [users, setUsers] = useState<BandUser[]>([]);
-  const [newUsername, setNewUsername] = useState<string>('');
-  const [newDisplayName, setNewDisplayName] = useState<string>('');
-  const [newRole, setNewRole] = useState<string>('guitarist');
-  const [showAddForm, setShowAddForm] = useState<boolean>(false);
+  const [selectedUser, setSelectedUser] = useState<BandUser | null>(null);
+  const [password, setPassword] = useState<string>('');
+  const [errorMsg, setErrorMsg] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(false);
 
   const fetchUsers = async () => {
     try {
       const res = await fetch('/api/worship/users');
       if (res.ok) {
         const data = await res.json();
-        setUsers(Array.isArray(data) ? data : []);
+        const list = data.users || (Array.isArray(data) ? data : []);
+        setUsers(list);
       }
     } catch (_) {}
   };
@@ -36,31 +41,47 @@ export const BandAuthModal: React.FC<BandAuthModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       fetchUsers();
+      setSelectedUser(null);
+      setPassword('');
+      setErrorMsg('');
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleAddUser = async () => {
-    if (!newDisplayName.trim()) return;
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUser) {
+      setErrorMsg('Please select your profile.');
+      return;
+    }
+
+    setLoading(true);
+    setErrorMsg('');
     try {
       const res = await fetch('/api/worship/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          username: newUsername.trim() || newDisplayName.toLowerCase().replace(/\s+/g, ''),
-          displayName: newDisplayName.trim(),
-          role: newRole,
-          password: 'Godisgood',
+          action: 'login',
+          username: selectedUser.username,
+          password: password.trim(),
         }),
       });
-      if (res.ok) {
-        setNewUsername('');
-        setNewDisplayName('');
-        setShowAddForm(false);
-        await fetchUsers();
+
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setErrorMsg(data.error || 'Invalid password.');
+        return;
       }
-    } catch (_) {}
+
+      onSelectUser(data.user || selectedUser);
+      onClose();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Login failed.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -81,7 +102,7 @@ export const BandAuthModal: React.FC<BandAuthModalProps> = ({
       <div
         style={{
           width: '100%',
-          maxWidth: '440px',
+          maxWidth: '460px',
           maxHeight: '90vh',
           backgroundColor: '#0c1017',
           border: '1px solid #1e293b',
@@ -89,6 +110,7 @@ export const BandAuthModal: React.FC<BandAuthModalProps> = ({
           display: 'flex',
           flexDirection: 'column',
           boxShadow: '0 20px 40px rgba(0, 0, 0, 0.8)',
+          overflow: 'hidden',
         }}
       >
         {/* Header */}
@@ -99,6 +121,7 @@ export const BandAuthModal: React.FC<BandAuthModalProps> = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            background: '#101726',
           }}
         >
           <div style={{ fontWeight: 800, fontSize: '16px', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -114,6 +137,7 @@ export const BandAuthModal: React.FC<BandAuthModalProps> = ({
               background: '#1e293b',
               color: '#94a3b8',
               cursor: 'pointer',
+              fontSize: '14px',
             }}
           >
             ✕
@@ -122,19 +146,69 @@ export const BandAuthModal: React.FC<BandAuthModalProps> = ({
 
         {/* Body */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {currentUser && (
+            <div
+              style={{
+                background: 'rgba(78, 177, 203, 0.12)',
+                border: '1px solid rgba(78, 177, 203, 0.35)',
+                borderRadius: '10px',
+                padding: '12px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div>
+                <div style={{ fontSize: '11px', color: '#94a3b8' }}>Currently logged in:</div>
+                <div style={{ fontWeight: 800, fontSize: '15px', color: '#4EB1CB' }}>
+                  {currentUser.displayName} (@{currentUser.username})
+                </div>
+                <div style={{ fontSize: '11px', color: '#38bdf8', textTransform: 'uppercase', fontWeight: 700 }}>
+                  Role: {currentUser.role}
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  onLogout();
+                  setSelectedUser(null);
+                }}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  color: '#ef4444',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Log Out
+              </button>
+            </div>
+          )}
+
+          {errorMsg && (
+            <div style={{ padding: '10px 14px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid #ef4444', color: '#fca5a5', fontSize: '12px' }}>
+              ⚠️ {errorMsg}
+            </div>
+          )}
+
           <div style={{ fontSize: '12px', color: '#94a3b8' }}>
-            Select your musician profile to synchronize your personal key preferences and scratchpad cues on stage:
+            Select your profile to synchronize your private musician notes and stage preferences:
           </div>
 
+          {/* Roster list */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {users.map((u) => {
-              const isSelected = currentUser?.id === u.id;
+              const isChosen = selectedUser?.id === u.id;
+              const isCurrent = currentUser?.id === u.id;
               return (
                 <div
                   key={u.id}
                   onClick={() => {
-                    onSelectUser(u);
-                    onClose();
+                    setSelectedUser(u);
+                    setErrorMsg('');
                   }}
                   style={{
                     display: 'flex',
@@ -142,121 +216,103 @@ export const BandAuthModal: React.FC<BandAuthModalProps> = ({
                     justifyContent: 'space-between',
                     padding: '10px 14px',
                     borderRadius: '8px',
-                    background: isSelected ? 'rgba(78, 177, 203, 0.2)' : '#131c2e',
-                    border: `1px solid ${isSelected ? '#4EB1CB' : '#1e293b'}`,
+                    background: isChosen ? 'rgba(78, 177, 203, 0.25)' : isCurrent ? 'rgba(56, 189, 248, 0.12)' : '#131c2e',
+                    border: `1px solid ${isChosen ? '#4EB1CB' : isCurrent ? '#38bdf8' : '#1e293b'}`,
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
                   }}
                 >
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: '14px', color: isSelected ? '#4EB1CB' : '#f8fafc' }}>
+                    <div style={{ fontWeight: 700, fontSize: '14px', color: isChosen || isCurrent ? '#4EB1CB' : '#f8fafc' }}>
                       {u.displayName}
                     </div>
-                    <div style={{ fontSize: '11px', color: '#64748b', textTransform: 'capitalize' }}>
-                      {u.role}
+                    <div style={{ fontSize: '11px', color: '#64748b' }}>
+                      @{u.username} • <span style={{ textTransform: 'capitalize' }}>{u.role}</span>
                     </div>
                   </div>
-                  {isSelected && (
-                    <span style={{ color: '#4EB1CB', fontWeight: 800, fontSize: '14px' }}>
+                  {isCurrent ? (
+                    <span style={{ color: '#10b981', fontWeight: 800, fontSize: '12px' }}>
                       ✓ Active
                     </span>
-                  )}
+                  ) : isChosen ? (
+                    <span style={{ color: '#4EB1CB', fontWeight: 800, fontSize: '12px' }}>
+                      Selected
+                    </span>
+                  ) : null}
                 </div>
               );
             })}
           </div>
 
-          {/* Add Profile Section */}
-          {showAddForm ? (
-            <div style={{ borderTop: '1px solid #1e293b', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {/* Password Input for Selected Profile */}
+          {selectedUser && (
+            <form onSubmit={handleLogin} style={{ borderTop: '1px solid #1e293b', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 700, color: '#cbd5e1' }}>
+                Password for @{selectedUser.username}
+              </label>
               <input
-                type="text"
-                value={newDisplayName}
-                onChange={(e) => setNewDisplayName(e.target.value)}
-                placeholder="Musician Name (e.g. Karen)"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Default: Godisgood"
+                autoFocus
                 style={{
-                  height: '34px',
-                  borderRadius: '6px',
+                  height: '38px',
+                  borderRadius: '8px',
                   background: '#131c2e',
                   border: '1px solid #2d3f5e',
                   color: '#fff',
-                  padding: '0 10px',
+                  padding: '0 12px',
                   fontSize: '13px',
                 }}
               />
-              <select
-                value={newRole}
-                onChange={(e) => setNewRole(e.target.value)}
+              <button
+                type="submit"
+                disabled={loading}
                 style={{
-                  height: '34px',
-                  borderRadius: '6px',
-                  background: '#131c2e',
-                  border: '1px solid #2d3f5e',
-                  color: '#fff',
-                  padding: '0 10px',
+                  height: '38px',
+                  borderRadius: '8px',
+                  background: '#4EB1CB',
+                  border: 'none',
+                  color: '#000',
+                  fontWeight: 800,
                   fontSize: '13px',
+                  cursor: 'pointer',
+                  marginTop: '4px',
                 }}
               >
-                <option value="MD">Musical Director (MD)</option>
-                <option value="guitarist">Guitarist</option>
-                <option value="bassist">Bassist</option>
-                <option value="keyboardist">Keyboardist</option>
-                <option value="drummer">Drummer</option>
-                <option value="vocalist">Vocalist</option>
-                <option value="sound">Sound Engineer</option>
-              </select>
-              <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                <button
-                  onClick={() => setShowAddForm(false)}
-                  style={{
-                    flex: 1,
-                    height: '34px',
-                    borderRadius: '6px',
-                    background: '#1e293b',
-                    border: '1px solid #334155',
-                    color: '#cbd5e1',
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleAddUser}
-                  style={{
-                    flex: 1,
-                    height: '34px',
-                    borderRadius: '6px',
-                    background: '#4EB1CB',
-                    border: 'none',
-                    color: '#000',
-                    fontSize: '12px',
-                    fontWeight: 800,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Save Profile
-                </button>
-              </div>
+                {loading ? 'Logging in...' : `Log In as ${selectedUser.displayName}`}
+              </button>
+            </form>
+          )}
+
+          {/* Admin link if user is admin/MD */}
+          {(currentUser?.role === 'admin' || currentUser?.role === 'MD' || !currentUser) && (
+            <div style={{ borderTop: '1px solid #1e293b', paddingTop: '12px' }}>
+              <button
+                onClick={() => {
+                  onClose();
+                  onOpenAdminModal();
+                }}
+                style={{
+                  width: '100%',
+                  height: '38px',
+                  borderRadius: '8px',
+                  background: '#1e293b',
+                  border: '1px solid #334155',
+                  color: '#38bdf8',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                }}
+              >
+                <span>⚙️</span> Manage Band Members & Roles
+              </button>
             </div>
-          ) : (
-            <button
-              onClick={() => setShowAddForm(true)}
-              style={{
-                height: '36px',
-                borderRadius: '8px',
-                background: '#1e293b',
-                border: '1px dashed #334155',
-                color: '#94a3b8',
-                fontSize: '12px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                marginTop: '6px',
-              }}
-            >
-              + Add Musician Profile
-            </button>
           )}
         </div>
       </div>

@@ -15,6 +15,7 @@ import { SetlistSidebar } from './components/SetlistSidebar';
 import { DrawingCanvas } from './components/DrawingCanvas';
 import { AudioPlaybackDock } from './components/AudioPlaybackDock';
 import { NavigationDock } from './components/NavigationDock';
+import { AutoScrollBar } from './components/AutoScrollBar';
 
 import { SongEditorModal } from './components/modals/SongEditorModal';
 import { KeyPickerModal } from './components/modals/KeyPickerModal';
@@ -23,6 +24,8 @@ import { AudioStorageModal } from './components/modals/AudioStorageModal';
 import { SetlistAdminModal } from './components/modals/SetlistAdminModal';
 import { ScratchpadModal } from './components/modals/ScratchpadModal';
 import { BandAuthModal } from './components/modals/BandAuthModal';
+import { BandAdminModal } from './components/modals/BandAdminModal';
+import { MetronomeModal } from './components/modals/MetronomeModal';
 
 import { BandUser, Song, Setlist, AudioTrack, DrawingStroke } from './types/band';
 
@@ -65,6 +68,7 @@ export default function BandStagePage() {
 
   const {
     isPlaying: isPadPlaying,
+    isFadingOut: isPadFadingOut,
     currentKey: activePadKey,
     volume: padVolume,
     play: playPad,
@@ -86,6 +90,8 @@ export default function BandStagePage() {
   const [currentUser, setCurrentUser] = useState<BandUser | null>(null);
   const [fontSizePx, setFontSizePx] = useState<number>(17);
   const [isAutoScrolling, setIsAutoScrolling] = useState<boolean>(false);
+  const [autoScrollSpeed, setAutoScrollSpeed] = useState<number>(3);
+  const [showAutoScrollBar, setShowAutoScrollBar] = useState<boolean>(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [isDrawingActive, setIsDrawingActive] = useState<boolean>(false);
 
@@ -97,6 +103,8 @@ export default function BandStagePage() {
   const [isSetlistAdminOpen, setIsSetlistAdminOpen] = useState<boolean>(false);
   const [isScratchpadOpen, setIsScratchpadOpen] = useState<boolean>(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [isBandAdminOpen, setIsBandAdminOpen] = useState<boolean>(false);
+  const [isMetronomeModalOpen, setIsMetronomeModalOpen] = useState<boolean>(false);
 
   // Sync tempo when currentSong changes
   useEffect(() => {
@@ -104,6 +112,21 @@ export default function BandStagePage() {
       setTempo(Number(currentSong.tempo));
     }
   }, [currentSong?.id, currentSong?.tempo, setTempo]);
+
+  // Load strokes from localStorage fallback on song switch
+  useEffect(() => {
+    if (currentSong?.id) {
+      try {
+        const local = localStorage.getItem(`hgf_drawings_${currentSong.id}`);
+        if (local) {
+          const parsed = JSON.parse(local);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            currentSong.drawingStrokes = parsed;
+          }
+        }
+      } catch (_) {}
+    }
+  }, [currentSong?.id]);
 
   // Bluetooth Pedal Listeners
   useFootPedal({
@@ -143,53 +166,51 @@ export default function BandStagePage() {
     await refreshData();
   };
 
-  const handleDeleteSetlist = async (setId: string) => {
-    await fetch(`/api/worship/setlists?id=${encodeURIComponent(setId)}`, {
+  const handleDeleteSetlist = async (setlistId: string) => {
+    await fetch(`/api/worship/setlists?id=${encodeURIComponent(setlistId)}`, {
       method: 'DELETE',
     });
     await refreshData();
   };
 
-  const handleAttachTrack = async (track: AudioTrack | null) => {
+  const handleAttachTrack = async (audioTrack: AudioTrack | null) => {
     if (!currentSong) return;
-    const updated: Song = {
-      ...currentSong,
-      audioTrack: track,
-      updatedAt: Date.now(),
-    };
+    const updated = { ...currentSong, audioTrack };
     await handleSaveSong(updated);
   };
 
   const handleSaveStrokes = (strokes: DrawingStroke[]) => {
     if (!currentSong) return;
     currentSong.drawingStrokes = strokes;
-    // Debounce save to server
-    fetch('/api/worship', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(currentSong),
-    }).catch(() => {});
+    // Persist to local cache immediately
+    try {
+      localStorage.setItem(`hgf_drawings_${currentSong.id}`, JSON.stringify(strokes));
+    } catch (_) {}
   };
 
-  const handleSaveAsMdKey = async () => {
-    if (!activeSetlist || !currentSong) return;
-    const updatedSongs = (activeSetlist.songs || []).map((item) => {
-      const sId = typeof item === 'string' ? item : item.id;
-      if (sId === currentSong.id) {
-        return {
-          id: sId,
-          key: effectiveKey,
-          capo: capo,
-        };
-      }
-      return item;
-    });
-    const updatedSet: Setlist = {
-      ...activeSetlist,
-      songs: updatedSongs,
-      updatedAt: Date.now(),
-    };
-    await handleSaveSetlist(updatedSet);
+  const handleSaveAsMdKey = async (newKey: string) => {
+    if (!currentSong) return;
+
+    if (activeSetlist) {
+      const updatedSongs = (activeSetlist.songs || []).map((s) => {
+        const id = typeof s === 'string' ? s : s.id;
+        if (id === currentSong.id) {
+          return { id, key: newKey };
+        }
+        return s;
+      });
+      const updated = { ...activeSetlist, songs: updatedSongs };
+      await handleSaveSetlist(updated);
+    } else {
+      const updated = { ...currentSong, originalKey: newKey, key: newKey };
+      await handleSaveSong(updated);
+    }
+  };
+
+  const handleToggleAutoScroll = () => {
+    const nextState = !isAutoScrolling;
+    setIsAutoScrolling(nextState);
+    setShowAutoScrollBar(true);
   };
 
   return (
@@ -213,6 +234,7 @@ export default function BandStagePage() {
         isMetronomePulsing={isPulsing}
         isMetronomeAudioActive={isMetronomeAudioActive}
         onToggleMetronomeAudio={toggleMetronomeAudio}
+        onOpenMetronomeModal={() => setIsMetronomeModalOpen(true)}
         setlists={setlists}
         activeSetlistId={activeSetlistId}
         onSelectSetlist={selectSetlist}
@@ -222,29 +244,37 @@ export default function BandStagePage() {
         isDrawingActive={isDrawingActive}
         onToggleDrawing={() => setIsDrawingActive(!isDrawingActive)}
         onOpenAudioManager={() => setIsAudioStorageOpen(true)}
-        onOpenScratchpad={() => setIsScratchpadOpen(true)}
+        onOpenScratchpad={() => {
+          if (!currentUser) {
+            setIsAuthModalOpen(true);
+          } else {
+            setIsScratchpadOpen(true);
+          }
+        }}
         onOpenAmbientPad={() => setIsAmbientPadOpen(true)}
         onToggleSidebar={() => setIsSidebarOpen(true)}
       />
 
-      {/* STAGE SONG SHEET */}
+      {/* STAGE SONG SHEET (Embeds persistent drawing canvas over sheet content) */}
       <SongSheet
         song={currentSong}
         displayKey={displayKey}
         parsedLines={parsedLines}
         fontSizePx={fontSizePx}
         isAutoScrolling={isAutoScrolling}
-        onToggleAutoScroll={() => setIsAutoScrolling(!isAutoScrolling)}
+        scrollSpeed={autoScrollSpeed}
+        onToggleAutoScroll={handleToggleAutoScroll}
         onSwipeLeft={nextSong}
         onSwipeRight={prevSong}
-      />
-
-      {/* DRAWING ANNOTATION CANVAS */}
-      <DrawingCanvas
-        isActive={isDrawingActive}
-        onClose={() => setIsDrawingActive(false)}
-        savedStrokes={currentSong?.drawingStrokes || []}
-        onSaveStrokes={handleSaveStrokes}
+        drawingCanvasElement={
+          <DrawingCanvas
+            isActive={isDrawingActive}
+            onClose={() => setIsDrawingActive(false)}
+            currentUser={currentUser}
+            savedStrokes={currentSong?.drawingStrokes || []}
+            onSaveStrokes={handleSaveStrokes}
+          />
+        }
       />
 
       {/* FLOATING NAVIGATION DOCK */}
@@ -258,7 +288,22 @@ export default function BandStagePage() {
         fontSizePx={fontSizePx}
         onChangeFontSize={(delta) => setFontSizePx((prev) => Math.max(12, Math.min(32, prev + delta)))}
         isAutoScrolling={isAutoScrolling}
-        onToggleAutoScroll={() => setIsAutoScrolling(!isAutoScrolling)}
+        onToggleAutoScroll={handleToggleAutoScroll}
+        onOpenMetronome={() => setIsMetronomeModalOpen(true)}
+        isMetronomeAudioActive={isMetronomeAudioActive}
+      />
+
+      {/* AUTO-SCROLL CONTROL BAR */}
+      <AutoScrollBar
+        isVisible={showAutoScrollBar}
+        isPlaying={isAutoScrolling}
+        speed={autoScrollSpeed}
+        onTogglePlay={() => setIsAutoScrolling(!isAutoScrolling)}
+        onChangeSpeed={setAutoScrollSpeed}
+        onClose={() => {
+          setIsAutoScrolling(false);
+          setShowAutoScrollBar(false);
+        }}
       />
 
       {/* FLOATING AUDIO SCRUBBER DOCK */}
@@ -313,13 +358,14 @@ export default function BandStagePage() {
         }}
         onSelectCapo={setCapo}
         isBandAdmin={currentUser?.role === 'admin' || currentUser?.role === 'MD'}
-        onSaveAsMdKey={handleSaveAsMdKey}
+        onSaveAsMdKey={() => handleSaveAsMdKey(effectiveKey)}
       />
 
       <AmbientPadModal
         isOpen={isAmbientPadOpen}
         onClose={() => setIsAmbientPadOpen(false)}
         isPlaying={isPadPlaying}
+        isFadingOut={isPadFadingOut}
         activeKey={activePadKey}
         volume={padVolume}
         onPlayPad={playPad}
@@ -350,6 +396,7 @@ export default function BandStagePage() {
         onClose={() => setIsScratchpadOpen(false)}
         currentSong={currentSong}
         currentUser={currentUser}
+        onOpenAuthModal={() => setIsAuthModalOpen(true)}
       />
 
       <BandAuthModal
@@ -357,6 +404,25 @@ export default function BandStagePage() {
         onClose={() => setIsAuthModalOpen(false)}
         currentUser={currentUser}
         onSelectUser={setCurrentUser}
+        onLogout={() => setCurrentUser(null)}
+        onOpenAdminModal={() => setIsBandAdminOpen(true)}
+      />
+
+      <BandAdminModal
+        isOpen={isBandAdminOpen}
+        onClose={() => setIsBandAdminOpen(false)}
+        currentUser={currentUser}
+        onUserUpdated={refreshData}
+      />
+
+      <MetronomeModal
+        isOpen={isMetronomeModalOpen}
+        onClose={() => setIsMetronomeModalOpen(false)}
+        bpm={tempo}
+        onBpmChange={setTempo}
+        isAudioActive={isMetronomeAudioActive}
+        onToggleAudio={toggleMetronomeAudio}
+        isPulsing={isPulsing}
       />
     </div>
   );

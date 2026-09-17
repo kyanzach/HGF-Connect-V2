@@ -19,7 +19,7 @@ export interface BandUser {
 
 const DEFAULT_USERS: BandUser[] = [
   {
-    id: 'user-admin',
+    id: 'user-ryan',
     username: 'ryan',
     password: 'Godisgood',
     displayName: 'Ryan (Admin)',
@@ -27,51 +27,51 @@ const DEFAULT_USERS: BandUser[] = [
     createdAt: Date.now(),
   },
   {
-    id: 'user-md',
-    username: 'md',
+    id: 'user-ren',
+    username: 'ren',
     password: 'Godisgood',
-    displayName: 'Musical Director',
+    displayName: 'Ren (MD)',
     role: 'MD',
     createdAt: Date.now(),
   },
   {
-    id: 'user-guitar',
-    username: 'guitar',
+    id: 'user-la',
+    username: 'la',
     password: 'Godisgood',
-    displayName: 'Guitarist',
-    role: 'guitarist',
-    createdAt: Date.now(),
-  },
-  {
-    id: 'user-bass',
-    username: 'bass',
-    password: 'Godisgood',
-    displayName: 'Bassist',
-    role: 'bassist',
-    createdAt: Date.now(),
-  },
-  {
-    id: 'user-keys',
-    username: 'keys',
-    password: 'Godisgood',
-    displayName: 'Keyboardist',
-    role: 'keyboardist',
-    createdAt: Date.now(),
-  },
-  {
-    id: 'user-drums',
-    username: 'drums',
-    password: 'Godisgood',
-    displayName: 'Drummer',
+    displayName: 'LA (Drums)',
     role: 'drummer',
     createdAt: Date.now(),
   },
   {
-    id: 'user-vocals',
-    username: 'vocals',
+    id: 'user-jl',
+    username: 'jl',
     password: 'Godisgood',
-    displayName: 'Vocalist',
-    role: 'vocalist',
+    displayName: 'JL (Lead Guitar)',
+    role: 'guitarist',
+    createdAt: Date.now(),
+  },
+  {
+    id: 'user-joven',
+    username: 'joven',
+    password: 'Godisgood',
+    displayName: 'Joven (Bass)',
+    role: 'bassist',
+    createdAt: Date.now(),
+  },
+  {
+    id: 'user-rabid',
+    username: 'rabid',
+    password: 'Godisgood',
+    displayName: 'Rabid (Drums)',
+    role: 'drummer',
+    createdAt: Date.now(),
+  },
+  {
+    id: 'user-ronnel',
+    username: 'ronnel',
+    password: 'Godisgood',
+    displayName: 'Ronnel (Acoustic Guitar)',
+    role: 'guitarist',
     createdAt: Date.now(),
   },
 ];
@@ -82,13 +82,25 @@ async function ensureUsersFile(): Promise<BandUser[]> {
     const raw = await fs.readFile(USERS_FILE, 'utf-8');
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed) && parsed.length > 0) {
-      // Auto-migrate admin -> ryan if found
       let modified = false;
-      for (const u of parsed) {
-        if (u.id === 'user-admin' && (u.username === 'admin' || !u.username)) {
-          u.username = 'ryan';
-          if (u.displayName === 'Worship Admin') u.displayName = 'Ryan (Admin)';
+      // Ensure all official requested band members are in the file
+      for (const def of DEFAULT_USERS) {
+        const existing = parsed.find(
+          (u) => u.username.toLowerCase() === def.username.toLowerCase()
+        );
+        if (!existing) {
+          parsed.push({ ...def });
           modified = true;
+        } else {
+          // Normalize role / displayName if missing
+          if (def.username === 'ryan' && existing.role !== 'admin') {
+            existing.role = 'admin';
+            modified = true;
+          }
+          if (def.username === 'ren' && existing.role !== 'MD') {
+            existing.role = 'MD';
+            modified = true;
+          }
         }
       }
       if (modified) {
