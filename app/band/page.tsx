@@ -50,6 +50,8 @@ export default function BandStagePage() {
     setSongSessionOverride,
     revertToMdDefault,
     activeSongMdDefaults,
+    isCurrentSongSessionOverridden,
+    resetAllSessionOverrides,
     addSongToSetlist,
     removeSongFromSetlist,
     refreshData,
@@ -63,6 +65,7 @@ export default function BandStagePage() {
     displayKey,
     transpose,
     setTargetKey,
+    resetTranspose,
     parsedLines,
   } = useMusicTheory(currentSong);
 
@@ -149,27 +152,29 @@ export default function BandStagePage() {
     }
   }, [currentSong?.id, currentSong?.tempo, currentSong?.timeSignature, setTempo, setMetronomeSignature]);
 
-  // Unified Key Change with MD Setlist Gate
+  // Unified Key Change with Worship Leader Setlist Gate
   const handleKeyChangeRequest = (newKey: string) => {
     if (!currentSong) return;
 
-    // If inside an active setlist with designated MD defaults
+    // If inside an active setlist with designated Worship Leader defaults
     if (activeSetlistId && activeSongMdDefaults) {
-      const isMdOrAdmin = currentUser?.role === 'admin' || currentUser?.role === 'MD';
-      if (newKey !== activeSongMdDefaults.key && !isMdOrAdmin) {
-        setMdGateModal({
-          open: true,
-          pendingKey: newKey,
-        });
+      if (newKey === activeSongMdDefaults.key) {
+        // Reverting directly to Worship Leader key
+        revertToMdDefault(currentSong.id);
+        setTargetKey(newKey);
         return;
       }
+
+      // Prompt user with Worship Leader Key Gate
+      setMdGateModal({
+        open: true,
+        pendingKey: newKey,
+      });
+      return;
     }
 
-    // Direct application (All songs mode or MD/admin)
+    // Direct application (All songs mode)
     setTargetKey(newKey);
-    if (currentSong && activeSetlistId) {
-      setSongSessionKey(currentSong.id, newKey);
-    }
   };
 
   const handleTransposeDelta = (delta: number) => {
@@ -366,6 +371,9 @@ export default function BandStagePage() {
         }}
         onOpenAmbientPad={() => setIsAmbientPadOpen(true)}
         onToggleSidebar={() => setIsSidebarOpen(true)}
+        isSessionOverridden={isCurrentSongSessionOverridden}
+        worshipLeaderKey={activeSongMdDefaults?.key}
+        onRevertKey={handleRevertToMdKey}
       />
 
       {/* STAGE SONG SHEET (Embeds persistent drawing canvas over sheet content) */}
@@ -379,6 +387,8 @@ export default function BandStagePage() {
         onToggleAutoScroll={handleToggleAutoScroll}
         onSwipeLeft={nextSong}
         onSwipeRight={prevSong}
+        isSessionOverridden={isCurrentSongSessionOverridden}
+        worshipLeaderKey={activeSongMdDefaults?.key}
         playbackState={{
           isPlaying: isBacktrackPlaying,
           currentTime: backtrackCurrentTime,
@@ -537,7 +547,11 @@ export default function BandStagePage() {
         onClose={() => setIsAuthModalOpen(false)}
         currentUser={currentUser}
         onSelectUser={setCurrentUser}
-        onLogout={() => setCurrentUser(null)}
+        onLogout={() => {
+          setCurrentUser(null);
+          resetAllSessionOverrides();
+          resetTranspose();
+        }}
         onOpenAdminModal={() => setIsBandAdminOpen(true)}
       />
 
@@ -600,28 +614,31 @@ export default function BandStagePage() {
         onCancel={() => setLoginPrompt({ open: false, feature: null })}
       />
 
-      {/* MD Setlist Protection Gate Modal */}
+      {/* Worship Leader Key Gate Modal */}
       <ConfirmModal
         open={mdGateModal.open}
-        title="MD Setlist Protection Gate"
+        title="Worship Leader Key Gate"
         message={
           <span>
-            The Music Director set this song to{' '}
+            The Worship Leader set this song to{' '}
             <strong style={{ color: '#4EB1CB' }}>
               Key {activeSongMdDefaults?.key || 'C'}
             </strong>{' '}
-            ({activeSongMdDefaults?.tempo || 72} BPM) for setlist{' '}
-            <em>&quot;{activeSetlist?.name}&quot;</em>.
+            {activeSongMdDefaults?.tempo ? `(${activeSongMdDefaults.tempo} BPM)` : ''} for setlist{' '}
+            <em>&quot;{activeSetlist?.name}&quot;</em> to match their vocal range.
             <br />
             <br />
-            Would you like to change it to{' '}
+            Changing to{' '}
             <strong style={{ color: '#f59e0b' }}>Key {mdGateModal.pendingKey}</strong>{' '}
-            for this session only?
+            will be <strong>temporary for this session only</strong>. It will automatically restore back to the Worship Leader Key ({activeSongMdDefaults?.key || 'Original'}) on the next day or after your session (when logged out).
+            <br />
+            <br />
+            Would you like to proceed for this session?
           </span>
         }
         confirmLabel="Change for This Session Only"
         confirmColor="#f59e0b"
-        cancelLabel="Revert to MD Key"
+        cancelLabel={`Keep Worship Leader Key (${activeSongMdDefaults?.key || 'Original'})`}
         onConfirm={handleConfirmSessionKey}
         onCancel={handleRevertToMdKey}
       />

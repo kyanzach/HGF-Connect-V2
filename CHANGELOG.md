@@ -5,6 +5,21 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.54.9] — 2026-09-17
+### Fixed & Added — Worship Leader Key Protection Gate & Transpose Cross-Setlist Insulation
+- **Dynamic Transpose Reset & Chart Baseline Sync (`useMusicTheory.ts`)**:
+  - Bound `chartKey` baseline strictly to the physical chord chart key (`originalKey || key`).
+  - Added reactive reset: switching songs or switching setlists immediately resets manual transpose offsets, ensuring songs in setlists open strictly in the Worship Leader's Key (e.g. `D`) instead of carrying over uncommitted transpositions from "All Songs".
+- **Worship Leader Key Gate Modal (`page.tsx`)**:
+  - Rephrased prompt to **"Worship Leader Key Gate"** to clearly emphasize that keys are calibrated to match each worship leader's specific vocal range.
+  - Added explicit notification that changing keys in a setlist is temporary for the active session only, and will automatically restore back to the Worship Leader Key on the next day or upon logging out.
+  - Reverting back to the Worship Leader Key via transpose or picker immediately clears the temporary session override without prompting.
+- **Stage UI Session Key Indicators (`StageTopBar.tsx`, `SongSheet.tsx`, `KeyPickerModal.tsx`)**:
+  - Added interactive `WL: {key} ↺` amber restore badge in `StageTopBar` when playing on a temporary session key, enabling instant 1-tap return to the Worship Leader's key.
+  - Added temporary session notice to the song sheet header badge: `Key: {displayKey} (WL: {worshipLeaderKey})`.
+  - Updated Key Picker modal to save official defaults as *"⭐ Save as Official Worship Leader Key for Setlist"*.
+  - Added full session key clearing on logout.
+
 ## [v2.54.8] — 2026-09-17
 ### Fixed — Setlist Song Chord Isolation & MD Baseline Protection
 - **Setlist Chords Snapshotting & Master Library Insulation**:

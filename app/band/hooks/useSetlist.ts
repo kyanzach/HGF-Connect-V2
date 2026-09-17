@@ -97,6 +97,7 @@ export function useSetlist() {
           ...found,
           chords: mdChords,
           key: override?.key || mdKey,
+          originalKey: mdKey || found.originalKey || found.key,
           capo: override?.capo !== undefined ? override.capo : mdCapo,
           tempo: override?.tempo !== undefined ? override.tempo : mdTempo,
           timeSignature: override?.timeSignature || mdTimeSig,
@@ -124,7 +125,7 @@ export function useSetlist() {
     return currentLineup.findIndex((s) => s.id === currentSong.id);
   }, [currentSong, currentLineup]);
 
-  // Official MD defaults for the active song inside the active setlist
+  // Official MD / Worship Leader defaults for the active song inside the active setlist
   const activeSongMdDefaults = useMemo(() => {
     if (!activeSetlist || !currentSong) return null;
     const item = (activeSetlist.songs || []).find((it) =>
@@ -140,22 +141,20 @@ export function useSetlist() {
     };
   }, [activeSetlist, currentSong, songs]);
 
+  const isCurrentSongSessionOverridden = useMemo(() => {
+    if (!activeSetlist || !currentSong || !activeSongMdDefaults) return false;
+    const override = setlistSessionOverrides[`${activeSetlist.id}_${currentSong.id}`];
+    return Boolean(override?.key && override.key !== activeSongMdDefaults.key);
+  }, [activeSetlist, currentSong, setlistSessionOverrides, activeSongMdDefaults]);
+
   const selectSong = useCallback((songId: string) => {
     setCurrentSongId(songId);
   }, []);
 
   const selectSetlist = useCallback((setId: string | null) => {
     setActiveSetlistId(setId);
-    // When switching setlists, reset session overrides so it loads fresh MD defaults
-    if (setId) {
-      setSetlistSessionOverrides((prev) => {
-        const next = { ...prev };
-        Object.keys(next).forEach((k) => {
-          if (k.startsWith(`${setId}_`)) delete next[k];
-        });
-        return next;
-      });
-    }
+    // When switching setlists or going to All Songs, reset session overrides so it loads fresh Worship Leader defaults
+    setSetlistSessionOverrides({});
     if (typeof window !== 'undefined') {
       if (setId) localStorage.setItem(STORAGE_ACTIVE_SETLIST, setId);
       else localStorage.removeItem(STORAGE_ACTIVE_SETLIST);
@@ -275,7 +274,9 @@ export function useSetlist() {
     setSongSessionKey,
     setSongSessionOverride,
     revertToMdDefault,
+    resetAllSessionOverrides: () => setSetlistSessionOverrides({}),
     activeSongMdDefaults,
+    isCurrentSongSessionOverridden,
     addSongToSetlist,
     removeSongFromSetlist,
     refreshData,

@@ -175,7 +175,7 @@ export const KeyPickerModal: React.FC<KeyPickerModalProps> = ({
                 marginTop: '4px',
               }}
             >
-              ⭐ Save as Official MD Key for Setlist
+              ⭐ Save as Official Worship Leader Key for Setlist
             </button>
           )}
         </div>

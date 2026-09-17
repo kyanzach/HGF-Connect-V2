@@ -1,7 +1,7 @@
 // app/band/hooks/useMusicTheory.ts
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Song } from '../types/band';
 import {
   transposeChord,
@@ -15,12 +15,27 @@ import {
 } from '../lib/musicTheory';
 
 export function useMusicTheory(song: Song | null) {
-  const [transposeOffset, setTransposeOffset] = useState<number>(0);
-  const [capo, setCapo] = useState<number>(0);
+  // Baseline key that the chord chart is physically written in
+  const chartKey = song?.originalKey || song?.key || 'C';
+
+  // Distance between physical chart key and active song key
+  const songKeyDiff = useMemo(() => {
+    if (!song?.key || !chartKey) return 0;
+    const diff = calculateSemitoneDistance(chartKey, song.key);
+    return diff > 6 ? diff - 12 : diff;
+  }, [song?.key, chartKey]);
+
+  const [transposeOffset, setTransposeOffset] = useState<number>(songKeyDiff);
+  const [capo, setCapo] = useState<number>(Number(song?.capo) || 0);
   const [preferFlats, setPreferFlats] = useState<boolean>(false);
 
-  // Sync with song defaults when song changes
-  const baseKey = song?.key || song?.originalKey || 'C';
+  // Sync transpose offset and capo when the active song or setlist item changes
+  useEffect(() => {
+    setTransposeOffset(songKeyDiff);
+    setCapo(Number(song?.capo) || 0);
+  }, [song?.id, songKeyDiff, song?.capo]);
+
+  const baseKey = chartKey;
 
   const isFlats = useMemo(() => {
     return preferFlats || FLAT_KEYS.includes(baseKey);
@@ -50,13 +65,13 @@ export function useMusicTheory(song: Song | null) {
   }, []);
 
   const setTargetKey = useCallback((targetKey: string) => {
-    const diff = calculateSemitoneDistance(baseKey, targetKey);
+    const diff = calculateSemitoneDistance(chartKey, targetKey);
     setTransposeOffset(diff > 6 ? diff - 12 : diff);
-  }, [baseKey]);
+  }, [chartKey]);
 
   const resetTranspose = useCallback(() => {
-    setTransposeOffset(0);
-  }, []);
+    setTransposeOffset(songKeyDiff);
+  }, [songKeyDiff]);
 
   const parsedLines: SheetLine[] = useMemo(() => {
     if (!song) return [];
