@@ -99,7 +99,43 @@ export default function BandStagePage() {
     duration: backtrackDuration,
     togglePlay: toggleBacktrackPlay,
     seek: seekBacktrack,
+    volume: backtrackVolume,
+    isMuted: isBacktrackMuted,
+    setVolume: setBacktrackVolume,
+    toggleMute: toggleBacktrackMute,
+    markers: audioMarkers,
+    activeMarker: activeAudioMarker,
+    jumpPrevMarker: jumpPrevAudioMarker,
+    jumpNextMarker: jumpNextAudioMarker,
+    isAnalyzingAudio,
   } = useAudioPlayback(currentSong);
+
+  // Mobile Visual Viewport Tracking & Browser Bottom Dock Clearance
+  useEffect(() => {
+    const updateViewportMetrics = () => {
+      const vv = window.visualViewport;
+      const vh = vv ? vv.height : window.innerHeight;
+      document.documentElement.style.setProperty('--app-viewport-height', `${vh}px`);
+      const dockOffset = vv ? Math.max(0, window.innerHeight - (vv.height + (vv.offsetTop || 0))) : 0;
+      document.documentElement.style.setProperty('--browser-dock-offset', `${dockOffset}px`);
+    };
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', updateViewportMetrics);
+      window.visualViewport.addEventListener('scroll', updateViewportMetrics);
+    }
+    window.addEventListener('resize', updateViewportMetrics);
+    window.addEventListener('orientationchange', () => setTimeout(updateViewportMetrics, 200));
+    updateViewportMetrics();
+
+    return () => {
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', updateViewportMetrics);
+        window.visualViewport.removeEventListener('scroll', updateViewportMetrics);
+      }
+      window.removeEventListener('resize', updateViewportMetrics);
+    };
+  }, []);
 
   // Musician State
   const [currentUser, setCurrentUser] = useState<BandUser | null>(null);
@@ -328,7 +364,8 @@ export default function BandStagePage() {
       style={{
         display: 'flex',
         flexDirection: 'column',
-        height: '100vh',
+        height: 'var(--app-viewport-height, 100dvh)',
+        maxHeight: 'var(--app-viewport-height, 100dvh)',
         width: '100vw',
         overflow: 'hidden',
         backgroundColor: '#0a0d14',
@@ -424,6 +461,7 @@ export default function BandStagePage() {
         onToggleAutoScroll={handleToggleAutoScroll}
         onOpenMetronome={() => setIsMetronomeModalOpen(true)}
         isMetronomeAudioActive={isMetronomeAudioActive}
+        hasPlaybackDock={hasAudio}
       />
 
       {/* AUTO-SCROLL CONTROL BAR */}
@@ -437,6 +475,7 @@ export default function BandStagePage() {
           setIsAutoScrolling(false);
           setShowAutoScrollBar(false);
         }}
+        hasPlaybackDock={hasAudio}
       />
 
       {/* FLOATING AUDIO SCRUBBER DOCK */}
@@ -449,6 +488,15 @@ export default function BandStagePage() {
           onTogglePlay={toggleBacktrackPlay}
           onSeek={seekBacktrack}
           title={currentSong?.title || ''}
+          volume={backtrackVolume}
+          isMuted={isBacktrackMuted}
+          onSetVolume={setBacktrackVolume}
+          onToggleMute={toggleBacktrackMute}
+          markers={audioMarkers}
+          activeMarker={activeAudioMarker}
+          onJumpPrev={jumpPrevAudioMarker}
+          onJumpNext={jumpNextAudioMarker}
+          isAnalyzingAudio={isAnalyzingAudio}
         />
       )}
 

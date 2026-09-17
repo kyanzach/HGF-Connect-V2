@@ -3,6 +3,12 @@
 
 export type ChordFormat = 'chords_over_lyrics' | 'chordpro' | 'lyrics_only';
 
+export interface AudioMarker {
+  id: string;
+  time: number; // in seconds
+  label: string; // 'Intro', 'Verse', 'Chorus', 'Bridge', 'Drop', 'Hold', etc.
+}
+
 export interface AudioTrack {
   filename?: string;
   url: string;
@@ -10,6 +16,7 @@ export interface AudioTrack {
   sizeBytes?: number;
   durationSec?: number;
   waveform?: number[];
+  markers?: AudioMarker[];
   uploadedAt?: number;
 }
 

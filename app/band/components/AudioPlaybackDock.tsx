@@ -1,7 +1,8 @@
 // app/band/components/AudioPlaybackDock.tsx
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
+import { AudioMarker } from '../types/band';
 
 interface AudioPlaybackDockProps {
   isVisible: boolean;
@@ -11,6 +12,17 @@ interface AudioPlaybackDockProps {
   onTogglePlay: () => void;
   onSeek: (time: number) => void;
   title: string;
+  // Volume controls
+  volume?: number;
+  isMuted?: boolean;
+  onSetVolume?: (vol: number) => void;
+  onToggleMute?: () => void;
+  // Chapter markers & navigation
+  markers?: AudioMarker[];
+  activeMarker?: AudioMarker | null;
+  onJumpPrev?: () => void;
+  onJumpNext?: () => void;
+  isAnalyzingAudio?: boolean;
 }
 
 function formatSeconds(sec: number): string {
@@ -28,7 +40,18 @@ export const AudioPlaybackDock: React.FC<AudioPlaybackDockProps> = ({
   onTogglePlay,
   onSeek,
   title,
+  volume = 0.85,
+  isMuted = false,
+  onSetVolume,
+  onToggleMute,
+  markers = [],
+  activeMarker = null,
+  onJumpPrev,
+  onJumpNext,
+  isAnalyzingAudio = false,
 }) => {
+  const [showVolumeSlider, setShowVolumeSlider] = useState<boolean>(false);
+
   if (!isVisible) return null;
 
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
@@ -37,83 +60,271 @@ export const AudioPlaybackDock: React.FC<AudioPlaybackDockProps> = ({
     <div
       style={{
         position: 'fixed',
-        bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
+        bottom: 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 14px)',
         left: '50%',
         transform: 'translateX(-50%)',
-        width: 'calc(100% - 32px)',
-        maxWidth: '560px',
-        backgroundColor: 'rgba(15, 23, 42, 0.94)',
-        backdropFilter: 'blur(12px)',
-        border: '1px solid #38bdf8',
+        width: 'calc(100% - 24px)',
+        maxWidth: '540px',
+        backgroundColor: 'rgba(15, 23, 42, 0.96)',
+        backdropFilter: 'blur(16px)',
+        border: '1px solid rgba(56, 189, 248, 0.4)',
         borderRadius: '16px',
-        padding: '12px 18px',
+        padding: '10px 14px',
         display: 'flex',
         flexDirection: 'column',
         gap: '8px',
-        boxShadow: '0 10px 30px rgba(0, 0, 0, 0.8), 0 0 15px rgba(56, 189, 248, 0.3)',
-        zIndex: 60,
+        boxShadow: '0 12px 35px rgba(0, 0, 0, 0.85), 0 0 20px rgba(56, 189, 248, 0.25)',
+        zIndex: 55,
         userSelect: 'none',
       }}
     >
-      {/* Upper Row: Title & Times */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '14px' }}>🎧</span>
+      {/* Top Header: Title, Active Chapter Badge & Times */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+          <span style={{ fontSize: '13px' }}>🎧</span>
           <span
             style={{
               fontWeight: 700,
-              fontSize: '13px',
+              fontSize: '12px',
               color: '#38bdf8',
-              maxWidth: '240px',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
+              maxWidth: '160px',
             }}
           >
             {title}
           </span>
+          {activeMarker && (
+            <span
+              style={{
+                fontSize: '10px',
+                fontWeight: 800,
+                color: '#f59e0b',
+                background: 'rgba(245, 158, 11, 0.15)',
+                border: '1px solid rgba(245, 158, 11, 0.4)',
+                padding: '1px 6px',
+                borderRadius: '6px',
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {activeMarker.label}
+            </span>
+          )}
+          {isAnalyzingAudio && (
+            <span style={{ fontSize: '10px', color: '#64748b' }}>
+              Detecting voice...
+            </span>
+          )}
         </div>
-        <div style={{ fontSize: '12px', fontWeight: 700, color: '#94a3b8', fontVariantNumeric: 'tabular-nums' }}>
+
+        <div style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
           {formatSeconds(currentTime)} / {formatSeconds(duration)}
         </div>
       </div>
 
-      {/* Progress Scrubber */}
-      <input
-        type="range"
-        min="0"
-        max={duration || 100}
-        value={currentTime}
-        onChange={(e) => onSeek(parseFloat(e.target.value))}
-        style={{
-          width: '100%',
-          height: '6px',
-          accentColor: '#38bdf8',
-          cursor: 'pointer',
-        }}
-      />
+      {/* Scrubber Bar with Chapter Divider Notches */}
+      <div style={{ position: 'relative', width: '100%', height: '14px', display: 'flex', alignItems: 'center' }}>
+        {/* Visual Chapter Notches */}
+        {duration > 0 &&
+          markers.map((marker) => {
+            const notchPct = (marker.time / duration) * 100;
+            if (notchPct <= 0 || notchPct >= 99) return null;
+            return (
+              <div
+                key={marker.id}
+                title={`${marker.label} (${formatSeconds(marker.time)})`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSeek(marker.time);
+                }}
+                style={{
+                  position: 'absolute',
+                  left: `${notchPct}%`,
+                  top: '2px',
+                  bottom: '2px',
+                  width: '2px',
+                  backgroundColor: '#f59e0b',
+                  zIndex: 2,
+                  cursor: 'pointer',
+                  borderRadius: '1px',
+                  boxShadow: '0 0 4px rgba(245, 158, 11, 0.8)',
+                }}
+              />
+            );
+          })}
 
-      {/* Controls Row */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px' }}>
-        <button
-          onClick={onTogglePlay}
+        <input
+          type="range"
+          min="0"
+          max={duration || 100}
+          step="0.1"
+          value={currentTime}
+          onChange={(e) => onSeek(parseFloat(e.target.value))}
           style={{
-            width: '42px',
-            height: '42px',
+            width: '100%',
+            height: '6px',
+            accentColor: '#38bdf8',
+            cursor: 'pointer',
+            position: 'relative',
+            zIndex: 3,
+            margin: 0,
+          }}
+        />
+      </div>
+
+      {/* Chapter Chips Bar (Tap to jump directly to section) */}
+      {markers.length > 0 && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '5px',
+            overflowX: 'auto',
+            paddingBottom: '2px',
+            scrollbarWidth: 'none',
+          }}
+        >
+          {markers.map((marker) => {
+            const isActive = activeMarker?.id === marker.id;
+            return (
+              <button
+                key={marker.id}
+                onClick={() => onSeek(marker.time)}
+                style={{
+                  background: isActive ? 'rgba(56, 189, 248, 0.25)' : 'rgba(30, 41, 59, 0.7)',
+                  border: `1px solid ${isActive ? '#38bdf8' : '#334155'}`,
+                  color: isActive ? '#38bdf8' : '#cbd5e1',
+                  borderRadius: '10px',
+                  padding: '2px 7px',
+                  fontSize: '9.5px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {marker.label} <span style={{ opacity: 0.65, fontSize: '8.5px' }}>{formatSeconds(marker.time)}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Primary Playback & Volume Controls Row */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '2px' }}>
+        {/* Left: Previous Section Jump */}
+        <button
+          onClick={onJumpPrev}
+          title="Previous Section (⏮)"
+          style={{
+            width: '34px',
+            height: '34px',
             borderRadius: '50%',
-            backgroundColor: '#38bdf8',
-            border: 'none',
-            color: '#000',
-            fontSize: '18px',
+            backgroundColor: 'rgba(30, 41, 59, 0.9)',
+            border: '1px solid #475569',
+            color: '#f8fafc',
+            fontSize: '13px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             cursor: 'pointer',
-            boxShadow: '0 4px 12px rgba(56, 189, 248, 0.4)',
+          }}
+        >
+          ⏮
+        </button>
+
+        {/* Center: Play / Pause */}
+        <button
+          onClick={onTogglePlay}
+          title={isPlaying ? 'Pause' : 'Play'}
+          style={{
+            width: '44px',
+            height: '44px',
+            borderRadius: '50%',
+            backgroundColor: '#38bdf8',
+            border: 'none',
+            color: '#0f172a',
+            fontSize: '19px',
+            fontWeight: 800,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            boxShadow: '0 4px 14px rgba(56, 189, 248, 0.45)',
           }}
         >
           {isPlaying ? '⏸' : '▶'}
         </button>
+
+        {/* Next Section Jump */}
+        <button
+          onClick={onJumpNext}
+          title="Next Section (⏭)"
+          style={{
+            width: '34px',
+            height: '34px',
+            borderRadius: '50%',
+            backgroundColor: 'rgba(30, 41, 59, 0.9)',
+            border: '1px solid #475569',
+            color: '#f8fafc',
+            fontSize: '13px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+          }}
+        >
+          ⏭
+        </button>
+
+        {/* Right: Integrated Volume Control */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            background: 'rgba(30, 41, 59, 0.7)',
+            padding: '3px 8px',
+            borderRadius: '16px',
+            border: '1px solid #334155',
+          }}
+        >
+          <button
+            onClick={onToggleMute}
+            title={isMuted ? 'Unmute' : 'Mute'}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: isMuted ? '#ef4444' : '#38bdf8',
+              fontSize: '13px',
+              cursor: 'pointer',
+              padding: 0,
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
+            {isMuted || volume === 0 ? '🔇' : '🔊'}
+          </button>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={isMuted ? 0 : volume}
+            onChange={(e) => onSetVolume && onSetVolume(parseFloat(e.target.value))}
+            title={`Volume: ${Math.round((isMuted ? 0 : volume) * 100)}%`}
+            style={{
+              width: '56px',
+              height: '4px',
+              accentColor: '#38bdf8',
+              cursor: 'pointer',
+            }}
+          />
+        </div>
       </div>
     </div>
   );

@@ -10,6 +10,7 @@ interface AutoScrollBarProps {
   onTogglePlay: () => void;
   onChangeSpeed: (speed: number) => void;
   onClose: () => void;
+  hasPlaybackDock?: boolean;
 }
 
 export const AutoScrollBar: React.FC<AutoScrollBarProps> = ({
@@ -19,6 +20,7 @@ export const AutoScrollBar: React.FC<AutoScrollBarProps> = ({
   onTogglePlay,
   onChangeSpeed,
   onClose,
+  hasPlaybackDock = false,
 }) => {
   if (!isVisible) return null;
 
@@ -31,10 +33,13 @@ export const AutoScrollBar: React.FC<AutoScrollBarProps> = ({
     <div
       style={{
         position: 'fixed',
-        bottom: 'max(24px, calc(env(safe-area-inset-bottom, 0px) + 20px))',
+        bottom: hasPlaybackDock
+          ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 148px)'
+          : 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 20px)',
         left: '50%',
         transform: 'translateX(-50%)',
         zIndex: 65,
+        transition: 'bottom 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
         backgroundColor: '#0c1017',
         border: '1px solid #2d3f5e',
         borderRadius: '999px',

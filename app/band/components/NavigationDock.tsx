@@ -16,6 +16,7 @@ interface NavigationDockProps {
   onToggleAutoScroll: () => void;
   onOpenMetronome?: () => void;
   isMetronomeAudioActive?: boolean;
+  hasPlaybackDock?: boolean;
 }
 
 export const NavigationDock: React.FC<NavigationDockProps> = ({
@@ -30,18 +31,22 @@ export const NavigationDock: React.FC<NavigationDockProps> = ({
   onToggleAutoScroll,
   onOpenMetronome,
   isMetronomeAudioActive = false,
+  hasPlaybackDock = false,
 }) => {
   return (
     <div
       style={{
         position: 'fixed',
         right: '16px',
-        bottom: 'calc(env(safe-area-inset-bottom, 0px) + 20px)',
+        bottom: hasPlaybackDock
+          ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 148px)'
+          : 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 20px)',
         display: 'flex',
         flexDirection: 'column',
         gap: '10px',
         zIndex: 60,
         userSelect: 'none',
+        transition: 'bottom 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
       }}
     >
       {/* Auto-scroll FAB */}

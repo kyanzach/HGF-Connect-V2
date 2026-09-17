@@ -5,6 +5,27 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.55.0] — 2026-09-17
+### Added & Enhanced — Audio Backtrack Chapters, Voice Transition Detection, Volume Control & Mobile Dock Clearance
+- **Voice Activity & Energy Section Chapters (`audioAnalysis.ts`, `useAudioPlayback.ts`)**:
+  - Built client-side Web Audio API analysis engine (`detectAudioChapters`) detecting vocal onsets, dynamic energy bursts (Chorus drops), and quiet holds without server load.
+  - Automatically aligns audio transition timestamps with chord sheet roadmap headers (`Intro`, `Verse`, `Chorus`, `Bridge`, `Drop`, `Hold`, `Outro`).
+  - Caches detected markers per song in `localStorage` for instant load on revisit.
+- **YouTube-Style Chapter Scrubber & Fast Section Navigation (`AudioPlaybackDock.tsx`)**:
+  - Added vertical chapter notch indicators along the buffer scrubber bar with amber highlights.
+  - Added tap-to-jump section pill buttons showing section name, timecode, and glowing active section indicator.
+  - Added `⏮` (Previous Section) and `⏭` (Next Section) skip buttons.
+- **Backtrack Volume Control & Mute Toggle (`AudioPlaybackDock.tsx`, `useAudioPlayback.ts`)**:
+  - Added integrated volume controller with `🔊 / 🔇` mute toggle and smooth slider.
+  - Persists chosen playback volume level in `localStorage`.
+- **Floating Controls Overlap Prevention (`NavigationDock.tsx`, `AutoScrollBar.tsx`)**:
+  - Dynamically elevates the bottom-right floating FAB dock (`NavigationDock`) and `AutoScrollBar` when audio playback is active (`hasPlaybackDock`) with smooth CSS transitions.
+  - Constrained playback dock maximum width to prevent visual collisions with stage action buttons.
+- **Mobile Browser Chrome Bottom Clearance (`page.tsx`, `SongSheet.tsx`)**:
+  - Integrated `window.visualViewport` tracking setting `--browser-dock-offset` and `--app-viewport-height` dynamically.
+  - Replaced rigid `100vh` with `100dvh` and dynamic viewport heights.
+  - Added dynamic `paddingBottom: calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 180px)` to `SongSheet.tsx` ensuring lyrics and chords are never obscured by iOS Safari or Chrome Android bottom navigation bars.
+
 ## [v2.54.11] — 2026-09-17
 ### Added & Fixed — Setlist Picker Close Action & Backdrop Dismissal
 - **Explicit Close Word Button (`SetlistSidebar.tsx`)**:
