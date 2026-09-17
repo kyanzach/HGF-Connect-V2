@@ -25,35 +25,38 @@ export function useAmbientPad() {
     };
   }, []);
 
-  const play = useCallback((key: string) => {
+  const play = useCallback((key?: string) => {
     if (playerRef.current) {
-      playerRef.current.play(key);
+      playerRef.current.play(typeof key === 'string' && key ? key : undefined);
     }
   }, []);
 
-  const stop = useCallback(() => {
+  const stop = useCallback((immediate: boolean = false) => {
     if (playerRef.current) {
-      playerRef.current.stop();
+      playerRef.current.stop(immediate === true);
     }
   }, []);
 
   const toggle = useCallback((key?: string) => {
     if (playerRef.current) {
-      playerRef.current.toggle(key);
+      playerRef.current.toggle(typeof key === 'string' && key ? key : undefined);
     }
   }, []);
 
   const setVolume = useCallback((vol: number) => {
-    setVolumeState(vol);
+    const num = typeof vol === 'number' ? vol : 0.85;
+    setVolumeState(num);
     if (playerRef.current) {
-      playerRef.current.setVolume(vol);
+      playerRef.current.setVolume(num);
     }
   }, []);
 
   const selectKey = useCallback((key: string) => {
-    setCurrentKey(key);
-    if (playerRef.current) {
-      playerRef.current.setKey(key);
+    if (typeof key === 'string' && key) {
+      setCurrentKey(key);
+      if (playerRef.current) {
+        playerRef.current.setKey(key);
+      }
     }
   }, []);
 

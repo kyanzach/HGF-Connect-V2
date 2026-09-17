@@ -80,6 +80,7 @@ export class AmbientPadPlayer {
   }
 
   public setKey(keyName: string) {
+    if (typeof keyName !== 'string') return;
     this.currentKey = keyName.replace('m', '');
     if (this.onStateChange) {
       this.onStateChange(this.isPlaying, this.currentKey, this.isFadingOut);
@@ -98,7 +99,8 @@ export class AmbientPadPlayer {
     return this.activeDeckName === 'A' ? this.deckA : this.deckB;
   }
 
-  public toggle(key?: string) {
+  public toggle(key?: any) {
+    const validKey = typeof key === 'string' && key ? key : this.currentKey;
     if (this.isFadingOut) {
       // User tapped stop again while fading out -> IMMEDIATE HARD CUT
       this.stop(true);
@@ -107,12 +109,13 @@ export class AmbientPadPlayer {
       this.stop(false);
     } else {
       // Start playing with 3s fade
-      this.play(key || this.currentKey);
+      this.play(validKey);
     }
   }
 
-  public play(keyName: string) {
-    const rootKey = keyName.replace('m', '');
+  public play(keyName?: any) {
+    const validKey = typeof keyName === 'string' && keyName ? keyName : this.currentKey;
+    const rootKey = (validKey || 'C').replace('m', '');
     const path = PAD_AUDIO_FILES[rootKey] || '/audio/pads/C.mp3';
 
     if (!this.deckA || !this.deckB) {
@@ -148,11 +151,17 @@ export class AmbientPadPlayer {
       this.onStateChange(true, this.currentKey, false);
     }
 
-    // Configure incoming deck
-    incomingDeck.src = path;
+    // Configure incoming deck safely without DOMException
+    if (!incomingDeck.src.endsWith(path)) {
+      incomingDeck.src = path;
+    }
     incomingDeck.loop = true;
     incomingDeck.volume = 0;
-    incomingDeck.currentTime = 0;
+    try {
+      if (incomingDeck.readyState > 0) {
+        incomingDeck.currentTime = 0;
+      }
+    } catch (_) {}
 
     const playPromise = incomingDeck.play();
     if (playPromise !== undefined) {

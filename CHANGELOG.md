@@ -5,6 +5,16 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.55.13] — 2026-09-17
+### Fixed — Ambient Worship Pad Play Button Event Crash & Safari Audio State
+- **Play Button Event Signature Fix (`AmbientPadModal.tsx`, `padSynth.ts`)**:
+  - Fixed an issue where the Play button passed a synthetic React `MouseEvent` into `onTogglePad(key)` and `toggle(key)`. In `padSynth.ts`, attempting `keyName.replace('m', '')` on the event object caused an uncaught `TypeError: keyName.replace is not a function`, preventing the play button from starting playback.
+  - Added strict runtime string type guards in `toggle()`, `play()`, and `useAmbientPad.ts` so non-string arguments gracefully fall back to the currently selected key.
+  - Replaced `<button onClick={onTogglePad}>` with `<button onClick={() => onTogglePad()}>` ensuring no event payload is passed down.
+- **WebKit / Mobile Safari `HAVE_NOTHING` Audio Safety (`padSynth.ts`)**:
+  - Wrapped `deck.currentTime = 0` in a safe readyState check (`if (deck.readyState > 0)`) and `try/catch` block, preventing Safari from throwing `DOMException: The element's readyState is HAVE_NOTHING` when assigning a new audio `src`.
+  - Re-used currently loaded media source if already matching the target pad file path instead of aggressively resetting `deck.src`.
+
 ## [v2.55.12] — 2026-09-17
 ### Fixed & Hardened — Ambient Worship Pad Dual-Deck Audio Engine & Zero-Ghost Playback
 - **Dual-Deck Audio Engine (`padSynth.ts`)**:

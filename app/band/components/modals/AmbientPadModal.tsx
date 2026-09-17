@@ -110,7 +110,7 @@ export const AmbientPadModal: React.FC<AmbientPadModalProps> = ({
               </div>
             </div>
             <button
-              onClick={onTogglePad}
+              onClick={() => onTogglePad()}
               style={{
                 padding: '8px 16px',
                 borderRadius: '8px',
