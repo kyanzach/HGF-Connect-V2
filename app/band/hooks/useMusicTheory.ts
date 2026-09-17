@@ -18,35 +18,34 @@ export function useMusicTheory(song: Song | null) {
   // Baseline key that the chord chart is physically written in
   const chartKey = song?.originalKey || song?.key || 'C';
 
-  // Distance between physical chart key and active song key
-  const songKeyDiff = useMemo(() => {
-    if (!song?.key || !chartKey) return 0;
-    const diff = calculateSemitoneDistance(chartKey, song.key);
-    return diff > 6 ? diff - 12 : diff;
-  }, [song?.key, chartKey]);
-
-  const [transposeOffset, setTransposeOffset] = useState<number>(songKeyDiff);
+  // The active key to render (defaults to active song.key or chartKey)
+  const [activeKey, setActiveKey] = useState<string>(song?.key || chartKey);
   const [capo, setCapo] = useState<number>(Number(song?.capo) || 0);
   const [preferFlats, setPreferFlats] = useState<boolean>(false);
 
-  // Sync transpose offset and capo when the active song or setlist item changes
+  // Sync activeKey and capo when the active song or setlist item changes
   useEffect(() => {
-    setTransposeOffset(songKeyDiff);
+    setActiveKey(song?.key || chartKey);
     setCapo(Number(song?.capo) || 0);
-  }, [song?.id, songKeyDiff, song?.capo]);
-
-  const baseKey = chartKey;
+  }, [song?.id, song?.key, chartKey, song?.capo]);
 
   const isFlats = useMemo(() => {
-    return preferFlats || FLAT_KEYS.includes(baseKey);
-  }, [preferFlats, baseKey]);
+    return preferFlats || FLAT_KEYS.includes(chartKey);
+  }, [preferFlats, chartKey]);
+
+  // Exact semitone offset from written chartKey to activeKey
+  const transposeOffset = useMemo(() => {
+    const rootChart = getRootNote(chartKey);
+    const rootActive = getRootNote(activeKey);
+    const diff = calculateSemitoneDistance(rootChart, rootActive);
+    return diff > 6 ? diff - 12 : diff;
+  }, [chartKey, activeKey]);
 
   const effectiveKey = useMemo(() => {
-    const root = getRootNote(baseKey);
-    const isMinor = baseKey.endsWith('m') || baseKey.includes('min');
-    const transposedRoot = transposeNote(root, transposeOffset, isFlats);
-    return isMinor ? `${transposedRoot}m` : transposedRoot;
-  }, [baseKey, transposeOffset, isFlats]);
+    const root = getRootNote(activeKey);
+    const isMinor = (song?.key || chartKey).endsWith('m') || (song?.key || chartKey).includes('min') || activeKey.endsWith('m');
+    return isMinor ? `${root}m` : root;
+  }, [activeKey, song?.key, chartKey]);
 
   const displayKey = useMemo(() => {
     const root = effectiveKey.replace('m', '');
@@ -56,22 +55,21 @@ export function useMusicTheory(song: Song | null) {
   }, [effectiveKey]);
 
   const transpose = useCallback((delta: number) => {
-    setTransposeOffset((prev) => {
-      let next = (prev + delta) % 12;
-      if (next > 6) next -= 12;
-      if (next < -6) next += 12;
-      return next;
+    setActiveKey((prev) => {
+      const root = getRootNote(prev);
+      const isMinor = prev.endsWith('m') || prev.includes('min');
+      const nextRoot = transposeNote(root, delta, isFlats);
+      return isMinor ? `${nextRoot}m` : nextRoot;
     });
-  }, []);
+  }, [isFlats]);
 
   const setTargetKey = useCallback((targetKey: string) => {
-    const diff = calculateSemitoneDistance(chartKey, targetKey);
-    setTransposeOffset(diff > 6 ? diff - 12 : diff);
-  }, [chartKey]);
+    setActiveKey(targetKey);
+  }, []);
 
   const resetTranspose = useCallback(() => {
-    setTransposeOffset(songKeyDiff);
-  }, [songKeyDiff]);
+    setActiveKey(song?.key || chartKey);
+  }, [song?.key, chartKey]);
 
   const parsedLines: SheetLine[] = useMemo(() => {
     if (!song) return [];

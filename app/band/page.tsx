@@ -9,7 +9,7 @@ import { useMetronome } from './hooks/useMetronome';
 import { useAmbientPad } from './hooks/useAmbientPad';
 import { useAudioPlayback } from './hooks/useAudioPlayback';
 import { useFootPedal } from './hooks/useFootPedal';
-import { transposeNote } from './lib/musicTheory';
+import { transposeNote, getRootNote } from './lib/musicTheory';
 
 import { StageTopBar } from './components/StageTopBar';
 import { SongSheet } from './components/SongSheet';
@@ -63,6 +63,7 @@ export default function BandStagePage() {
     setCapo,
     effectiveKey,
     displayKey,
+    isFlats,
     transpose,
     setTargetKey,
     resetTranspose,
@@ -179,10 +180,10 @@ export default function BandStagePage() {
 
   const handleTransposeDelta = (delta: number) => {
     if (!currentSong) return;
-    const nextOffset = transposeOffset + delta;
-    const baseRoot = (currentSong.originalKey || currentSong.key || 'C').replace(/m$/, '');
-    const isFlats = ['F', 'Bb', 'Eb', 'Ab', 'Db', 'Gb'].includes(baseRoot);
-    const nextKey = transposeNote(baseRoot, nextOffset, isFlats);
+    const currentRoot = getRootNote(effectiveKey);
+    const isMinor = effectiveKey.endsWith('m') || effectiveKey.includes('min');
+    const nextRoot = transposeNote(currentRoot, delta, isFlats);
+    const nextKey = isMinor ? `${nextRoot}m` : nextRoot;
     handleKeyChangeRequest(nextKey);
   };
 

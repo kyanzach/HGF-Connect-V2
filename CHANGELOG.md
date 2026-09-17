@@ -5,6 +5,15 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.54.10] — 2026-09-17
+### Fixed — Transpose Delta Target Calculation & Revert to Worship Leader Key
+- **Direct Target Key Calculation from Effective Playing Key (`page.tsx`)**:
+  - `handleTransposeDelta` now calculates the target key directly from `effectiveKey` (`transposeNote(getRootNote(effectiveKey), delta, isFlats)`).
+  - Eliminates the previous desynchronization bug where pressing `-` while in a transposed key (e.g. `C`) incorrectly referenced the un-rendered root note, displaying "Key C" instead of "Key B".
+- **Deterministic Baseline Revert (`page.tsx`, `useMusicTheory.ts`)**:
+  - Refactored `useMusicTheory` to compute `transposeOffset` strictly as the deterministic distance from `chartKey` to `activeKey`.
+  - Clicking "Keep Worship Leader Key (D)" or "Revert to Worship Leader Key" now deterministically resets `activeKey` to `activeSongMdDefaults.key` (`D`) and `transposeOffset` to `0`, ensuring it always goes directly back to the original baseline key without any half-step or whole-step offsets.
+
 ## [v2.54.9] — 2026-09-17
 ### Fixed & Added — Worship Leader Key Protection Gate & Transpose Cross-Setlist Insulation
 - **Dynamic Transpose Reset & Chart Baseline Sync (`useMusicTheory.ts`)**:
