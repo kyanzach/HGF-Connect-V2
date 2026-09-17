@@ -26,6 +26,7 @@ import { ScratchpadModal } from './components/modals/ScratchpadModal';
 import { BandAuthModal } from './components/modals/BandAuthModal';
 import { BandAdminModal } from './components/modals/BandAdminModal';
 import { MetronomeModal } from './components/modals/MetronomeModal';
+import { SongScraperModal } from './components/modals/SongScraperModal';
 
 import { BandUser, Song, Setlist, AudioTrack, DrawingStroke } from './types/band';
 
@@ -44,6 +45,8 @@ export default function BandStagePage() {
     nextSong,
     prevSong,
     setSongSessionKey,
+    addSongToSetlist,
+    removeSongFromSetlist,
     refreshData,
   } = useSetlist();
 
@@ -97,6 +100,9 @@ export default function BandStagePage() {
 
   // Modals visibility
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
+  const [editingSong, setEditingSong] = useState<Song | null>(null);
+  const [isScraperOpen, setIsScraperOpen] = useState<boolean>(false);
+  const [scraperQuery, setScraperQuery] = useState<string>('');
   const [isKeyPickerOpen, setIsKeyPickerOpen] = useState<boolean>(false);
   const [isAmbientPadOpen, setIsAmbientPadOpen] = useState<boolean>(false);
   const [isAudioStorageOpen, setIsAudioStorageOpen] = useState<boolean>(false);
@@ -105,6 +111,14 @@ export default function BandStagePage() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isBandAdminOpen, setIsBandAdminOpen] = useState<boolean>(false);
   const [isMetronomeModalOpen, setIsMetronomeModalOpen] = useState<boolean>(false);
+
+  const handleImportScrapedSong = async (newSong: Song, addToSetlist = false) => {
+    await handleSaveSong(newSong);
+    if (addToSetlist && activeSetlistId) {
+      await addSongToSetlist(newSong.id, activeSetlistId);
+    }
+    selectSong(newSong.id);
+  };
 
   // Sync tempo when currentSong changes
   useEffect(() => {
@@ -240,7 +254,10 @@ export default function BandStagePage() {
         onSelectSetlist={selectSetlist}
         currentUser={currentUser}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
-        onOpenEditSong={() => setIsEditModalOpen(true)}
+        onOpenEditSong={() => {
+          setEditingSong(currentSong);
+          setIsEditModalOpen(true);
+        }}
         isDrawingActive={isDrawingActive}
         onToggleDrawing={() => setIsDrawingActive(!isDrawingActive)}
         onOpenAudioManager={() => setIsAudioStorageOpen(true)}
@@ -331,18 +348,33 @@ export default function BandStagePage() {
         onSelectSong={selectSong}
         onSelectSetlist={selectSetlist}
         onOpenNewSongModal={() => {
+          setEditingSong(null);
           setIsEditModalOpen(true);
         }}
         onOpenSetlistAdmin={() => setIsSetlistAdminOpen(true)}
+        onOpenScraper={(initialQ) => {
+          setScraperQuery(initialQ || '');
+          setIsScraperOpen(true);
+        }}
+        onAddSongToSetlist={addSongToSetlist}
+        onRemoveSongFromSetlist={removeSongFromSetlist}
+        onDeleteSong={handleDeleteSong}
       />
 
       {/* MODALS */}
       <SongEditorModal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
-        song={currentSong}
-        onSaveSong={handleSaveSong}
+        song={editingSong}
+        onSaveSong={async (saved) => {
+          await handleSaveSong(saved);
+          selectSong(saved.id);
+        }}
         onDeleteSong={handleDeleteSong}
+        onOpenScraper={(q) => {
+          setScraperQuery(q || '');
+          setIsScraperOpen(true);
+        }}
       />
 
       <KeyPickerModal
@@ -423,6 +455,27 @@ export default function BandStagePage() {
         isAudioActive={isMetronomeAudioActive}
         onToggleAudio={toggleMetronomeAudio}
         isPulsing={isPulsing}
+      />
+
+      <SongScraperModal
+        isOpen={isScraperOpen}
+        onClose={() => setIsScraperOpen(false)}
+        initialQuery={scraperQuery}
+        activeSetlist={activeSetlist}
+        onImportSong={handleImportScrapedSong}
+        isEditingExisting={isEditModalOpen && !!editingSong}
+        onOverwriteChords={(chords, title, artist, key, tempo) => {
+          if (editingSong) {
+            setEditingSong({
+              ...editingSong,
+              chords,
+              title: title || editingSong.title,
+              artist: artist || editingSong.artist,
+              key: key || editingSong.key,
+              tempo: tempo || editingSong.tempo,
+            });
+          }
+        }}
       />
     </div>
   );

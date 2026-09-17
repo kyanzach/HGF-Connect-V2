@@ -5,6 +5,18 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.54.3] — 2026-09-17
+### Added & Fixed — Songbook Quick Emoji Actions, ConfirmModal Song Deletion, and Ultimate Guitar / Worship Tab Scraper
+- **Quick Small Emoji Actions on Song Rows**:
+  - Added quick `➕ Set` / `✓ Set` button on each song item in `SetlistSidebar` to immediately add or remove a song from the active setlist, or choose from a setlist popup in library view.
+  - Added dedicated `🗑️` emoji button on every song row for instant library management.
+- **`ConfirmModal` Song Deletion Safety**:
+  - Replaced native `confirm()` in `SongEditorModal` and added custom `ConfirmModal` to `SetlistSidebar` so deleting a song prompts with full confirmation (`"Are you sure you want to delete '[Title]' from the songbook?"`) adhering to mobile/PWA dialog safety standards.
+- **Search & Scrape Worship Chords (`SongScraperModal`)**:
+  - Created `SongScraperModal` integrated with the existing `/api/worship/scrape` endpoint for searching chords and lyrics across Ultimate Guitar and online worship archives.
+  - Added `Search on Ultimate Guitar` banner dynamically inside the sidebar search results, as well as a direct `🎸 Scrape Tabs` action button in the sidebar footer and in `SongEditorModal`.
+  - Rich tab preview with chords-over-lyrics monospace display, key and BPM detection, and one-click import into the songbook or current active setlist.
+
 ## [v2.54.2] — 2026-09-17
 ### Added & Fixed — Auto-Scroll Speed Bar, 3s Ambient Pad Fades, Stage Metronome, Persistent Tiered Drawings, Per-User Notes & Band Member Roster
 - **Auto-Scroll Floating Speed Bar & Library Sorting**:

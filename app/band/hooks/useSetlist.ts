@@ -143,6 +143,55 @@ export function useSetlist() {
     }));
   }, [activeSetlistId]);
 
+  const addSongToSetlist = useCallback(async (songId: string, setlistId?: string) => {
+    const targetSetId = setlistId || activeSetlistId;
+    if (!targetSetId) return;
+    const targetSet = setlists.find((s) => s.id === targetSetId);
+    if (!targetSet) return;
+
+    const existingSongs = targetSet.songs || [];
+    const alreadyIn = existingSongs.some((it) => (typeof it === 'string' ? it === songId : it.id === songId));
+    if (alreadyIn) return;
+
+    const updatedSongs = [...existingSongs, songId];
+    const updatedSetlist: Setlist = {
+      ...targetSet,
+      songs: updatedSongs,
+      songCount: updatedSongs.length,
+      updatedAt: Date.now(),
+    };
+
+    await fetch('/api/worship/setlists', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedSetlist),
+    });
+    await refreshData();
+  }, [activeSetlistId, setlists, refreshData]);
+
+  const removeSongFromSetlist = useCallback(async (songId: string, setlistId?: string) => {
+    const targetSetId = setlistId || activeSetlistId;
+    if (!targetSetId) return;
+    const targetSet = setlists.find((s) => s.id === targetSetId);
+    if (!targetSet) return;
+
+    const existingSongs = targetSet.songs || [];
+    const updatedSongs = existingSongs.filter((it) => (typeof it === 'string' ? it !== songId : it.id !== songId));
+    const updatedSetlist: Setlist = {
+      ...targetSet,
+      songs: updatedSongs,
+      songCount: updatedSongs.length,
+      updatedAt: Date.now(),
+    };
+
+    await fetch('/api/worship/setlists', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedSetlist),
+    });
+    await refreshData();
+  }, [activeSetlistId, setlists, refreshData]);
+
   return {
     songs,
     setlists,
@@ -157,6 +206,8 @@ export function useSetlist() {
     nextSong,
     prevSong,
     setSongSessionKey,
+    addSongToSetlist,
+    removeSongFromSetlist,
     refreshData,
   };
 }

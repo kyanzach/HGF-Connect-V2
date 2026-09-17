@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import ConfirmModal from '@/components/ConfirmModal';
 import { Song } from '../../types/band';
 
 interface SongEditorModalProps {
@@ -10,6 +11,7 @@ interface SongEditorModalProps {
   song: Song | null;
   onSaveSong: (song: Song) => Promise<void>;
   onDeleteSong?: (id: string) => Promise<void>;
+  onOpenScraper?: (initialQuery?: string) => void;
 }
 
 export const SongEditorModal: React.FC<SongEditorModalProps> = ({
@@ -18,6 +20,7 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
   song,
   onSaveSong,
   onDeleteSong,
+  onOpenScraper,
 }) => {
   const [title, setTitle] = useState<string>('');
   const [artist, setArtist] = useState<string>('');
@@ -28,8 +31,12 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
   const [sectionOrder, setSectionOrder] = useState<string>('');
   const [chords, setChords] = useState<string>('');
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
   useEffect(() => {
+    setErrorMessage('');
     if (song) {
       setTitle(song.title || '');
       setArtist(song.artist || '');
@@ -55,9 +62,10 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
 
   const handleSave = async () => {
     if (!title.trim()) {
-      alert('Song title is required.');
+      setErrorMessage('Song title is required.');
       return;
     }
+    setErrorMessage('');
 
     setIsSaving(true);
     try {
@@ -126,24 +134,63 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
           <div style={{ fontWeight: 800, fontSize: '16px', color: '#fff' }}>
             {song ? `Edit: ${song.title}` : 'Add New Song'}
           </div>
-          <button
-            onClick={onClose}
-            style={{
-              width: '30px',
-              height: '30px',
-              borderRadius: '8px',
-              border: 'none',
-              background: '#1e293b',
-              color: '#94a3b8',
-              cursor: 'pointer',
-            }}
-          >
-            ✕
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {onOpenScraper && (
+              <button
+                type="button"
+                onClick={() => onOpenScraper(title || '')}
+                style={{
+                  padding: '5px 10px',
+                  borderRadius: '6px',
+                  background: 'rgba(59, 130, 246, 0.15)',
+                  border: '1px solid rgba(59, 130, 246, 0.35)',
+                  color: '#60a5fa',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                <span>🎸</span>
+                <span>Scrape Chords</span>
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              style={{
+                width: '30px',
+                height: '30px',
+                borderRadius: '8px',
+                border: 'none',
+                background: '#1e293b',
+                color: '#94a3b8',
+                cursor: 'pointer',
+              }}
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         {/* Form Body */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {errorMessage && (
+            <div
+              style={{
+                padding: '8px 12px',
+                borderRadius: '8px',
+                background: 'rgba(239, 68, 68, 0.15)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                color: '#f87171',
+                fontSize: '12px',
+                fontWeight: 700,
+              }}
+            >
+              ⚠️ {errorMessage}
+            </div>
+          )}
           {/* Row 1: Title & Artist */}
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '10px' }}>
             <div>
@@ -370,12 +417,8 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
         >
           {song && onDeleteSong ? (
             <button
-              onClick={() => {
-                if (confirm(`Delete "${song.title}" from library?`)) {
-                  onDeleteSong(song.id);
-                  onClose();
-                }
-              }}
+              type="button"
+              onClick={() => setShowDeleteConfirm(true)}
               style={{
                 padding: '8px 14px',
                 borderRadius: '8px',
@@ -426,6 +469,28 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* CONFIRM DELETE MODAL */}
+      <ConfirmModal
+        open={showDeleteConfirm}
+        title="🗑️ Delete Song"
+        message={`Are you sure you want to delete "${song?.title}" from the songbook library? This action cannot be undone.`}
+        confirmLabel="Delete Song"
+        confirmColor="#ef4444"
+        loading={isDeleting}
+        onConfirm={async () => {
+          if (!song || !onDeleteSong) return;
+          setIsDeleting(true);
+          try {
+            await onDeleteSong(song.id);
+            setShowDeleteConfirm(false);
+            onClose();
+          } finally {
+            setIsDeleting(false);
+          }
+        }}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 };
