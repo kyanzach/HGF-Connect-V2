@@ -23,6 +23,7 @@ interface AudioPlaybackDockProps {
   onJumpPrev?: () => void;
   onJumpNext?: () => void;
   isAnalyzingAudio?: boolean;
+  onOpenChaptersModal?: () => void;
 }
 
 function formatSeconds(sec: number): string {
@@ -49,6 +50,7 @@ export const AudioPlaybackDock: React.FC<AudioPlaybackDockProps> = ({
   onJumpPrev,
   onJumpNext,
   isAnalyzingAudio = false,
+  onOpenChaptersModal,
 }) => {
   const [showVolumeSlider, setShowVolumeSlider] = useState<boolean>(false);
 
@@ -60,22 +62,23 @@ export const AudioPlaybackDock: React.FC<AudioPlaybackDockProps> = ({
     <div
       style={{
         position: 'fixed',
-        bottom: 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 14px)',
+        bottom: 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 12px)',
         left: '50%',
         transform: 'translateX(-50%)',
         width: 'calc(100% - 24px)',
-        maxWidth: '540px',
-        backgroundColor: 'rgba(15, 23, 42, 0.96)',
-        backdropFilter: 'blur(16px)',
-        border: '1px solid rgba(56, 189, 248, 0.4)',
+        maxWidth: '520px',
+        zIndex: 62,
+        backgroundColor: '#0c1017',
+        border: '1px solid #2d3f5e',
         borderRadius: '16px',
         padding: '10px 14px',
         display: 'flex',
         flexDirection: 'column',
         gap: '8px',
-        boxShadow: '0 12px 35px rgba(0, 0, 0, 0.85), 0 0 20px rgba(56, 189, 248, 0.25)',
-        zIndex: 55,
+        boxShadow: '0 12px 32px rgba(0, 0, 0, 0.9)',
         userSelect: 'none',
+        backdropFilter: 'blur(10px)',
+        boxSizing: 'border-box',
       }}
     >
       {/* Top Header: Title, Active Chapter Badge & Times */}
@@ -97,6 +100,9 @@ export const AudioPlaybackDock: React.FC<AudioPlaybackDockProps> = ({
           </span>
           {activeMarker && (
             <span
+              onClick={onOpenChaptersModal}
+              role={onOpenChaptersModal ? 'button' : undefined}
+              title={onOpenChaptersModal ? 'Click to calibrate chapter timings' : undefined}
               style={{
                 fontSize: '10px',
                 fontWeight: 800,
@@ -108,9 +114,10 @@ export const AudioPlaybackDock: React.FC<AudioPlaybackDockProps> = ({
                 letterSpacing: '0.04em',
                 textTransform: 'uppercase',
                 whiteSpace: 'nowrap',
+                cursor: onOpenChaptersModal ? 'pointer' : 'default',
               }}
             >
-              {activeMarker.label}
+              {activeMarker.label} {onOpenChaptersModal ? '✏️' : ''}
             </span>
           )}
           {isAnalyzingAudio && (
@@ -175,8 +182,8 @@ export const AudioPlaybackDock: React.FC<AudioPlaybackDockProps> = ({
         />
       </div>
 
-      {/* Chapter Chips Bar (Tap to jump directly to section) */}
-      {markers.length > 0 && (
+      {/* Chapter Chips Bar (Tap to jump directly to section, or calibrate timings) */}
+      {(markers.length > 0 || onOpenChaptersModal) && (
         <div
           style={{
             display: 'flex',
@@ -187,6 +194,30 @@ export const AudioPlaybackDock: React.FC<AudioPlaybackDockProps> = ({
             scrollbarWidth: 'none',
           }}
         >
+          {onOpenChaptersModal && (
+            <button
+              onClick={onOpenChaptersModal}
+              title="Calibrate Chapter Timings / Cues"
+              style={{
+                background: 'rgba(56, 189, 248, 0.15)',
+                border: '1px solid rgba(56, 189, 248, 0.45)',
+                color: '#38bdf8',
+                borderRadius: '10px',
+                padding: '2px 8px',
+                fontSize: '9.5px',
+                fontWeight: 800,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '3px',
+              }}
+            >
+              <span>✏️</span>
+              <span>Edit Cues</span>
+            </button>
+          )}
           {markers.map((marker) => {
             const isActive = activeMarker?.id === marker.id;
             return (

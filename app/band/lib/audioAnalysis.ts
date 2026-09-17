@@ -95,16 +95,16 @@ export async function analyzeAudioArrayBuffer(
       return generateFallbackMarkers(durationSec, knownSections);
     }
 
-    const minSectionIntervalSec = Math.max(16, Math.floor(durationSec / (knownSections.length + 1)));
+    const minSectionIntervalSec = Math.max(8, Math.min(16, Math.floor(durationSec / (knownSections.length + 2))));
     const detectedTimestamps: number[] = [0];
 
     let lastMarkTime = 0;
-    const lookbackSteps = 20;
+    const lookbackSteps = 15;
 
     for (let i = lookbackSteps; i < energyProfile.length - 10; i++) {
       const currentTime = energyProfile[i].time;
       if (currentTime - lastMarkTime < minSectionIntervalSec) continue;
-      if (currentTime > durationSec - 10) break;
+      if (currentTime > durationSec - 8) break;
 
       let prevEnergy = 0;
       for (let k = 1; k <= lookbackSteps; k++) {
@@ -116,7 +116,8 @@ export async function analyzeAudioArrayBuffer(
       const ratio = prevEnergy > 0.001 ? currentEnergy / prevEnergy : 1;
       const absoluteDiff = Math.abs(currentEnergy - prevEnergy);
 
-      if ((ratio > 2.2 || ratio < 0.35 || absoluteDiff > 0.08) && currentEnergy > 0.02) {
+      // Sensitive to vocal cues or band entry transitions
+      if ((ratio > 1.8 || ratio < 0.4 || absoluteDiff > 0.05) && currentEnergy > 0.015) {
         detectedTimestamps.push(Math.round(currentTime));
         lastMarkTime = currentTime;
       }

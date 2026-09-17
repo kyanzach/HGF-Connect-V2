@@ -5,6 +5,17 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.55.4] — 2026-09-17
+### Added & Enhanced — Interactive Audio Chapter Timings & Cue Calibration Modal
+- **Interactive Audio Chapter Editor (`AudioChaptersModal.tsx`, `AudioPlaybackDock.tsx`)**:
+  - Added dedicated **"✏️ Edit Cues"** button and interactive modal allowing the Music Director to calibrate exact chapter timecodes for backtracks.
+  - Features 1-tap **"📍 Sync to Playhead"** button next to each chapter (e.g. easily setting Verse to `00:17` when paused where the cue voice speaks).
+  - Supports adding custom sections (`Intro`, `Verse`, `Chorus`, `Interlude`, `Instrumental`, `Bridge`, `Drop`, `Hold`, `Outro`), manual MM:SS editing, quick test seek (`▶`), and permanent persistence across cloud and local storage.
+- **Improved Vocal & Phrasing Detection Sensitivity (`audioAnalysis.ts`)**:
+  - Reduced minimum section interval from 26s down to 8s, allowing early intro-to-verse transitions (such as 14s–18s) to be accurately captured instead of skipped.
+- **Dynamic Marker Updates in Audio Engine (`useAudioPlayback.ts`, `page.tsx`)**:
+  - Added `updateMarkers` method to immediately reflect adjusted timestamps across the playback scrubber, chips row, and database without reloading.
+
 ## [v2.55.3] — 2026-09-17
 ### Changed & Enhanced — BPM FAB in Floating Menu & Uncluttered Song Title Header
 - **Relocated BPM to Floating Navigation Dock (`NavigationDock.tsx`, `page.tsx`)**:

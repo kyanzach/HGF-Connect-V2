@@ -7,6 +7,7 @@ import { getAudioBlobOffline } from '../lib/offlineStorage';
 import {
   extractRoadmapSections,
   getCachedAudioMarkers,
+  saveCachedAudioMarkers,
   generateFallbackMarkers,
 } from '../lib/audioAnalysis';
 
@@ -276,10 +277,16 @@ export function useAudioPlayback(song: Song | null) {
   const jumpNextMarker = useCallback(() => {
     if (markers.length === 0) return;
     const next = markers.find((m) => m.time > currentTime + 0.8);
-    if (next) {
-      seek(next.time);
-    }
+    if (next) seek(next.time);
   }, [markers, currentTime, seek]);
+
+  const updateMarkers = (newMarkers: AudioMarker[]) => {
+    const sorted = [...newMarkers].sort((a, b) => a.time - b.time);
+    setMarkers(sorted);
+    if (song?.id) {
+      saveCachedAudioMarkers(song.id, sorted);
+    }
+  };
 
   const hasAudio = !!(song?.audioTrack && (song.audioTrack.url || song.audioTrack.filename));
 
@@ -297,6 +304,7 @@ export function useAudioPlayback(song: Song | null) {
     setVolume,
     toggleMute,
     markers,
+    updateMarkers,
     activeMarker,
     jumpPrevMarker,
     jumpNextMarker,

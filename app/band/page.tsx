@@ -29,8 +29,9 @@ import { BandAuthModal } from './components/modals/BandAuthModal';
 import { BandAdminModal } from './components/modals/BandAdminModal';
 import { MetronomeModal } from './components/modals/MetronomeModal';
 import { SongScraperModal } from './components/modals/SongScraperModal';
+import { AudioChaptersModal } from './components/modals/AudioChaptersModal';
 
-import { BandUser, Song, Setlist, AudioTrack, DrawingStroke } from './types/band';
+import { BandUser, Song, Setlist, AudioTrack, AudioMarker, DrawingStroke } from './types/band';
 
 export default function BandStagePage() {
   const {
@@ -104,6 +105,7 @@ export default function BandStagePage() {
     setVolume: setBacktrackVolume,
     toggleMute: toggleBacktrackMute,
     markers: audioMarkers,
+    updateMarkers: updateAudioMarkers,
     activeMarker: activeAudioMarker,
     jumpPrevMarker: jumpPrevAudioMarker,
     jumpNextMarker: jumpNextAudioMarker,
@@ -159,6 +161,7 @@ export default function BandStagePage() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isBandAdminOpen, setIsBandAdminOpen] = useState<boolean>(false);
   const [isMetronomeModalOpen, setIsMetronomeModalOpen] = useState<boolean>(false);
+  const [isAudioChaptersModalOpen, setIsAudioChaptersModalOpen] = useState<boolean>(false);
 
   // Login Gate & MD Setlist Gate Modals
   const [loginPrompt, setLoginPrompt] = useState<{
@@ -323,6 +326,14 @@ export default function BandStagePage() {
   const handleAttachTrack = async (audioTrack: AudioTrack | null) => {
     if (!currentSong) return;
     const updated = { ...currentSong, audioTrack };
+    await handleSaveSong(updated);
+  };
+
+  const handleUpdateMarkers = async (newMarkers: AudioMarker[]) => {
+    if (!currentSong) return;
+    updateAudioMarkers(newMarkers);
+    const updatedTrack = currentSong.audioTrack ? { ...currentSong.audioTrack, markers: newMarkers } : undefined;
+    const updated = { ...currentSong, audioTrack: updatedTrack };
     await handleSaveSong(updated);
   };
 
@@ -500,6 +511,7 @@ export default function BandStagePage() {
           onJumpPrev={jumpPrevAudioMarker}
           onJumpNext={jumpNextAudioMarker}
           isAnalyzingAudio={isAnalyzingAudio}
+          onOpenChaptersModal={() => setIsAudioChaptersModalOpen(true)}
         />
       )}
 
@@ -693,6 +705,18 @@ export default function BandStagePage() {
         cancelLabel={`Keep Worship Leader Key (${activeSongMdDefaults?.key || 'Original'})`}
         onConfirm={handleConfirmSessionKey}
         onCancel={handleRevertToMdKey}
+      />
+
+      {/* Audio Chapter Timings & Cues Calibration Modal */}
+      <AudioChaptersModal
+        isOpen={isAudioChaptersModalOpen}
+        onClose={() => setIsAudioChaptersModalOpen(false)}
+        markers={audioMarkers}
+        onSaveMarkers={handleUpdateMarkers}
+        currentTime={backtrackCurrentTime}
+        duration={backtrackDuration}
+        onSeek={seekBacktrack}
+        songTitle={currentSong?.title}
       />
     </div>
   );
