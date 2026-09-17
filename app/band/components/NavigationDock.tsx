@@ -14,6 +14,8 @@ interface NavigationDockProps {
   onChangeFontSize: (delta: number) => void;
   isAutoScrolling: boolean;
   onToggleAutoScroll: () => void;
+  bpm?: number | string | null;
+  isMetronomePulsing?: boolean;
   onOpenMetronome?: () => void;
   isMetronomeAudioActive?: boolean;
   hasPlaybackDock?: boolean;
@@ -29,6 +31,8 @@ export const NavigationDock: React.FC<NavigationDockProps> = ({
   onChangeFontSize,
   isAutoScrolling,
   onToggleAutoScroll,
+  bpm,
+  isMetronomePulsing = false,
   onOpenMetronome,
   isMetronomeAudioActive = false,
   hasPlaybackDock = false,
@@ -49,6 +53,77 @@ export const NavigationDock: React.FC<NavigationDockProps> = ({
         transition: 'bottom 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
       }}
     >
+      {/* BPM Metronome FAB (Moved to Floating Dock) */}
+      {onOpenMetronome && (
+        <button
+          onClick={onOpenMetronome}
+          title="Live Visual BPM Pulse • Tap for Metronome Settings"
+          style={{
+            width: '44px',
+            height: '44px',
+            borderRadius: '50%',
+            backgroundColor: isMetronomeAudioActive ? 'rgba(245, 158, 11, 0.3)' : 'rgba(22, 28, 38, 0.9)',
+            backdropFilter: 'blur(10px)',
+            border: `1.5px solid ${
+              isMetronomePulsing
+                ? '#fbbf24'
+                : isMetronomeAudioActive
+                ? '#f59e0b'
+                : 'rgba(245, 158, 11, 0.45)'
+            }`,
+            color: '#fbbf24',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            boxShadow: isMetronomePulsing
+              ? '0 0 14px rgba(251, 191, 36, 0.7), 0 6px 16px rgba(0,0,0,0.5)'
+              : isMetronomeAudioActive
+              ? '0 0 10px rgba(245, 158, 11, 0.4), 0 6px 16px rgba(0,0,0,0.5)'
+              : '0 6px 16px rgba(0,0,0,0.5)',
+            transform: isMetronomePulsing ? 'scale(1.08)' : 'scale(1)',
+            transition: 'transform 0.08s ease, border-color 0.08s ease, box-shadow 0.08s ease',
+          }}
+        >
+          <div
+            style={{
+              fontSize: '11px',
+              fontWeight: 900,
+              lineHeight: 1,
+              letterSpacing: '-0.2px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '2px',
+            }}
+          >
+            <span
+              style={{
+                width: '5px',
+                height: '5px',
+                borderRadius: '50%',
+                backgroundColor: isMetronomePulsing ? '#fbbf24' : '#f59e0b',
+                display: 'inline-block',
+                boxShadow: isMetronomePulsing ? '0 0 6px #fbbf24' : 'none',
+              }}
+            />
+            <span>{bpm ? String(bpm).replace(/[^0-9]/g, '') : '72'}</span>
+          </div>
+          <div
+            style={{
+              fontSize: '8px',
+              fontWeight: 800,
+              color: isMetronomeAudioActive ? '#fbbf24' : '#94a3b8',
+              lineHeight: 1,
+              marginTop: '2px',
+              textTransform: 'uppercase',
+            }}
+          >
+            BPM
+          </div>
+        </button>
+      )}
+
       {/* Auto-scroll FAB */}
       <button
         onClick={onToggleAutoScroll}
@@ -71,31 +146,6 @@ export const NavigationDock: React.FC<NavigationDockProps> = ({
       >
         📜
       </button>
-
-      {/* Metronome FAB */}
-      {onOpenMetronome && (
-        <button
-          onClick={onOpenMetronome}
-          title="Open Stage Metronome"
-          style={{
-            width: '44px',
-            height: '44px',
-            borderRadius: '50%',
-            backgroundColor: isMetronomeAudioActive ? '#f59e0b' : 'rgba(22, 28, 38, 0.85)',
-            backdropFilter: 'blur(10px)',
-            border: `1px solid ${isMetronomeAudioActive ? '#f59e0b' : '#334155'}`,
-            color: isMetronomeAudioActive ? '#000' : '#fff',
-            fontSize: '16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            boxShadow: '0 6px 16px rgba(0,0,0,0.5)',
-          }}
-        >
-          🔔
-        </button>
-      )}
 
       {/* Font Size Zoom Stepper */}
       <div

@@ -261,48 +261,6 @@ export const SongSheet: React.FC<SongSheetProps> = ({
               )}
             </div>
           </div>
-
-          {/* Top-Right Interactive Pulsing BPM Badge */}
-          <div
-            onClick={onOpenMetronomeModal}
-            role="button"
-            tabIndex={0}
-            title="Live Visual BPM Pulse • Click for Metronome Settings"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 14px',
-              height: '36px',
-              boxSizing: 'border-box',
-              borderRadius: '999px',
-              background: isMetronomeAudioActive ? 'rgba(245, 158, 11, 0.25)' : '#0f172a',
-              border: `1px solid ${isMetronomeAudioActive ? '#f59e0b' : 'rgba(245, 158, 11, 0.4)'}`,
-              color: '#fbbf24',
-              fontSize: '13px',
-              fontWeight: 800,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              flexShrink: 0,
-              boxShadow: isMetronomeAudioActive ? '0 0 12px rgba(245, 158, 11, 0.4)' : 'none',
-              transition: 'all 0.2s ease',
-            }}
-          >
-            <span
-              style={{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                backgroundColor: isMetronomePulsing ? '#fbbf24' : '#f59e0b',
-                transform: isMetronomePulsing ? 'scale(1.6)' : 'scale(1)',
-                boxShadow: isMetronomePulsing ? '0 0 10px #fbbf24, 0 0 16px rgba(245, 158, 11, 0.8)' : 'none',
-                transition: 'transform 0.1s ease, box-shadow 0.1s ease',
-                display: 'inline-block',
-                flexShrink: 0,
-              }}
-            />
-            <span>{bpm ? `${bpm} BPM` : song.tempo ? `${song.tempo} BPM` : '72 BPM'}</span>
-          </div>
         </div>
 
         {/* SECTION ORDER ROADMAP */}

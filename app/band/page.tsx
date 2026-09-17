@@ -460,6 +460,8 @@ export default function BandStagePage() {
         onChangeFontSize={(delta) => setFontSizePx((prev) => Math.max(12, Math.min(32, prev + delta)))}
         isAutoScrolling={isAutoScrolling}
         onToggleAutoScroll={handleToggleAutoScroll}
+        bpm={tempo}
+        isMetronomePulsing={isPulsing}
         onOpenMetronome={() => setIsMetronomeModalOpen(true)}
         isMetronomeAudioActive={isMetronomeAudioActive}
         hasPlaybackDock={hasAudio}

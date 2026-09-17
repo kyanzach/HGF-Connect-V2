@@ -5,6 +5,15 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.55.3] — 2026-09-17
+### Changed & Enhanced — BPM FAB in Floating Menu & Uncluttered Song Title Header
+- **Relocated BPM to Floating Navigation Dock (`NavigationDock.tsx`, `page.tsx`)**:
+  - Moved the interactive pulsing BPM button from the song sheet header directly into the floating action button stack on the right side, positioned directly above the Auto-Scroll FAB.
+  - Features real-time tempo beat pulsing, live BPM numerical badge, active metronome audio glow, and 1-tap access to MetronomeModal settings.
+  - Replaced redundant bell FAB with this dedicated BPM FAB.
+- **Uncluttered Song Sheet Header (`SongSheet.tsx`)**:
+  - Removed top-right BPM badge from the song title row, giving song titles full horizontal width without mobile wrapping or clipping.
+
 ## [v2.55.2] — 2026-09-17
 ### Fixed & Added — Zero-Lag Audio Engine, Upload-Time Chapter Analysis & Local Device Storage (IndexedDB)
 - **Eliminated Live Playback Decoding Lag (`useAudioPlayback.ts`)**:
