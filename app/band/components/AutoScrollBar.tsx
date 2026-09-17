@@ -11,6 +11,20 @@ interface AutoScrollBarProps {
   onChangeSpeed: (speed: number) => void;
   onClose: () => void;
   hasPlaybackDock?: boolean;
+  // Planned Arrangement Duration Mode
+  scrollMode?: 'duration' | 'speed';
+  onToggleScrollMode?: () => void;
+  duration?: string;
+  elapsedSeconds?: number;
+  targetDurationSec?: number;
+  onOpenDurationPicker?: () => void;
+  onStepDurationSeconds?: (delta: number) => void;
+}
+
+function formatSec(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
 export const AutoScrollBar: React.FC<AutoScrollBarProps> = ({
@@ -21,13 +35,23 @@ export const AutoScrollBar: React.FC<AutoScrollBarProps> = ({
   onChangeSpeed,
   onClose,
   hasPlaybackDock = false,
+  scrollMode = 'speed',
+  onToggleScrollMode,
+  duration = '',
+  elapsedSeconds = 0,
+  targetDurationSec = 0,
+  onOpenDurationPicker,
+  onStepDurationSeconds,
 }) => {
   if (!isVisible) return null;
 
-  const handleStep = (delta: number) => {
+  const handleStepSpeed = (delta: number) => {
     const next = Math.max(1, Math.min(10, speed + delta));
     onChangeSpeed(next);
   };
+
+  const displayTarget = targetDurationSec > 0 ? formatSec(targetDurationSec) : duration || '4:00';
+  const displayElapsed = formatSec(elapsedSeconds);
 
   return (
     <div
@@ -46,10 +70,12 @@ export const AutoScrollBar: React.FC<AutoScrollBarProps> = ({
         padding: '6px 14px',
         display: 'flex',
         alignItems: 'center',
-        gap: '10px',
+        gap: '8px',
         boxShadow: '0 12px 32px rgba(0, 0, 0, 0.85)',
         userSelect: 'none',
         backdropFilter: 'blur(8px)',
+        maxWidth: '96vw',
+        overflowX: 'auto',
       }}
     >
       {/* Play / Pause */}
@@ -69,88 +95,181 @@ export const AutoScrollBar: React.FC<AutoScrollBarProps> = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          flexShrink: 0,
           transition: 'all 0.15s ease',
         }}
       >
         {isPlaying ? '⏸' : '▶'}
       </button>
 
-      {/* Speed Label & Slider */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <span style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>
-          Speed
-        </span>
-
+      {/* Mode Toggle Button (Duration vs Speed) */}
+      {onToggleScrollMode && (
         <button
-          onClick={() => handleStep(-1)}
-          title="Slower"
+          onClick={onToggleScrollMode}
+          title={scrollMode === 'duration' ? 'Switch to Raw Speed Mode' : 'Switch to Paced Duration Mode'}
           style={{
-            width: '24px',
-            height: '24px',
-            borderRadius: '6px',
-            border: '1px solid #334155',
-            background: '#131c2e',
-            color: '#fff',
-            fontSize: '13px',
+            height: '28px',
+            padding: '0 8px',
+            borderRadius: '999px',
+            border: `1px solid ${scrollMode === 'duration' ? '#4EB1CB' : '#334155'}`,
+            background: scrollMode === 'duration' ? 'rgba(78, 177, 203, 0.2)' : '#131c2e',
+            color: scrollMode === 'duration' ? '#4EB1CB' : '#94a3b8',
+            fontSize: '11px',
             fontWeight: 800,
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
+            gap: '4px',
+            flexShrink: 0,
           }}
         >
-          -
+          <span>{scrollMode === 'duration' ? '⏱️ Pace' : '⚡ Speed'}</span>
         </button>
+      )}
 
-        <input
-          type="range"
-          min="1"
-          max="10"
-          step="1"
-          value={speed}
-          onChange={(e) => onChangeSpeed(parseInt(e.target.value, 10) || 3)}
-          style={{
-            width: '85px',
-            accentColor: '#4EB1CB',
-            cursor: 'pointer',
-          }}
-        />
+      {/* DURATION-PACED CONTROLS */}
+      {scrollMode === 'duration' ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+          {onStepDurationSeconds && (
+            <button
+              onClick={() => onStepDurationSeconds(-30)}
+              title="30s shorter"
+              style={{
+                width: '24px',
+                height: '24px',
+                borderRadius: '6px',
+                border: '1px solid #334155',
+                background: '#131c2e',
+                color: '#fff',
+                fontSize: '12px',
+                fontWeight: 800,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              -
+            </button>
+          )}
 
-        <button
-          onClick={() => handleStep(1)}
-          title="Faster"
-          style={{
-            width: '24px',
-            height: '24px',
-            borderRadius: '6px',
-            border: '1px solid #334155',
-            background: '#131c2e',
-            color: '#fff',
-            fontSize: '13px',
-            fontWeight: 800,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          +
-        </button>
+          <div
+            onClick={onOpenDurationPicker}
+            title="Tap to change song arrangement length"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '3px 10px',
+              borderRadius: '8px',
+              backgroundColor: '#131c2e',
+              border: '1px solid #334155',
+              cursor: 'pointer',
+            }}
+          >
+            <span style={{ fontSize: '12px', fontWeight: 800, color: isPlaying ? '#10b981' : '#e2e8f0', fontFamily: 'monospace' }}>
+              {isPlaying ? `${displayElapsed} / ` : ''}{displayTarget}
+            </span>
+            <span style={{ fontSize: '10px', color: '#4EB1CB' }}>✏️</span>
+          </div>
 
-        <span
-          style={{
-            fontSize: '12px',
-            fontWeight: 800,
-            color: '#4EB1CB',
-            minWidth: '22px',
-            textAlign: 'center',
-          }}
-        >
-          {speed}x
-        </span>
-      </div>
+          {onStepDurationSeconds && (
+            <button
+              onClick={() => onStepDurationSeconds(30)}
+              title="30s longer"
+              style={{
+                width: '24px',
+                height: '24px',
+                borderRadius: '6px',
+                border: '1px solid #334155',
+                background: '#131c2e',
+                color: '#fff',
+                fontSize: '12px',
+                fontWeight: 800,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              +
+            </button>
+          )}
+        </div>
+      ) : (
+        /* SPEED SLIDER CONTROLS */
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+          <button
+            onClick={() => handleStepSpeed(-1)}
+            title="Slower"
+            style={{
+              width: '24px',
+              height: '24px',
+              borderRadius: '6px',
+              border: '1px solid #334155',
+              background: '#131c2e',
+              color: '#fff',
+              fontSize: '13px',
+              fontWeight: 800,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            -
+          </button>
 
-      <div style={{ width: '1px', height: '18px', backgroundColor: '#334155', margin: '0 2px' }} />
+          <input
+            type="range"
+            min="1"
+            max="10"
+            step="1"
+            value={speed}
+            onChange={(e) => onChangeSpeed(parseInt(e.target.value, 10) || 3)}
+            style={{
+              width: '75px',
+              accentColor: '#4EB1CB',
+              cursor: 'pointer',
+            }}
+          />
+
+          <button
+            onClick={() => handleStepSpeed(1)}
+            title="Faster"
+            style={{
+              width: '24px',
+              height: '24px',
+              borderRadius: '6px',
+              border: '1px solid #334155',
+              background: '#131c2e',
+              color: '#fff',
+              fontSize: '13px',
+              fontWeight: 800,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            +
+          </button>
+
+          <span
+            style={{
+              fontSize: '12px',
+              fontWeight: 800,
+              color: '#4EB1CB',
+              minWidth: '22px',
+              textAlign: 'center',
+            }}
+          >
+            {speed}x
+          </span>
+        </div>
+      )}
+
+      <div style={{ width: '1px', height: '18px', backgroundColor: '#334155', margin: '0 2px', flexShrink: 0 }} />
 
       {/* Close Button */}
       <button
@@ -168,6 +287,7 @@ export const AutoScrollBar: React.FC<AutoScrollBarProps> = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          flexShrink: 0,
         }}
       >
         ✕

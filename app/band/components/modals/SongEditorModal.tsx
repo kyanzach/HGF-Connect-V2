@@ -30,6 +30,7 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
   const [tempo, setTempo] = useState<string>('72');
   const [timeSignature, setTimeSignature] = useState<string>('4/4');
   const [sectionOrder, setSectionOrder] = useState<string>('');
+  const [duration, setDuration] = useState<string>('');
   const [chords, setChords] = useState<string>('');
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
@@ -48,6 +49,7 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
       setCapo(String(song.capo || 0));
       setTempo(String(song.tempo || 72));
       setTimeSignature(song.timeSignature || '4/4');
+      setDuration(song.duration || '');
       setSectionOrder(song.sectionOrder || '');
       setChords(song.chords || song.lyrics || '');
     } else {
@@ -57,6 +59,7 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
       setCapo('0');
       setTempo('72');
       setTimeSignature('4/4');
+      setDuration('');
       setSectionOrder('');
       setChords('');
     }
@@ -82,6 +85,7 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
         capo,
         tempo: parseInt(tempo, 10) || 72,
         timeSignature,
+        duration: duration.trim(),
         sectionOrder: sectionOrder.trim(),
         chords: chords.trim(),
         updatedAt: Date.now(),
@@ -275,8 +279,8 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
             </div>
           </div>
 
-          {/* Row 2: Key, Capo, Tempo, Time Sig */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
+          {/* Row 2: Key, Capo, Tempo, Time Sig, Duration */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px' }}>
             <div>
               <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#94a3b8', marginBottom: '4px' }}>
                 KEY
@@ -350,7 +354,7 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
                 type="text"
                 value={timeSignature}
                 onChange={(e) => setTimeSignature(e.target.value)}
-                placeholder="4/4, 6/8, 8/8"
+                placeholder="4/4, 6/8"
                 style={{
                   width: '100%',
                   height: '36px',
@@ -360,6 +364,29 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
                   color: '#fff',
                   padding: '0 10px',
                   fontSize: '13px',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#94a3b8', marginBottom: '4px' }}>
+                DURATION
+              </label>
+              <input
+                type="text"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+                placeholder="e.g. 4:30"
+                style={{
+                  width: '100%',
+                  height: '36px',
+                  borderRadius: '8px',
+                  background: '#131c2e',
+                  border: '1px solid #2d3f5e',
+                  color: '#38bdf8',
+                  padding: '0 10px',
+                  fontSize: '13px',
+                  fontWeight: 700,
                   boxSizing: 'border-box',
                 }}
               />

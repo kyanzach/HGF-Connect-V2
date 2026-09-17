@@ -29,6 +29,11 @@ interface SongSheetProps {
   onOpenMetronomeModal?: () => void;
   isSessionOverridden?: boolean;
   worshipLeaderKey?: string;
+  plannedDuration?: string;
+  onOpenDurationPicker?: () => void;
+  scrollMode?: 'duration' | 'speed';
+  elapsedScrollSeconds?: number;
+  targetDurationSec?: number;
 }
 
 export const SongSheet: React.FC<SongSheetProps> = ({
@@ -46,9 +51,13 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   bpm,
   isMetronomePulsing,
   isMetronomeAudioActive,
-  onOpenMetronomeModal,
   isSessionOverridden,
   worshipLeaderKey,
+  plannedDuration,
+  onOpenDurationPicker,
+  scrollMode = 'speed',
+  elapsedScrollSeconds = 0,
+  targetDurationSec = 0,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number | null>(null);
@@ -65,17 +74,26 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     }
   }, [playbackState?.isPlaying, playbackState?.currentTime, playbackState?.duration]);
 
-  // Auto-scroll loop with variable speed (when not driven by audio playback)
+  // Auto-scroll loop: Duration-paced teleprompter lockstep OR variable speed
   useEffect(() => {
     if (!isAutoScrolling || playbackState?.isPlaying || !containerRef.current) return;
     const container = containerRef.current;
+    const maxScroll = container.scrollHeight - container.clientHeight;
+    if (maxScroll <= 0) return;
+
+    if (scrollMode === 'duration' && targetDurationSec > 0) {
+      const targetScroll = Math.min(maxScroll, (elapsedScrollSeconds / targetDurationSec) * maxScroll);
+      container.scrollTop = targetScroll;
+      return;
+    }
+
     const interval = setInterval(() => {
       const step = Math.max(0.4, (scrollSpeed || 3) * 0.4);
       container.scrollBy({ top: step, behavior: 'auto' });
     }, 40);
 
     return () => clearInterval(interval);
-  }, [isAutoScrolling, scrollSpeed, playbackState?.isPlaying]);
+  }, [isAutoScrolling, scrollSpeed, playbackState?.isPlaying, scrollMode, elapsedScrollSeconds, targetDurationSec]);
 
   // Section order roadmap parts
   const sectionParts = (song?.sectionOrder || '')
@@ -230,34 +248,55 @@ export const SongSheet: React.FC<SongSheetProps> = ({
                   {song.timeSignature}
                 </span>
               )}
-              {playbackState && playbackState.duration > 0 && (
-                <span
+              {/* Planned Live Arrangement Duration / Stage Timer */}
+              {(!playbackState || !playbackState.isPlaying) && (plannedDuration || targetDurationSec > 0) && (
+                <button
+                  onClick={onOpenDurationPicker}
+                  title="Planned Song Arrangement Duration • Tap to change"
                   style={{
                     padding: '2px 8px',
                     borderRadius: '6px',
-                    background: playbackState.isPlaying ? 'rgba(56, 189, 248, 0.2)' : '#1e293b',
-                    border: playbackState.isPlaying ? '1px solid #38bdf8' : '1px solid transparent',
-                    color: '#38bdf8',
+                    background: isAutoScrolling && scrollMode === 'duration' ? 'rgba(78, 177, 203, 0.25)' : '#1e293b',
+                    border: isAutoScrolling && scrollMode === 'duration' ? '1px solid #4EB1CB' : '1px solid transparent',
+                    color: '#4EB1CB',
                     fontSize: '12px',
                     fontWeight: 700,
                     display: 'flex',
                     alignItems: 'center',
                     gap: '4px',
+                    cursor: 'pointer',
                   }}
                 >
-                  <span>🎧</span>
-                  <span>
-                    {Math.floor(playbackState.currentTime / 60)}:
-                    {Math.floor(playbackState.currentTime % 60)
-                      .toString()
-                      .padStart(2, '0')}{' '}
-                    /{' '}
-                    {Math.floor(playbackState.duration / 60)}:
-                    {Math.floor(playbackState.duration % 60)
-                      .toString()
-                      .padStart(2, '0')}
+                  <span>⏱️</span>
+                  <span style={{ fontFamily: 'monospace' }}>
+                    {isAutoScrolling && scrollMode === 'duration'
+                      ? `${Math.floor(elapsedScrollSeconds / 60)}:${Math.floor(elapsedScrollSeconds % 60).toString().padStart(2, '0')} / `
+                      : ''}
+                    {plannedDuration || (targetDurationSec > 0 ? `${Math.floor(targetDurationSec / 60)}:${Math.floor(targetDurationSec % 60).toString().padStart(2, '0')}` : '4:30')}
                   </span>
-                </span>
+                </button>
+              )}
+              {(!playbackState || !playbackState.isPlaying) && !plannedDuration && targetDurationSec <= 0 && onOpenDurationPicker && (
+                <button
+                  onClick={onOpenDurationPicker}
+                  title="Set planned arrangement duration for this song"
+                  style={{
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    background: '#131c2e',
+                    border: '1px dashed #334155',
+                    color: '#64748b',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span>⏱️</span>
+                  <span>Duration</span>
+                </button>
               )}
             </div>
           </div>

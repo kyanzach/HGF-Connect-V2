@@ -15,6 +15,7 @@ export interface SessionSongOverride {
   tempo?: number;
   timeSignature?: string;
   capo?: string | number;
+  duration?: string;
 }
 
 export function useSetlist() {
@@ -95,6 +96,7 @@ export function useSetlist() {
         const mdTempo = typeof item === 'object' && item.tempo !== undefined ? item.tempo : found.tempo;
         const mdTimeSig = typeof item === 'object' && item.timeSignature ? item.timeSignature : found.timeSignature;
         const mdChords = typeof item === 'object' && item.chords ? item.chords : found.chords;
+        const mdDuration = typeof item === 'object' && item.duration ? item.duration : found.duration;
 
         // Check if there is an active session override for this setlist
         const override = setlistSessionOverrides[`${activeSetlist.id}_${found.id}`];
@@ -106,6 +108,7 @@ export function useSetlist() {
           capo: override?.capo !== undefined ? override.capo : mdCapo,
           tempo: override?.tempo !== undefined ? override.tempo : mdTempo,
           timeSignature: override?.timeSignature || mdTimeSig,
+          duration: override?.duration || mdDuration || found.duration,
         });
       }
     });
@@ -158,6 +161,7 @@ export function useSetlist() {
       tempo: typeof item === 'object' && item.tempo !== undefined ? item.tempo : foundInLibrary?.tempo || currentSong.tempo || 72,
       timeSignature: typeof item === 'object' && item.timeSignature ? item.timeSignature : foundInLibrary?.timeSignature || currentSong.timeSignature || '4/4',
       capo: typeof item === 'object' && item.capo !== undefined ? item.capo : foundInLibrary?.capo || currentSong.capo || 0,
+      duration: typeof item === 'object' && item.duration ? item.duration : foundInLibrary?.duration || currentSong.duration || '',
     };
   }, [activeSetlist, currentSong, songs]);
 
@@ -264,6 +268,7 @@ export function useSetlist() {
           tempo: typeof foundSong.tempo === 'number' ? foundSong.tempo : undefined,
           timeSignature: foundSong.timeSignature,
           chords: foundSong.chords,
+          duration: foundSong.duration,
         }
       : { id: songId };
     const updatedSongs = [...existingSongs, newItem];

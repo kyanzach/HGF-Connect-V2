@@ -5,6 +5,20 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.55.7] — 2026-09-17
+### Added & Enhanced — Planned Song Arrangement Duration with Teleprompter-Paced Auto-Scroll
+- **Manual Arrangement Duration Tracking (`types/band.ts`, `useSetlist.ts`, `SongEditorModal.tsx`)**:
+  - Added independent `duration` (MM:SS) property to songs and setlist items so musicians can set planned lengths (e.g. `5:00`) for acoustic sets, live arrangements, or altar calls without needing audio backtracks.
+  - Added Duration input field in `SongEditorModal` alongside Key, Capo, BPM, and Time Signature.
+  - Fully supports setlist-level duration overrides with instant reactivity and optional permanent persistence to library or setlist.
+- **Teleprompter-Paced Auto-Scroll (`SongSheet.tsx`, `AutoScrollBar.tsx`)**:
+  - Implemented lockstep teleprompter pacing where scroll position smoothly traverses from top to bottom over the exact planned song duration: `targetScroll = (elapsed / targetDuration) * maxScroll`.
+  - Added dual auto-scroll mode toggle: `⏱️ Pace` (duration-driven auto-scroll) and `⚡ Speed` (traditional 1x–10x constant speed slider).
+  - Added live elapsed timer (`elapsed / targetDuration`) with smooth progress bar and ±30s quick adjustment steppers.
+- **Interactive Duration Picker Modal & Dock Integration (`DurationPickerModal.tsx`, `NavigationDock.tsx`)**:
+  - Added dedicated `DurationPickerModal` with 1-tap presets (`3:00` through `8:00`), ±30s / ±15s steppers, custom MM:SS inputs, clear/remove option, and "Save as default" option.
+  - Added duration badge on the Floating Auto-Scroll FAB (`⏱️ 5:00`) and song header badge row (`⏱️ 5:00` or `⏱️ 0:15 / 5:00` during active scrolling) with 1-tap access to open the duration picker.
+
 ## [v2.55.6] — 2026-09-17
 ### Fixed — Setlist Worship Leader Key Isolation & Elimination of All-Songs Transpose Leak
 - **Setlist Key Context Isolation (`useMusicTheory.ts`, `page.tsx`)**:

@@ -19,6 +19,8 @@ interface NavigationDockProps {
   onOpenMetronome?: () => void;
   isMetronomeAudioActive?: boolean;
   hasPlaybackDock?: boolean;
+  duration?: string;
+  onOpenDurationPicker?: () => void;
 }
 
 export const NavigationDock: React.FC<NavigationDockProps> = ({
@@ -36,6 +38,8 @@ export const NavigationDock: React.FC<NavigationDockProps> = ({
   onOpenMetronome,
   isMetronomeAudioActive = false,
   hasPlaybackDock = false,
+  duration,
+  onOpenDurationPicker,
 }) => {
   return (
     <div
@@ -124,28 +128,57 @@ export const NavigationDock: React.FC<NavigationDockProps> = ({
         </button>
       )}
 
-      {/* Auto-scroll FAB */}
-      <button
-        onClick={onToggleAutoScroll}
-        title="Toggle Auto-Scroll"
-        style={{
-          width: '44px',
-          height: '44px',
-          borderRadius: '50%',
-          backgroundColor: isAutoScrolling ? '#10b981' : 'rgba(22, 28, 38, 0.85)',
-          backdropFilter: 'blur(10px)',
-          border: `1px solid ${isAutoScrolling ? '#10b981' : '#334155'}`,
-          color: isAutoScrolling ? '#000' : '#fff',
-          fontSize: '16px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          boxShadow: '0 6px 16px rgba(0,0,0,0.5)',
-        }}
-      >
-        📜
-      </button>
+      {/* Auto-scroll FAB with Duration Badge */}
+      <div style={{ position: 'relative' }}>
+        <button
+          onClick={onToggleAutoScroll}
+          title={isAutoScrolling ? 'Pause Auto-Scroll' : 'Start Auto-Scroll'}
+          style={{
+            width: '44px',
+            height: '44px',
+            borderRadius: '50%',
+            backgroundColor: isAutoScrolling ? '#10b981' : 'rgba(22, 28, 38, 0.85)',
+            backdropFilter: 'blur(10px)',
+            border: `1px solid ${isAutoScrolling ? '#10b981' : '#334155'}`,
+            color: isAutoScrolling ? '#000' : '#fff',
+            fontSize: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            boxShadow: '0 6px 16px rgba(0,0,0,0.5)',
+          }}
+        >
+          📜
+        </button>
+        {duration && (
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenDurationPicker?.();
+            }}
+            title={`Planned Duration: ${duration} • Tap to adjust`}
+            style={{
+              position: 'absolute',
+              top: '-6px',
+              right: '-6px',
+              backgroundColor: '#0c1017',
+              border: '1px solid #4EB1CB',
+              color: '#4EB1CB',
+              fontSize: '9px',
+              fontWeight: 900,
+              padding: '1px 5px',
+              borderRadius: '999px',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.7)',
+              fontFamily: 'monospace',
+            }}
+          >
+            {duration}
+          </div>
+        )}
+      </div>
 
       {/* Font Size Zoom Stepper */}
       <div

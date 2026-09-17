@@ -75,6 +75,7 @@ export interface SetlistSongItem {
   timeSignature?: string;
   notes?: string;
   chords?: string;
+  duration?: string;
 }
 
 export interface Setlist {

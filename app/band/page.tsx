@@ -30,8 +30,27 @@ import { BandAdminModal } from './components/modals/BandAdminModal';
 import { MetronomeModal } from './components/modals/MetronomeModal';
 import { SongScraperModal } from './components/modals/SongScraperModal';
 import { AudioChaptersModal } from './components/modals/AudioChaptersModal';
+import { DurationPickerModal } from './components/modals/DurationPickerModal';
 
 import { BandUser, Song, Setlist, AudioTrack, AudioMarker, DrawingStroke } from './types/band';
+
+function parseDurationToSec(dur?: string): number {
+  if (!dur) return 0;
+  if (dur.includes(':')) {
+    const parts = dur.split(':');
+    const m = parseInt(parts[0], 10) || 0;
+    const s = parseInt(parts[1], 10) || 0;
+    return m * 60 + s;
+  }
+  const n = parseInt(dur, 10);
+  return isNaN(n) ? 0 : n;
+}
+
+function formatSecToMMSS(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
 
 export default function BandStagePage() {
   const {
@@ -162,6 +181,11 @@ export default function BandStagePage() {
   const [isBandAdminOpen, setIsBandAdminOpen] = useState<boolean>(false);
   const [isMetronomeModalOpen, setIsMetronomeModalOpen] = useState<boolean>(false);
   const [isAudioChaptersModalOpen, setIsAudioChaptersModalOpen] = useState<boolean>(false);
+  const [isDurationModalOpen, setIsDurationModalOpen] = useState<boolean>(false);
+
+  // Auto-scroll pacing & duration mode
+  const [scrollMode, setScrollMode] = useState<'duration' | 'speed'>('duration');
+  const [elapsedScrollSeconds, setElapsedScrollSeconds] = useState<number>(0);
 
   // Login Gate & MD Setlist Gate Modals
   const [loginPrompt, setLoginPrompt] = useState<{
@@ -181,6 +205,33 @@ export default function BandStagePage() {
     }
     selectSong(newSong.id);
   };
+
+  // Planned arrangement duration in seconds
+  const targetDurationSec = parseDurationToSec(currentSong?.duration);
+
+  // Reset elapsed timer and sync scrollMode when currentSong changes
+  useEffect(() => {
+    setElapsedScrollSeconds(0);
+    if (currentSong?.duration && parseDurationToSec(currentSong.duration) > 0) {
+      setScrollMode('duration');
+    }
+  }, [currentSong?.id]);
+
+  // Elapsed scroll timer loop
+  useEffect(() => {
+    if (!isAutoScrolling || scrollMode !== 'duration') return;
+    const interval = setInterval(() => {
+      setElapsedScrollSeconds((prev) => {
+        const next = prev + 1;
+        if (targetDurationSec > 0 && next >= targetDurationSec) {
+          setIsAutoScrolling(false);
+          return targetDurationSec;
+        }
+        return next;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isAutoScrolling, scrollMode, targetDurationSec]);
 
   // Sync tempo and time signature when currentSong changes
   useEffect(() => {
@@ -288,6 +339,7 @@ export default function BandStagePage() {
             capo: updatedSong.capo,
             tempo: typeof updatedSong.tempo === 'number' ? updatedSong.tempo : undefined,
             timeSignature: updatedSong.timeSignature,
+            duration: updatedSong.duration,
             chords: updatedSong.chords,
             audioTrack: updatedSong.audioTrack,
           };
@@ -371,10 +423,46 @@ export default function BandStagePage() {
     }
   };
 
+  const handleApplyDuration = async (newDuration: string, savePermanent?: boolean) => {
+    if (!currentSong) return;
+
+    // Apply immediate session override for instant reactive feedback
+    setSongSessionOverride(currentSong.id, { duration: newDuration });
+
+    if (savePermanent) {
+      if (activeSetlist) {
+        const updatedSongs = (activeSetlist.songs || []).map((s) => {
+          const id = typeof s === 'string' ? s : s.id;
+          if (id === currentSong.id) {
+            return {
+              ...(typeof s === 'object' ? s : { id }),
+              duration: newDuration,
+            };
+          }
+          return s;
+        });
+        await handleSaveSetlist({ ...activeSetlist, songs: updatedSongs });
+      } else {
+        await handleSaveSong({ ...currentSong, duration: newDuration });
+      }
+    }
+  };
+
+  const handleStepDuration = (deltaSec: number) => {
+    if (!currentSong) return;
+    const currentSec = parseDurationToSec(currentSong.duration) || 240;
+    const nextSec = Math.max(30, currentSec + deltaSec);
+    const nextDurStr = formatSecToMMSS(nextSec);
+    handleApplyDuration(nextDurStr, false);
+  };
+
   const handleToggleAutoScroll = () => {
     const nextState = !isAutoScrolling;
     setIsAutoScrolling(nextState);
     setShowAutoScrollBar(true);
+    if (nextState && targetDurationSec > 0 && elapsedScrollSeconds >= targetDurationSec) {
+      setElapsedScrollSeconds(0);
+    }
   };
 
   return (
@@ -445,6 +533,11 @@ export default function BandStagePage() {
         onSwipeRight={prevSong}
         isSessionOverridden={isCurrentSongSessionOverridden}
         worshipLeaderKey={activeSongMdDefaults?.key}
+        plannedDuration={currentSong?.duration}
+        onOpenDurationPicker={() => setIsDurationModalOpen(true)}
+        scrollMode={scrollMode}
+        elapsedScrollSeconds={elapsedScrollSeconds}
+        targetDurationSec={targetDurationSec}
         playbackState={{
           isPlaying: isBacktrackPlaying,
           currentTime: backtrackCurrentTime,
@@ -482,6 +575,8 @@ export default function BandStagePage() {
         onOpenMetronome={() => setIsMetronomeModalOpen(true)}
         isMetronomeAudioActive={isMetronomeAudioActive}
         hasPlaybackDock={hasAudio}
+        duration={currentSong?.duration}
+        onOpenDurationPicker={() => setIsDurationModalOpen(true)}
       />
 
       {/* AUTO-SCROLL CONTROL BAR */}
@@ -496,6 +591,13 @@ export default function BandStagePage() {
           setShowAutoScrollBar(false);
         }}
         hasPlaybackDock={hasAudio}
+        scrollMode={scrollMode}
+        onToggleScrollMode={() => setScrollMode((prev) => (prev === 'duration' ? 'speed' : 'duration'))}
+        duration={currentSong?.duration}
+        elapsedSeconds={elapsedScrollSeconds}
+        targetDurationSec={targetDurationSec}
+        onOpenDurationPicker={() => setIsDurationModalOpen(true)}
+        onStepDurationSeconds={handleStepDuration}
       />
 
       {/* FLOATING AUDIO SCRUBBER DOCK */}
@@ -723,6 +825,16 @@ export default function BandStagePage() {
         duration={backtrackDuration}
         onSeek={seekBacktrack}
         songTitle={currentSong?.title}
+      />
+
+      {/* Arrangement Duration Picker Modal */}
+      <DurationPickerModal
+        isOpen={isDurationModalOpen}
+        onClose={() => setIsDurationModalOpen(false)}
+        currentDuration={currentSong?.duration}
+        songTitle={currentSong?.title}
+        onApplyDuration={handleApplyDuration}
+        isBandAdmin={currentUser?.role === 'admin' || currentUser?.role === 'MD'}
       />
     </div>
   );
