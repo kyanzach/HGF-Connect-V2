@@ -5,6 +5,16 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.55.6] — 2026-09-17
+### Fixed — Setlist Worship Leader Key Isolation & Elimination of All-Songs Transpose Leak
+- **Setlist Key Context Isolation (`useMusicTheory.ts`, `page.tsx`)**:
+  - Connected `activeSetlistId` directly to `useMusicTheory`'s synchronization cycle so transpositions made in "All Songs" or another setlist never bleed into or overwrite a Worship Leader's setlist key.
+  - Switching back to a setlist (e.g. Karen's setlist) now instantly restores the Worship Leader Key (e.g. Key D) on the spot.
+  - Fixed the loophole where changing a song's key in "All Songs" and switching back to the setlist bypassed the Worship Leader Key Gate modal.
+- **Smart Song Retention on Setlist Switch (`useSetlist.ts`)**:
+  - Updated `selectSetlist` so that if the song currently being viewed is part of the newly selected setlist, it stays on that song rather than forcing a jump to song 1, while immediately aligning to that setlist's key, capo, tempo, and time signature.
+  - Key changes attempted within an active setlist now consistently trigger the Worship Leader Key Gate modal.
+
 ## [v2.55.5] — 2026-09-17
 ### Fixed — Persistent Active Song Across Page Refreshes & Elimination of Library Race Condition
 - **Active Song Persistence Across Refreshes (`useSetlist.ts`)**:

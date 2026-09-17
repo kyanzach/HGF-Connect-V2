@@ -184,15 +184,21 @@ export function useSetlist() {
     if (setId) {
       const target = setlists.find((s) => s.id === setId);
       if (target && target.songs && target.songs.length > 0) {
-        const first = target.songs[0];
-        const firstId = typeof first === 'string' ? first : first.id;
-        setCurrentSongId(firstId);
-        if (typeof window !== 'undefined') {
-          localStorage.setItem(STORAGE_ACTIVE_SONG, firstId);
+        // If currently viewed song is already part of the target setlist, keep viewing it!
+        const isCurrentInTarget = currentSongId && target.songs.some((it) =>
+          (typeof it === 'string' ? it : it.id) === currentSongId
+        );
+        if (!isCurrentInTarget) {
+          const first = target.songs[0];
+          const firstId = typeof first === 'string' ? first : first.id;
+          setCurrentSongId(firstId);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(STORAGE_ACTIVE_SONG, firstId);
+          }
         }
       }
     }
-  }, [setlists]);
+  }, [setlists, currentSongId]);
 
   const nextSong = useCallback(() => {
     if (currentIndex < currentLineup.length - 1) {

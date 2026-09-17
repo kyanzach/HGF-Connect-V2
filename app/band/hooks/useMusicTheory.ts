@@ -14,7 +14,7 @@ import {
   SheetLine,
 } from '../lib/musicTheory';
 
-export function useMusicTheory(song: Song | null) {
+export function useMusicTheory(song: Song | null, activeSetlistId?: string | null) {
   // Baseline key that the chord chart is physically written in
   const chartKey = song?.originalKey || song?.key || 'C';
 
@@ -23,11 +23,11 @@ export function useMusicTheory(song: Song | null) {
   const [capo, setCapo] = useState<number>(Number(song?.capo) || 0);
   const [preferFlats, setPreferFlats] = useState<boolean>(false);
 
-  // Sync activeKey and capo when the active song or setlist item changes
+  // Sync activeKey and capo when the active song, setlist item, or active setlist changes
   useEffect(() => {
     setActiveKey(song?.key || chartKey);
     setCapo(Number(song?.capo) || 0);
-  }, [song?.id, song?.key, chartKey, song?.capo]);
+  }, [song?.id, song?.key, chartKey, song?.capo, activeSetlistId]);
 
   const isFlats = useMemo(() => {
     return preferFlats || FLAT_KEYS.includes(chartKey);

@@ -69,7 +69,7 @@ export default function BandStagePage() {
     setTargetKey,
     resetTranspose,
     parsedLines,
-  } = useMusicTheory(currentSong);
+  } = useMusicTheory(currentSong, activeSetlistId);
 
   const {
     tempo,
@@ -195,6 +195,7 @@ export default function BandStagePage() {
   // Unified Key Change with Worship Leader Setlist Gate
   const handleKeyChangeRequest = (newKey: string) => {
     if (!currentSong) return;
+    if (newKey === effectiveKey) return;
 
     // If inside an active setlist with designated Worship Leader defaults
     if (activeSetlistId && activeSongMdDefaults) {
@@ -215,6 +216,11 @@ export default function BandStagePage() {
 
     // Direct application (All songs mode)
     setTargetKey(newKey);
+  };
+
+  const handleSelectSetlist = (setId: string | null) => {
+    selectSetlist(setId);
+    resetTranspose();
   };
 
   const handleTransposeDelta = (delta: number) => {
@@ -396,7 +402,7 @@ export default function BandStagePage() {
         onOpenMetronomeModal={() => setIsMetronomeModalOpen(true)}
         setlists={setlists}
         activeSetlistId={activeSetlistId}
-        onSelectSetlist={selectSetlist}
+        onSelectSetlist={handleSelectSetlist}
         currentUser={currentUser}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
         onOpenEditSong={() => {
@@ -525,7 +531,7 @@ export default function BandStagePage() {
         activeSetlistId={activeSetlistId}
         currentSongId={currentSong?.id || null}
         onSelectSong={selectSong}
-        onSelectSetlist={selectSetlist}
+        onSelectSetlist={handleSelectSetlist}
         onOpenNewSongModal={() => {
           setEditingSong(null);
           setIsEditModalOpen(true);
@@ -595,7 +601,7 @@ export default function BandStagePage() {
         allSongs={songs}
         onSaveSetlist={handleSaveSetlist}
         onDeleteSetlist={handleDeleteSetlist}
-        onSelectActiveSetlist={selectSetlist}
+        onSelectActiveSetlist={handleSelectSetlist}
       />
 
       <ScratchpadModal
