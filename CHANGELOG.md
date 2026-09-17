@@ -5,6 +5,16 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.55.8] — 2026-09-17
+### Fixed & Enhanced — 60fps/120fps Silky Smooth Teleprompter Auto-Scroll
+- **Fluid Subpixel Animation Engine (`SongSheet.tsx`)**:
+  - Replaced the stepped 1-second interval scrolling with native `requestAnimationFrame` continuous subpixel motion at 60fps / 120fps (ProMotion).
+  - Calculated instantaneous displacement per frame from high-resolution timestamps (`performance.now()`), eliminating robotic stutter, jumps, and line snapping.
+- **Intelligent Manual Scroll & Gesture Recognition (`SongSheet.tsx`, `page.tsx`)**:
+  - Added user scroll interception (`onScroll`) so manual dragging, swipe gestures, or roadmap section jumps seamlessly adjust the internal playhead and timer without fighting the auto-scroller.
+  - Automatically rewinds and starts from the top if auto-scroll is activated while already at the end of the sheet.
+  - Throttled React state timer updates to 1-second ticks while the underlying visual scroll renders at display refresh rate, preventing re-render thrashing.
+
 ## [v2.55.7] — 2026-09-17
 ### Added & Enhanced — Planned Song Arrangement Duration with Teleprompter-Paced Auto-Scroll
 - **Manual Arrangement Duration Tracking (`types/band.ts`, `useSetlist.ts`, `SongEditorModal.tsx`)**:

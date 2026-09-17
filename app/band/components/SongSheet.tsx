@@ -34,6 +34,8 @@ interface SongSheetProps {
   scrollMode?: 'duration' | 'speed';
   elapsedScrollSeconds?: number;
   targetDurationSec?: number;
+  onUpdateElapsed?: (elapsedSec: number) => void;
+  onAutoScrollComplete?: () => void;
 }
 
 export const SongSheet: React.FC<SongSheetProps> = ({
@@ -58,12 +60,42 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   scrollMode = 'speed',
   elapsedScrollSeconds = 0,
   targetDurationSec = 0,
+  onUpdateElapsed,
+  onAutoScrollComplete,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
+  const scrollPosRef = useRef<number>(0);
+  const lastReportedSecRef = useRef<number>(-1);
 
-  // Playback-synced auto-scroll lockstep
+  // Sync scrollPosRef on mount or song change
+  useEffect(() => {
+    if (containerRef.current) {
+      scrollPosRef.current = containerRef.current.scrollTop;
+    }
+  }, [song?.id]);
+
+  // Handle user manual scroll: update scrollPosRef and sync elapsed timer
+  const handleScroll = () => {
+    if (!containerRef.current) return;
+    const currentScroll = containerRef.current.scrollTop;
+    // If difference is large enough, user manually intervened
+    if (Math.abs(currentScroll - scrollPosRef.current) > 3) {
+      scrollPosRef.current = currentScroll;
+      const maxScroll = containerRef.current.scrollHeight - containerRef.current.clientHeight;
+      if (maxScroll > 0 && targetDurationSec > 0) {
+        const currentElapsed = Math.min(targetDurationSec, (currentScroll / maxScroll) * targetDurationSec);
+        const rounded = Math.round(currentElapsed);
+        if (rounded !== lastReportedSecRef.current) {
+          lastReportedSecRef.current = rounded;
+          onUpdateElapsed?.(rounded);
+        }
+      }
+    }
+  };
+
+  // Playback-synced auto-scroll lockstep (when audio backtrack is playing)
   useEffect(() => {
     if (!playbackState?.isPlaying || !playbackState.duration || !containerRef.current) return;
     const container = containerRef.current;
@@ -71,29 +103,85 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     if (maxScroll > 0) {
       const targetScroll = (playbackState.currentTime / playbackState.duration) * maxScroll;
       container.scrollTop = targetScroll;
+      scrollPosRef.current = targetScroll;
     }
   }, [playbackState?.isPlaying, playbackState?.currentTime, playbackState?.duration]);
 
-  // Auto-scroll loop: Duration-paced teleprompter lockstep OR variable speed
+  // Auto-scroll loop: 60fps/120fps fluid teleprompter pacing or smooth constant speed
   useEffect(() => {
     if (!isAutoScrolling || playbackState?.isPlaying || !containerRef.current) return;
     const container = containerRef.current;
-    const maxScroll = container.scrollHeight - container.clientHeight;
-    if (maxScroll <= 0) return;
 
-    if (scrollMode === 'duration' && targetDurationSec > 0) {
-      const targetScroll = Math.min(maxScroll, (elapsedScrollSeconds / targetDurationSec) * maxScroll);
-      container.scrollTop = targetScroll;
-      return;
+    // If starting at the very bottom, restart smoothly from top
+    const initialMax = container.scrollHeight - container.clientHeight;
+    if (initialMax > 0 && container.scrollTop >= initialMax - 4) {
+      container.scrollTop = 0;
+      scrollPosRef.current = 0;
+      lastReportedSecRef.current = 0;
+      onUpdateElapsed?.(0);
+    } else {
+      scrollPosRef.current = container.scrollTop;
     }
 
-    const interval = setInterval(() => {
-      const step = Math.max(0.4, (scrollSpeed || 3) * 0.4);
-      container.scrollBy({ top: step, behavior: 'auto' });
-    }, 40);
+    let animId: number;
+    let lastTime = performance.now();
 
-    return () => clearInterval(interval);
-  }, [isAutoScrolling, scrollSpeed, playbackState?.isPlaying, scrollMode, elapsedScrollSeconds, targetDurationSec]);
+    const frame = (now: number) => {
+      const dt = Math.min(100, Math.max(1, now - lastTime)); // Delta ms, capped for tab switching
+      lastTime = now;
+
+      if (containerRef.current) {
+        const el = containerRef.current;
+        const maxScroll = el.scrollHeight - el.clientHeight;
+
+        if (maxScroll > 0) {
+          let scrollDelta = 0;
+
+          if (scrollMode === 'duration' && targetDurationSec > 0) {
+            // Traverse maxScroll smoothly over targetDurationSec seconds
+            const totalMs = targetDurationSec * 1000;
+            scrollDelta = (dt / totalMs) * maxScroll;
+          } else {
+            // Speed mode (1x to 10x): speed 1 = ~18px/s, speed 3 = ~54px/s, speed 10 = ~180px/s
+            const pxPerSec = Math.max(12, (scrollSpeed || 3) * 18);
+            scrollDelta = (dt / 1000) * pxPerSec;
+          }
+
+          scrollPosRef.current = Math.min(maxScroll, scrollPosRef.current + scrollDelta);
+          el.scrollTop = scrollPosRef.current;
+
+          // Track elapsed time for UI timer and progress bar
+          if (targetDurationSec > 0) {
+            const currentElapsed = Math.min(targetDurationSec, (scrollPosRef.current / maxScroll) * targetDurationSec);
+            const floored = Math.floor(currentElapsed);
+            if (floored !== lastReportedSecRef.current) {
+              lastReportedSecRef.current = floored;
+              onUpdateElapsed?.(floored);
+            }
+          }
+
+          // Check if reached bottom
+          if (scrollPosRef.current >= maxScroll - 0.5) {
+            onAutoScrollComplete?.();
+            return;
+          }
+        }
+      }
+
+      animId = requestAnimationFrame(frame);
+    };
+
+    animId = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(animId);
+  }, [
+    isAutoScrolling,
+    scrollSpeed,
+    playbackState?.isPlaying,
+    scrollMode,
+    targetDurationSec,
+    onUpdateElapsed,
+    onAutoScrollComplete,
+  ]);
 
   // Section order roadmap parts
   const sectionParts = (song?.sectionOrder || '')
@@ -166,6 +254,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
       id="sheetWrapper"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
+      onScroll={handleScroll}
       style={{
         position: 'relative',
         flex: 1,

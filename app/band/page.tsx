@@ -217,22 +217,6 @@ export default function BandStagePage() {
     }
   }, [currentSong?.id]);
 
-  // Elapsed scroll timer loop
-  useEffect(() => {
-    if (!isAutoScrolling || scrollMode !== 'duration') return;
-    const interval = setInterval(() => {
-      setElapsedScrollSeconds((prev) => {
-        const next = prev + 1;
-        if (targetDurationSec > 0 && next >= targetDurationSec) {
-          setIsAutoScrolling(false);
-          return targetDurationSec;
-        }
-        return next;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [isAutoScrolling, scrollMode, targetDurationSec]);
-
   // Sync tempo and time signature when currentSong changes
   useEffect(() => {
     if (currentSong?.tempo) {
@@ -538,6 +522,8 @@ export default function BandStagePage() {
         scrollMode={scrollMode}
         elapsedScrollSeconds={elapsedScrollSeconds}
         targetDurationSec={targetDurationSec}
+        onUpdateElapsed={setElapsedScrollSeconds}
+        onAutoScrollComplete={() => setIsAutoScrolling(false)}
         playbackState={{
           isPlaying: isBacktrackPlaying,
           currentTime: backtrackCurrentTime,
