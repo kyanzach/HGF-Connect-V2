@@ -89,11 +89,13 @@ export function useSetlist() {
         const mdCapo = typeof item === 'object' && item.capo !== undefined ? item.capo : found.capo;
         const mdTempo = typeof item === 'object' && item.tempo !== undefined ? item.tempo : found.tempo;
         const mdTimeSig = typeof item === 'object' && item.timeSignature ? item.timeSignature : found.timeSignature;
+        const mdChords = typeof item === 'object' && item.chords ? item.chords : found.chords;
 
         // Check if there is an active session override for this setlist
         const override = setlistSessionOverrides[`${activeSetlist.id}_${found.id}`];
         lineup.push({
           ...found,
+          chords: mdChords,
           key: override?.key || mdKey,
           capo: override?.capo !== undefined ? override.capo : mdCapo,
           tempo: override?.tempo !== undefined ? override.tempo : mdTempo,
@@ -206,7 +208,19 @@ export function useSetlist() {
     const alreadyIn = existingSongs.some((it) => (typeof it === 'string' ? it === songId : it.id === songId));
     if (alreadyIn) return;
 
-    const updatedSongs = [...existingSongs, songId];
+    const foundSong = songs.find((s) => s.id === songId);
+    const newItem: SetlistSongItem = foundSong
+      ? {
+          id: foundSong.id,
+          title: foundSong.title,
+          key: foundSong.key,
+          capo: foundSong.capo,
+          tempo: typeof foundSong.tempo === 'number' ? foundSong.tempo : undefined,
+          timeSignature: foundSong.timeSignature,
+          chords: foundSong.chords,
+        }
+      : { id: songId };
+    const updatedSongs = [...existingSongs, newItem];
     const updatedSetlist: Setlist = {
       ...targetSet,
       songs: updatedSongs,

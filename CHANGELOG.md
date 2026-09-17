@@ -5,6 +5,15 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.54.8] — 2026-09-17
+### Fixed — Setlist Song Chord Isolation & MD Baseline Protection
+- **Setlist Chords Snapshotting & Master Library Insulation**:
+  - Enhanced `SetlistSongItem` (`types/band.ts`) with `chords?: string` to preserve the MD's official chord chart snapshot for each service lineup.
+  - Updated `useSetlist.ts` (`currentLineup`): songs in an active setlist now strictly render the MD's setlist chord chart (`item.chords || found.chords`), fully insulating setlists from experimental edits made at the library master level ("All Songs").
+  - Updated `handleSaveSong` (`page.tsx`): saving a song while viewing a setlist updates that setlist's song item, whereas saving under "All Songs" updates the library master without mutating existing setlist snapshots.
+  - Updated `GET /api/worship/setlists` and `pdf/route.ts` to preserve song objects and chord snapshots during fetch and PDF import.
+  - Restored clean baseline chord chart for *"All I Need is You"* in Karen's Sunday setlist on production.
+
 ## [v2.54.7] — 2026-09-17
 ### Fixed — Chord Insertion Bracket Removal & Chord Line Detection
 - **Chord Palette Insertion (`SongEditorModal.tsx`)**:

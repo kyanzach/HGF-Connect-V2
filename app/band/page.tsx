@@ -224,12 +224,34 @@ export default function BandStagePage() {
 
   // Handlers for Song actions
   const handleSaveSong = async (updatedSong: Song) => {
-    await fetch('/api/worship', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updatedSong),
-    });
-    await refreshData();
+    if (activeSetlist) {
+      // In active setlist mode, update the setlist's song item (preserving MD setlist isolation)
+      const updatedSongs = (activeSetlist.songs || []).map((s) => {
+        const id = typeof s === 'string' ? s : s.id;
+        if (id === updatedSong.id) {
+          return {
+            ...(typeof s === 'object' ? s : { id }),
+            title: updatedSong.title,
+            artist: updatedSong.artist,
+            key: updatedSong.key,
+            capo: updatedSong.capo,
+            tempo: typeof updatedSong.tempo === 'number' ? updatedSong.tempo : undefined,
+            timeSignature: updatedSong.timeSignature,
+            chords: updatedSong.chords,
+          };
+        }
+        return s;
+      });
+      await handleSaveSetlist({ ...activeSetlist, songs: updatedSongs });
+    } else {
+      // Under All Songs: update library master without mutating isolated setlist snapshots
+      await fetch('/api/worship', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedSong),
+      });
+      await refreshData();
+    }
   };
 
   const handleDeleteSong = async (songId: string) => {

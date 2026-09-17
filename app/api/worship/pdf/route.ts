@@ -352,6 +352,7 @@ export async function POST(req: NextRequest) {
               artist: s.artist,
               key: s.key,
               tempo: s.tempo || 73,
+              chords: s.chords,
             });
           }
         }
