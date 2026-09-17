@@ -5,6 +5,13 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.54.11] — 2026-09-17
+### Added & Fixed — Setlist Picker Close Action & Backdrop Dismissal
+- **Explicit Close Word Button (`SetlistSidebar.tsx`)**:
+  - Added an explicit `✕ Close` word button with prominent hover state directly in the top header of the `"ADD TO SETLIST:"` popup.
+- **Outside-Click Backdrop Dismissal (`SetlistSidebar.tsx`)**:
+  - Added a transparent fixed backdrop overlay (`inset: 0`) that captures clicks anywhere outside the picker popup, allowing users to dismiss it intuitively by tapping anywhere on the screen or clicking the close button.
+
 ## [v2.54.10] — 2026-09-17
 ### Fixed — Transpose Delta Target Calculation & Revert to Worship Leader Key
 - **Direct Target Key Calculation from Effective Playing Key (`page.tsx`)**:

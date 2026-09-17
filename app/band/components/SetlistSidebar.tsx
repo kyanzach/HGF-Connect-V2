@@ -490,61 +490,115 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
 
                         {/* Setlist picker popup */}
                         {pickerSongId === song.id && (
-                          <div
-                            onClick={(e) => e.stopPropagation()}
-                            style={{
-                              position: 'absolute',
-                              top: '26px',
-                              right: 0,
-                              zIndex: 150,
-                              background: '#0f172a',
-                              border: '1px solid #334155',
-                              borderRadius: '8px',
-                              padding: '4px',
-                              minWidth: '150px',
-                              boxShadow: '0 10px 25px rgba(0,0,0,0.8)',
-                            }}
-                          >
-                            <div style={{ fontSize: '10px', fontWeight: 800, color: '#64748b', padding: '4px 6px' }}>
-                              ADD TO SETLIST:
-                            </div>
-                            {setlists.length === 0 ? (
-                              <div style={{ fontSize: '11px', color: '#94a3b8', padding: '4px 6px' }}>
-                                No setlists created yet
-                              </div>
-                            ) : (
-                              setlists.map((st) => (
+                          <>
+                            {/* Backdrop to close when clicking outside */}
+                            <div
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPickerSongId(null);
+                              }}
+                              style={{
+                                position: 'fixed',
+                                inset: 0,
+                                zIndex: 140,
+                                cursor: 'default',
+                              }}
+                            />
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              style={{
+                                position: 'absolute',
+                                top: '26px',
+                                right: 0,
+                                zIndex: 150,
+                                background: '#0f172a',
+                                border: '1px solid #334155',
+                                borderRadius: '8px',
+                                padding: '6px',
+                                minWidth: '180px',
+                                maxWidth: '280px',
+                                boxShadow: '0 10px 25px rgba(0,0,0,0.85)',
+                              }}
+                            >
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  gap: '8px',
+                                  padding: '2px 4px 6px 4px',
+                                  borderBottom: '1px solid #1e293b',
+                                  marginBottom: '4px',
+                                }}
+                              >
+                                <span style={{ fontSize: '10px', fontWeight: 800, color: '#64748b', letterSpacing: '0.04em' }}>
+                                  ADD TO SETLIST:
+                                </span>
                                 <button
-                                  key={st.id}
-                                  onClick={() => {
-                                    if (onAddSongToSetlist) {
-                                      onAddSongToSetlist(song.id, st.id);
-                                    }
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     setPickerSongId(null);
                                   }}
+                                  title="Close popup"
                                   style={{
-                                    width: '100%',
-                                    textAlign: 'left',
-                                    padding: '5px 8px',
-                                    background: 'transparent',
-                                    border: 'none',
-                                    color: '#fff',
-                                    fontSize: '11px',
-                                    fontWeight: 600,
+                                    background: 'rgba(239, 68, 68, 0.12)',
+                                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                                    color: '#f87171',
+                                    fontSize: '10px',
+                                    fontWeight: 700,
+                                    padding: '1px 6px',
                                     borderRadius: '4px',
                                     cursor: 'pointer',
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '3px',
+                                    lineHeight: '16px',
                                   }}
-                                  onMouseEnter={(e) => (e.currentTarget.style.background = '#1e293b')}
-                                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(239, 68, 68, 0.25)')}
+                                  onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)')}
                                 >
-                                  🎼 {st.name}
+                                  ✕ Close
                                 </button>
-                              ))
-                            )}
-                          </div>
+                              </div>
+                              {setlists.length === 0 ? (
+                                <div style={{ fontSize: '11px', color: '#94a3b8', padding: '4px 6px' }}>
+                                  No setlists created yet
+                                </div>
+                              ) : (
+                                setlists.map((st) => (
+                                  <button
+                                    key={st.id}
+                                    onClick={() => {
+                                      if (onAddSongToSetlist) {
+                                        onAddSongToSetlist(song.id, st.id);
+                                      }
+                                      setPickerSongId(null);
+                                    }}
+                                    style={{
+                                      width: '100%',
+                                      textAlign: 'left',
+                                      padding: '6px 8px',
+                                      background: 'transparent',
+                                      border: 'none',
+                                      color: '#fff',
+                                      fontSize: '11px',
+                                      fontWeight: 600,
+                                      borderRadius: '4px',
+                                      cursor: 'pointer',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      whiteSpace: 'nowrap',
+                                    }}
+                                    onMouseEnter={(e) => (e.currentTarget.style.background = '#1e293b')}
+                                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                  >
+                                    🎼 {st.name}
+                                  </button>
+                                ))
+                              )}
+                            </div>
+                          </>
                         )}
                       </div>
                     )}
