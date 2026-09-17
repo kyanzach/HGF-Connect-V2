@@ -23,6 +23,10 @@ interface SongSheetProps {
     currentTime: number;
     duration: number;
   };
+  bpm?: number | string | null;
+  isMetronomePulsing?: boolean;
+  isMetronomeAudioActive?: boolean;
+  onOpenMetronomeModal?: () => void;
 }
 
 export const SongSheet: React.FC<SongSheetProps> = ({
@@ -37,6 +41,10 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   onSwipeRight,
   drawingCanvasElement,
   playbackState,
+  bpm,
+  isMetronomePulsing,
+  isMetronomeAudioActive,
+  onOpenMetronomeModal,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number | null>(null);
@@ -153,106 +161,139 @@ export const SongSheet: React.FC<SongSheetProps> = ({
 
       {/* SONG HEADER */}
       <div style={{ marginBottom: '18px', borderBottom: '1px solid #1e293b', paddingBottom: '14px' }}>
-        <h1
-          style={{
-            margin: '0 0 6px 0',
-            fontSize: '26px',
-            fontWeight: 800,
-            letterSpacing: '-0.5px',
-            color: '#ffffff',
-          }}
-        >
-          {song.title}
-        </h1>
-        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
-          {song.artist && (
-            <span style={{ fontWeight: 600, color: '#94a3b8', fontSize: '13px', marginRight: '4px' }}>
-              {song.artist}
-            </span>
-          )}
-          <span
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h1
+              style={{
+                margin: '0 0 6px 0',
+                fontSize: '26px',
+                fontWeight: 800,
+                letterSpacing: '-0.5px',
+                color: '#ffffff',
+                wordBreak: 'break-word',
+              }}
+            >
+              {song.title}
+            </h1>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
+              {song.artist && (
+                <span style={{ fontWeight: 600, color: '#94a3b8', fontSize: '13px', marginRight: '4px' }}>
+                  {song.artist}
+                </span>
+              )}
+              <span
+                style={{
+                  padding: '2px 8px',
+                  borderRadius: '6px',
+                  background: '#1e293b',
+                  color: '#38bdf8',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                }}
+              >
+                Key: {displayKey}
+              </span>
+              {song.capo !== undefined && song.capo !== '0' && song.capo !== 0 && (
+                <span
+                  style={{
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    background: '#1e293b',
+                    color: '#fde047',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                  }}
+                >
+                  Capo: {song.capo}
+                </span>
+              )}
+              {song.timeSignature && (
+                <span
+                  style={{
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    background: '#1e293b',
+                    color: '#94a3b8',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                  }}
+                >
+                  {song.timeSignature}
+                </span>
+              )}
+              {playbackState && playbackState.duration > 0 && (
+                <span
+                  style={{
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    background: playbackState.isPlaying ? 'rgba(56, 189, 248, 0.2)' : '#1e293b',
+                    border: playbackState.isPlaying ? '1px solid #38bdf8' : '1px solid transparent',
+                    color: '#38bdf8',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                >
+                  <span>🎧</span>
+                  <span>
+                    {Math.floor(playbackState.currentTime / 60)}:
+                    {Math.floor(playbackState.currentTime % 60)
+                      .toString()
+                      .padStart(2, '0')}{' '}
+                    /{' '}
+                    {Math.floor(playbackState.duration / 60)}:
+                    {Math.floor(playbackState.duration % 60)
+                      .toString()
+                      .padStart(2, '0')}
+                  </span>
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Top-Right Interactive Pulsing BPM Badge */}
+          <div
+            onClick={onOpenMetronomeModal}
+            role="button"
+            tabIndex={0}
+            title="Live Visual BPM Pulse • Click for Metronome Settings"
             style={{
-              padding: '2px 8px',
-              borderRadius: '6px',
-              background: '#1e293b',
-              color: '#38bdf8',
-              fontSize: '12px',
-              fontWeight: 700,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              height: '36px',
+              boxSizing: 'border-box',
+              borderRadius: '999px',
+              background: isMetronomeAudioActive ? 'rgba(245, 158, 11, 0.25)' : '#0f172a',
+              border: `1px solid ${isMetronomeAudioActive ? '#f59e0b' : 'rgba(245, 158, 11, 0.4)'}`,
+              color: '#fbbf24',
+              fontSize: '13px',
+              fontWeight: 800,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
+              boxShadow: isMetronomeAudioActive ? '0 0 12px rgba(245, 158, 11, 0.4)' : 'none',
+              transition: 'all 0.2s ease',
             }}
           >
-            Key: {displayKey}
-          </span>
-          {song.capo !== undefined && song.capo !== '0' && song.capo !== 0 && (
             <span
               style={{
-                padding: '2px 8px',
-                borderRadius: '6px',
-                background: '#1e293b',
-                color: '#fde047',
-                fontSize: '12px',
-                fontWeight: 700,
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                backgroundColor: isMetronomePulsing ? '#fbbf24' : '#f59e0b',
+                transform: isMetronomePulsing ? 'scale(1.6)' : 'scale(1)',
+                boxShadow: isMetronomePulsing ? '0 0 10px #fbbf24, 0 0 16px rgba(245, 158, 11, 0.8)' : 'none',
+                transition: 'transform 0.1s ease, box-shadow 0.1s ease',
+                display: 'inline-block',
+                flexShrink: 0,
               }}
-            >
-              Capo: {song.capo}
-            </span>
-          )}
-          {song.tempo && (
-            <span
-              style={{
-                padding: '2px 8px',
-                borderRadius: '6px',
-                background: '#1e293b',
-                color: '#fbbf24',
-                fontSize: '12px',
-                fontWeight: 700,
-              }}
-            >
-              ● {song.tempo} BPM
-            </span>
-          )}
-          {song.timeSignature && (
-            <span
-              style={{
-                padding: '2px 8px',
-                borderRadius: '6px',
-                background: '#1e293b',
-                color: '#94a3b8',
-                fontSize: '12px',
-                fontWeight: 700,
-              }}
-            >
-              {song.timeSignature}
-            </span>
-          )}
-          {playbackState && playbackState.duration > 0 && (
-            <span
-              style={{
-                padding: '2px 8px',
-                borderRadius: '6px',
-                background: playbackState.isPlaying ? 'rgba(56, 189, 248, 0.2)' : '#1e293b',
-                border: playbackState.isPlaying ? '1px solid #38bdf8' : '1px solid transparent',
-                color: '#38bdf8',
-                fontSize: '12px',
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-              }}
-            >
-              <span>🎧</span>
-              <span>
-                {Math.floor(playbackState.currentTime / 60)}:
-                {Math.floor(playbackState.currentTime % 60)
-                  .toString()
-                  .padStart(2, '0')}{' '}
-                /{' '}
-                {Math.floor(playbackState.duration / 60)}:
-                {Math.floor(playbackState.duration % 60)
-                  .toString()
-                  .padStart(2, '0')}
-              </span>
-            </span>
-          )}
+            />
+            <span>{bpm ? `${bpm} BPM` : song.tempo ? `${song.tempo} BPM` : '72 BPM'}</span>
+          </div>
         </div>
 
         {/* SECTION ORDER ROADMAP */}

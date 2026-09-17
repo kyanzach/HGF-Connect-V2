@@ -9,10 +9,10 @@ interface StageTopBarProps {
   displayKey: string;
   onTranspose: (delta: number) => void;
   onOpenKeyPicker: () => void;
-  bpm: number | string | null;
-  isMetronomePulsing: boolean;
-  isMetronomeAudioActive: boolean;
-  onToggleMetronomeAudio: () => void;
+  bpm?: number | string | null;
+  isMetronomePulsing?: boolean;
+  isMetronomeAudioActive?: boolean;
+  onToggleMetronomeAudio?: () => void;
   onOpenMetronomeModal?: () => void;
   setlists: Setlist[];
   activeSetlistId: string | null;
@@ -32,11 +32,6 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
   displayKey,
   onTranspose,
   onOpenKeyPicker,
-  bpm,
-  isMetronomePulsing,
-  isMetronomeAudioActive,
-  onToggleMetronomeAudio,
-  onOpenMetronomeModal,
   setlists,
   activeSetlistId,
   onSelectSetlist,
@@ -51,7 +46,6 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
   onToggleSidebar,
 }) => {
   const [copiedLink, setCopiedLink] = React.useState(false);
-  const bpmText = bpm ? `${bpm} BPM` : '72 BPM';
 
   const handleCopyShortlink = () => {
     const url = 'https://hgfapp.link/chords';
@@ -268,46 +262,6 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
           >
             +
           </button>
-        </div>
-
-        {/* Pulsing BPM Badge (Worship Tool style) */}
-        <div
-          onClick={onOpenMetronomeModal || onToggleMetronomeAudio}
-          title="Live Visual BPM Pulse • Click for Metronome Settings"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '4px 12px',
-            height: '34px',
-            boxSizing: 'border-box',
-            borderRadius: '999px',
-            background: isMetronomeAudioActive ? 'rgba(245, 158, 11, 0.25)' : '#0f172a',
-            border: `1px solid ${isMetronomeAudioActive ? '#f59e0b' : 'rgba(245, 158, 11, 0.4)'}`,
-            color: '#fbbf24',
-            fontSize: '12px',
-            fontWeight: 800,
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-            flexShrink: 0,
-            boxShadow: isMetronomeAudioActive ? '0 0 10px rgba(245, 158, 11, 0.4)' : 'none',
-            transition: 'all 0.2s ease',
-          }}
-        >
-          <span
-            style={{
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              backgroundColor: isMetronomePulsing ? '#fbbf24' : '#f59e0b',
-              transform: isMetronomePulsing ? 'scale(1.6)' : 'scale(1)',
-              boxShadow: isMetronomePulsing ? '0 0 10px #fbbf24, 0 0 16px rgba(245, 158, 11, 0.8)' : 'none',
-              transition: 'transform 0.1s ease, box-shadow 0.1s ease',
-              display: 'inline-block',
-              flexShrink: 0,
-            }}
-          />
-          <span>{bpmText}</span>
         </div>
 
         {/* Stage Action Buttons */}

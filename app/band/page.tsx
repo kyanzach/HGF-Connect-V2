@@ -362,6 +362,10 @@ export default function BandStagePage() {
           currentTime: backtrackCurrentTime,
           duration: backtrackDuration,
         }}
+        bpm={tempo}
+        isMetronomePulsing={isPulsing}
+        isMetronomeAudioActive={isMetronomeAudioActive}
+        onOpenMetronomeModal={() => setIsMetronomeModalOpen(true)}
         drawingCanvasElement={
           <DrawingCanvas
             isActive={isDrawingActive}

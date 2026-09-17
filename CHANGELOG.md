@@ -5,6 +5,14 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.54.6] — 2026-09-17
+### Changed — Relocated Metronome BPM Badge to Song Sheet Header
+- **Menu Edits Bar De-Cluttering**:
+  - Removed the pulsing BPM badge from `StageTopBar.tsx` row 2 to save horizontal space for stage action buttons (`Edit`, `Draw`, `Track`, `Notes`, `Pad`), preventing crowding and overflow on mobile devices.
+- **Header-Embedded Pulsing BPM Badge**:
+  - Moved the interactive pulsing BPM badge into `SongSheet.tsx`, positioned at the top right of the song header directly across from the song title.
+  - Retains real-time amber pulse, audio active glow, and tap-to-open metronome modal functionality.
+
 ## [v2.54.5] — 2026-09-17
 ### Added & Fixed — Band Auth Privacy & Gating, MD Setlist Protection Gate, Backtrack Lockstep Scroll, Metronome 8/8 & Custom Sig, Ambient Pad Concurrency Fix
 - **Band Auth Dialog Privacy & Role Management Gating**:
