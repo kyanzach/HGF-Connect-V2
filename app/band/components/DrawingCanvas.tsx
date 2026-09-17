@@ -48,13 +48,13 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       );
     }
 
-    // Regular member view:
+    // Regular member / guest view:
     // 1. All global strokes (from MD and Admin)
     // 2. Plus this user's personal strokes
     return strokes.filter((s) => {
       if (s.scope === 'global' || !s.scope) return true;
       if (currentUser && s.userId === currentUser.id) return true;
-      if (!currentUser && s.userId === 'guest') return true;
+      if (!currentUser && (s.userId === 'guest' || s.scope === 'user')) return true;
       return false;
     });
   }, [strokes, isMdOrAdmin, showAllMembers, currentUser]);
@@ -67,23 +67,47 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    const rect = canvas.getBoundingClientRect();
+    const dpr = canvas.width / Math.max(rect.width, 1);
+
     const visibleList = getVisibleStrokes();
 
     visibleList.forEach((stroke) => {
-      if (stroke.points.length < 2) return;
+      if (!stroke.points || stroke.points.length === 0) return;
       ctx.beginPath();
       ctx.strokeStyle = stroke.color;
-      ctx.lineWidth = stroke.width;
+      ctx.lineWidth = (stroke.width || 4) * dpr;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
 
-      // Normalized coordinates mapped to current canvas dimensions
       const p0 = stroke.points[0];
-      ctx.moveTo(p0.nx * canvas.width, p0.ny * canvas.height);
+      const p0nx = (p0 as any).nx !== undefined
+        ? (p0 as any).nx
+        : Array.isArray(p0)
+        ? (p0 as any)[0]
+        : (p0 as any).x / Math.max(canvas.width, 1);
+      const p0ny = (p0 as any).ny !== undefined
+        ? (p0 as any).ny
+        : Array.isArray(p0)
+        ? (p0 as any)[1]
+        : (p0 as any).y / Math.max(canvas.height, 1);
+
+      ctx.moveTo(p0nx * canvas.width, p0ny * canvas.height);
 
       for (let i = 1; i < stroke.points.length; i++) {
-        const p = stroke.points[i];
-        ctx.lineTo(p.nx * canvas.width, p.ny * canvas.height);
+        const pt = stroke.points[i];
+        const nx = (pt as any).nx !== undefined
+          ? (pt as any).nx
+          : Array.isArray(pt)
+          ? (pt as any)[0]
+          : (pt as any).x / Math.max(canvas.width, 1);
+        const ny = (pt as any).ny !== undefined
+          ? (pt as any).ny
+          : Array.isArray(pt)
+          ? (pt as any)[1]
+          : (pt as any).y / Math.max(canvas.height, 1);
+
+        ctx.lineTo(nx * canvas.width, ny * canvas.height);
       }
       ctx.stroke();
     });
@@ -93,52 +117,113 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     redraw();
   }, [redraw]);
 
-  // Sync canvas size with parent scrollable container
+  // Sync canvas size with parent scrollable container (#sheetWrapper)
   const updateCanvasSize = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    let targetWidth = window.innerWidth;
-    let targetHeight = window.innerHeight;
+    const wrapper = containerRef?.current || document.getElementById('sheetWrapper');
+    if (!wrapper) return;
 
-    if (containerRef?.current) {
-      targetWidth = Math.max(containerRef.current.scrollWidth, containerRef.current.clientWidth);
-      targetHeight = Math.max(containerRef.current.scrollHeight, containerRef.current.clientHeight);
-    }
+    // Temporarily reset inline dimensions so canvas doesn't artificially inflate wrapper scroll dimensions
+    canvas.style.width = '0px';
+    canvas.style.height = '0px';
 
-    if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
-      canvas.width = targetWidth;
-      canvas.height = targetHeight;
+    const contentW = Math.max(wrapper.scrollWidth, wrapper.clientWidth);
+    const contentH = Math.max(wrapper.scrollHeight, wrapper.clientHeight);
+
+    // Apply explicit CSS dimensions matching actual scrollable content
+    canvas.style.width = `${contentW}px`;
+    canvas.style.height = `${contentH}px`;
+
+    // High-resolution bitmap scaling (crisp rendering on Retina / iPad / mobile)
+    const dpr = Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1, 2);
+    const bitmapW = Math.round(contentW * dpr);
+    const bitmapH = Math.round(contentH * dpr);
+
+    if (canvas.width !== bitmapW || canvas.height !== bitmapH) {
+      canvas.width = bitmapW;
+      canvas.height = bitmapH;
       redraw();
     }
   }, [containerRef, redraw]);
 
   useEffect(() => {
     updateCanvasSize();
-    window.addEventListener('resize', updateCanvasSize);
-    const interval = setInterval(updateCanvasSize, 1000);
+    const handleResize = () => {
+      updateCanvasSize();
+    };
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+    const interval = setInterval(updateCanvasSize, 1200);
+
     return () => {
-      window.removeEventListener('resize', updateCanvasSize);
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
       clearInterval(interval);
     };
   }, [updateCanvasSize]);
+
+  // Whenever isActive changes to true, force a resize & redraw so coordinates match perfectly
+  useEffect(() => {
+    if (isActive) {
+      setTimeout(() => {
+        updateCanvasSize();
+        redraw();
+      }, 50);
+    }
+  }, [isActive, updateCanvasSize, redraw]);
+
+  // Precise coordinate mapping: maps clientX/clientY relative to rendered bounding rect into normalized 0..1 and canvas bitmap pixels
+  const getCanvasCoords = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0, nx: 0, ny: 0 };
+
+    const rect = canvas.getBoundingClientRect();
+    const cssX = e.clientX - rect.left;
+    const cssY = e.clientY - rect.top;
+
+    const nx = rect.width > 0 ? cssX / rect.width : 0;
+    const ny = rect.height > 0 ? cssY / rect.height : 0;
+
+    const clampedNx = Math.max(0, Math.min(1, nx));
+    const clampedNy = Math.max(0, Math.min(1, ny));
+
+    return {
+      x: clampedNx * canvas.width,
+      y: clampedNy * canvas.height,
+      nx: clampedNx,
+      ny: clampedNy,
+    };
+  };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!isActive) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
+
     try {
       canvas.setPointerCapture(e.pointerId);
     } catch (_) {}
 
     isDrawing.current = true;
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const nx = canvas.width > 0 ? x / canvas.width : 0;
-    const ny = canvas.height > 0 ? y / canvas.height : 0;
+    const pos = getCanvasCoords(e);
+    currentPoints.current = [pos];
 
-    currentPoints.current = [{ x, y, nx, ny }];
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = canvas.width / Math.max(rect.width, 1);
+
+      ctx.beginPath();
+      ctx.strokeStyle = isEraser ? '#0a0d14' : color;
+      ctx.lineWidth = (isEraser ? 24 : lineWidth) * dpr;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.moveTo(pos.x, pos.y);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.stroke();
+    }
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -148,29 +233,38 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const nx = canvas.width > 0 ? x / canvas.width : 0;
-    const ny = canvas.height > 0 ? y / canvas.height : 0;
-
+    const pos = getCanvasCoords(e);
     const prev = currentPoints.current[currentPoints.current.length - 1];
-    currentPoints.current.push({ x, y, nx, ny });
+    currentPoints.current.push(pos);
+
+    const rect = canvas.getBoundingClientRect();
+    const dpr = canvas.width / Math.max(rect.width, 1);
 
     ctx.beginPath();
     ctx.strokeStyle = isEraser ? '#0a0d14' : color;
-    ctx.lineWidth = isEraser ? 24 : lineWidth;
+    ctx.lineWidth = (isEraser ? 24 : lineWidth) * dpr;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    ctx.moveTo(prev.x, prev.y);
-    ctx.lineTo(x, y);
+    if (prev) {
+      ctx.moveTo(prev.x, prev.y);
+    } else {
+      ctx.moveTo(pos.x, pos.y);
+    }
+    ctx.lineTo(pos.x, pos.y);
     ctx.stroke();
   };
 
-  const handlePointerUp = () => {
+  const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!isDrawing.current) return;
     isDrawing.current = false;
-    if (currentPoints.current.length > 1) {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      try {
+        canvas.releasePointerCapture(e.pointerId);
+      } catch (_) {}
+    }
+
+    if (currentPoints.current.length > 0) {
       const newStroke: DrawingStroke = {
         color: isEraser ? '#0a0d14' : color,
         width: isEraser ? 24 : lineWidth,
@@ -190,11 +284,10 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
 
   const undo = () => {
     if (strokes.length === 0) return;
-    // Allow members to undo their own strokes; MD/Admin can undo any of their strokes
     let targetIndex = -1;
     for (let i = strokes.length - 1; i >= 0; i--) {
       const s = strokes[i];
-      if (isMdOrAdmin || s.userId === currentUser?.id || s.userId === 'guest') {
+      if (isMdOrAdmin || s.userId === currentUser?.id || s.userId === 'guest' || s.scope === 'user') {
         targetIndex = i;
         break;
       }
@@ -203,27 +296,35 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       const updated = strokes.filter((_, idx) => idx !== targetIndex);
       setStrokes(updated);
       if (onSaveStrokes) onSaveStrokes(updated);
+      setTimeout(redraw, 10);
     }
   };
 
   const clearAll = () => {
-    if (isMdOrAdmin) {
-      setStrokes([]);
-      if (onSaveStrokes) onSaveStrokes([]);
-    } else {
-      // Clear only this member's strokes, keeping MD global strokes intact
-      const kept = strokes.filter((s) => s.scope === 'global' || s.userId !== currentUser?.id);
-      setStrokes(kept);
-      if (onSaveStrokes) onSaveStrokes(kept);
+    // If MD/Admin, clear everything. If personal/guest/member, clear all non-global strokes
+    const updated = isMdOrAdmin
+      ? []
+      : strokes.filter((s) => s.scope === 'global');
+
+    setStrokes(updated);
+    if (onSaveStrokes) onSaveStrokes(updated);
+
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
     }
+    setTimeout(redraw, 20);
   };
 
   return (
     <>
       {/* 
-        CANVAS ALWAYS REMAINS MOUNTED AND VISIBLE.
-        When isActive is false: pointer-events is none so scrolling and tapping works uninterrupted.
-        When isActive is true: pointer-events is auto so musicians can draw.
+        CANVAS ALWAYS REMAINS MOUNTED DIRECTLY OVER THE FULL SCROLLABLE SHEET.
+        When isActive is false: pointerEvents: none allows normal scrolling and tapping.
+        When isActive is true: pointerEvents: auto captures pen/finger/mouse drawing with touch-action: none.
       */}
       <canvas
         ref={canvasRef}
@@ -235,58 +336,59 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
           position: 'absolute',
           top: 0,
           left: 0,
-          width: '100%',
-          height: '100%',
           pointerEvents: isActive ? 'auto' : 'none',
           zIndex: 15,
           touchAction: 'none',
+          display: 'block',
           cursor: isActive ? (isEraser ? 'cell' : 'crosshair') : 'default',
         }}
       />
 
-      {/* DRAWING TOOLBAR (Visible only when actively drawing) */}
+      {/* DRAWING FLOATING TOOLBAR */}
       {isActive && (
         <div
           style={{
             position: 'fixed',
-            top: 'max(90px, calc(env(safe-area-inset-top) + 85px))',
+            top: 'max(60px, calc(env(safe-area-inset-top) + 50px))',
             left: '50%',
             transform: 'translateX(-50%)',
-            zIndex: 80,
-            backgroundColor: '#131c2e',
+            zIndex: 99,
+            backgroundColor: 'rgba(15, 20, 32, 0.94)',
+            backdropFilter: 'blur(12px)',
             border: '1px solid #2d3f5e',
-            borderRadius: '999px',
+            borderRadius: '40px',
             padding: '6px 14px',
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.75)',
+            boxShadow: '0 12px 32px rgba(0, 0, 0, 0.85)',
             userSelect: 'none',
-            maxWidth: '92vw',
+            maxWidth: '96vw',
             overflowX: 'auto',
           }}
         >
           {/* Scope Indicator Badge */}
-          <span
+          <div
             style={{
+              padding: '3px 8px',
+              borderRadius: '20px',
               fontSize: '10px',
               fontWeight: 800,
+              letterSpacing: '0.5px',
               textTransform: 'uppercase',
-              padding: '2px 8px',
-              borderRadius: '999px',
-              backgroundColor: isMdOrAdmin ? 'rgba(245, 158, 11, 0.2)' : 'rgba(78, 177, 203, 0.2)',
-              color: isMdOrAdmin ? '#f59e0b' : '#4EB1CB',
-              border: `1px solid ${isMdOrAdmin ? '#f59e0b' : '#4EB1CB'}`,
+              backgroundColor: isMdOrAdmin ? 'rgba(78, 177, 203, 0.2)' : 'rgba(234, 179, 8, 0.15)',
+              color: isMdOrAdmin ? '#4EB1CB' : '#facc15',
+              border: `1px solid ${isMdOrAdmin ? 'rgba(78, 177, 203, 0.4)' : 'rgba(234, 179, 8, 0.3)'}`,
               whiteSpace: 'nowrap',
             }}
           >
-            {isMdOrAdmin ? '👑 MD Global' : '🔒 Personal'}
-          </span>
+            {isMdOrAdmin ? '🌐 GLOBAL (MD)' : '🔒 PERSONAL'}
+          </div>
 
-          {/* Color Presets */}
+          {/* Color Palette */}
           {[
             { c: '#facc15', label: 'Yellow' },
-            { c: '#ef4444', label: 'Red' },
+            { c: '#f87171', label: 'Red' },
             { c: '#4EB1CB', label: 'Cyan' },
             { c: '#10b981', label: 'Green' },
             { c: '#ffffff', label: 'White' },
@@ -379,33 +481,31 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
               style={{
                 padding: '4px 8px',
                 borderRadius: '6px',
-                background: showAllMembers ? 'rgba(245, 158, 11, 0.25)' : '#1e293b',
-                color: showAllMembers ? '#f59e0b' : '#94a3b8',
-                border: `1px solid ${showAllMembers ? '#f59e0b' : '#334155'}`,
+                background: showAllMembers ? 'rgba(78, 177, 203, 0.2)' : '#1e293b',
+                color: showAllMembers ? '#4EB1CB' : '#94a3b8',
+                border: `1px solid ${showAllMembers ? '#4EB1CB' : '#334155'}`,
                 fontSize: '11px',
                 fontWeight: 700,
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
               }}
             >
-              👁️ {showAllMembers ? 'Showing All' : 'Only MD'}
+              👁️ {showAllMembers ? 'Show All' : 'My Only'}
             </button>
           )}
 
-          {/* Done / Close Button */}
+          {/* Done Button */}
           <button
             onClick={onClose}
-            title="Done drawing (annotations stay visible)"
             style={{
-              padding: '5px 12px',
-              borderRadius: '6px',
+              padding: '4px 12px',
+              borderRadius: '20px',
               background: '#4EB1CB',
               color: '#000',
               border: 'none',
-              fontSize: '12px',
+              fontSize: '11px',
               fontWeight: 800,
               cursor: 'pointer',
-              marginLeft: '2px',
               whiteSpace: 'nowrap',
             }}
           >

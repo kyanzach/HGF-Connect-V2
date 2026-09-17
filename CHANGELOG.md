@@ -5,6 +5,16 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.54.4] — 2026-09-17
+### Fixed — Drawing Canvas Targeting Accuracy & Clear Functionality
+- **100% Precise Coordinate Targeting (`DrawingCanvas.tsx`)**:
+  - Fixed coordinate calculation mismatch: normalized coordinates `(nx, ny)` now divide client pointer offsets `(clientX - rect.left)` by element CSS bounding dimensions `(rect.width, rect.height)` instead of bitmap dimensions.
+  - Aligned live stroke interpolation directly with high-DPI canvas bitmap scaling (`dpr = min(window.devicePixelRatio, 2)`), eliminating all mouse/finger cursor displacement.
+  - Relocated canvas overlay to anchor as a direct child of `#sheetWrapper` (`position: relative`), covering 100% of the scrollable song sheet (header, roadmap, chords, and lyrics).
+- **Guaranteed Canvas Clear Action**:
+  - Overhauled `clearAll` logic to purge personal and guest strokes for members, or all annotations for MD/Admin.
+  - Immediately flushes the 2D canvas context via `ctx.clearRect(0, 0, width, height)` and redraws any preserved global cues.
+
 ## [v2.54.3] — 2026-09-17
 ### Added & Fixed — Songbook Quick Emoji Actions, ConfirmModal Song Deletion, and Ultimate Guitar / Worship Tab Scraper
 - **Quick Small Emoji Actions on Song Rows**:

@@ -123,6 +123,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       style={{
+        position: 'relative',
         flex: 1,
         overflowY: 'auto',
         overflowX: 'hidden',
@@ -133,6 +134,9 @@ export const SongSheet: React.FC<SongSheetProps> = ({
         WebkitOverflowScrolling: 'touch',
       }}
     >
+      {/* Persistent Full-Sheet Annotation Canvas */}
+      {drawingCanvasElement}
+
       {/* SONG HEADER */}
       <div style={{ marginBottom: '18px', borderBottom: '1px solid #1e293b', paddingBottom: '14px' }}>
         <h1
@@ -243,9 +247,6 @@ export const SongSheet: React.FC<SongSheetProps> = ({
           position: 'relative',
         }}
       >
-        {/* Persistent Annotation Canvas */}
-        {drawingCanvasElement}
-
         {parsedLines.map((line, lIdx) => {
           if (line.type === 'empty') {
             return <div key={lIdx} style={{ height: '14px' }} />;
