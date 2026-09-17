@@ -28,6 +28,7 @@ export const SetlistAdminModal: React.FC<SetlistAdminModalProps> = ({
   const [serviceDate, setServiceDate] = useState<string>('');
   const [leader, setLeader] = useState<string>('');
   const [selectedSongIds, setSelectedSongIds] = useState<string[]>([]);
+  const [errorMsg, setErrorMsg] = useState<string>('');
 
   if (!isOpen) return null;
 
@@ -43,6 +44,7 @@ export const SetlistAdminModal: React.FC<SetlistAdminModalProps> = ({
     setServiceDate(new Date().toISOString().split('T')[0]);
     setLeader('');
     setSelectedSongIds([]);
+    setErrorMsg('');
   };
 
   const startEdit = (set: Setlist) => {
@@ -52,6 +54,7 @@ export const SetlistAdminModal: React.FC<SetlistAdminModalProps> = ({
     setLeader(set.leader || '');
     const ids = (set.songs || []).map((s) => (typeof s === 'string' ? s : s.id));
     setSelectedSongIds(ids);
+    setErrorMsg('');
   };
 
   const toggleSongInSet = (songId: string) => {
@@ -62,9 +65,10 @@ export const SetlistAdminModal: React.FC<SetlistAdminModalProps> = ({
 
   const handleSave = async () => {
     if (!name.trim()) {
-      alert('Setlist name is required.');
+      setErrorMsg('Setlist name is required.');
       return;
     }
+    setErrorMsg('');
 
     const updated: Setlist = {
       id: editingSet?.id || `set-${Date.now()}`,
@@ -72,12 +76,17 @@ export const SetlistAdminModal: React.FC<SetlistAdminModalProps> = ({
       serviceDate,
       leader: leader.trim(),
       songs: selectedSongIds.map((id) => {
+        const existingInSet = (editingSet?.songs || []).find(
+          (s) => (typeof s === 'string' ? s : s.id) === id
+        );
+        const existingObj = typeof existingInSet === 'object' ? existingInSet : null;
         const found = allSongs.find((s) => s.id === id);
         return {
           id,
-          title: found?.title || '',
-          key: found?.key || 'C',
-          capo: found?.capo || '0',
+          title: existingObj?.title || found?.title || '',
+          key: existingObj?.key || found?.key || 'C',
+          capo: existingObj?.capo || found?.capo || '0',
+          duration: existingObj?.duration || found?.duration,
         };
       }),
       updatedAt: Date.now(),
@@ -149,6 +158,21 @@ export const SetlistAdminModal: React.FC<SetlistAdminModalProps> = ({
           {editingSet ? (
             /* Setlist Form */
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {errorMsg && (
+                <div
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    background: 'rgba(239, 68, 68, 0.15)',
+                    border: '1px solid #ef4444',
+                    color: '#fca5a5',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                  }}
+                >
+                  ⚠️ {errorMsg}
+                </div>
+              )}
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#94a3b8', marginBottom: '4px' }}>
                   SETLIST NAME *

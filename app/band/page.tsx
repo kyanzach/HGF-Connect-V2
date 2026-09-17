@@ -501,7 +501,10 @@ export default function BandStagePage() {
       const updatedSongs = (activeSetlist.songs || []).map((s) => {
         const id = typeof s === 'string' ? s : s.id;
         if (id === currentSong.id) {
-          return { id, key: newKey };
+          return {
+            ...(typeof s === 'object' ? s : { id }),
+            key: newKey,
+          };
         }
         return s;
       });

@@ -5,6 +5,13 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.55.11] — 2026-09-17
+### Fixed — Setlist-Level Metadata Preservation (Key, Capo, Planned Duration) on Official Saves
+- **Setlist Metadata Preservation (`page.tsx`, `SetlistAdminModal.tsx`)**:
+  - Preserved existing custom setlist-level song properties (`duration`, `capo`, `title`) when an Admin or MD saves an official Worship Leader Key via `handleSaveAsMdKey`.
+  - Fixed `SetlistAdminModal` so saving setlists retains previously customized keys, capos, and durations rather than resetting them to master song defaults.
+  - Replaced native browser `alert()` with inline UI error state banner in `SetlistAdminModal` in accordance with project standards.
+
 ## [v2.55.10] — 2026-09-17
 ### Fixed — Persistent Band User Login Across Page Refreshes & Seamless NextAuth Auto-Link
 - **Band Musician Login Persistence (`app/band/page.tsx`)**:
