@@ -5,6 +5,22 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.56.0] — 2026-09-22
+### Added — HGF Band Dedicated Native Android App & iPad Stage Experience (Sunday Edition)
+- **Dedicated Android Stage APK (`ph.houseofgrace.band`)**:
+  - Initialized and built the official native Android stage wrapper for **The Band Tool (`/band`)**, providing a dedicated app experience strictly for worship musicians on stage.
+  - Implemented `FLAG_KEEP_SCREEN_ON` on the Android `Window` to keep tablet screens awake continuously on stage music stands without sleeping or dimming during worship or prayers.
+  - Implemented hardware Bluetooth and USB foot pedal event capture (`KEYCODE_PAGE_DOWN`, `KEYCODE_PAGE_UP`, `KEYCODE_DPAD_DOWN`, `KEYCODE_DPAD_UP`, `KEYCODE_MEDIA_NEXT`, `KEYCODE_MEDIA_PREVIOUS`), forwarding them directly to WebView listeners for hands-free auto-scrolling and song transitions.
+  - Configured full WebView settings with DOM storage, persistent `CookieManager` sync, `WebChromeClient` file chooser for chord PDFs/stems, and media autoplay without user gesture requirements.
+  - Built universal release APK (`hgf-band.apk`, 4.6MB) and published it directly to `public/downloads/hgf-band.apk`.
+- **Apple (iPad / iPhone) Stage Workflow**:
+  - Created dedicated PWA manifest (`public/manifest-band.json`) configured specifically for `/band` with `standalone` display mode and dark `#0a0d14` stage branding.
+  - Updated `app/band/layout.tsx` with `manifest: '/manifest-band.json'` and Apple Web App meta tags (`appleWebApp.capable = true`), enabling iPad musicians to install a clean fullscreen stage app to their Home Screen without Safari address bars or App Store review delay.
+- **In-Band Mobile App Distribution & Install Modal (`BandInstallModal.tsx`, `StageTopBar.tsx`, `/band/install`)**:
+  - Built `BandInstallModal.tsx` accessible directly from the stage top bar via a new **📲 App** button.
+  - Created standalone responsive landing page `/band/install` with automatic device detection (Android vs iOS), 1-tap APK download button, and visual 4-step iPad Safari "Add to Home Screen" guide.
+  - Enhanced `useFootPedal.ts` to bridge both native Android pedal events (`hgf-pedal`) and standard web keyboard events (`ArrowDown`, `ArrowUp`, `MediaTrackNext/Prev`).
+
 ## [v2.55.14] — 2026-09-17
 ### Fixed — Audio Timecode Chapter Calibration Server Persistence & Permanent Login Sessions
 - **Audio Backtrack Timecode & Cue Persistence (`page.tsx`, `useSetlist.ts`, `AudioChaptersModal.tsx`)**:

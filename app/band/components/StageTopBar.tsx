@@ -29,6 +29,7 @@ interface StageTopBarProps {
   isSessionOverridden?: boolean;
   worshipLeaderKey?: string;
   onRevertKey?: () => void;
+  onOpenInstallModal?: () => void;
 }
 
 export const StageTopBar: React.FC<StageTopBarProps> = ({
@@ -50,6 +51,7 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
   isSessionOverridden,
   worshipLeaderKey,
   onRevertKey,
+  onOpenInstallModal,
 }) => {
   const [copiedLink, setCopiedLink] = React.useState(false);
 
@@ -167,29 +169,55 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
           </select>
         </div>
 
-        {/* Right: Musician Profile */}
-        <button
-          onClick={onOpenAuthModal}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            height: '34px',
-            padding: '0 12px',
-            borderRadius: '999px',
-            background: currentUser ? 'rgba(78, 177, 203, 0.15)' : '#1e293b',
-            border: `1px solid ${currentUser ? '#4EB1CB' : '#334155'}`,
-            color: currentUser ? '#4EB1CB' : '#cbd5e1',
-            fontSize: '12px',
-            fontWeight: 700,
-            cursor: 'pointer',
-          }}
-        >
-          <span>👤</span>
-          <span style={{ maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {currentUser ? currentUser.displayName : 'Login'}
-          </span>
-        </button>
+        {/* Right: Install App & Musician Profile */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {onOpenInstallModal && (
+            <button
+              onClick={onOpenInstallModal}
+              title="Install HGF Band App (Android APK / iPad)"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                height: '34px',
+                padding: '0 10px',
+                borderRadius: '8px',
+                background: 'rgba(78, 177, 203, 0.15)',
+                border: '1px solid rgba(78, 177, 203, 0.4)',
+                color: '#4EB1CB',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <span>📲</span>
+              <span>App</span>
+            </button>
+          )}
+          <button
+            onClick={onOpenAuthModal}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              height: '34px',
+              padding: '0 12px',
+              borderRadius: '999px',
+              background: currentUser ? 'rgba(78, 177, 203, 0.15)' : '#1e293b',
+              border: `1px solid ${currentUser ? '#4EB1CB' : '#334155'}`,
+              color: currentUser ? '#4EB1CB' : '#cbd5e1',
+              fontSize: '12px',
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            <span>👤</span>
+            <span style={{ maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {currentUser ? currentUser.displayName : 'Login'}
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* ROW 2: TRANSPOSE WIDGET, LIVE METRONOME PULSE PILL, STAGE ACTIONS */}

@@ -29,24 +29,40 @@ export function useFootPedal({
         return;
       }
 
-      if (e.key === 'PageDown' || e.key === '3') {
+      if (e.key === 'PageDown' || e.key === '3' || e.key === 'ArrowDown') {
         if (onScrollDown) onScrollDown();
         e.preventDefault();
-      } else if (e.key === 'PageUp' || e.key === '1') {
+      } else if (e.key === 'PageUp' || e.key === '1' || e.key === 'ArrowUp') {
         if (onScrollUp) onScrollUp();
         e.preventDefault();
-      } else if (e.key === 'ArrowRight') {
+      } else if (e.key === 'ArrowRight' || e.code === 'MediaTrackNext') {
         if (onNextSong) onNextSong();
         e.preventDefault();
-      } else if (e.key === 'ArrowLeft') {
+      } else if (e.key === 'ArrowLeft' || e.code === 'MediaTrackPrevious') {
         if (onPrevSong) onPrevSong();
         e.preventDefault();
       }
     };
 
+    const handleCustomPedal = (e: Event) => {
+      const customEvent = e as CustomEvent<{ key: string }>;
+      const key = customEvent.detail?.key;
+      if (key === 'PageDown' || key === 'ArrowDown') {
+        if (onScrollDown) onScrollDown();
+      } else if (key === 'PageUp' || key === 'ArrowUp') {
+        if (onScrollUp) onScrollUp();
+      } else if (key === 'MediaTrackNext' || key === 'ArrowRight') {
+        if (onNextSong) onNextSong();
+      } else if (key === 'MediaTrackPrevious' || key === 'ArrowLeft') {
+        if (onPrevSong) onPrevSong();
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('hgf-pedal', handleCustomPedal);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('hgf-pedal', handleCustomPedal);
     };
   }, [onNextSong, onPrevSong, onScrollDown, onScrollUp]);
 }

@@ -32,6 +32,7 @@ import { MetronomeModal } from './components/modals/MetronomeModal';
 import { SongScraperModal } from './components/modals/SongScraperModal';
 import { AudioChaptersModal } from './components/modals/AudioChaptersModal';
 import { DurationPickerModal } from './components/modals/DurationPickerModal';
+import { BandInstallModal } from './components/modals/BandInstallModal';
 
 import { BandUser, Song, Setlist, AudioTrack, AudioMarker, DrawingStroke } from './types/band';
 import { getCachedAudioMarkers, saveCachedAudioMarkers } from './lib/audioAnalysis';
@@ -327,6 +328,7 @@ export default function BandStagePage() {
   const [isMetronomeModalOpen, setIsMetronomeModalOpen] = useState<boolean>(false);
   const [isAudioChaptersModalOpen, setIsAudioChaptersModalOpen] = useState<boolean>(false);
   const [isDurationModalOpen, setIsDurationModalOpen] = useState<boolean>(false);
+  const [isInstallModalOpen, setIsInstallModalOpen] = useState<boolean>(false);
 
   // Auto-scroll pacing & duration mode
   const [scrollMode, setScrollMode] = useState<'duration' | 'speed'>('duration');
@@ -759,6 +761,7 @@ export default function BandStagePage() {
         isSessionOverridden={isCurrentSongSessionOverridden}
         worshipLeaderKey={activeSongMdDefaults?.key}
         onRevertKey={handleRevertToMdKey}
+        onOpenInstallModal={() => setIsInstallModalOpen(true)}
       />
 
       {/* STAGE SONG SHEET (Embeds persistent drawing canvas over sheet content) */}
@@ -971,6 +974,11 @@ export default function BandStagePage() {
         onClose={() => setIsBandAdminOpen(false)}
         currentUser={currentUser}
         onUserUpdated={handleUserUpdated}
+      />
+
+      <BandInstallModal
+        isOpen={isInstallModalOpen}
+        onClose={() => setIsInstallModalOpen(false)}
       />
 
       <MetronomeModal

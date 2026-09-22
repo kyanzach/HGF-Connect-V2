@@ -2,8 +2,14 @@
 import type { Metadata, Viewport } from 'next';
 
 export const metadata: Metadata = {
-  title: 'THE BAND — Musician Songbook & Stage Tool',
+  title: 'HGF Band — Musician Songbook & Stage Tool',
   description: 'Live chord transposer, setlist lineup, ambient worship pads, and in-ear audio playback for church musicians.',
+  manifest: '/manifest-band.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'HGF Band',
+  },
 };
 
 export const viewport: Viewport = {

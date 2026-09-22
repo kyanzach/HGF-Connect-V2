@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.HGFBand" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/stage_teal</item>
+        <item name="colorPrimaryVariant">@color/stage_teal_dark</item>
+        <item name="colorOnPrimary">@color/stage_background</item>
+        <item name="android:statusBarColor">@color/status_bar_black</item>
+        <item name="android:navigationBarColor">@color/status_bar_black</item>
+        <item name="android:windowBackground">@color/stage_background</item>
+    </style>
+</resources>
