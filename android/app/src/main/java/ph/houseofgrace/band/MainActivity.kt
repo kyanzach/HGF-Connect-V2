@@ -113,8 +113,14 @@ class MainActivity : AppCompatActivity() {
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val url = request?.url?.toString() ?: return false
-                // Keep internal connect.houseofgrace.ph links inside WebView
-                return if (url.contains("houseofgrace.ph")) {
+                val host = request.url?.host?.lowercase() ?: ""
+                val isInternal = host == "connect.houseofgrace.ph" ||
+                        host == "houseofgrace.ph" ||
+                        host.endsWith(".houseofgrace.ph") ||
+                        host == "hgfapp.link" ||
+                        host.endsWith(".hgfapp.link")
+
+                return if (isInternal) {
                     false
                 } else {
                     // Open external links (YouTube, external chords) in system browser

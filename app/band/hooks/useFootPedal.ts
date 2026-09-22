@@ -45,6 +45,16 @@ export function useFootPedal({
     };
 
     const handleCustomPedal = (e: Event) => {
+      const active = document.activeElement as HTMLElement | null;
+      if (
+        active &&
+        (active.tagName === 'INPUT' ||
+          active.tagName === 'TEXTAREA' ||
+          active.isContentEditable)
+      ) {
+        return;
+      }
+
       const customEvent = e as CustomEvent<{ key: string }>;
       const key = customEvent.detail?.key;
       if (key === 'PageDown' || key === 'ArrowDown') {
