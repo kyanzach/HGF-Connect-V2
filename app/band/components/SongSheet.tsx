@@ -1,7 +1,7 @@
 // app/band/components/SongSheet.tsx
 'use client';
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { Song } from '../types/band';
 import { SheetLine } from '../lib/musicTheory';
 
@@ -18,6 +18,8 @@ interface SongSheetProps {
   onSwipeLeft?: () => void;
   onSwipeRight?: () => void;
   drawingCanvasElement?: React.ReactNode;
+  isDrawingActive?: boolean;
+  onRefresh?: () => Promise<void>;
   playbackState?: {
     isPlaying: boolean;
     currentTime: number;
@@ -49,6 +51,8 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   onSwipeLeft,
   onSwipeRight,
   drawingCanvasElement,
+  isDrawingActive = false,
+  onRefresh,
   playbackState,
   bpm,
   isMetronomePulsing,
@@ -227,12 +231,56 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     }
   };
 
+  const [pullDistance, setPullDistance] = useState<number>(0);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [refreshSuccess, setRefreshSuccess] = useState<boolean>(false);
+
   const handleTouchStart = (e: React.TouchEvent) => {
+    if (isDrawingActive) return;
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
   };
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (isDrawingActive || isRefreshing) return;
+    if (!containerRef.current || touchStartY.current === null) return;
+
+    // Only allow pull-to-refresh at the top of the sheet
+    if (containerRef.current.scrollTop <= 0) {
+      const currentY = e.touches[0].clientY;
+      const diffY = currentY - touchStartY.current;
+      if (diffY > 0) {
+        // Elastic rubber-band resistance
+        const damped = Math.min(100, Math.pow(diffY, 0.82) * 2);
+        setPullDistance(damped);
+      }
+    } else {
+      if (pullDistance > 0) setPullDistance(0);
+    }
+  };
+
+  const handleTouchEnd = async (e: React.TouchEvent) => {
+    if (isDrawingActive) return;
+
+    if (pullDistance >= 60 && onRefresh && !isRefreshing) {
+      setIsRefreshing(true);
+      setPullDistance(50);
+      try {
+        await onRefresh();
+        setRefreshSuccess(true);
+        setTimeout(() => {
+          setRefreshSuccess(false);
+          setIsRefreshing(false);
+          setPullDistance(0);
+        }, 700);
+      } catch (_) {
+        setIsRefreshing(false);
+        setPullDistance(0);
+      }
+    } else {
+      setPullDistance(0);
+    }
+
     if (touchStartX.current === null || touchStartY.current === null) return;
     const diffX = e.changedTouches[0].clientX - touchStartX.current;
     const diffY = e.changedTouches[0].clientY - touchStartY.current;
@@ -274,12 +322,13 @@ export const SongSheet: React.FC<SongSheetProps> = ({
       ref={containerRef}
       id="sheetWrapper"
       onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       onScroll={handleScroll}
       style={{
         position: 'relative',
         flex: 1,
-        overflowY: 'auto',
+        overflowY: isDrawingActive ? 'hidden' : 'auto',
         overflowX: 'hidden',
         paddingTop: '16px',
         paddingLeft: '20px',
@@ -289,8 +338,92 @@ export const SongSheet: React.FC<SongSheetProps> = ({
         color: '#f8fafc',
         fontFamily: 'monospace, system-ui',
         WebkitOverflowScrolling: 'touch',
+        touchAction: isDrawingActive ? 'none' : 'pan-y',
+        overscrollBehaviorY: isDrawingActive ? 'none' : 'contain',
       }}
     >
+      <style>{`
+        @keyframes hgfSpin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
+
+      {/* NATIVE PULL-TO-REFRESH PILL INDICATOR (iOS PWA & Android) */}
+      {(pullDistance > 0 || isRefreshing) && (
+        <div
+          style={{
+            position: 'sticky',
+            top: '8px',
+            zIndex: 40,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            pointerEvents: 'none',
+            marginBottom: `${Math.max(0, pullDistance - 24)}px`,
+            transition: isRefreshing ? 'all 0.2s ease-out' : 'none',
+          }}
+        >
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '6px 14px',
+              borderRadius: '20px',
+              background: 'rgba(15, 23, 42, 0.94)',
+              border: '1px solid rgba(78, 177, 203, 0.45)',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.6), 0 0 12px rgba(78, 177, 203, 0.25)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+              color: '#4EB1CB',
+              fontSize: '12px',
+              fontWeight: 700,
+              transform: `scale(${Math.min(1, 0.75 + (pullDistance / 100) * 0.25)})`,
+              opacity: Math.min(1, pullDistance / 35),
+            }}
+          >
+            {isRefreshing ? (
+              <>
+                {refreshSuccess ? (
+                  <>
+                    <span style={{ fontSize: '14px', color: '#10b981' }}>✓</span>
+                    <span style={{ color: '#10b981' }}>Synced & Updated!</span>
+                  </>
+                ) : (
+                  <>
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        animation: 'hgfSpin 0.8s linear infinite',
+                        fontSize: '13px',
+                      }}
+                    >
+                      🔄
+                    </span>
+                    <span>Syncing band charts...</span>
+                  </>
+                )}
+              </>
+            ) : (
+              <>
+                <span
+                  style={{
+                    display: 'inline-block',
+                    transform: `rotate(${Math.min(180, (pullDistance / 60) * 180)}deg)`,
+                    transition: 'transform 0.1s linear',
+                    fontSize: '13px',
+                  }}
+                >
+                  ↓
+                </span>
+                <span>{pullDistance >= 60 ? 'Release to sync charts' : 'Pull to sync'}</span>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Persistent Full-Sheet Annotation Canvas */}
       {drawingCanvasElement}
 

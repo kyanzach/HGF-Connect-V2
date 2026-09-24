@@ -675,7 +675,7 @@ export default function BandStagePage() {
   }, [currentSong?.id, isDrawingActive]);
 
   const handleSaveAsMdKey = async (newKey: string) => {
-    if (!currentSong) return;
+    if (!currentSong || currentUser?.role !== 'MD') return;
 
     if (activeSetlist) {
       const updatedSongs = (activeSetlist.songs || []).map((s) => {
@@ -823,6 +823,8 @@ export default function BandStagePage() {
         isMetronomePulsing={isPulsing}
         isMetronomeAudioActive={isMetronomeAudioActive}
         onOpenMetronomeModal={() => setIsMetronomeModalOpen(true)}
+        isDrawingActive={isDrawingActive}
+        onRefresh={refreshData}
         drawingCanvasElement={
           <DrawingCanvas
             key={`drawing_${currentSong?.id}_${drawingSyncTick}`}
@@ -948,7 +950,7 @@ export default function BandStagePage() {
         capo={capo}
         onSelectKey={(newKey) => handleKeyChangeRequest(newKey)}
         onSelectCapo={setCapo}
-        isBandAdmin={currentUser?.role === 'admin' || currentUser?.role === 'MD'}
+        isBandAdmin={currentUser?.role === 'MD'}
         onSaveAsMdKey={() => handleSaveAsMdKey(effectiveKey)}
       />
 
@@ -1084,7 +1086,7 @@ export default function BandStagePage() {
         currentDuration={currentSong?.duration}
         songTitle={currentSong?.title}
         onApplyDuration={handleApplyDuration}
-        isBandAdmin={currentUser?.role === 'admin' || currentUser?.role === 'MD'}
+        isBandAdmin={currentUser?.role === 'MD'}
       />
     </div>
   );

@@ -32,7 +32,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   const isDrawing = useRef<boolean>(false);
   const currentPoints = useRef<DrawingPoint[]>([]);
 
-  const isMdOrAdmin = currentUser?.role === 'MD' || currentUser?.role === 'admin';
+  const isMd = currentUser?.role === 'MD';
 
   useEffect(() => {
     setMounted(true);
@@ -44,7 +44,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
 
   // Determine which strokes are visible based on user role and showAllMembers toggle
   const getVisibleStrokes = useCallback(() => {
-    if (isMdOrAdmin) {
+    if (isMd) {
       if (showAllMembers) {
         return strokes;
       }
@@ -59,7 +59,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       if (!currentUser && (s.userId === 'guest' || s.scope === 'user')) return true;
       return false;
     });
-  }, [strokes, isMdOrAdmin, showAllMembers, currentUser]);
+  }, [strokes, isMd, showAllMembers, currentUser]);
 
   const redraw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -261,8 +261,8 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
 
       setStrokes((prevStrokes) => {
         const remaining = prevStrokes.filter((s) => {
-          if (!isMdOrAdmin && s.scope === 'global') return true;
-          if (!isMdOrAdmin && s.userId !== currentUser?.id && s.userId !== 'guest') return true;
+          if (!isMd && s.scope === 'global') return true;
+          if (!isMd && s.userId !== currentUser?.id && s.userId !== 'guest') return true;
 
           const hit = s.points.some((p) => {
             const pnx = p.nx !== undefined ? p.nx : p.x / canvas.width;
@@ -279,7 +279,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         return prevStrokes;
       });
     },
-    [currentUser, isMdOrAdmin, onSaveStrokes]
+    [currentUser, isMd, onSaveStrokes]
   );
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -364,7 +364,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         color,
         width: lineWidth,
         points: [...currentPoints.current],
-        scope: isMdOrAdmin ? 'global' : 'user',
+        scope: isMd ? 'global' : 'user',
         userId: currentUser?.id || 'guest',
         authorName: currentUser?.displayName || 'Musician',
         role: currentUser?.role || 'member',
@@ -382,7 +382,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     let targetIndex = -1;
     for (let i = strokes.length - 1; i >= 0; i--) {
       const s = strokes[i];
-      if (isMdOrAdmin || s.userId === currentUser?.id || s.userId === 'guest' || s.scope === 'user') {
+      if (isMd || s.userId === currentUser?.id || s.userId === 'guest' || s.scope === 'user') {
         targetIndex = i;
         break;
       }
@@ -396,7 +396,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   };
 
   const clearAll = () => {
-    const updated = isMdOrAdmin
+    const updated = isMd
       ? []
       : strokes.filter((s) => s.scope === 'global');
 
@@ -445,13 +445,13 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
           fontWeight: 800,
           letterSpacing: '0.5px',
           textTransform: 'uppercase',
-          backgroundColor: isMdOrAdmin ? 'rgba(78, 177, 203, 0.2)' : 'rgba(234, 179, 8, 0.15)',
-          color: isMdOrAdmin ? '#4EB1CB' : '#facc15',
-          border: `1px solid ${isMdOrAdmin ? 'rgba(78, 177, 203, 0.4)' : 'rgba(234, 179, 8, 0.3)'}`,
+          backgroundColor: isMd ? 'rgba(78, 177, 203, 0.2)' : 'rgba(234, 179, 8, 0.15)',
+          color: isMd ? '#4EB1CB' : '#facc15',
+          border: `1px solid ${isMd ? 'rgba(78, 177, 203, 0.4)' : 'rgba(234, 179, 8, 0.3)'}`,
           whiteSpace: 'nowrap',
         }}
       >
-        {isMdOrAdmin ? '🌐 GLOBAL (MD)' : '🔒 PERSONAL'}
+        {isMd ? '🌐 GLOBAL (MD)' : '🔒 PERSONAL'}
       </div>
 
       {/* Color Palette */}
@@ -545,8 +545,8 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         🗑️ Clear
       </button>
 
-      {/* MD/Admin Show All Toggle */}
-      {isMdOrAdmin && (
+      {/* MD Show All Toggle */}
+      {isMd && (
         <button
           onClick={() => setShowAllMembers(!showAllMembers)}
           title="Toggle view of all members annotations"
@@ -594,6 +594,15 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
+        onTouchStart={(e) => {
+          if (isActive) e.stopPropagation();
+        }}
+        onTouchMove={(e) => {
+          if (isActive) e.stopPropagation();
+        }}
+        onTouchEnd={(e) => {
+          if (isActive) e.stopPropagation();
+        }}
         style={{
           position: 'absolute',
           top: 0,

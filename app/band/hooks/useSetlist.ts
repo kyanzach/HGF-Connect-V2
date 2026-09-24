@@ -62,6 +62,52 @@ export function useSetlist() {
     refreshData();
   }, [refreshData]);
 
+  // Background auto-sync polling for setlist & song changes made by MD across all devices
+  useEffect(() => {
+    let isMounted = true;
+
+    const silentPoll = async () => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      try {
+        const [songsRes, setlistsRes] = await Promise.all([
+          fetch('/api/worship', { cache: 'no-store' }),
+          fetch('/api/worship/setlists', { cache: 'no-store' }),
+        ]);
+        if (!isMounted) return;
+
+        if (songsRes.ok) {
+          const remoteSongs: Song[] = await songsRes.json();
+          setSongs((prev) => {
+            if (JSON.stringify(prev) !== JSON.stringify(remoteSongs)) {
+              saveSongsOffline(remoteSongs).catch(() => {});
+              if (typeof window !== 'undefined') {
+                localStorage.setItem(STORAGE_LOCAL_SONGS, JSON.stringify(remoteSongs));
+              }
+              return remoteSongs;
+            }
+            return prev;
+          });
+        }
+
+        if (setlistsRes.ok) {
+          const remoteSetlists: Setlist[] = await setlistsRes.json();
+          setSetlists((prev) => {
+            if (JSON.stringify(prev) !== JSON.stringify(remoteSetlists)) {
+              return remoteSetlists;
+            }
+            return prev;
+          });
+        }
+      } catch (_) {}
+    };
+
+    const intervalId = setInterval(silentPoll, 4000);
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+    };
+  }, []);
+
   // Restore saved active setlist and initial song
   useEffect(() => {
     if (typeof window === 'undefined') return;

@@ -24,7 +24,7 @@ export const ScratchpadModal: React.FC<ScratchpadModalProps> = ({
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
 
-  const isMdOrAdmin = currentUser?.role === 'MD' || currentUser?.role === 'admin';
+  const isMd = currentUser?.role === 'MD';
 
   const fetchNotes = async () => {
     if (!currentSong || !currentUser) return;
@@ -147,8 +147,8 @@ export const ScratchpadModal: React.FC<ScratchpadModalProps> = ({
       // Cache locally
       localStorage.setItem(`hgf_scratch_${currentUser.id}_${currentSong.id}`, personalNotes.trim());
 
-      // 2. If MD/Admin, also save global cue
-      if (isMdOrAdmin) {
+      // 2. If MD, also save global cue
+      if (isMd) {
         await fetch('/api/worship/scratch', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -250,10 +250,10 @@ export const ScratchpadModal: React.FC<ScratchpadModalProps> = ({
                 💡 Band Cue (Visible to Everyone)
               </span>
               <span style={{ fontSize: '10px', color: '#64748b' }}>
-                {isMdOrAdmin ? 'Editable by MD/Admin' : 'Set by MD'}
+                {isMd ? 'Editable by MD (Ren)' : 'Set by MD (Ren)'}
               </span>
             </div>
-            {isMdOrAdmin ? (
+            {isMd ? (
               <textarea
                 value={mdGlobalCue}
                 onChange={(e) => setMdGlobalCue(e.target.value)}

@@ -5,6 +5,25 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.59.0] — 2026-09-24
+### Added & Enhanced — The Band Stage Tool: Drawing Gesture Isolation, Tactile Pull-to-Refresh & MD Auto-Sync
+- **Drawing Gesture Isolation & Android/iOS Refresh Prevention (`DrawingCanvas.tsx`, `SongSheet.tsx`)**:
+  - Isolated touch interactions when active drawing mode is enabled. Strokes drawn left or right no longer trigger horizontal song switching (`prevSong` / `nextSong`).
+  - Vertical downward lines while drawing no longer trigger browser pull-to-refresh on Android.
+  - Dynamically configured `touchAction: isDrawingActive ? 'none' : 'pan-y'`, `overscrollBehaviorY: isDrawingActive ? 'none' : 'contain'`, and `overflowY: isDrawingActive ? 'hidden' : 'auto'` with event propagation stops on `<canvas>`.
+- **Native-Feeling Pull-To-Refresh for iPhone PWA & Android (`SongSheet.tsx`)**:
+  - Implemented custom elastic rubber-band pull-to-refresh when dragging downward from the top of the chord sheet in non-drawing mode.
+  - Added a floating glassmorphism pill indicator with rotational arrow indicator, spinning loader, and tactile completion checkmark (`✓ Synced & Updated!`).
+  - Seamlessly bridges the gap for standalone iPhone PWAs where native pull-to-refresh is unavailable.
+- **Silent Background Auto-Sync for Setlist & Chart Edits (`useSetlist.ts`)**:
+  - Added a silent 4-second background polling cycle that compares remote setlists and song charts against local memory.
+  - Any edit made by the Music Director (Ren) — such as setlist song order, keys, capo, tempo, duration, or lyrics/chords — automatically appears on all connected musicians' screens without requiring a manual refresh or interrupting active performance.
+- **Strict Role Separation for Music Director vs. Musician Developer (`DrawingCanvas.tsx`, `ScratchpadModal.tsx`, `page.tsx`)**:
+  - Separated technical administrative privileges from musical leadership. Developer/admin user (Ryan) is now treated as a regular musician for all stage charts, chord transpositions, and annotation layers.
+  - Official Worship Leader master key changes and global setlist durations are strictly reserved for the Music Director (`role === 'MD'`).
+  - Band cues in the Scratchpad modal are restricted so only the MD sets global cues, while regular musicians/admin edit their private notes.
+  - Ryan's stage annotations default to private personal notes (`🔒 PERSONAL`), preventing unintentional overwriting of the MD's official stage cues.
+
 ## [v2.58.0] — 2026-09-24
 ### Fixed & Enhanced — The Band Stage Tool: Transposition, Key Selection, Scraper Import & Real-Time Drawing Sync
 - **Frictionless Transposition & Key Selection (`app/band/page.tsx`)**:
