@@ -5,6 +5,21 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.68.3] — 2026-09-25
+### Fixed & Enhanced — The Band Stage Tool: Android APK Touch Drag Setlist Sorting & Setlist View Modes
+- **Android APK Native Touch Drag Sorting (`SetlistSidebar.tsx`)**:
+  - Fixed an issue on Android APK where touch dragging to reorder songs in a setlist failed, caused unwanted list scrolling, or prematurely closed the sidebar.
+  - Replaced React delegated touch events on the drag handle with a native non-passive (`{ passive: false }`) `TouchDragHandle` component: calling `e.preventDefault()` on `touchstart` directly suppresses Android Chromium WebView scroll gesture recognizers and guarantees the touch stream is never aborted with `touchcancel`.
+  - Attached window-level native non-passive `touchmove`, `touchend`, and `touchcancel` listeners during drag operations with dual-strategy target row detection (`elementFromPoint` + vertical bounding box fallback), ensuring 60fps tracking even if the user's thumb drifts horizontally outside the handle.
+  - Implemented 450ms click suppression (`suppressClickRef`) on drag release, stopping Android's synthetic touchup click from inadvertently selecting the song row or dismissing the sidebar.
+  - Upgraded 1-tap reorder step buttons (`▲` / `▼`) to `26px x 18px` with `e.stopPropagation()` and `e.preventDefault()` across `onClick`, `onTouchStart`, and `onPointerDown`.
+- **Setlist Order vs Alphabetical Sort Mode Clarification (`SetlistSidebar.tsx`)**:
+  - Dynamically switches sort pills when an active setlist is loaded: `[ Setlist ]` (custom arranged order), `[ A-Z ]`, `[ Key ]`, and `[ Artist ]`.
+  - When in "All Songs" mode, pills display `[ A-Z ]`, `[ Key ]`, `[ Artist ]`, and `[ Recent ]`.
+  - Custom drag sorting and step buttons are cleanly enabled when viewing the setlist in user-arranged `[ Setlist ]` mode.
+- **Strict 1st-Song Lock on Setlist Switch (`useSetlist.ts`)**:
+  - Added `activeSetlistSwitchedRef` effect synchronization, ensuring that switching to any setlist from dropdowns or the sidebar immediately selects and saves `currentLineup[0]` without falling back to stale `localStorage` song IDs.
+
 ## [v2.68.2] — 2026-09-25
 ### Fixed & Enhanced — The Band Stage Tool: Android APK & iOS Scroll/Draw Fixes & Gesture Isolation
 - **One-Finger Scrolling Up & Pull-to-Refresh Conflict Fixed (`SongSheet.tsx`, `MainActivity.kt`)**:

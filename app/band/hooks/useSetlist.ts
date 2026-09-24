@@ -30,6 +30,7 @@ export function useSetlist() {
   // Mutation lockouts to prevent background polling from overwriting instant local operations
   const lastSetlistMutationTimeRef = useRef<number>(0);
   const lastSongMutationTimeRef = useRef<number>(0);
+  const activeSetlistSwitchedRef = useRef<string | null>(null);
 
   // Restore instantly from localStorage on mount (0ms latency for offline/slow connections)
   useEffect(() => {
@@ -276,6 +277,7 @@ export function useSetlist() {
   const selectSetlist = useCallback((setId: string | null) => {
     setActiveSetlistId(setId);
     setSetlistSessionOverrides({});
+    activeSetlistSwitchedRef.current = setId;
     if (typeof window !== 'undefined') {
       if (setId) localStorage.setItem(STORAGE_ACTIVE_SETLIST, setId);
       else localStorage.removeItem(STORAGE_ACTIVE_SETLIST);
@@ -295,6 +297,20 @@ export function useSetlist() {
       }
     }
   }, [setlists]);
+
+  // Ensure that whenever a setlist is explicitly switched, the active song is locked to currentLineup[0]
+  useEffect(() => {
+    if (activeSetlistId && activeSetlistSwitchedRef.current === activeSetlistId) {
+      if (currentLineup.length > 0) {
+        const firstId = currentLineup[0].id;
+        setCurrentSongId(firstId);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(STORAGE_ACTIVE_SONG, firstId);
+        }
+        activeSetlistSwitchedRef.current = null;
+      }
+    }
+  }, [activeSetlistId, currentLineup]);
 
   const nextSong = useCallback(() => {
     if (currentIndex < currentLineup.length - 1) {

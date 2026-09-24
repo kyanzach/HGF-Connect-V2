@@ -1,9 +1,66 @@
 // app/band/components/SetlistSidebar.tsx
 'use client';
 
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import ConfirmModal from '@/components/ConfirmModal';
 import { Song, Setlist } from '../types/band';
+
+type SortOption = 'order' | 'title' | 'key' | 'artist' | 'recent';
+
+interface TouchDragHandleProps {
+  index: number;
+  isDragging: boolean;
+  onDragStart: (index: number, startY: number) => void;
+}
+
+// Native non-passive touch handle guaranteeing e.preventDefault() prevents Android WebView scrolling
+const TouchDragHandle: React.FC<TouchDragHandleProps> = ({ index, isDragging, onDragStart }) => {
+  const handleRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const el = handleRef.current;
+    if (!el) return;
+
+    const onNativeTouchStart = (e: TouchEvent) => {
+      if (e.cancelable) {
+        e.preventDefault();
+      }
+      e.stopPropagation();
+      if (e.touches.length > 0) {
+        onDragStart(index, e.touches[0].clientY);
+      }
+    };
+
+    el.addEventListener('touchstart', onNativeTouchStart, { passive: false });
+    return () => {
+      el.removeEventListener('touchstart', onNativeTouchStart);
+    };
+  }, [index, onDragStart]);
+
+  return (
+    <div
+      ref={handleRef}
+      title="Hold & drag to sort setlist"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '30px',
+        height: '38px',
+        color: isDragging ? '#4EB1CB' : '#94a3b8',
+        cursor: 'grab',
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        touchAction: 'none',
+        fontSize: '18px',
+        letterSpacing: '-1px',
+        flexShrink: 0,
+      }}
+    >
+      ⠿
+    </div>
+  );
+};
 
 interface SetlistSidebarProps {
   isOpen: boolean;
@@ -43,7 +100,16 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
   onDeleteSong,
 }) => {
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [sortBy, setSortBy] = useState<'title' | 'key' | 'artist' | 'recent'>('title');
+  const [sortBy, setSortBy] = useState<SortOption>('order');
+
+  // Sync default sort mode when active setlist changes
+  useEffect(() => {
+    if (activeSetlist) {
+      setSortBy('order');
+    } else {
+      setSortBy('title');
+    }
+  }, [activeSetlist?.id]);
 
   // Deletion modal state
   const [songToDelete, setSongToDelete] = useState<Song | null>(null);
@@ -59,8 +125,14 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
 
   const touchDragStartIndex = useRef<number | null>(null);
   const touchTargetIndex = useRef<number | null>(null);
+  const listContainerRef = useRef<HTMLDivElement | null>(null);
+  const suppressClickRef = useRef<boolean>(false);
+  const touchStartYRef = useRef<number>(0);
+  const hasDraggedRef = useRef<boolean>(false);
+  const dropPositionRef = useRef<'top' | 'bottom' | null>(null);
+  dropPositionRef.current = dropPosition;
 
-  const isSetlistSortingEnabled = Boolean(activeSetlist && !searchQuery.trim());
+  const isSetlistSortingEnabled = Boolean(activeSetlist && !searchQuery.trim() && sortBy === 'order');
 
   // Desktop HTML5 Drag Handlers
   const handleDragStart = (e: React.DragEvent, index: number) => {
@@ -110,53 +182,125 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
     setDropPosition(null);
   };
 
-  // Mobile Touch Drag Handlers (Hold & Drag)
-  const handleTouchStart = (e: React.TouchEvent, index: number) => {
+  // Mobile Touch Drag Handlers (Hold & Drag with Android APK + iOS full support via native non-passive listeners)
+  const handleTouchDragStart = useCallback((index: number, startY: number) => {
     if (!isSetlistSortingEnabled) return;
     touchDragStartIndex.current = index;
     touchTargetIndex.current = index;
+    touchStartYRef.current = startY;
+    hasDraggedRef.current = false;
     setDraggedIndex(index);
-  };
+    setDragOverIndex(index);
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (touchDragStartIndex.current === null) return;
-    const touch = e.touches[0];
-    const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
-    const row = targetEl?.closest('[data-setlist-index]') as HTMLElement | null;
+    const onNativeWindowTouchMove = (e: TouchEvent) => {
+      if (touchDragStartIndex.current === null) return;
+      if (e.cancelable) {
+        e.preventDefault();
+      }
+      e.stopPropagation();
 
-    if (row) {
-      const idxAttr = row.getAttribute('data-setlist-index');
-      if (idxAttr !== null) {
-        const idx = parseInt(idxAttr, 10);
-        if (!isNaN(idx)) {
-          touchTargetIndex.current = idx;
-          const rect = row.getBoundingClientRect();
-          const pos = touch.clientY < rect.top + rect.height / 2 ? 'top' : 'bottom';
-          setDragOverIndex(idx);
-          setDropPosition(pos);
+      const touch = e.touches[0];
+      if (!touch) return;
+
+      if (Math.abs(touch.clientY - touchStartYRef.current) > 3) {
+        hasDraggedRef.current = true;
+      }
+
+      // Dual detection: elementFromPoint + vertical bounding box fallback (immune to horizontal touch drift)
+      let targetRow: HTMLElement | null = null;
+      const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
+      if (targetEl) {
+        targetRow = targetEl.closest('[data-setlist-index]') as HTMLElement | null;
+      }
+
+      if (!targetRow && listContainerRef.current) {
+        const rows = Array.from(listContainerRef.current.querySelectorAll<HTMLElement>('[data-setlist-index]'));
+        if (rows.length > 0) {
+          if (touch.clientY < rows[0].getBoundingClientRect().top) {
+            targetRow = rows[0];
+          } else if (touch.clientY > rows[rows.length - 1].getBoundingClientRect().bottom) {
+            targetRow = rows[rows.length - 1];
+          } else {
+            for (const r of rows) {
+              const rect = r.getBoundingClientRect();
+              if (touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+                targetRow = r;
+                break;
+              }
+            }
+          }
         }
       }
-    }
-  };
 
-  const handleTouchEnd = () => {
-    const fromIdx = touchDragStartIndex.current;
-    const toIdx = touchTargetIndex.current;
-    if (fromIdx !== null && toIdx !== null && fromIdx !== toIdx && onReorderSongInSetlist) {
-      let finalTarget = toIdx;
-      if (dropPosition === 'bottom' && toIdx < fromIdx) {
-        finalTarget = Math.min(displayList.length - 1, toIdx + 1);
-      } else if (dropPosition === 'top' && toIdx > fromIdx) {
-        finalTarget = Math.max(0, toIdx - 1);
+      if (targetRow) {
+        const idxAttr = targetRow.getAttribute('data-setlist-index');
+        if (idxAttr !== null) {
+          const idx = parseInt(idxAttr, 10);
+          if (!isNaN(idx)) {
+            touchTargetIndex.current = idx;
+            const rect = targetRow.getBoundingClientRect();
+            const pos = touch.clientY < rect.top + rect.height / 2 ? 'top' : 'bottom';
+            dropPositionRef.current = pos;
+            setDragOverIndex(idx);
+            setDropPosition(pos);
+          }
+        }
       }
-      onReorderSongInSetlist(fromIdx, finalTarget);
-    }
-    touchDragStartIndex.current = null;
-    touchTargetIndex.current = null;
-    setDraggedIndex(null);
-    setDragOverIndex(null);
-    setDropPosition(null);
-  };
+    };
+
+    const cleanupWindowListeners = () => {
+      window.removeEventListener('touchmove', onNativeWindowTouchMove);
+      window.removeEventListener('touchend', onNativeWindowTouchEnd);
+      window.removeEventListener('touchcancel', onNativeWindowTouchCancel);
+    };
+
+    const onNativeWindowTouchEnd = (e: TouchEvent) => {
+      e.stopPropagation();
+      cleanupWindowListeners();
+
+      if (hasDraggedRef.current) {
+        suppressClickRef.current = true;
+        setTimeout(() => {
+          suppressClickRef.current = false;
+        }, 450);
+      }
+
+      const fromIdx = touchDragStartIndex.current;
+      const toIdx = touchTargetIndex.current;
+      const currentList = displayListRef.current;
+      if (fromIdx !== null && toIdx !== null && fromIdx !== toIdx && onReorderSongInSetlist) {
+        let finalTarget = toIdx;
+        if (dropPositionRef.current === 'bottom' && toIdx < fromIdx) {
+          finalTarget = Math.min(currentList.length - 1, toIdx + 1);
+        } else if (dropPositionRef.current === 'top' && toIdx > fromIdx) {
+          finalTarget = Math.max(0, toIdx - 1);
+        }
+        onReorderSongInSetlist(fromIdx, finalTarget);
+      }
+
+      touchDragStartIndex.current = null;
+      touchTargetIndex.current = null;
+      setDraggedIndex(null);
+      setDragOverIndex(null);
+      setDropPosition(null);
+      hasDraggedRef.current = false;
+    };
+
+    const onNativeWindowTouchCancel = (e: TouchEvent) => {
+      e.stopPropagation();
+      cleanupWindowListeners();
+      touchDragStartIndex.current = null;
+      touchTargetIndex.current = null;
+      setDraggedIndex(null);
+      setDragOverIndex(null);
+      setDropPosition(null);
+      hasDraggedRef.current = false;
+    };
+
+    window.addEventListener('touchmove', onNativeWindowTouchMove, { passive: false });
+    window.addEventListener('touchend', onNativeWindowTouchEnd, { passive: false });
+    window.addEventListener('touchcancel', onNativeWindowTouchCancel, { passive: false });
+  }, [isSetlistSortingEnabled, onReorderSongInSetlist]);
 
   const displayList = useMemo(() => {
     let list: Song[] = [];
@@ -187,7 +331,16 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
     }
 
     // Apply sorting
-    if (!activeSetlist || sortBy !== 'title') {
+    if (activeSetlist) {
+      if (sortBy === 'title') {
+        list.sort((a, b) => a.title.localeCompare(b.title));
+      } else if (sortBy === 'key') {
+        list.sort((a, b) => (a.key || '').localeCompare(b.key || ''));
+      } else if (sortBy === 'artist') {
+        list.sort((a, b) => (a.artist || '').localeCompare(b.artist || ''));
+      }
+      // 'order' maintains the user's arranged sequence without reordering
+    } else {
       if (sortBy === 'title') {
         list.sort((a, b) => a.title.localeCompare(b.title));
       } else if (sortBy === 'key') {
@@ -201,6 +354,9 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
 
     return list;
   }, [activeSetlist, songs, searchQuery, sortBy]);
+
+  const displayListRef = useRef<Song[]>([]);
+  displayListRef.current = displayList;
 
   // Set of song IDs in the currently active setlist (if any)
   const activeSetlistSongIds = useMemo(() => {
@@ -381,17 +537,25 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
             <span style={{ fontSize: '10px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginRight: '4px' }}>
               Sort:
             </span>
-            {[
-              { id: 'title', label: 'A-Z' },
-              { id: 'key', label: 'Key' },
-              { id: 'artist', label: 'Artist' },
-              { id: 'recent', label: 'Recent' },
-            ].map((st) => {
+            {(activeSetlist
+              ? [
+                  { id: 'order' as SortOption, label: 'Setlist' },
+                  { id: 'title' as SortOption, label: 'A-Z' },
+                  { id: 'key' as SortOption, label: 'Key' },
+                  { id: 'artist' as SortOption, label: 'Artist' },
+                ]
+              : [
+                  { id: 'title' as SortOption, label: 'A-Z' },
+                  { id: 'key' as SortOption, label: 'Key' },
+                  { id: 'artist' as SortOption, label: 'Artist' },
+                  { id: 'recent' as SortOption, label: 'Recent' },
+                ]
+            ).map((st) => {
               const active = sortBy === st.id;
               return (
                 <button
                   key={st.id}
-                  onClick={() => setSortBy(st.id as any)}
+                  onClick={() => setSortBy(st.id)}
                   style={{
                     flex: 1,
                     height: '24px',
@@ -413,7 +577,7 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
         </div>
 
         {/* SONG LIST */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
+        <div ref={listContainerRef} style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
           {displayList.length === 0 ? (
             <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
               <div>No songs found matching &quot;{searchQuery}&quot;.</div>
@@ -455,6 +619,7 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
                   onDrop={(e) => handleDrop(e, idx)}
                   onDragEnd={handleDragEnd}
                   onClick={() => {
+                    if (suppressClickRef.current) return;
                     onSelectSong(song.id);
                     onClose();
                   }}
@@ -484,46 +649,43 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
                   {/* Left Drag Handle & 1-Tap Step Reorder Buttons (Active Setlist Only) */}
                   {isSetlistSortingEnabled && (
                     <div
-                      style={{ display: 'flex', alignItems: 'center', gap: '3px', flexShrink: 0 }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}
                       onClick={(e) => e.stopPropagation()}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onTouchStart={(e) => e.stopPropagation()}
                     >
+                      <TouchDragHandle
+                        index={idx}
+                        isDragging={draggedIndex === idx}
+                        onDragStart={handleTouchDragStart}
+                      />
                       <div
-                        title="Hold & drag to sort setlist"
-                        onTouchStart={(e) => handleTouchStart(e, idx)}
-                        onTouchMove={handleTouchMove}
-                        onTouchEnd={handleTouchEnd}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: '20px',
-                          height: '28px',
-                          color: draggedIndex === idx ? '#4EB1CB' : '#64748b',
-                          cursor: 'grab',
-                          userSelect: 'none',
-                          touchAction: 'none',
-                          fontSize: '15px',
-                          letterSpacing: '-1px',
-                        }}
+                        style={{ display: 'flex', flexDirection: 'column', gap: '3px', flexShrink: 0 }}
+                        onClick={(e) => e.stopPropagation()}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onTouchStart={(e) => e.stopPropagation()}
                       >
-                        ⠿
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                         <button
+                          type="button"
                           disabled={idx === 0}
-                          onClick={() => onReorderSongInSetlist?.(idx, idx - 1)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onReorderSongInSetlist?.(idx, idx - 1);
+                          }}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onTouchStart={(e) => e.stopPropagation()}
                           title="Move Up"
                           style={{
-                            background: 'rgba(255, 255, 255, 0.06)',
-                            border: '1px solid rgba(255, 255, 255, 0.12)',
+                            background: 'rgba(255, 255, 255, 0.08)',
+                            border: '1px solid rgba(255, 255, 255, 0.15)',
                             color: idx === 0 ? 'rgba(148, 163, 184, 0.25)' : '#94a3b8',
-                            borderRadius: '3px',
-                            width: '18px',
-                            height: '13px',
+                            borderRadius: '4px',
+                            width: '26px',
+                            height: '18px',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            fontSize: '7px',
+                            fontSize: '9px',
                             cursor: idx === 0 ? 'default' : 'pointer',
                             padding: 0,
                             lineHeight: 1,
@@ -532,20 +694,26 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
                           ▲
                         </button>
                         <button
+                          type="button"
                           disabled={idx === displayList.length - 1}
-                          onClick={() => onReorderSongInSetlist?.(idx, idx + 1)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onReorderSongInSetlist?.(idx, idx + 1);
+                          }}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onTouchStart={(e) => e.stopPropagation()}
                           title="Move Down"
                           style={{
-                            background: 'rgba(255, 255, 255, 0.06)',
-                            border: '1px solid rgba(255, 255, 255, 0.12)',
+                            background: 'rgba(255, 255, 255, 0.08)',
+                            border: '1px solid rgba(255, 255, 255, 0.15)',
                             color: idx === displayList.length - 1 ? 'rgba(148, 163, 184, 0.25)' : '#94a3b8',
-                            borderRadius: '3px',
-                            width: '18px',
-                            height: '13px',
+                            borderRadius: '4px',
+                            width: '26px',
+                            height: '18px',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            fontSize: '7px',
+                            fontSize: '9px',
                             cursor: idx === displayList.length - 1 ? 'default' : 'pointer',
                             padding: 0,
                             lineHeight: 1,
