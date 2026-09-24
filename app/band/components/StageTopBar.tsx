@@ -1,8 +1,9 @@
 // app/band/components/StageTopBar.tsx
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Setlist, BandUser } from '../types/band';
+import { sortSetlistsUpcomingFirst, formatServiceDate, getTodayDateString } from '../lib/sortSetlists';
 
 interface StageTopBarProps {
   currentKey: string;
@@ -54,6 +55,8 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
   onOpenInstallModal,
 }) => {
   const [copiedLink, setCopiedLink] = React.useState(false);
+  const sortedSetlists = useMemo(() => sortSetlistsUpcomingFirst(setlists), [setlists]);
+  const todayStr = useMemo(() => getTodayDateString(), []);
 
   const handleCopyShortlink = () => {
     const url = 'https://hgfapp.link/chords';
@@ -161,11 +164,16 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
             }}
           >
             <option value="">All Songs</option>
-            {setlists.map((s) => (
-              <option key={s.id} value={s.id}>
-                🎼 {s.name} {s.leader ? `(${s.leader})` : ''}
-              </option>
-            ))}
+            {sortedSetlists.map((s) => {
+              const isUpcoming = Boolean(s.serviceDate && s.serviceDate >= todayStr);
+              const dateTag = formatServiceDate(s.serviceDate);
+              const hasDateInName = dateTag && s.name.toLowerCase().includes(dateTag.toLowerCase());
+              return (
+                <option key={s.id} value={s.id}>
+                  {isUpcoming ? '✨ ' : '🎼 '}{s.name}{dateTag && !hasDateInName ? ` • ${dateTag}` : ''}{s.leader ? ` (${s.leader})` : ''}
+                </option>
+              );
+            })}
           </select>
         </div>
 

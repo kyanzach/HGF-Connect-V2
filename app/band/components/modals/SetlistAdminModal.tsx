@@ -1,8 +1,9 @@
 // app/band/components/modals/SetlistAdminModal.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Setlist, Song } from '../../types/band';
+import { sortSetlistsUpcomingFirst, getTodayDateString } from '../../lib/sortSetlists';
 
 interface SetlistAdminModalProps {
   isOpen: boolean;
@@ -23,6 +24,8 @@ export const SetlistAdminModal: React.FC<SetlistAdminModalProps> = ({
   onDeleteSetlist,
   onSelectActiveSetlist,
 }) => {
+  const sortedSetlists = useMemo(() => sortSetlistsUpcomingFirst(setlists), [setlists]);
+  const todayStr = useMemo(() => getTodayDateString(), []);
   const [editingSet, setEditingSet] = useState<Setlist | null>(null);
   const [name, setName] = useState<string>('');
   const [serviceDate, setServiceDate] = useState<string>('');
@@ -481,29 +484,36 @@ export const SetlistAdminModal: React.FC<SetlistAdminModalProps> = ({
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {setlists.map((set) => (
-                  <div
-                    key={set.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '12px 14px',
-                      borderRadius: '8px',
-                      background: '#131c2e',
-                      border: '1px solid #1e293b',
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 800, fontSize: '14px', color: '#fff' }}>
-                        {set.name}
+                {sortedSetlists.map((set) => {
+                  const isUpcoming = Boolean(set.serviceDate && set.serviceDate >= todayStr);
+                  return (
+                    <div
+                      key={set.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '12px 14px',
+                        borderRadius: '8px',
+                        background: isUpcoming ? 'rgba(78, 177, 203, 0.08)' : '#131c2e',
+                        border: isUpcoming ? '1px solid rgba(78, 177, 203, 0.4)' : '1px solid #1e293b',
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 800, fontSize: '14px', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          {isUpcoming && (
+                            <span style={{ fontSize: '9px', background: '#4EB1CB', color: '#000', padding: '2px 6px', borderRadius: '4px', fontWeight: 800 }}>
+                              UPCOMING
+                            </span>
+                          )}
+                          <span>{set.name}</span>
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
+                          {set.serviceDate ? `${set.serviceDate} • ` : ''}
+                          {set.leader ? `Leader: ${set.leader} • ` : ''}
+                          {set.songs?.length || 0} songs
+                        </div>
                       </div>
-                      <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
-                        {set.serviceDate ? `${set.serviceDate} • ` : ''}
-                        {set.leader ? `Leader: ${set.leader} • ` : ''}
-                        {set.songs?.length || 0} songs
-                      </div>
-                    </div>
 
                     <div style={{ display: 'flex', gap: '6px' }}>
                       <button
@@ -560,7 +570,8 @@ export const SetlistAdminModal: React.FC<SetlistAdminModalProps> = ({
                       </button>
                     </div>
                   </div>
-                ))}
+                );
+              })}
               </div>
             </div>
           )}

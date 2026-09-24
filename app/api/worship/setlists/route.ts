@@ -1,3 +1,4 @@
+import { sortSetlistsUpcomingFirst } from '@/app/band/lib/sortSetlists';
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
@@ -50,8 +51,8 @@ export async function GET(req: NextRequest) {
       } catch {}
     }
 
-    setlists.sort((a, b) => b.updatedAt - a.updatedAt);
-    return NextResponse.json(setlists);
+    const sorted = sortSetlistsUpcomingFirst(setlists);
+    return NextResponse.json(sorted);
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Server error' }, { status: 500 });
   }

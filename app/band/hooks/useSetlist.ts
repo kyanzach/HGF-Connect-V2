@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Song, Setlist, SetlistSongItem } from '../types/band';
 import { getSongsOffline, saveSongsOffline } from '../lib/offlineStorage';
+import { sortSetlistsUpcomingFirst } from '../lib/sortSetlists';
 
 const STORAGE_ACTIVE_SETLIST = 'hgf_band_active_setlist_id';
 const STORAGE_ACTIVE_SONG = 'hgf_band_active_song_id';
@@ -48,7 +49,7 @@ export function useSetlist() {
       if (cachedSetlists) {
         const parsed = JSON.parse(cachedSetlists);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setSetlists(parsed);
+          setSetlists(sortSetlistsUpcomingFirst(parsed));
         }
       }
     } catch (_) {}
@@ -80,9 +81,10 @@ export function useSetlist() {
         const remoteSetlists: Setlist[] = await setlistsRes.json();
         // Only overwrite if not within a recent local setlist mutation window
         if (Date.now() - lastSetlistMutationTimeRef.current > 8000) {
-          setSetlists(remoteSetlists);
+          const sorted = sortSetlistsUpcomingFirst(remoteSetlists);
+          setSetlists(sorted);
           if (typeof window !== 'undefined') {
-            localStorage.setItem(STORAGE_LOCAL_SETLISTS, JSON.stringify(remoteSetlists));
+            localStorage.setItem(STORAGE_LOCAL_SETLISTS, JSON.stringify(sorted));
           }
         }
       }
@@ -129,12 +131,13 @@ export function useSetlist() {
         // Skip updating setlists if local user just reordered or changed setlist (< 8s ago)
         if (setlistsRes.ok && Date.now() - lastSetlistMutationTimeRef.current > 8000) {
           const remoteSetlists: Setlist[] = await setlistsRes.json();
+          const sorted = sortSetlistsUpcomingFirst(remoteSetlists);
           setSetlists((prev) => {
-            if (JSON.stringify(prev) !== JSON.stringify(remoteSetlists)) {
+            if (JSON.stringify(prev) !== JSON.stringify(sorted)) {
               if (typeof window !== 'undefined') {
-                localStorage.setItem(STORAGE_LOCAL_SETLISTS, JSON.stringify(remoteSetlists));
+                localStorage.setItem(STORAGE_LOCAL_SETLISTS, JSON.stringify(sorted));
               }
-              return remoteSetlists;
+              return sorted;
             }
             return prev;
           });
@@ -390,7 +393,7 @@ export function useSetlist() {
     };
 
     // Optimistically update in-memory state and localStorage
-    const newSetlists = setlists.map((s) => (s.id === targetSetId ? updatedSetlist : s));
+    const newSetlists = sortSetlistsUpcomingFirst(setlists.map((s) => (s.id === targetSetId ? updatedSetlist : s)));
     setSetlists(newSetlists);
     if (typeof window !== 'undefined') {
       try {
@@ -427,7 +430,7 @@ export function useSetlist() {
     };
 
     // Optimistically update in-memory state and localStorage
-    const newSetlists = setlists.map((s) => (s.id === targetSetId ? updatedSetlist : s));
+    const newSetlists = sortSetlistsUpcomingFirst(setlists.map((s) => (s.id === targetSetId ? updatedSetlist : s)));
     setSetlists(newSetlists);
     if (typeof window !== 'undefined') {
       try {
@@ -469,7 +472,7 @@ export function useSetlist() {
     };
 
     // Optimistically update in-memory state and localStorage for instant 0ms snappy response
-    const newSetlists = setlists.map((s) => (s.id === targetSetId ? updatedSetlist : s));
+    const newSetlists = sortSetlistsUpcomingFirst(setlists.map((s) => (s.id === targetSetId ? updatedSetlist : s)));
     setSetlists(newSetlists);
     if (typeof window !== 'undefined') {
       try {
@@ -537,7 +540,7 @@ export function useSetlist() {
             updatedAt: Date.now(),
           };
 
-          const newSetlists = setlists.map((s) => (s.id === targetSetlistId ? updatedSetlist! : s));
+          const newSetlists = sortSetlistsUpcomingFirst(setlists.map((s) => (s.id === targetSetlistId ? updatedSetlist! : s)));
           setSetlists(newSetlists);
           if (typeof window !== 'undefined') {
             try {

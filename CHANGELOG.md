@@ -5,6 +5,19 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.68.4] — 2026-09-25
+### Fixed & Enhanced — The Band Stage Tool: Upcoming-to-Previous Setlist Ordering Across All Selectors
+- **Upcoming-to-Previous Sorting Engine (`sortSetlists.ts`, `/api/worship/setlists`, `useSetlist.ts`)**:
+  - Implemented `sortSetlistsUpcomingFirst` across both server API and client state management.
+  - Future and upcoming dates (`serviceDate >= today`) are prioritized at the very top of all dropdowns and selection lists, ordered chronologically starting with the soonest upcoming service.
+  - Past dates (`serviceDate < today`) are listed immediately following in reverse chronological order (most recent first), followed by undated drafts.
+- **StageTopBar Header Dropdown (`StageTopBar.tsx`)**:
+  - Center setlist selector automatically lists the upcoming event setlist first.
+  - Added clean date tags (e.g. `• Sep 27`) and `✨` sparkle emojis on upcoming setlists to make the next scheduled service immediately distinguishable on stage.
+- **Setlist Sidebar & Modals (`SetlistSidebar.tsx`, `SetlistAdminModal.tsx`)**:
+  - Sidebar top setlist dropdown and row assignment pickers now sort from upcoming to previous with formatted date indicators.
+  - In `SetlistAdminModal`, upcoming setlists display an eye-catching teal `UPCOMING` badge and elevated styling at the top of the manager list.
+
 ## [v2.68.3] — 2026-09-25
 ### Fixed & Enhanced — The Band Stage Tool: Android APK Touch Drag Setlist Sorting & Setlist View Modes
 - **Android APK Native Touch Drag Sorting (`SetlistSidebar.tsx`)**:

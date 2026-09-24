@@ -4,6 +4,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import ConfirmModal from '@/components/ConfirmModal';
 import { Song, Setlist } from '../types/band';
+import { sortSetlistsUpcomingFirst, formatServiceDate, getTodayDateString } from '../lib/sortSetlists';
 
 type SortOption = 'order' | 'title' | 'key' | 'artist' | 'recent';
 
@@ -101,6 +102,9 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [sortBy, setSortBy] = useState<SortOption>('order');
+
+  const sortedSetlists = useMemo(() => sortSetlistsUpcomingFirst(setlists), [setlists]);
+  const todayStr = useMemo(() => getTodayDateString(), []);
 
   // Sync default sort mode when active setlist changes
   useEffect(() => {
@@ -449,11 +453,16 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
             }}
           >
             <option value="">All Songs ({songs.length})</option>
-            {setlists.map((s) => (
-              <option key={s.id} value={s.id}>
-                🎼 {s.name} ({s.songs?.length || 0})
-              </option>
-            ))}
+            {sortedSetlists.map((s) => {
+              const isUpcoming = Boolean(s.serviceDate && s.serviceDate >= todayStr);
+              const dateTag = formatServiceDate(s.serviceDate);
+              const hasDateInName = dateTag && s.name.toLowerCase().includes(dateTag.toLowerCase());
+              return (
+                <option key={s.id} value={s.id}>
+                  {isUpcoming ? '✨ ' : '🎼 '}{s.name}{dateTag && !hasDateInName ? ` • ${dateTag}` : ''} ({s.songs?.length || 0})
+                </option>
+              );
+            })}
           </select>
 
           {/* Search Input */}
@@ -934,41 +943,46 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
                                   ✕ Close
                                 </button>
                               </div>
-                              {setlists.length === 0 ? (
+                              {sortedSetlists.length === 0 ? (
                                 <div style={{ fontSize: '11px', color: '#94a3b8', padding: '4px 6px' }}>
                                   No setlists created yet
                                 </div>
                               ) : (
-                                setlists.map((st) => (
-                                  <button
-                                    key={st.id}
-                                    onClick={() => {
-                                      if (onAddSongToSetlist) {
-                                        onAddSongToSetlist(song.id, st.id);
-                                      }
-                                      setPickerSongId(null);
-                                    }}
-                                    style={{
-                                      width: '100%',
-                                      textAlign: 'left',
-                                      padding: '6px 8px',
-                                      background: 'transparent',
-                                      border: 'none',
-                                      color: '#fff',
-                                      fontSize: '11px',
-                                      fontWeight: 600,
-                                      borderRadius: '4px',
-                                      cursor: 'pointer',
-                                      overflow: 'hidden',
-                                      textOverflow: 'ellipsis',
-                                      whiteSpace: 'nowrap',
-                                    }}
-                                    onMouseEnter={(e) => (e.currentTarget.style.background = '#1e293b')}
-                                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                                  >
-                                    🎼 {st.name}
-                                  </button>
-                                ))
+                                sortedSetlists.map((st) => {
+                                  const isUpcoming = Boolean(st.serviceDate && st.serviceDate >= todayStr);
+                                  const dateTag = formatServiceDate(st.serviceDate);
+                                  const hasDateInName = dateTag && st.name.toLowerCase().includes(dateTag.toLowerCase());
+                                  return (
+                                    <button
+                                      key={st.id}
+                                      onClick={() => {
+                                        if (onAddSongToSetlist) {
+                                          onAddSongToSetlist(song.id, st.id);
+                                        }
+                                        setPickerSongId(null);
+                                      }}
+                                      style={{
+                                        width: '100%',
+                                        textAlign: 'left',
+                                        padding: '6px 8px',
+                                        background: 'transparent',
+                                        border: 'none',
+                                        color: '#fff',
+                                        fontSize: '11px',
+                                        fontWeight: 600,
+                                        borderRadius: '4px',
+                                        cursor: 'pointer',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap',
+                                      }}
+                                      onMouseEnter={(e) => (e.currentTarget.style.background = '#1e293b')}
+                                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                    >
+                                      {isUpcoming ? '✨ ' : '🎼 '}{st.name}{dateTag && !hasDateInName ? ` • ${dateTag}` : ''}
+                                    </button>
+                                  );
+                                })
                               )}
                               <button
                                 type="button"
