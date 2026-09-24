@@ -16,6 +16,7 @@ type Registration = {
   fullName: string;
   age: number;
   phone: string;
+  rolePreference?: string;
   area: string;
   createdAt: string;
   status: string;
@@ -34,6 +35,7 @@ export default function LifeGroupAdminClient({
   const [searchQuery, setSearchQuery] = useState("");
   const [areaFilter, setAreaFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [rolePreferenceFilter, setRolePreferenceFilter] = useState("");
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -45,7 +47,7 @@ export default function LifeGroupAdminClient({
 
   // Edit State
   const [editingRegistrant, setEditingRegistrant] = useState<Registration | null>(null);
-  const [editForm, setEditForm] = useState({ fullName: "", age: "", phone: "", areaOption: "", otherArea: "" });
+  const [editForm, setEditForm] = useState({ fullName: "", age: "", phone: "", rolePreference: "discipled", areaOption: "", otherArea: "" });
   const [editError, setEditError] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
 
@@ -98,15 +100,22 @@ export default function LifeGroupAdminClient({
         matchStatus = r.status === statusFilter;
       }
 
-      return matchSearch && matchArea && matchStatus;
+      let matchRole = true;
+      if (rolePreferenceFilter) {
+        matchRole = (r.rolePreference || "discipled") === rolePreferenceFilter;
+      }
+
+      return matchSearch && matchArea && matchStatus && matchRole;
     });
-  }, [registrations, searchQuery, areaFilter, statusFilter]);
+  }, [registrations, searchQuery, areaFilter, statusFilter, rolePreferenceFilter]);
 
   // Dynamic distribution stats
   const stats = useMemo(() => {
     const total = registrations.length;
     const pending = registrations.filter(r => r.status === "pending").length;
     const appointed = registrations.filter(r => r.status === "appointed").length;
+    const discipled = registrations.filter(r => r.rolePreference !== "discipler").length;
+    const discipler = registrations.filter(r => r.rolePreference === "discipler").length;
 
     let central = 0;
     let north = 0;
@@ -120,7 +129,7 @@ export default function LifeGroupAdminClient({
       else others++;
     });
 
-    return { total, pending, appointed, central, north, southWest, others };
+    return { total, pending, appointed, discipled, discipler, central, north, southWest, others };
   }, [registrations]);
 
   // Actions: Assign Leader
@@ -212,6 +221,7 @@ export default function LifeGroupAdminClient({
       fullName: r.fullName,
       age: String(r.age),
       phone: r.phone || "",
+      rolePreference: r.rolePreference || "discipled",
       areaOption: opt,
       otherArea: spec
     });
@@ -244,6 +254,7 @@ export default function LifeGroupAdminClient({
           fullName: editForm.fullName,
           age: parseInt(editForm.age, 10),
           phone: editForm.phone,
+          rolePreference: editForm.rolePreference,
           area: finalArea
         })
       });
@@ -290,12 +301,13 @@ export default function LifeGroupAdminClient({
 
   // UTF-8 CSV Export
   const handleExportCSV = () => {
-    const headers = ["Date Registered", "Full Name", "Age", "Phone", "Area", "Status", "Assigned Leader"];
+    const headers = ["Date Registered", "Full Name", "Age", "Phone", "Goal / Role", "Area", "Status", "Assigned Leader"];
     const rows = filtered.map((r) => [
       new Date(r.createdAt).toLocaleDateString("en-PH", { year: "numeric", month: "2-digit", day: "2-digit" }),
       r.fullName,
       r.age,
       r.phone,
+      r.rolePreference === "discipler" ? "Want to be a Discipler" : "Want to be Discipled",
       r.area,
       r.status,
       r.assignedLeader ? `${r.assignedLeader.firstName} ${r.assignedLeader.lastName}` : "Unassigned"
@@ -405,6 +417,21 @@ export default function LifeGroupAdminClient({
           <div style={{ fontSize: "0.8125rem", color: "#64748b", marginTop: "0.25rem" }}>Appointed / Grouped</div>
         </div>
 
+        {/* Goal Preference Breakdown */}
+        <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "1.25rem", boxShadow: "0 1px 2px rgba(0,0,0,0.02)", borderLeft: "4px solid #8b5cf6" }}>
+          <div style={{ fontSize: "0.75rem", color: "#475569", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "0.45rem" }}>Goal Breakdown</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem", fontSize: "0.8125rem" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ color: "#0369a1", fontWeight: 600 }}>🌱 Be Discipled:</span>
+              <strong style={{ color: "#0f172a" }}>{stats.discipled}</strong>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ color: "#7e22ce", fontWeight: 600 }}>📖 Be a Discipler:</span>
+              <strong style={{ color: "#0f172a" }}>{stats.discipler}</strong>
+            </div>
+          </div>
+        </div>
+
         {/* Area Distribution Summary */}
         <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "1.25rem", boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
           <div style={{ fontSize: "0.75rem", color: "#475569", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "0.35rem" }}>Area Segments</div>
@@ -427,6 +454,17 @@ export default function LifeGroupAdminClient({
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{ width: "100%", padding: "0.5rem 0.75rem", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "0.875rem", outline: "none" }}
           />
+        </div>
+        <div style={{ width: "190px" }}>
+          <select
+            value={rolePreferenceFilter}
+            onChange={(e) => setRolePreferenceFilter(e.target.value)}
+            style={{ width: "100%", padding: "0.5rem 0.75rem", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "0.875rem", outline: "none", background: "white" }}
+          >
+            <option value="">All Goals ({stats.total})</option>
+            <option value="discipled">🌱 Want to be Discipled ({stats.discipled})</option>
+            <option value="discipler">📖 Want to be a Discipler ({stats.discipler})</option>
+          </select>
         </div>
         <div style={{ width: "200px" }}>
           <select
@@ -472,6 +510,7 @@ export default function LifeGroupAdminClient({
                   <th style={{ padding: "1rem", color: "#475569", fontWeight: 700 }}>Full Name</th>
                   <th style={{ padding: "1rem", color: "#475569", fontWeight: 700 }}>Age</th>
                   <th style={{ padding: "1rem", color: "#475569", fontWeight: 700 }}>Mobile Number</th>
+                  <th style={{ padding: "1rem", color: "#475569", fontWeight: 700 }}>Goal / Role</th>
                   <th style={{ padding: "1rem", color: "#475569", fontWeight: 700 }}>Area</th>
                   <th style={{ padding: "1rem", color: "#475569", fontWeight: 700 }}>Status</th>
                   <th style={{ padding: "1rem", color: "#475569", fontWeight: 700 }}>Assigned Pastor / Leader</th>
@@ -492,6 +531,39 @@ export default function LifeGroupAdminClient({
                     </td>
                     <td style={{ padding: "1rem", color: "#0f172a" }}>
                       {r.phone || "—"}
+                    </td>
+                    <td style={{ padding: "1rem" }}>
+                      {r.rolePreference === "discipler" ? (
+                        <span style={{
+                          fontSize: "0.72rem",
+                          fontWeight: 700,
+                          padding: "0.2rem 0.55rem",
+                          borderRadius: "999px",
+                          background: "#f3e8ff",
+                          color: "#7e22ce",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                          whiteSpace: "nowrap"
+                        }}>
+                          📖 Discipler
+                        </span>
+                      ) : (
+                        <span style={{
+                          fontSize: "0.72rem",
+                          fontWeight: 700,
+                          padding: "0.2rem 0.55rem",
+                          borderRadius: "999px",
+                          background: "#e0f2fe",
+                          color: "#0369a1",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                          whiteSpace: "nowrap"
+                        }}>
+                          🌱 Discipled
+                        </span>
+                      )}
                     </td>
                     <td style={{ padding: "1rem", color: "#475569" }}>
                       {r.area}
@@ -602,21 +674,33 @@ export default function LifeGroupAdminClient({
                 boxShadow: "0 1px 2px rgba(0,0,0,0.02)"
               }}
             >
-              {/* Card Header: Date & Status Badge */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+              {/* Card Header: Date & Badges */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem", flexWrap: "wrap", gap: "6px" }}>
                 <span style={{ fontSize: "0.75rem", color: "#64748b" }}>
                   {new Date(r.createdAt).toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" })}
                 </span>
-                <span style={{
-                  fontSize: "0.7rem",
-                  fontWeight: 700,
-                  padding: "0.15rem 0.5rem",
-                  borderRadius: "999px",
-                  background: r.status === "appointed" ? "#ecfdf5" : "#fef3c7",
-                  color: r.status === "appointed" ? "#059669" : "#d97706"
-                }}>
-                  {r.status === "appointed" ? "Appointed" : "Pending"}
-                </span>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span style={{
+                    fontSize: "0.7rem",
+                    fontWeight: 700,
+                    padding: "0.15rem 0.5rem",
+                    borderRadius: "999px",
+                    background: r.rolePreference === "discipler" ? "#f3e8ff" : "#e0f2fe",
+                    color: r.rolePreference === "discipler" ? "#7e22ce" : "#0369a1"
+                  }}>
+                    {r.rolePreference === "discipler" ? "📖 Discipler" : "🌱 Discipled"}
+                  </span>
+                  <span style={{
+                    fontSize: "0.7rem",
+                    fontWeight: 700,
+                    padding: "0.15rem 0.5rem",
+                    borderRadius: "999px",
+                    background: r.status === "appointed" ? "#ecfdf5" : "#fef3c7",
+                    color: r.status === "appointed" ? "#059669" : "#d97706"
+                  }}>
+                    {r.status === "appointed" ? "Appointed" : "Pending"}
+                  </span>
+                </div>
               </div>
 
               {/* Registrant Name, Age, and Phone */}
@@ -854,6 +938,21 @@ export default function LifeGroupAdminClient({
                   required
                   style={{ width: "100%", padding: "0.625rem 0.875rem", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "0.9rem", outline: "none" }}
                 />
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "0.8125rem", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.35rem" }}>
+                  Goal / Role Preference
+                </label>
+                <select
+                  value={editForm.rolePreference}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, rolePreference: e.target.value }))}
+                  required
+                  style={{ width: "100%", padding: "0.625rem 0.875rem", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "0.9rem", outline: "none", background: "white" }}
+                >
+                  <option value="discipled">🌱 I want to be discipled</option>
+                  <option value="discipler">📖 I want to be a discipler</option>
+                </select>
               </div>
 
               <div>

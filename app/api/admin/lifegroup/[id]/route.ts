@@ -25,7 +25,7 @@ export async function PATCH(
     }
 
     const body = await req.json();
-    const { fullName, age, phone, area, status, assignedLeaderId, sendNotificationSms } = body;
+    const { fullName, age, phone, area, status, assignedLeaderId, rolePreference, sendNotificationSms } = body;
 
     const updateData: any = {};
     if (fullName !== undefined) {
@@ -48,6 +48,13 @@ export async function PATCH(
         return NextResponse.json({ error: "Phone number is required." }, { status: 400 });
       }
       updateData.phone = phone.trim();
+    }
+
+    if (rolePreference !== undefined) {
+      if (rolePreference !== "discipled" && rolePreference !== "discipler") {
+        return NextResponse.json({ error: "Invalid goal preference." }, { status: 400 });
+      }
+      updateData.rolePreference = rolePreference;
     }
 
     if (area !== undefined) {
@@ -90,7 +97,8 @@ export async function PATCH(
     if (sendNotificationSms && updated.assignedLeader && updated.assignedLeader.phone) {
       try {
         const areaShort = updated.area.split(" (")[0];
-        const smsText = `HGF LIFE Group: You are appointed to handle cell group request for ${updated.fullName} (${updated.age}yo, Phone: ${updated.phone}, Area: ${areaShort}). Details: connect.houseofgrace.ph/admin/lifegroup. "Let's go and make disciple, let's do LIFE together!"`;
+        const prefTag = updated.rolePreference === "discipler" ? "Discipler" : "Discipled";
+        const smsText = `HGF LIFE Group: You are appointed to handle cell group request for ${updated.fullName} [${prefTag}] (${updated.age}yo, Phone: ${updated.phone}, Area: ${areaShort}). Details: connect.houseofgrace.ph/admin/lifegroup. "Let's go and make disciple, let's do LIFE together!"`;
         const { sendSms } = await import("@/lib/sms");
         await sendSms(updated.assignedLeader.phone, smsText, updated.assignedLeader.id);
       } catch (smsError) {

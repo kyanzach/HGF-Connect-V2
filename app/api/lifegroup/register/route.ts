@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { fullName, age, phone, area } = body;
+    const { fullName, age, phone, area, rolePreference } = body;
 
     // Validation
     if (!fullName || typeof fullName !== "string" || !fullName.trim()) {
@@ -30,11 +30,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Area description must be 150 characters or less." }, { status: 400 });
     }
 
+    const validRolePreference = rolePreference === "discipler" ? "discipler" : "discipled";
+
     const registration = await db.lifeGroupRegistration.create({
       data: {
         fullName: fullName.trim(),
         age: parsedAge,
         phone: phone.trim(),
+        rolePreference: validRolePreference,
         area: area.trim(),
       },
     });
@@ -60,7 +63,8 @@ export async function POST(req: Request) {
 
       // Shorten area to first section before parenthesis list
       const areaShort = registration.area.split(" (")[0];
-      const smsText = `HGF LIFE Group: New signup. Name: ${registration.fullName}, Age: ${registration.age}, Phone: ${registration.phone}, Area: ${areaShort}. Details: connect.houseofgrace.ph/admin/lifegroup. "Let's go and make disciple, let's do LIFE together!"`;
+      const prefTag = registration.rolePreference === "discipler" ? "Wants to be a Discipler" : "Wants to be Discipled";
+      const smsText = `HGF LIFE Group: New signup [${prefTag}]. Name: ${registration.fullName}, Age: ${registration.age}, Phone: ${registration.phone}, Area: ${areaShort}. Details: connect.houseofgrace.ph/admin/lifegroup. "Let's go and make disciple, let's do LIFE together!"`;
 
       const { sendSms } = await import("@/lib/sms");
       for (const leader of leaders) {

@@ -5,6 +5,27 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.57.0] — 2026-09-24
+### Added — LIFE Group Registration: Disciple vs. Discipler Goal Preference
+- **Interactive UI/UX Preference Cards (`JoinFormClient.tsx`)**:
+  - Added a tactile, mobile-friendly selection widget directly after the Mobile Number input on `/lifegroup/join`.
+  - Introduced two intuitive goal options with custom checkmark rings, icons, and descriptions:
+    - **🌱 I want to be discipled**: *"I want to learn, grow in faith, and be mentored in a small group."*
+    - **📖 I want to be a discipler**: *"I want to mentor, facilitate, and help disciple others in their walk."*
+  - Included the chosen goal on the registration success screen along with tailored next steps (connecting to small group vs pastor connecting for leadership & cell group facilitation).
+- **Database Schema Migration (`schema.prisma`)**:
+  - Added `rolePreference` (`VARCHAR(30) NOT NULL DEFAULT 'discipled'`) to `LifeGroupRegistration` model with column mapping `role_preference`.
+  - Migrated production MySQL database and regenerated Prisma Client.
+- **Registration & Admin APIs (`route.ts`)**:
+  - Updated `/api/lifegroup/register` to validate and save `rolePreference`.
+  - Enhanced pastor/leader SMS notification alert to include goal tag `[Wants to be Discipled]` or `[Wants to be a Discipler]`.
+  - Updated `/api/admin/lifegroup/[id]` PATCH endpoint to support updating `rolePreference` and include it in leader appointment SMS notifications.
+- **Admin Management Panel (`LifeGroupAdminClient.tsx`)**:
+  - Added a **Goal Breakdown** card to the admin analytics dashboard displaying active counts of attendees wanting to be discipled vs disciplers.
+  - Added a **Goal Filter** dropdown in the filter controls to isolate registrants by role preference.
+  - Added a stylized `Goal / Role` badge column (`🌱 Discipled` / `📖 Discipler`) to both the desktop data table and mobile cards.
+  - Added role preference selector in the Edit Registrant modal and included the field in UTF-8 CSV exports.
+
 ## [v2.56.0] — 2026-09-22
 ### Added — HGF Band Dedicated Native Android App & iPad Stage Experience (Sunday Edition)
 - **Dedicated Android Stage APK (`ph.houseofgrace.band`)**:
