@@ -67,6 +67,7 @@ class MainActivity : AppCompatActivity() {
         swipeRefreshLayout.setColorSchemeResources(R.color.stage_teal)
         swipeRefreshLayout.setProgressBackgroundColorSchemeResource(R.color.stage_background)
         swipeRefreshLayout.setOnRefreshListener {
+            webView.clearCache(true)
             webView.reload()
         }
 

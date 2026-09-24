@@ -245,13 +245,13 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     if (isDrawingActive || isRefreshing) return;
     if (!containerRef.current || touchStartY.current === null) return;
 
-    // Only allow pull-to-refresh at the top of the sheet
-    if (containerRef.current.scrollTop <= 0) {
+    // Allow pull-to-refresh at the top of the sheet (allowing for subpixel rendering <= 2px)
+    if (containerRef.current.scrollTop <= 2) {
       const currentY = e.touches[0].clientY;
       const diffY = currentY - touchStartY.current;
       if (diffY > 0) {
-        // Elastic rubber-band resistance
-        const damped = Math.min(100, Math.pow(diffY, 0.82) * 2);
+        // Snappy responsive elastic resistance
+        const damped = Math.min(85, Math.pow(diffY, 0.88) * 1.5);
         setPullDistance(damped);
       }
     } else {
@@ -262,28 +262,53 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   const handleTouchEnd = async (e: React.TouchEvent) => {
     if (isDrawingActive) return;
 
-    if (pullDistance >= 60 && onRefresh && !isRefreshing) {
+    const startX = touchStartX.current;
+    const startY = touchStartY.current;
+    touchStartX.current = null;
+    touchStartY.current = null;
+
+    // Trigger hard refresh when pulled past responsive threshold (48px)
+    if (pullDistance >= 48 && !isRefreshing) {
       setIsRefreshing(true);
-      setPullDistance(50);
+      setPullDistance(46);
       try {
-        await onRefresh();
+        // 1. Invalidate service worker cache to check for new app build on cloud
+        if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+          try {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map((r) => r.update().catch(() => {})));
+          } catch (_) {}
+        }
+
+        // 2. Fetch latest songs and setlists in parallel
+        if (onRefresh) {
+          await Promise.race([
+            onRefresh(),
+            new Promise((resolve) => setTimeout(resolve, 1000)),
+          ]);
+        }
+
         setRefreshSuccess(true);
+
+        // 3. Perform hard page reload to mount new application code, components, and assets
         setTimeout(() => {
-          setRefreshSuccess(false);
-          setIsRefreshing(false);
-          setPullDistance(0);
-        }, 700);
+          if (typeof window !== 'undefined') {
+            window.location.reload();
+          }
+        }, 380);
       } catch (_) {
-        setIsRefreshing(false);
-        setPullDistance(0);
+        if (typeof window !== 'undefined') {
+          window.location.reload();
+        }
       }
+      return; // Do NOT trigger horizontal song navigation
     } else {
       setPullDistance(0);
     }
 
-    if (touchStartX.current === null || touchStartY.current === null) return;
-    const diffX = e.changedTouches[0].clientX - touchStartX.current;
-    const diffY = e.changedTouches[0].clientY - touchStartY.current;
+    if (startX === null || startY === null) return;
+    const diffX = e.changedTouches[0].clientX - startX;
+    const diffY = e.changedTouches[0].clientY - startY;
 
     // Must be predominantly horizontal swipe > 60px
     if (Math.abs(diffX) > 60 && Math.abs(diffX) > Math.abs(diffY) * 1.5) {
@@ -293,8 +318,6 @@ export const SongSheet: React.FC<SongSheetProps> = ({
         onSwipeRight(); // Swipe Right -> Prev song
       }
     }
-    touchStartX.current = null;
-    touchStartY.current = null;
   };
 
   if (!song) {
@@ -343,13 +366,50 @@ export const SongSheet: React.FC<SongSheetProps> = ({
       }}
     >
       <style>{`
-        @keyframes hgfSpin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
+        @keyframes noteWave1 {
+          0%, 100% {
+            transform: translateY(0px) rotate(-6deg) scale(1);
+            opacity: 0.8;
+          }
+          50% {
+            transform: translateY(-8px) rotate(14deg) scale(1.3);
+            opacity: 1;
+            filter: drop-shadow(0 0 8px rgba(78, 177, 203, 0.9));
+          }
+        }
+        @keyframes noteWave2 {
+          0%, 100% {
+            transform: translateY(0px) rotate(6deg) scale(1);
+            opacity: 0.8;
+          }
+          50% {
+            transform: translateY(-10px) rotate(-14deg) scale(1.35);
+            opacity: 1;
+            filter: drop-shadow(0 0 10px rgba(78, 177, 203, 0.95));
+          }
+        }
+        @keyframes noteWave3 {
+          0%, 100% {
+            transform: translateY(0px) rotate(-4deg) scale(1);
+            opacity: 0.8;
+          }
+          50% {
+            transform: translateY(-8px) rotate(12deg) scale(1.3);
+            opacity: 1;
+            filter: drop-shadow(0 0 8px rgba(78, 177, 203, 0.9));
+          }
+        }
+        @keyframes pillPulse {
+          0%, 100% {
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7), 0 0 12px rgba(78, 177, 203, 0.25);
+          }
+          50% {
+            box-shadow: 0 8px 28px rgba(0, 0, 0, 0.8), 0 0 20px rgba(78, 177, 203, 0.55);
+          }
         }
       `}</style>
 
-      {/* NATIVE PULL-TO-REFRESH PILL INDICATOR (iOS PWA & Android) */}
+      {/* NATIVE PULL-TO-REFRESH PILL INDICATOR WITH WAVING NOTE EMOJIS */}
       {(pullDistance > 0 || isRefreshing) && (
         <div
           style={{
@@ -360,48 +420,49 @@ export const SongSheet: React.FC<SongSheetProps> = ({
             justifyContent: 'center',
             alignItems: 'center',
             pointerEvents: 'none',
-            marginBottom: `${Math.max(0, pullDistance - 24)}px`,
-            transition: isRefreshing ? 'all 0.2s ease-out' : 'none',
+            marginBottom: `${Math.max(0, pullDistance - 20)}px`,
+            transition: isRefreshing ? 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)' : 'none',
           }}
         >
           <div
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '8px',
-              padding: '6px 14px',
-              borderRadius: '20px',
-              background: 'rgba(15, 23, 42, 0.94)',
-              border: '1px solid rgba(78, 177, 203, 0.45)',
-              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.6), 0 0 12px rgba(78, 177, 203, 0.25)',
-              backdropFilter: 'blur(8px)',
-              WebkitBackdropFilter: 'blur(8px)',
+              gap: '10px',
+              padding: '8px 18px',
+              borderRadius: '999px',
+              background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.96) 0%, rgba(10, 15, 26, 0.98) 100%)',
+              border: '1.5px solid rgba(78, 177, 203, 0.55)',
+              boxShadow: isRefreshing
+                ? '0 8px 30px rgba(0, 0, 0, 0.85), 0 0 20px rgba(78, 177, 203, 0.45)'
+                : '0 8px 24px rgba(0, 0, 0, 0.6), 0 0 12px rgba(78, 177, 203, 0.2)',
+              animation: isRefreshing ? 'pillPulse 1.5s ease-in-out infinite' : 'none',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
               color: '#4EB1CB',
-              fontSize: '12px',
+              fontSize: '13px',
               fontWeight: 700,
-              transform: `scale(${Math.min(1, 0.75 + (pullDistance / 100) * 0.25)})`,
-              opacity: Math.min(1, pullDistance / 35),
+              letterSpacing: '0.01em',
+              transform: `scale(${Math.min(1, 0.8 + (pullDistance / 80) * 0.2)})`,
+              opacity: Math.min(1, pullDistance / 26),
             }}
           >
             {isRefreshing ? (
               <>
                 {refreshSuccess ? (
                   <>
-                    <span style={{ fontSize: '14px', color: '#10b981' }}>✓</span>
-                    <span style={{ color: '#10b981' }}>Synced & Updated!</span>
+                    <span style={{ fontSize: '15px', color: '#10b981' }}>✓</span>
+                    <span style={{ color: '#10b981' }}>Latest version & charts loaded!</span>
                   </>
                 ) : (
                   <>
-                    <span
-                      style={{
-                        display: 'inline-block',
-                        animation: 'hgfSpin 0.8s linear infinite',
-                        fontSize: '13px',
-                      }}
-                    >
-                      🔄
-                    </span>
-                    <span>Syncing band charts...</span>
+                    {/* WAVING NOTE EMOJIS */}
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '16px' }}>
+                      <span style={{ display: 'inline-block', animation: 'noteWave1 0.75s ease-in-out infinite 0s' }}>🎵</span>
+                      <span style={{ display: 'inline-block', animation: 'noteWave2 0.75s ease-in-out infinite 0.15s' }}>🎶</span>
+                      <span style={{ display: 'inline-block', animation: 'noteWave3 0.75s ease-in-out infinite 0.3s' }}>🎵</span>
+                    </div>
+                    <span style={{ color: '#e2e8f0' }}>Reloading app & charts...</span>
                   </>
                 )}
               </>
@@ -410,14 +471,17 @@ export const SongSheet: React.FC<SongSheetProps> = ({
                 <span
                   style={{
                     display: 'inline-block',
-                    transform: `rotate(${Math.min(180, (pullDistance / 60) * 180)}deg)`,
-                    transition: 'transform 0.1s linear',
-                    fontSize: '13px',
+                    fontSize: '16px',
+                    transform: `translateY(${Math.min(3, (pullDistance / 48) * 3)}px) rotate(${Math.min(25, (pullDistance / 48) * 25)}deg) scale(${1 + (pullDistance / 90) * 0.2})`,
+                    transition: 'transform 0.08s ease-out',
+                    filter: pullDistance >= 48 ? 'drop-shadow(0 0 6px #4EB1CB)' : 'none',
                   }}
                 >
-                  ↓
+                  {pullDistance >= 48 ? '🎶' : '🎵'}
                 </span>
-                <span>{pullDistance >= 60 ? 'Release to sync charts' : 'Pull to sync'}</span>
+                <span style={{ color: pullDistance >= 48 ? '#38bdf8' : '#94a3b8' }}>
+                  {pullDistance >= 48 ? 'Release to hard reload app' : 'Pull down to hard refresh'}
+                </span>
               </>
             )}
           </div>

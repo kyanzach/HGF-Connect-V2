@@ -5,6 +5,19 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.62.0] — 2026-09-24
+### Enhanced — The Band Stage Tool: Pull-To-Hard-Refresh with Dancing Note Emojis & Snappy Touch Response
+- **Full App & Chart Hard Refresh on Pull-Down (`SongSheet.tsx`, `MainActivity.kt`)**:
+  - Pulling down from the top now performs a full application hard refresh, invalidating service worker caches to fetch the latest cloud release, code updates, bug fixes, and latest songs/setlists.
+  - Automatically executes `window.location.reload()` while seamlessly preserving the active setlist and viewed song from local storage.
+  - In Android APK, native `SwipeRefreshLayout` now also calls `webView.clearCache(true)` to guarantee fresh content on pull down.
+- **Waving Note Emoji Loading Animation (`SongSheet.tsx`)**:
+  - Replaced generic spinner with a rhythmic musical note wave animation (`🎵 🎶 🎵`) with staggered harmonic bounces, glow filters, and a deep glassmorphism pill.
+  - Added dynamic rotation and tilt while dragging down, transitioning to an active musical pulse upon release.
+- **Snappy, Non-Finicky Touch Physics (`SongSheet.tsx`)**:
+  - Lowered trigger threshold to 48px with subpixel scroll tolerance (`scrollTop <= 2`) for effortless 1-handed activation on mobile devices.
+  - Completely isolated swipe gestures to prevent unintended song switches when refreshing.
+
 ## [v2.61.0] — 2026-09-24
 ### Fixed & Enhanced — The Band Stage Tool: Local-First Zero-Latency Setlist Reordering, Instant Song Ingestion, Stabilized Drawing Strokes & Scoped Playback Dock
 - **Local-First Zero-Latency Setlist Sorting (`useSetlist.ts`)**:
