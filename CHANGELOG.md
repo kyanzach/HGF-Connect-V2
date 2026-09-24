@@ -5,6 +5,17 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.66.0] — 2026-09-24
+### Fixed & Enhanced — The Band Stage Tool: Ceiling & Floor Bounds Clamp & Two-Finger Gesture Lockout Fix
+- **Ceiling & Floor Boundaries Clamp (`DrawingCanvas.tsx`, `page.tsx`)**:
+  - Implemented strict ceiling clamping (`scrollTop >= 0`) across all drawing scroll mechanisms: two-finger touch panning, toolbar `▲ Up` / `▼ Down` buttons, mouse wheel, and bluetooth foot pedals.
+  - Eliminated the runaway negative over-scroll bug where pressing `▲ Up` or dragging two fingers downward would stretch into negative scroll space, pushing the song title down to the bottom and leaving an empty void between the top header and the title.
+  - Implemented strict floor clamping (`scrollTop <= maxScroll = scrollHeight - clientHeight`), preventing over-scrolling beyond the bottom lyrics into empty white/dark space.
+- **Two-Finger Scroll Gesture Lockout Fix (`DrawingCanvas.tsx`)**:
+  - Fixed gesture lockout where using the toolbar `▲ Up` or `▼ Down` buttons previously disabled two-finger touch scrolling.
+  - Guaranteed `isPanning` and touch delta tracking variables (`lastMidYRef`, `lastMidXRef`) are reset cleanly whenever touch count drops below 2 (`remaining < 2`) and whenever scroll buttons are clicked.
+  - Protected against `NaN` delta calculations by strictly enforcing `touches.length >= 2` before reading secondary touch coordinates, ensuring one-finger tap transitions never corrupt the two-finger pan engine.
+
 ## [v2.65.0] — 2026-09-24
 ### Fixed & Enhanced — The Band Stage Tool: Abuse-Proof Auto-Scroll Teleprompter & Instant Song Import Display
 - **Resilient, Abuse-Proof Auto-Scroll Engine (`SongSheet.tsx`)**:

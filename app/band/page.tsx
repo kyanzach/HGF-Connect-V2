@@ -471,10 +471,20 @@ export default function BandStagePage() {
     onNextSong: nextSong,
     onPrevSong: prevSong,
     onScrollDown: () => {
-      document.getElementById('sheetWrapper')?.scrollBy({ top: 320, behavior: 'smooth' });
+      const wrapper = document.getElementById('sheetWrapper');
+      if (wrapper) {
+        const maxScroll = Math.max(0, wrapper.scrollHeight - wrapper.clientHeight);
+        const currentTop = Math.max(0, Math.min(maxScroll, wrapper.scrollTop));
+        wrapper.scrollTo({ top: Math.min(maxScroll, currentTop + 320), behavior: 'smooth' });
+      }
     },
     onScrollUp: () => {
-      document.getElementById('sheetWrapper')?.scrollBy({ top: -320, behavior: 'smooth' });
+      const wrapper = document.getElementById('sheetWrapper');
+      if (wrapper) {
+        const maxScroll = Math.max(0, wrapper.scrollHeight - wrapper.clientHeight);
+        const currentTop = Math.max(0, Math.min(maxScroll, wrapper.scrollTop));
+        wrapper.scrollTo({ top: Math.max(0, currentTop - 320), behavior: 'smooth' });
+      }
     },
   });
 

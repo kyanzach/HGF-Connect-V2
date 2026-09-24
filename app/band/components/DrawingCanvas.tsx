@@ -344,8 +344,9 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     if (!isActive) return;
     const touches = e.touches;
 
-    if (touches.length === 1 && !isPanning.current) {
-      // 1 Finger: Start drawing
+    if (touches.length === 1) {
+      // Exactly 1 finger: We are in DRAWING mode, not panning
+      isPanning.current = false;
       isDrawing.current = true;
       const pos = getCanvasCoords(touches[0].clientX, touches[0].clientY);
 
@@ -356,7 +357,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         drawDotOnCanvas(pos);
       }
     } else if (touches.length >= 2) {
-      // 2 Fingers: Enter Two-Finger Pan/Scroll Mode!
+      // 2 or more fingers: Enter Two-Finger Pan/Scroll Mode
       isPanning.current = true;
 
       // Immediately abort and discard any single-finger stroke that just started
@@ -379,8 +380,9 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     if (!isActive) return;
     const touches = e.touches;
 
-    if (isPanning.current || touches.length >= 2) {
-      e.preventDefault(); // Stop native elasticity so we scroll container smoothly
+    // Two-finger Pan / Scroll ONLY when at least 2 touch points exist
+    if (touches.length >= 2) {
+      e.preventDefault(); // Stop native page bounce/elasticity
       if (!isPanning.current) {
         isPanning.current = true;
         if (isDrawing.current) {
@@ -392,6 +394,15 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
 
       const midY = (touches[0].clientY + touches[1].clientY) / 2;
       const midX = (touches[0].clientX + touches[1].clientX) / 2;
+
+      // Recover gracefully if previous mid was uninitialized or NaN
+      if (!lastMidYRef.current || isNaN(lastMidYRef.current)) {
+        lastMidYRef.current = midY;
+      }
+      if (!lastMidXRef.current || isNaN(lastMidXRef.current)) {
+        lastMidXRef.current = midX;
+      }
+
       const deltaY = midY - lastMidYRef.current;
       const deltaX = midX - lastMidXRef.current;
 
@@ -399,13 +410,29 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       lastMidXRef.current = midX;
 
       const wrapper = containerRef?.current || document.getElementById('sheetWrapper');
-      if (wrapper) {
-        wrapper.scrollTop -= deltaY;
-        wrapper.scrollLeft -= deltaX;
+      if (wrapper && !isNaN(deltaY)) {
+        const maxScroll = Math.max(0, wrapper.scrollHeight - wrapper.clientHeight);
+        // Strictly clamp nextScroll between ceiling (0) and floor (maxScroll)
+        const nextScroll = Math.max(0, Math.min(maxScroll, wrapper.scrollTop - deltaY));
+        wrapper.scrollTop = nextScroll;
+
+        if (!isNaN(deltaX)) {
+          const maxScrollX = Math.max(0, wrapper.scrollWidth - wrapper.clientWidth);
+          wrapper.scrollLeft = Math.max(0, Math.min(maxScrollX, wrapper.scrollLeft - deltaX));
+        }
       }
       return;
     }
 
+    // If touches dropped below 2, panning is terminated
+    if (isPanning.current) {
+      isPanning.current = false;
+      lastMidYRef.current = 0;
+      lastMidXRef.current = 0;
+      return;
+    }
+
+    // Single-finger Drawing: ONLY when exactly 1 finger is active and drawing flag is set
     if (isDrawing.current && touches.length === 1) {
       e.preventDefault(); // Prevent page bounce while drawing
       const pos = getCanvasCoords(touches[0].clientX, touches[0].clientY);
@@ -424,25 +451,29 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     if (!isActive) return;
     const remaining = e.touches.length;
 
-    if (isPanning.current) {
-      if (remaining === 0) {
-        isPanning.current = false;
-      }
-      return;
+    // If fewer than 2 fingers remain, PANNING MUST STOP
+    if (remaining < 2) {
+      isPanning.current = false;
+      lastMidYRef.current = 0;
+      lastMidXRef.current = 0;
     }
 
-    if (isDrawing.current && remaining === 0) {
-      isDrawing.current = false;
-      if (!isEraser && currentPoints.current.length > 0) {
-        commitCurrentStroke();
+    if (remaining === 0) {
+      if (isDrawing.current) {
+        isDrawing.current = false;
+        if (!isEraser && currentPoints.current.length > 0) {
+          commitCurrentStroke();
+        }
+        currentPoints.current = [];
       }
-      currentPoints.current = [];
     }
   };
 
   const handleTouchCancel = () => {
     isDrawing.current = false;
     isPanning.current = false;
+    lastMidYRef.current = 0;
+    lastMidXRef.current = 0;
     currentPoints.current = [];
     redraw();
   };
@@ -486,17 +517,33 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
     const wrapper = containerRef?.current || document.getElementById('sheetWrapper');
     if (wrapper) {
-      wrapper.scrollTop += e.deltaY;
-      wrapper.scrollLeft += e.deltaX;
+      const maxScroll = Math.max(0, wrapper.scrollHeight - wrapper.clientHeight);
+      wrapper.scrollTop = Math.max(0, Math.min(maxScroll, wrapper.scrollTop + e.deltaY));
+      const maxScrollX = Math.max(0, wrapper.scrollWidth - wrapper.clientWidth);
+      wrapper.scrollLeft = Math.max(0, Math.min(maxScrollX, wrapper.scrollLeft + e.deltaX));
     }
   };
 
   // ── Quick Scroll Buttons for Floating Toolbar ────────────────────────────
   const scrollSheet = (offset: number) => {
     const wrapper = containerRef?.current || document.getElementById('sheetWrapper');
-    if (wrapper) {
-      wrapper.scrollBy({ top: offset, behavior: 'smooth' });
-    }
+    if (!wrapper) return;
+
+    // Reset any touch/pan state to ensure gestures aren't locked out
+    isPanning.current = false;
+    isDrawing.current = false;
+    lastMidYRef.current = 0;
+    lastMidXRef.current = 0;
+
+    const maxScroll = Math.max(0, wrapper.scrollHeight - wrapper.clientHeight);
+    // Explicit ceiling at 0, explicit floor at maxScroll
+    const currentTop = Math.max(0, Math.min(maxScroll, wrapper.scrollTop));
+    const targetTop = Math.max(0, Math.min(maxScroll, currentTop + offset));
+
+    wrapper.scrollTo({
+      top: targetTop,
+      behavior: 'smooth',
+    });
   };
 
   const undo = () => {
