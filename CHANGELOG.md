@@ -5,6 +5,19 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.68.5] — 2026-09-25
+### Fixed & Enhanced — The Band Stage Tool: MD Global vs User-Level Personal Drawings & Stage Playback Dock Scoping
+- **Stage Playback Dock Visibility Scoping (`page.tsx`)**:
+  - Musical Director (MD, e.g. `Ren (MD)`) and Admin (e.g. `Ryan (Admin)`) now ALWAYS have playback controls and the bottom player dock visible for any song with an audio track.
+  - Regular musicians reading chord charts only see the player dock if they personally created or uploaded the track, keeping their screen uncluttered.
+  - Backfilled `uploadedBy: "user-ren"` across legacy tracks on droplet server (`Faith`, `Awesome In This Place`, `Oceans Where Feet May Fail`).
+- **Strict MD Global vs User-Level Personal Drawing Layers (`DrawingCanvas.tsx`, `page.tsx`, `/api/worship/drawings`)**:
+  - **MD Global Layer**: Only the Musical Director (`role === 'MD'`) has authority to make global drawings. MD strokes (`scope: 'global'`) are persisted to the server song definition and sync in real time across all band members on stage.
+  - **Personal User Layer**: Drawings made by non-MD users (including Ryan/Admin and regular musicians) are strictly user-level (`scope: 'user'`). They are saved to isolated user storage (`localStorage` + `/api/worship/drawings`) and NEVER overwrite the global song drawing.
+  - **Layered Visibility**: Non-MD musicians view the MD's global stage annotations with their own personal notes rendered seamlessly on top. Personal drawings from other non-MD members are completely isolated and invisible to others.
+  - Non-MD users cannot erase or clear the MD's global strokes, protecting the director's annotations during live performance.
+  - Migrated previously saved global strokes under `user-ryan` into private personal drawings on droplet server, removing them from the global song layer.
+
 ## [v2.68.4] — 2026-09-25
 ### Fixed & Enhanced — The Band Stage Tool: Upcoming-to-Previous Setlist Ordering Across All Selectors
 - **Upcoming-to-Previous Sorting Engine (`sortSetlists.ts`, `/api/worship/setlists`, `useSetlist.ts`)**:

@@ -188,14 +188,17 @@ export default function BandStagePage() {
   const [currentUser, setCurrentUser] = useState<BandUser | null>(null);
 
   // Scope backtrack playback dock:
-  // STRICT RULE: ONLY the specific user who created/uploaded the playback track can see it!
-  // Neither Admin nor MD see it unless THEY personally created/uploaded the track.
-  // Regular musicians, admins, and band members who did not upload this track will NEVER see the playback bar.
+  // MD (Musical Director) and Admin ALWAYS have stage playback controls for songs with audio.
+  // Regular musicians only see the playback bar if THEY personally uploaded the track.
   const isPlaybackDockVisible = useMemo(() => {
     if (!hasAudio || !currentSong?.audioTrack) return false;
     const track = currentSong.audioTrack;
 
     if (!currentUser?.id) return false;
+
+    // MD (Musical Director) and Admin ALWAYS have stage playback controls
+    const isMDOrAdmin = currentUser.role === 'MD' || currentUser.role === 'admin';
+    if (isMDOrAdmin) return true;
 
     const trackUploader = (track.uploadedBy || '').trim().toLowerCase();
     const currentUserId = (currentUser.id || '').trim().toLowerCase();
@@ -363,29 +366,70 @@ export default function BandStagePage() {
   }>({ open: false, feature: null });
 
   const [drawingSyncTick, setDrawingSyncTick] = useState<number>(0);
-  const [localSongStrokes, setLocalSongStrokes] = useState<Record<string, DrawingStroke[]>>({});
+  const [personalStrokesMap, setPersonalStrokesMap] = useState<Record<string, DrawingStroke[]>>({});
+  const [mdGlobalStrokesMap, setMdGlobalStrokesMap] = useState<Record<string, DrawingStroke[]>>({});
   const drawingSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastLocalStrokeTimeRef = useRef<number>(0);
 
   const getActiveDrawingStrokes = useCallback((songId: string | undefined): DrawingStroke[] => {
     if (!songId) return [];
-    if (localSongStrokes[songId] && localSongStrokes[songId].length > 0) {
-      return localSongStrokes[songId];
+    const isMd = currentUser?.role === 'MD';
+
+    // 1. Resolve MD Global Strokes
+    let mdStrokes: DrawingStroke[] = [];
+    if (mdGlobalStrokesMap[songId] && mdGlobalStrokesMap[songId].length > 0) {
+      mdStrokes = mdGlobalStrokesMap[songId];
+    } else if (currentSong?.id === songId && Array.isArray(currentSong.drawingStrokes)) {
+      mdStrokes = currentSong.drawingStrokes.filter((s) => s.scope === 'global' || s.role === 'MD');
     }
-    if (typeof window !== 'undefined') {
+    if (mdStrokes.length === 0 && typeof window !== 'undefined') {
       try {
-        const cached = localStorage.getItem(`hgf_drawings_${songId}`);
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        const cachedMd = localStorage.getItem(`hgf_md_drawings_${songId}`);
+        if (cachedMd) {
+          const parsed = JSON.parse(cachedMd);
+          if (Array.isArray(parsed) && parsed.length > 0) mdStrokes = parsed;
         }
       } catch (_) {}
     }
-    if (currentSong?.id === songId && Array.isArray(currentSong.drawingStrokes)) {
-      return currentSong.drawingStrokes;
+
+    // If logged in as MD, MD is author of the global layer — return MD global strokes
+    if (isMd) {
+      return mdStrokes;
     }
-    return [];
-  }, [localSongStrokes, currentSong]);
+
+    // 2. Resolve Current User's Personal Strokes
+    const currentUserId = currentUser?.id || 'guest';
+    const personalKey = `${currentUserId}_${songId}`;
+    let myPersonalStrokes: DrawingStroke[] = [];
+
+    if (personalStrokesMap[personalKey]) {
+      myPersonalStrokes = personalStrokesMap[personalKey];
+    } else if (typeof window !== 'undefined') {
+      try {
+        const cachedUser = localStorage.getItem(`hgf_user_drawings_${currentUserId}_${songId}`);
+        if (cachedUser) {
+          const parsed = JSON.parse(cachedUser);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            myPersonalStrokes = parsed;
+          }
+        } else if (currentUserId === 'user-ryan') {
+          // Migration: recover legacy strokes drawn by Ryan on this device
+          const legacy = localStorage.getItem(`hgf_drawings_${songId}`);
+          if (legacy) {
+            const parsed = JSON.parse(legacy);
+            if (Array.isArray(parsed)) {
+              myPersonalStrokes = parsed.filter(
+                (s: DrawingStroke) => s.userId === 'user-ryan' || s.authorName?.includes('Ryan')
+              );
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    // Non-MD user sees MD's global strokes PLUS their own personal annotations on top!
+    return [...mdStrokes, ...myPersonalStrokes];
+  }, [currentUser, mdGlobalStrokesMap, personalStrokesMap, currentSong]);
 
   const handleImportScrapedSong = async (newSong: Song, addToSetlist = false) => {
     const targetSetId = addToSetlist && activeSetlistId ? activeSetlistId : undefined;
@@ -636,19 +680,30 @@ export default function BandStagePage() {
     setTargetKey(activeSongMdDefaults.key);
   };
 
-  // Load strokes from localStorage fallback on song switch
+  // Hydrate user-level personal strokes from server when song/user changes
   useEffect(() => {
-    if (currentSong?.id) {
-      const strokes = getActiveDrawingStrokes(currentSong.id);
-      if (strokes.length > 0) {
-        currentSong.drawingStrokes = strokes;
-        setLocalSongStrokes((prev) => ({
-          ...prev,
-          [currentSong.id]: strokes,
-        }));
-      }
-    }
-  }, [currentSong?.id, getActiveDrawingStrokes]);
+    if (!currentSong?.id || !currentUser?.id || currentUser.role === 'MD') return;
+    const sId = currentSong.id;
+    const uId = currentUser.id;
+
+    fetch(`/api/worship/drawings?userId=${encodeURIComponent(uId)}&songId=${encodeURIComponent(sId)}`, {
+      cache: 'no-store',
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && Array.isArray(data.strokes) && data.strokes.length > 0) {
+          setPersonalStrokesMap((prev) => ({
+            ...prev,
+            [`${uId}_${sId}`]: data.strokes,
+          }));
+          try {
+            localStorage.setItem(`hgf_user_drawings_${uId}_${sId}`, JSON.stringify(data.strokes));
+          } catch (_) {}
+          setDrawingSyncTick((prev) => prev + 1);
+        }
+      })
+      .catch(() => {});
+  }, [currentSong?.id, currentUser?.id, currentUser?.role]);
 
   // Bluetooth Pedal Listeners
   useFootPedal({
@@ -864,38 +919,78 @@ export default function BandStagePage() {
     if (!currentSong) return;
     const songId = currentSong.id;
     lastLocalStrokeTimeRef.current = Date.now();
-    currentSong.drawingStrokes = strokes;
+    const isMd = currentUser?.role === 'MD';
 
-    setLocalSongStrokes((prev) => ({
-      ...prev,
-      [songId]: strokes,
-    }));
+    if (isMd) {
+      // ── MD GLOBAL DRAWING LAYER ──
+      // When MD draws or erases, update global song strokes for all band members
+      const globalStrokes = strokes.filter((s) => s.scope === 'global' || s.role === 'MD');
+      currentSong.drawingStrokes = globalStrokes;
+      setMdGlobalStrokesMap((prev) => ({
+        ...prev,
+        [songId]: globalStrokes,
+      }));
 
-    // Persist to local cache immediately
-    try {
-      localStorage.setItem(`hgf_drawings_${songId}`, JSON.stringify(strokes));
-    } catch (_) {}
-
-    // Debounced persist to server so team members receive annotations in real time
-    if (drawingSaveTimerRef.current) clearTimeout(drawingSaveTimerRef.current);
-    drawingSaveTimerRef.current = setTimeout(async () => {
       try {
-        await fetch('/api/worship', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: songId,
-            title: currentSong.title,
-            drawingStrokes: strokes,
-          }),
-        });
-      } catch (err) {
-        console.error('Failed to sync drawing strokes to server:', err);
-      }
-    }, 600);
+        localStorage.setItem(`hgf_md_drawings_${songId}`, JSON.stringify(globalStrokes));
+      } catch (_) {}
+
+      // Debounced persist to server so all team members receive MD annotations in real time
+      if (drawingSaveTimerRef.current) clearTimeout(drawingSaveTimerRef.current);
+      drawingSaveTimerRef.current = setTimeout(async () => {
+        try {
+          await fetch('/api/worship', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: songId,
+              title: currentSong.title,
+              drawingStrokes: globalStrokes,
+            }),
+          });
+        } catch (err) {
+          console.error('Failed to sync MD drawing strokes to server:', err);
+        }
+      }, 600);
+    } else {
+      // ── PERSONAL USER-LEVEL DRAWING LAYER ──
+      // When non-MD (e.g. Ryan who is Admin, or any musician) draws, save strictly to personal storage
+      const currentUserId = currentUser?.id || 'guest';
+      const personalKey = `${currentUserId}_${songId}`;
+      const myPersonalStrokes = strokes.filter(
+        (s) => s.userId === currentUserId || (!s.userId && s.scope === 'user')
+      );
+
+      setPersonalStrokesMap((prev) => ({
+        ...prev,
+        [personalKey]: myPersonalStrokes,
+      }));
+
+      try {
+        localStorage.setItem(`hgf_user_drawings_${currentUserId}_${songId}`, JSON.stringify(myPersonalStrokes));
+      } catch (_) {}
+
+      // Debounced persist to personal user drawings API
+      if (drawingSaveTimerRef.current) clearTimeout(drawingSaveTimerRef.current);
+      drawingSaveTimerRef.current = setTimeout(async () => {
+        try {
+          await fetch('/api/worship/drawings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: currentUserId,
+              songId,
+              strokes: myPersonalStrokes,
+            }),
+          });
+        } catch (err) {
+          console.error('Failed to save user personal drawings:', err);
+        }
+      }, 600);
+    }
   };
 
-  // Real-time synchronization of drawing annotations across devices
+  // Real-time synchronization of MD global drawing annotations across devices
   useEffect(() => {
     if (!currentSong?.id) return;
 
@@ -911,22 +1006,24 @@ export default function BandStagePage() {
         if (!res.ok) return;
         const remoteSong: Song = await res.json();
         if (remoteSong && Array.isArray(remoteSong.drawingStrokes)) {
-          const currentLocal = getActiveDrawingStrokes(currentSong.id);
-          // Safety: never overwrite existing local strokes with empty server strokes!
-          if (remoteSong.drawingStrokes.length === 0 && currentLocal.length > 0) {
-            return;
-          }
+          const remoteMdStrokes = remoteSong.drawingStrokes.filter(
+            (s) => s.scope === 'global' || s.role === 'MD'
+          );
+          const currentMdStrokes = (currentSong.drawingStrokes || []).filter(
+            (s) => s.scope === 'global' || s.role === 'MD'
+          );
 
-          const currentJson = JSON.stringify(currentLocal || []);
-          const remoteJson = JSON.stringify(remoteSong.drawingStrokes);
+          const currentJson = JSON.stringify(currentMdStrokes);
+          const remoteJson = JSON.stringify(remoteMdStrokes);
+
           if (currentJson !== remoteJson) {
-            currentSong.drawingStrokes = remoteSong.drawingStrokes;
-            setLocalSongStrokes((prev) => ({
+            currentSong.drawingStrokes = remoteMdStrokes;
+            setMdGlobalStrokesMap((prev) => ({
               ...prev,
-              [currentSong.id]: remoteSong.drawingStrokes || [],
+              [currentSong.id]: remoteMdStrokes,
             }));
             try {
-              localStorage.setItem(`hgf_drawings_${currentSong.id}`, remoteJson);
+              localStorage.setItem(`hgf_md_drawings_${currentSong.id}`, remoteJson);
             } catch (_) {}
             setDrawingSyncTick((prev) => prev + 1);
           }
@@ -935,7 +1032,7 @@ export default function BandStagePage() {
     }, 3500);
 
     return () => clearInterval(syncInterval);
-  }, [currentSong?.id, isDrawingActive, getActiveDrawingStrokes]);
+  }, [currentSong?.id, isDrawingActive]);
 
   const handleSaveAsMdKey = async (newKey: string) => {
     if (!currentSong || currentUser?.role !== 'MD') return;
@@ -1097,7 +1194,7 @@ export default function BandStagePage() {
         onRefresh={refreshData}
         drawingCanvasElement={
           <DrawingCanvas
-            key={`drawing_${currentSong?.id}`}
+            key={`drawing_${currentSong?.id}_${currentUser?.id || 'guest'}_${drawingSyncTick}`}
             isActive={isDrawingActive}
             onClose={() => setIsDrawingActive(false)}
             currentUser={currentUser}

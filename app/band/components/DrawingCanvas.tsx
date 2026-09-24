@@ -41,7 +41,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   const lastMidYRef = useRef<number>(0);
   const lastMidXRef = useRef<number>(0);
 
-  const isMdOrAdmin = currentUser?.role === 'MD' || currentUser?.role === 'admin';
+  const isMd = currentUser?.role === 'MD';
 
   useEffect(() => {
     setMounted(true);
@@ -54,19 +54,21 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     }
   }, [savedStrokes]);
 
-  // Determine which strokes are visible based on user role and showAllMembers toggle
+  // Determine which strokes are visible based on MD global authority and user-level scope
   const getVisibleStrokes = useCallback(() => {
-    if (showAllMembers || isMdOrAdmin) {
-      return strokes;
-    }
-
     return strokes.filter((s) => {
-      if (s.scope === 'global' || !s.scope) return true;
-      if (currentUser && s.userId === currentUser.id) return true;
-      if (!currentUser && (s.userId === 'guest' || s.scope === 'user')) return true;
+      // 1. Global strokes created by MD (or role MD) are visible to everyone
+      if (s.scope === 'global' || s.role === 'MD') return true;
+
+      // 2. Personal user-level strokes: ONLY visible to the current author
+      if (currentUser?.id && s.userId === currentUser.id) return true;
+
+      // 3. Fallback for guest mode if not logged in
+      if (!currentUser?.id && (s.userId === 'guest' || !s.userId)) return true;
+
       return false;
     });
-  }, [strokes, isMdOrAdmin, showAllMembers, currentUser]);
+  }, [strokes, currentUser]);
 
   // High-fidelity rendering with CSS-pixel coordinates & DPR scaling
   const redraw = useCallback(() => {
@@ -267,8 +269,8 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
 
       setStrokes((prevStrokes) => {
         const remaining = prevStrokes.filter((s) => {
-          if (!isMdOrAdmin && s.scope === 'global') return true;
-          if (!isMdOrAdmin && s.userId !== currentUser?.id && s.userId !== 'guest') return true;
+          if (!isMd && (s.scope === 'global' || s.role === 'MD')) return true;
+          if (!isMd && s.userId !== currentUser?.id && s.userId !== 'guest') return true;
 
           const hit = s.points.some((p) => {
             const px = p.x !== undefined ? p.x : (p.nx !== undefined ? p.nx * cssW : 0);
@@ -285,7 +287,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         return prevStrokes;
       });
     },
-    [currentUser, isMdOrAdmin, onSaveStrokes]
+    [currentUser, isMd, onSaveStrokes]
   );
 
   // Draw dot directly on canvas
@@ -349,9 +351,9 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       color,
       width: lineWidth,
       points: [...currentPoints.current],
-      scope: isMdOrAdmin ? 'global' : 'user',
+      scope: isMd ? 'global' : 'user',
       userId: currentUser?.id || 'guest',
-      authorName: currentUser?.displayName || (currentUser?.role === 'admin' ? 'Admin' : 'Musician'),
+      authorName: currentUser?.displayName || (isMd ? 'Ren (MD)' : (currentUser?.role === 'admin' ? 'Ryan (Admin)' : 'Musician')),
       role: currentUser?.role || 'member',
       timestamp: Date.now(),
     };
@@ -363,7 +365,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     });
 
     currentPoints.current = [];
-  }, [color, lineWidth, isMdOrAdmin, currentUser, onSaveStrokes]);
+  }, [color, lineWidth, isMd, currentUser, onSaveStrokes]);
 
   // ── Native Non-Passive Touch Event Handlers ──────────────────────────────
   // Using native addEventListener with { passive: false } guarantees that e.preventDefault()
@@ -615,7 +617,10 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     let targetIndex = -1;
     for (let i = strokes.length - 1; i >= 0; i--) {
       const s = strokes[i];
-      if (isMdOrAdmin || s.userId === currentUser?.id || s.userId === 'guest' || s.scope === 'user') {
+      if (isMd) {
+        targetIndex = i;
+        break;
+      } else if (s.userId === currentUser?.id || (!s.userId && s.scope === 'user')) {
         targetIndex = i;
         break;
       }
@@ -629,9 +634,9 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   };
 
   const clearAll = () => {
-    const updated = isMdOrAdmin
+    const updated = isMd
       ? []
-      : strokes.filter((s) => s.scope === 'global');
+      : strokes.filter((s) => s.scope === 'global' || s.role === 'MD' || (s.userId !== currentUser?.id && s.userId !== 'guest'));
 
     setStrokes(updated);
     if (onSaveStrokes) onSaveStrokes(updated);
@@ -678,16 +683,16 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
           fontWeight: 800,
           letterSpacing: '0.5px',
           textTransform: 'uppercase',
-          backgroundColor: isMdOrAdmin ? 'rgba(78, 177, 203, 0.2)' : 'rgba(234, 179, 8, 0.15)',
-          color: isMdOrAdmin ? '#4EB1CB' : '#facc15',
-          border: `1px solid ${isMdOrAdmin ? 'rgba(78, 177, 203, 0.4)' : 'rgba(234, 179, 8, 0.3)'}`,
+          backgroundColor: isMd ? 'rgba(78, 177, 203, 0.2)' : 'rgba(234, 179, 8, 0.15)',
+          color: isMd ? '#4EB1CB' : '#facc15',
+          border: `1px solid ${isMd ? 'rgba(78, 177, 203, 0.4)' : 'rgba(234, 179, 8, 0.3)'}`,
           whiteSpace: 'nowrap',
           display: 'flex',
           alignItems: 'center',
           gap: '5px',
         }}
       >
-        <span>{isMdOrAdmin ? '🌐 GLOBAL' : '🔒 PERSONAL'}</span>
+        <span>{isMd ? '🌐 GLOBAL (MD)' : '🔒 PERSONAL'}</span>
         <span style={{ opacity: 0.6, fontSize: '9px' }}>• ✌️ 2-finger scroll</span>
       </div>
 
