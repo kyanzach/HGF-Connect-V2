@@ -5,6 +5,13 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.67.1] — 2026-09-25
+### Changed & Enhanced — The Band Stage Tool: Fast Auto-Dismiss & Split-Second Tap-To-Close for Refresh Notification
+- **Instant Refresh Notification Dismissal (`SongSheet.tsx`)**:
+  - Reduced notification display time from a 5–10 second freeze down to 2.2 seconds auto-dismiss.
+  - Added split-second instant dismissal: touching or tapping anywhere on the screen or directly on the pill immediately closes the banner.
+  - Eliminated the slow full-page `window.location.reload()` stall that kept the old banner frozen on screen during network reloads, updating data cleanly in real-time.
+
 ## [v2.67.0] — 2026-09-24
 ### Changed & Enhanced — The Band Stage Tool: Clean TopBar Header & Uncrowded Setlist Selector
 - **Compact Brand & Header Restructure (`StageTopBar.tsx`)**:

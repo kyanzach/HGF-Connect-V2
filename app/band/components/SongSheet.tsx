@@ -1,7 +1,7 @@
 // app/band/components/SongSheet.tsx
 'use client';
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Song } from '../types/band';
 import { SheetLine } from '../lib/musicTheory';
 
@@ -261,8 +261,49 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   const [pullDistance, setPullDistance] = useState<number>(0);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [refreshSuccess, setRefreshSuccess] = useState<boolean>(false);
+  const refreshDismissTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const dismissRefreshPill = useCallback(() => {
+    if (refreshDismissTimeoutRef.current) {
+      clearTimeout(refreshDismissTimeoutRef.current);
+      refreshDismissTimeoutRef.current = null;
+    }
+    setIsRefreshing(false);
+    setRefreshSuccess(false);
+    setPullDistance(0);
+  }, []);
+
+  // Auto-dismiss within 2 seconds OR immediately upon any touch / tap anywhere
+  useEffect(() => {
+    if (!refreshSuccess) return;
+
+    // 1. Auto dismiss after 2.2 seconds if untouched
+    refreshDismissTimeoutRef.current = setTimeout(() => {
+      dismissRefreshPill();
+    }, 2200);
+
+    // 2. Split-second immediate dismiss on touch/click anywhere on screen
+    const handleDismissOnInteraction = () => {
+      dismissRefreshPill();
+    };
+
+    window.addEventListener('touchstart', handleDismissOnInteraction, { passive: true, capture: true });
+    window.addEventListener('mousedown', handleDismissOnInteraction, { capture: true });
+
+    return () => {
+      if (refreshDismissTimeoutRef.current) {
+        clearTimeout(refreshDismissTimeoutRef.current);
+        refreshDismissTimeoutRef.current = null;
+      }
+      window.removeEventListener('touchstart', handleDismissOnInteraction, { capture: true });
+      window.removeEventListener('mousedown', handleDismissOnInteraction, { capture: true });
+    };
+  }, [refreshSuccess, dismissRefreshPill]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    if (refreshSuccess) {
+      dismissRefreshPill();
+    }
     if (userInteractionTimeoutRef.current) clearTimeout(userInteractionTimeoutRef.current);
     isUserInteractingRef.current = true;
     if (isDrawingActive) return;
@@ -323,17 +364,10 @@ export const SongSheet: React.FC<SongSheetProps> = ({
         }
 
         setRefreshSuccess(true);
-
-        // 3. Perform hard page reload to mount new application code, components, and assets
-        setTimeout(() => {
-          if (typeof window !== 'undefined') {
-            window.location.reload();
-          }
-        }, 380);
+        setPullDistance(0);
       } catch (_) {
-        if (typeof window !== 'undefined') {
-          window.location.reload();
-        }
+        setIsRefreshing(false);
+        setPullDistance(0);
       }
       return; // Do NOT trigger horizontal song navigation
     } else {
@@ -460,12 +494,15 @@ export const SongSheet: React.FC<SongSheetProps> = ({
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
-            pointerEvents: 'none',
+            pointerEvents: refreshSuccess ? 'auto' : 'none',
+            cursor: refreshSuccess ? 'pointer' : 'default',
             marginBottom: `${Math.max(0, pullDistance - 20)}px`,
             transition: isRefreshing ? 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)' : 'none',
           }}
+          onClick={refreshSuccess ? dismissRefreshPill : undefined}
         >
           <div
+            onClick={refreshSuccess ? dismissRefreshPill : undefined}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
