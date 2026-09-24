@@ -154,19 +154,57 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     }
   };
 
-  // Playback-synced auto-scroll lockstep (when audio backtrack or live sync is playing)
+  // Playback-synced smooth 60fps/120fps continuous scroll loop (eliminates jelly / jitter completely)
+  const playbackTimeRef = useRef<number>(playbackState?.currentTime || 0);
+  playbackTimeRef.current = playbackState?.currentTime || 0;
+
   useEffect(() => {
     if (!playbackState?.isPlaying || !containerRef.current) return;
-    if (isUserInteractingRef.current) return;
-    const container = containerRef.current;
-    const maxScroll = container.scrollHeight - container.clientHeight;
-    const dur = playbackState.duration || effectiveTargetSecRef.current || 240;
-    if (maxScroll > 0 && dur > 0) {
-      const targetScroll = Math.min(maxScroll, Math.max(0, (playbackState.currentTime / dur) * maxScroll));
-      container.scrollTop = targetScroll;
-      scrollPosRef.current = targetScroll;
-    }
-  }, [playbackState?.isPlaying, playbackState?.currentTime, playbackState?.duration]);
+    let animId: number;
+    let lastTime = performance.now();
+    let virtualTime = playbackTimeRef.current;
+
+    const frame = (now: number) => {
+      const dt = Math.min(64, Math.max(1, now - lastTime)) / 1000;
+      lastTime = now;
+
+      if (!isUserInteractingRef.current && containerRef.current) {
+        const el = containerRef.current;
+        const maxScroll = el.scrollHeight - el.clientHeight;
+        const dur = playbackState.duration || effectiveTargetSecRef.current || 240;
+
+        if (maxScroll > 0 && dur > 0) {
+          // Continuously advance time between discrete 250ms audio timeupdate events
+          virtualTime += dt;
+          const reportedTime = playbackTimeRef.current;
+          // Smoothly pull virtual time towards reported audio position if drift exceeds 0.3s
+          const drift = reportedTime - virtualTime;
+          if (Math.abs(drift) > 0.8) {
+            virtualTime = reportedTime;
+          } else if (Math.abs(drift) > 0.05) {
+            virtualTime += drift * 0.1;
+          }
+
+          const targetScroll = Math.min(maxScroll, Math.max(0, (virtualTime / dur) * maxScroll));
+          const diff = targetScroll - el.scrollTop;
+
+          if (Math.abs(diff) > 100) {
+            // Instant section jump or seek
+            el.scrollTop = targetScroll;
+          } else if (Math.abs(diff) > 0.2) {
+            // Fluid sub-pixel lerp step (60fps / 120fps ProMotion butter smooth)
+            el.scrollTop += diff * 0.25;
+          }
+          scrollPosRef.current = el.scrollTop;
+        }
+      }
+
+      animId = requestAnimationFrame(frame);
+    };
+
+    animId = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(animId);
+  }, [playbackState?.isPlaying, playbackState?.duration]);
 
   // Immediate recalibration on song switch or reconnection when playback is active
   useEffect(() => {
@@ -177,14 +215,14 @@ export const SongSheet: React.FC<SongSheetProps> = ({
       const maxScroll = container.scrollHeight - container.clientHeight;
       const dur = playbackState.duration || effectiveTargetSecRef.current || 240;
       if (maxScroll > 0 && dur > 0) {
-        const targetScroll = Math.min(maxScroll, Math.max(0, (playbackState.currentTime / dur) * maxScroll));
+        const targetScroll = Math.min(maxScroll, Math.max(0, (playbackTimeRef.current / dur) * maxScroll));
         container.scrollTop = targetScroll;
         scrollPosRef.current = targetScroll;
       }
     };
     scrollSync();
-    const t1 = setTimeout(scrollSync, 50);
-    const t2 = setTimeout(scrollSync, 150);
+    const t1 = setTimeout(scrollSync, 40);
+    const t2 = setTimeout(scrollSync, 120);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);

@@ -5,6 +5,23 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.68.7] — 2026-09-25
+### Fixed & Enhanced — Smooth 60fps/120fps Playback Auto-Scroll, MD Live Whiteboard Streaming & Setlist Jump Fix
+- **Smooth 60fps/120fps Continuous Auto-Scroll (`SongSheet.tsx`)**:
+  - Replaced discrete 250ms HTMLAudioElement `ontimeupdate` scroll jumps with a continuous 60fps/120fps `requestAnimationFrame` lerp loop (`scrollTop += diff * 0.25`).
+  - Completely eliminated the jittery / "jelly" rubber-band effect during backtrack audio playback on iOS Safari ProMotion and Android devices.
+- **MD Playback Broadcast & Dynamic Setlist Resolution (`page.tsx`)**:
+  - Centralized `isUserMD` authority to reliably recognize Ren across NextAuth session profile (`renz kristofferd` / `Renz Kristoffer`), band aliases, and `MD` roles.
+  - Implemented dynamic `effectiveSetlistId` that automatically resolves the setlist containing the active song, ensuring MD playback broadcasts and follower polling communicate on the exact same channel even if the setlist dropdown was not tapped.
+  - Follower devices immediately force-transfer to the MD's active song and lock into the MD's playback timeline with network latency calibration.
+- **Sub-Second Live Whiteboard Streaming (`/api/worship/drawings/live`, `DrawingCanvas.tsx`, `page.tsx`)**:
+  - Created high-speed in-memory live drawing broadcast endpoint (`/api/worship/drawings/live`).
+  - When the MD draws, strokes are broadcast with zero delay, and followers poll every 400ms to stream strokes in real time like a live chat / whiteboard stream.
+  - Non-MD musicians' drawings remain strictly personal and private to their own devices only.
+- **Purged Legacy Drawing Artifacts**:
+  - Removed legacy local storage migration code that repeatedly restored the test circle stroke under Ryan's account on "Awesome In This Place".
+  - Cleared legacy canvas strokes and decoupled drawing sync tick from `DrawingCanvas` mounting key to prevent canvas flicker.
+
 ## [v2.68.6] — 2026-09-25
 ### Fixed & Enhanced — The Band Stage Tool: MD Playback Force-Transfer & Stage Timeline Sync Lockstep
 - **MD Playback Force Song Transfer (`app/band/page.tsx`)**:

@@ -187,6 +187,19 @@ export default function BandStagePage() {
   const { data: session } = useSession();
   const [currentUser, setCurrentUser] = useState<BandUser | null>(null);
 
+  // Central MD Role Authority: Ren / MD authority across session, user profile, and aliases
+  const isUserMD = Boolean(
+    (currentUser?.role || '').toUpperCase() === 'MD' ||
+    (currentUser?.username || '').toLowerCase() === 'ren' ||
+    (currentUser?.username || '').toLowerCase().includes('ren') ||
+    (currentUser?.displayName || '').toLowerCase().includes('(md)') ||
+    ((currentUser as any)?.aliases || []).some((a: string) => a.toLowerCase().includes('ren')) ||
+    (session?.user?.name || '').toLowerCase().includes('renz') ||
+    (session?.user?.name || '').toLowerCase().includes('ren ') ||
+    ((session?.user as any)?.username || '').toLowerCase().includes('ren') ||
+    ((session?.user as any)?.role || '').toUpperCase() === 'MD'
+  );
+
   // Scope backtrack playback dock:
   // MD (Musical Director) and Admin ALWAYS have stage playback controls for songs with audio.
   // Regular musicians only see the playback bar if THEY personally uploaded the track.
@@ -194,15 +207,15 @@ export default function BandStagePage() {
     if (!hasAudio || !currentSong?.audioTrack) return false;
     const track = currentSong.audioTrack;
 
-    if (!currentUser?.id) return false;
+    if (!currentUser?.id && !isUserMD) return false;
 
     // MD (Musical Director) and Admin ALWAYS have stage playback controls
-    const isMDOrAdmin = currentUser.role === 'MD' || currentUser.role === 'admin';
+    const isMDOrAdmin = isUserMD || currentUser?.role === 'admin' || (session?.user as any)?.role === 'admin';
     if (isMDOrAdmin) return true;
 
     const trackUploader = (track.uploadedBy || '').trim().toLowerCase();
-    const currentUserId = (currentUser.id || '').trim().toLowerCase();
-    const currentUsername = (currentUser.username || '').trim().toLowerCase();
+    const currentUserId = (currentUser?.id || '').trim().toLowerCase();
+    const currentUsername = (currentUser?.username || '').trim().toLowerCase();
 
     // Must have a valid uploader and must match current user
     if (!trackUploader) return false;
@@ -272,7 +285,20 @@ export default function BandStagePage() {
 
           let matched = list.find((u) => u.username.toLowerCase() === matchUsername);
           if (!matched && matchFirstName) {
-            matched = list.find((u) => u.displayName.toLowerCase().includes(matchFirstName) || u.username.toLowerCase() === matchFirstName);
+            matched = list.find((u) => {
+              const uName = u.username.toLowerCase();
+              const dName = u.displayName.toLowerCase();
+              const aliases = (u as any).aliases || [];
+              return (
+                dName.includes(matchFirstName) ||
+                uName === matchFirstName ||
+                aliases.some((a: string) => a.toLowerCase() === matchUsername || a.toLowerCase() === matchFirstName) ||
+                (matchFirstName.startsWith('ren') && (uName === 'ren' || dName.includes('ren')))
+              );
+            });
+          }
+          if (!matched && (matchUsername.includes('ren') || matchFirstName.startsWith('ren'))) {
+            matched = list.find((u) => u.username === 'ren' || u.role === 'MD');
           }
           if (!matched && isAdmin) {
             matched = list.find((u) => u.username === 'ryan' || u.role === 'admin');
@@ -289,6 +315,25 @@ export default function BandStagePage() {
         .catch(() => {});
     }
   }, [session, currentUser]);
+
+  // One-time client purge of legacy drawing artifacts
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const purgeKey = 'hgf_drawings_clean_v2687';
+      if (!localStorage.getItem(purgeKey)) {
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && (k.startsWith('hgf_drawings_') || k.startsWith('hgf_user_drawings_') || k.startsWith('hgf_md_drawings_'))) {
+            keysToRemove.push(k);
+          }
+        }
+        keysToRemove.forEach((k) => localStorage.removeItem(k));
+        localStorage.setItem(purgeKey, 'true');
+      }
+    } catch (_) {}
+  }, []);
 
   const handleSelectUser = (user: BandUser) => {
     setCurrentUser(user);
@@ -373,7 +418,7 @@ export default function BandStagePage() {
 
   const getActiveDrawingStrokes = useCallback((songId: string | undefined): DrawingStroke[] => {
     if (!songId) return [];
-    const isMd = currentUser?.role === 'MD';
+    const isMd = isUserMD;
 
     // 1. Resolve MD Global Strokes
     let mdStrokes: DrawingStroke[] = [];
@@ -412,24 +457,13 @@ export default function BandStagePage() {
           if (Array.isArray(parsed) && parsed.length > 0) {
             myPersonalStrokes = parsed;
           }
-        } else if (currentUserId === 'user-ryan') {
-          // Migration: recover legacy strokes drawn by Ryan on this device
-          const legacy = localStorage.getItem(`hgf_drawings_${songId}`);
-          if (legacy) {
-            const parsed = JSON.parse(legacy);
-            if (Array.isArray(parsed)) {
-              myPersonalStrokes = parsed.filter(
-                (s: DrawingStroke) => s.userId === 'user-ryan' || s.authorName?.includes('Ryan')
-              );
-            }
-          }
         }
       } catch (_) {}
     }
 
     // Non-MD user sees MD's global strokes PLUS their own personal annotations on top!
     return [...mdStrokes, ...myPersonalStrokes];
-  }, [currentUser, mdGlobalStrokesMap, personalStrokesMap, currentSong]);
+  }, [currentUser, isUserMD, mdGlobalStrokesMap, personalStrokesMap, currentSong]);
 
   const handleImportScrapedSong = async (newSong: Song, addToSetlist = false) => {
     const targetSetId = addToSetlist && activeSetlistId ? activeSetlistId : undefined;
@@ -464,8 +498,21 @@ export default function BandStagePage() {
   isBacktrackPlayingRef.current = isBacktrackPlaying;
   const currentSongRef = useRef(currentSong);
   currentSongRef.current = currentSong;
-  const activeSetlistIdRef = useRef(activeSetlistId);
-  activeSetlistIdRef.current = activeSetlistId;
+  // Dynamically resolve active setlist ID or discover the setlist containing the current song
+  const effectiveSetlistId = useMemo(() => {
+    if (activeSetlistId) return activeSetlistId;
+    if (currentSong?.id && setlists.length > 0) {
+      const found = setlists.find((s) => s.songs && s.songs.some((item) => {
+        const sid = typeof item === 'string' ? item : item.id;
+        return sid === currentSong.id;
+      }));
+      if (found) return found.id;
+    }
+    return null;
+  }, [activeSetlistId, currentSong?.id, setlists]);
+
+  const effectiveSetlistIdRef = useRef<string | null>(effectiveSetlistId);
+  effectiveSetlistIdRef.current = effectiveSetlistId;
 
   // Planned arrangement duration in seconds (defaults to standard 4:00 if not yet explicitly saved on song)
   const currentSongDuration =
@@ -474,24 +521,19 @@ export default function BandStagePage() {
     '4:00';
   const targetDurationSec = parseDurationToSec(currentSongDuration) || 240;
 
-  // MD Role Authority check for stage broadcast control
-  const isUserMD = Boolean(
-    (currentUser?.role || '').toUpperCase() === 'MD' ||
-    (currentUser?.username || '').toLowerCase() === 'ren'
-  );
-
   // MD Master Broadcaster: transmits play/pause/seek to band members viewing the same setlist
   const broadcastSyncState = useCallback((playing: boolean, timeOverride?: number) => {
-    if (!activeSetlistIdRef.current || !currentSongRef.current?.id || !isUserMD) return;
+    const targetSetlistId = effectiveSetlistIdRef.current;
+    if (!targetSetlistId || !currentSongRef.current?.id || !isUserMD) return;
     const time = timeOverride !== undefined ? timeOverride : backtrackCurrentTimeRef.current;
     const dur = backtrackDurationRef.current || parseDurationToSec(currentSongRef.current?.duration || '4:00') || 240;
-    const leaderName = currentUser?.displayName || currentUser?.username || 'MD';
+    const leaderName = currentUser?.displayName || currentUser?.username || 'Ren (MD)';
 
     fetch('/api/worship/sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        setlistId: activeSetlistIdRef.current,
+        setlistId: targetSetlistId,
         songId: currentSongRef.current.id,
         isPlaying: playing,
         currentTime: time,
@@ -506,25 +548,25 @@ export default function BandStagePage() {
   const handleToggleBacktrackPlay = useCallback(() => {
     const willPlay = !isBacktrackPlaying;
     toggleBacktrackPlay();
-    if (activeSetlistId && isUserMD && currentSong?.id) {
+    if (effectiveSetlistId && isUserMD && currentSong?.id) {
       broadcastSyncState(willPlay);
     }
-  }, [toggleBacktrackPlay, isBacktrackPlaying, activeSetlistId, isUserMD, currentSong?.id, broadcastSyncState]);
+  }, [toggleBacktrackPlay, isBacktrackPlaying, effectiveSetlistId, isUserMD, currentSong?.id, broadcastSyncState]);
 
   // Transmit immediate play / pause broadcast when playback state changes
   useEffect(() => {
-    if (!activeSetlistId || !isUserMD) return;
+    if (!effectiveSetlistId || !isUserMD) return;
     broadcastSyncState(isBacktrackPlaying);
-  }, [isBacktrackPlaying, activeSetlistId, isUserMD, broadcastSyncState]);
+  }, [isBacktrackPlaying, effectiveSetlistId, isUserMD, broadcastSyncState]);
 
   // Transmit periodic 1.5s heartbeat while MD playback is active
   useEffect(() => {
-    if (!activeSetlistId || !isBacktrackPlaying || !isUserMD) return;
+    if (!effectiveSetlistId || !isBacktrackPlaying || !isUserMD) return;
     const interval = setInterval(() => {
       broadcastSyncState(true);
     }, 1500);
     return () => clearInterval(interval);
-  }, [activeSetlistId, isBacktrackPlaying, isUserMD, broadcastSyncState]);
+  }, [effectiveSetlistId, isBacktrackPlaying, isUserMD, broadcastSyncState]);
 
   // Reference to latest liveSyncState without triggering effect rebuilds
   const liveSyncStateRef = useRef<LiveSyncState | null>(null);
@@ -533,7 +575,7 @@ export default function BandStagePage() {
   // Follower Sync Poller: active ONLY when viewing an active setlist (outside setlist is untouched)
   useEffect(() => {
     // If not on an active setlist, or if user is an MD actively playing their own master audio, do not follow
-    if (!activeSetlistId || (isUserMD && isBacktrackPlaying)) {
+    if (!effectiveSetlistId || (isUserMD && isBacktrackPlaying)) {
       if (liveSyncStateRef.current) {
         liveSyncClockRef.current = null;
         liveSyncStateRef.current = null;
@@ -546,7 +588,7 @@ export default function BandStagePage() {
 
     const pollSync = async () => {
       try {
-        const res = await fetch(`/api/worship/sync?setlistId=${encodeURIComponent(activeSetlistId)}`, {
+        const res = await fetch(`/api/worship/sync?setlistId=${encodeURIComponent(effectiveSetlistId)}`, {
           cache: 'no-store',
         });
         if (!res.ok) return;
@@ -608,8 +650,8 @@ export default function BandStagePage() {
     };
 
     pollSync();
-    // Sub-second 800ms polling for instantaneous stage reaction
-    const interval = setInterval(pollSync, 800);
+    // Sub-second 600ms polling for instantaneous stage reaction
+    const interval = setInterval(pollSync, 600);
 
     // Instant polling trigger on reconnection / phone wake-up
     const handleReconnect = () => {
@@ -632,7 +674,7 @@ export default function BandStagePage() {
       window.removeEventListener('focus', handleReconnect);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [activeSetlistId, isBacktrackPlaying, isUserMD, currentUser?.id, selectSong, toggleBacktrackPlay]);
+  }, [effectiveSetlistId, isBacktrackPlaying, isUserMD, currentUser?.id, selectSong, toggleBacktrackPlay]);
 
   // High-performance 60fps RAF interpolator for follower smooth teleprompter scrolling
   useEffect(() => {
@@ -659,7 +701,7 @@ export default function BandStagePage() {
   }, [liveSyncState?.isPlaying]);
 
   const isLiveSyncFollower = Boolean(
-    activeSetlistId &&
+    effectiveSetlistId &&
     !isBacktrackPlaying &&
     liveSyncState?.isPlaying
   );
@@ -678,10 +720,10 @@ export default function BandStagePage() {
 
   const handleSeekBacktrack = useCallback((time: number) => {
     seekBacktrack(time);
-    if (activeSetlistId && isUserMD) {
+    if (effectiveSetlistId && isUserMD) {
       broadcastSyncState(isBacktrackPlaying, time);
     }
-  }, [seekBacktrack, activeSetlistId, isUserMD, isBacktrackPlaying, broadcastSyncState]);
+  }, [seekBacktrack, effectiveSetlistId, isUserMD, isBacktrackPlaying, broadcastSyncState]);
 
   // Reset elapsed timer when currentSong changes
   useEffect(() => {
@@ -737,7 +779,7 @@ export default function BandStagePage() {
 
   // Hydrate user-level personal strokes from server when song/user changes
   useEffect(() => {
-    if (!currentSong?.id || !currentUser?.id || currentUser.role === 'MD') return;
+    if (!currentSong?.id || !currentUser?.id || isUserMD) return;
     const sId = currentSong.id;
     const uId = currentUser.id;
 
@@ -959,7 +1001,7 @@ export default function BandStagePage() {
   // Auto-sync previously cached localStorage chapter markers to server if missing in library
   useEffect(() => {
     if (!currentSong?.id || !currentSong.audioTrack) return;
-    const isBandAdmin = currentUser?.role === 'admin' || currentUser?.role === 'MD';
+    const isBandAdmin = currentUser?.role === 'admin' || isUserMD;
     if (!isBandAdmin) return;
 
     if (!currentSong.audioTrack.markers || currentSong.audioTrack.markers.length === 0) {
@@ -974,12 +1016,18 @@ export default function BandStagePage() {
     if (!currentSong) return;
     const songId = currentSong.id;
     lastLocalStrokeTimeRef.current = Date.now();
-    const isMd = currentUser?.role === 'MD';
+    const isMd = isUserMD;
 
     if (isMd) {
       // ── MD GLOBAL DRAWING LAYER ──
       // When MD draws or erases, update global song strokes for all band members
-      const globalStrokes = strokes.filter((s) => s.scope === 'global' || s.role === 'MD');
+      const globalStrokes = strokes.map((s) => ({
+        ...s,
+        scope: 'global' as const,
+        role: 'MD',
+        userId: currentUser?.id || 'user-ren',
+        authorName: currentUser?.displayName || currentUser?.username || 'Ren (MD)',
+      }));
       currentSong.drawingStrokes = globalStrokes;
       setMdGlobalStrokesMap((prev) => ({
         ...prev,
@@ -990,7 +1038,20 @@ export default function BandStagePage() {
         localStorage.setItem(`hgf_md_drawings_${songId}`, JSON.stringify(globalStrokes));
       } catch (_) {}
 
-      // Debounced persist to server so all team members receive MD annotations in real time
+      // Instant live broadcast to in-memory endpoint for sub-second livestream feel
+      fetch('/api/worship/drawings/live', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          songId,
+          strokes: globalStrokes,
+          role: 'MD',
+          authorId: currentUser?.id || 'user-ren',
+          authorName: currentUser?.displayName || currentUser?.username || 'Ren (MD)',
+        }),
+      }).catch(() => {});
+
+      // Debounced persist to server so all team members receive MD annotations in database
       if (drawingSaveTimerRef.current) clearTimeout(drawingSaveTimerRef.current);
       drawingSaveTimerRef.current = setTimeout(async () => {
         try {
@@ -1006,7 +1067,7 @@ export default function BandStagePage() {
         } catch (err) {
           console.error('Failed to sync MD drawing strokes to server:', err);
         }
-      }, 600);
+      }, 1000);
     } else {
       // ── PERSONAL USER-LEVEL DRAWING LAYER ──
       // When non-MD (e.g. Ryan who is Admin, or any musician) draws, save strictly to personal storage
@@ -1045,49 +1106,44 @@ export default function BandStagePage() {
     }
   };
 
-  // Real-time synchronization of MD global drawing annotations across devices
+  // Follower Live Drawing Poller: fetches MD whiteboard strokes live (sub-second streaming)
   useEffect(() => {
-    if (!currentSong?.id) return;
+    if (!currentSong?.id || isUserMD) return;
+    const songId = currentSong.id;
+    let isSubscribed = true;
 
-    const syncInterval = setInterval(async () => {
-      if (isDrawingActive) return; // Do not interrupt user while actively drawing
-      if (Date.now() - lastLocalStrokeTimeRef.current < 6000) return; // Prevent overwriting freshly drawn local strokes
-      if (typeof document !== 'undefined' && document.hidden) return; // Pause when tab is backgrounded
+    const pollLiveDrawings = async () => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      if (Date.now() - lastLocalStrokeTimeRef.current < 2000) return;
 
       try {
-        const res = await fetch(`/api/worship?id=${encodeURIComponent(currentSong.id)}`, {
+        const res = await fetch(`/api/worship/drawings/live?songId=${encodeURIComponent(songId)}`, {
           cache: 'no-store',
         });
         if (!res.ok) return;
-        const remoteSong: Song = await res.json();
-        if (remoteSong && Array.isArray(remoteSong.drawingStrokes)) {
-          const remoteMdStrokes = remoteSong.drawingStrokes.filter(
-            (s) => s.scope === 'global' || s.role === 'MD'
-          );
-          const currentMdStrokes = (currentSong.drawingStrokes || []).filter(
-            (s) => s.scope === 'global' || s.role === 'MD'
-          );
+        const data = await res.json();
+        if (!isSubscribed) return;
 
-          const currentJson = JSON.stringify(currentMdStrokes);
-          const remoteJson = JSON.stringify(remoteMdStrokes);
-
-          if (currentJson !== remoteJson) {
-            currentSong.drawingStrokes = remoteMdStrokes;
-            setMdGlobalStrokesMap((prev) => ({
-              ...prev,
-              [currentSong.id]: remoteMdStrokes,
-            }));
-            try {
-              localStorage.setItem(`hgf_md_drawings_${currentSong.id}`, remoteJson);
-            } catch (_) {}
-            setDrawingSyncTick((prev) => prev + 1);
-          }
+        if (Array.isArray(data?.strokes)) {
+          setMdGlobalStrokesMap((prev) => {
+            const existing = prev[songId] || [];
+            if (existing.length !== data.strokes.length || JSON.stringify(existing) !== JSON.stringify(data.strokes)) {
+              return { ...prev, [songId]: data.strokes };
+            }
+            return prev;
+          });
         }
       } catch (_) {}
-    }, 3500);
+    };
 
-    return () => clearInterval(syncInterval);
-  }, [currentSong?.id, isDrawingActive]);
+    pollLiveDrawings();
+    const interval = setInterval(pollLiveDrawings, 400);
+
+    return () => {
+      isSubscribed = false;
+      clearInterval(interval);
+    };
+  }, [currentSong?.id, isUserMD]);
 
   const handleSaveAsMdKey = async (newKey: string) => {
     if (!currentSong || currentUser?.role !== 'MD') return;
@@ -1125,7 +1181,7 @@ export default function BandStagePage() {
       setSongSessionOverride(currentSong.id, { duration: newDuration });
     }
 
-    const shouldPersist = savePermanent || currentUser?.role === 'admin' || currentUser?.role === 'MD';
+    const shouldPersist = savePermanent || currentUser?.role === 'admin' || isUserMD;
     if (shouldPersist) {
       if (activeSetlist) {
         const updatedSongs = (activeSetlist.songs || []).map((s) => {
@@ -1249,7 +1305,7 @@ export default function BandStagePage() {
         onRefresh={refreshData}
         drawingCanvasElement={
           <DrawingCanvas
-            key={`drawing_${currentSong?.id}_${currentUser?.id || 'guest'}_${drawingSyncTick}`}
+            key={`drawing_${currentSong?.id}_${currentUser?.id || 'guest'}`}
             isActive={isDrawingActive}
             onClose={() => setIsDrawingActive(false)}
             currentUser={currentUser}
@@ -1373,7 +1429,7 @@ export default function BandStagePage() {
         capo={capo}
         onSelectKey={(newKey) => handleKeyChangeRequest(newKey)}
         onSelectCapo={setCapo}
-        isBandAdmin={currentUser?.role === 'MD'}
+        isBandAdmin={isUserMD}
         onSaveAsMdKey={() => handleSaveAsMdKey(effectiveKey)}
       />
 
@@ -1500,7 +1556,7 @@ export default function BandStagePage() {
         duration={backtrackDuration}
         onSeek={seekBacktrack}
         songTitle={currentSong?.title}
-        isBandAdmin={currentUser?.role === 'admin' || currentUser?.role === 'MD'}
+        isBandAdmin={currentUser?.role === 'admin' || isUserMD}
       />
 
       {/* Arrangement Duration Picker Modal */}
@@ -1510,7 +1566,7 @@ export default function BandStagePage() {
         currentDuration={currentSongDuration}
         songTitle={currentSong?.title}
         onApplyDuration={handleApplyDuration}
-        isBandAdmin={currentUser?.role === 'admin' || currentUser?.role === 'MD'}
+        isBandAdmin={currentUser?.role === 'admin' || isUserMD}
       />
     </div>
   );
