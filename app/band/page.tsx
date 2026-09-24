@@ -388,7 +388,12 @@ export default function BandStagePage() {
   }, [localSongStrokes, currentSong]);
 
   const handleImportScrapedSong = async (newSong: Song, addToSetlist = false) => {
-    await optimisticAddSong(newSong, addToSetlist && activeSetlistId ? activeSetlistId : undefined);
+    const targetSetId = addToSetlist && activeSetlistId ? activeSetlistId : undefined;
+    await optimisticAddSong(newSong, targetSetId);
+    if (!addToSetlist && activeSetlistId) {
+      selectSetlist(null);
+    }
+    selectSong(newSong.id);
   };
 
   // Planned arrangement duration in seconds (defaults to standard 4:00 if not yet explicitly saved on song)

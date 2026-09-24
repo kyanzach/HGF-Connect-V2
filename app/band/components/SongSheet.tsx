@@ -73,9 +73,35 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   const scrollPosRef = useRef<number>(0);
   const elapsedMsRef = useRef<number>(0);
   const lastReportedSecRef = useRef<number>(-1);
+  const isUserInteractingRef = useRef<boolean>(false);
+  const userInteractionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const effectiveTargetSec = targetDurationSec > 0 ? targetDurationSec : 240;
-  const totalMs = effectiveTargetSec * 1000;
+  // Dynamic prop refs so animation loop never tears down on state/prop updates
+  const scrollSpeedRef = useRef<number>(scrollSpeed);
+  const scrollModeRef = useRef<'duration' | 'speed'>(scrollMode);
+  const effectiveTargetSecRef = useRef<number>(targetDurationSec > 0 ? targetDurationSec : 240);
+  const onUpdateElapsedRef = useRef(onUpdateElapsed);
+  const onAutoScrollCompleteRef = useRef(onAutoScrollComplete);
+
+  scrollSpeedRef.current = scrollSpeed;
+  scrollModeRef.current = scrollMode;
+  effectiveTargetSecRef.current = targetDurationSec > 0 ? targetDurationSec : 240;
+  onUpdateElapsedRef.current = onUpdateElapsed;
+  onAutoScrollCompleteRef.current = onAutoScrollComplete;
+
+  // Calibrated gradual musical scroll speeds (px/sec)
+  const SPEED_MAP: Record<number, number> = {
+    1: 14, // 1x: gentle crawl for dense chord sheets
+    2: 20, // 2x: gradual step (+6)
+    3: 28, // 3x: standard comfortable reading (+8)
+    4: 38, // 4x: moderate (+10)
+    5: 50, // 5x: lively (+12)
+    6: 65, // 6x: fast (+15)
+    7: 82, // 7x: swift (+17)
+    8: 102, // 8x: high speed (+20)
+    9: 125, // 9x: fast scrub (+23)
+    10: 155, // 10x: maximum teleprompter scrub (+30)
+  };
 
   // Sync scrollPosRef & elapsedMs on mount or song change
   useEffect(() => {
@@ -85,23 +111,25 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     }
     elapsedMsRef.current = 0;
     lastReportedSecRef.current = 0;
-    onUpdateElapsed?.(0);
+    onUpdateElapsedRef.current?.(0);
   }, [song?.id]);
 
-  // Handle user manual scroll: update scrollPosRef and sync elapsed timer
+  // Handle user manual scroll: update scrollPosRef and sync elapsed timer only when user actively touches/scrolls
   const handleScroll = () => {
     if (!containerRef.current) return;
     const currentScroll = containerRef.current.scrollTop;
-    if (Math.abs(currentScroll - scrollPosRef.current) > 3) {
+
+    if (isUserInteractingRef.current) {
       scrollPosRef.current = currentScroll;
       const maxScroll = containerRef.current.scrollHeight - containerRef.current.clientHeight;
       if (maxScroll > 0) {
+        const totalMs = effectiveTargetSecRef.current * 1000;
         const ratio = Math.min(1, Math.max(0, currentScroll / maxScroll));
         elapsedMsRef.current = ratio * totalMs;
         const currentSec = Math.floor(elapsedMsRef.current / 1000);
         if (currentSec !== lastReportedSecRef.current) {
           lastReportedSecRef.current = currentSec;
-          onUpdateElapsed?.(currentSec);
+          onUpdateElapsedRef.current?.(currentSec);
         }
       }
     }
@@ -119,11 +147,12 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     }
   }, [playbackState?.isPlaying, playbackState?.currentTime, playbackState?.duration]);
 
-  // Auto-scroll loop: 60fps/120fps fluid teleprompter pacing or smooth constant speed
+  // Resilient, abuse-proof Auto-Scroll loop (60fps/120fps requestAnimationFrame)
   useEffect(() => {
     if (!isAutoScrolling || playbackState?.isPlaying || !containerRef.current) return;
     const container = containerRef.current;
     const maxScroll = container.scrollHeight - container.clientHeight;
+    const totalMs = effectiveTargetSecRef.current * 1000;
 
     // If starting at the very bottom, restart smoothly from top
     if (maxScroll > 0 && container.scrollTop >= maxScroll - 4) {
@@ -131,7 +160,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
       scrollPosRef.current = 0;
       elapsedMsRef.current = 0;
       lastReportedSecRef.current = 0;
-      onUpdateElapsed?.(0);
+      onUpdateElapsedRef.current?.(0);
     } else {
       scrollPosRef.current = container.scrollTop;
       if (maxScroll > 0) {
@@ -143,50 +172,56 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     let lastTime = performance.now();
 
     const frame = (now: number) => {
-      const dt = Math.min(100, Math.max(1, now - lastTime)); // Delta ms, capped for tab switching
+      // Clamped delta ms to prevent huge jumps or freezes on frame hiccups
+      const dt = Math.min(64, Math.max(1, now - lastTime));
       lastTime = now;
 
       if (containerRef.current) {
         const el = containerRef.current;
         const currentMaxScroll = el.scrollHeight - el.clientHeight;
+        const currentTotalMs = effectiveTargetSecRef.current * 1000;
 
-        if (scrollMode === 'duration') {
-          // Duration mode: advance elapsedMs continuously by dt
-          elapsedMsRef.current = Math.min(totalMs, elapsedMsRef.current + dt);
-
+        if (isUserInteractingRef.current) {
+          // User is dragging or touching the screen: synchronize position without fighting user
+          scrollPosRef.current = el.scrollTop;
           if (currentMaxScroll > 0) {
-            const ratio = elapsedMsRef.current / totalMs;
-            scrollPosRef.current = ratio * currentMaxScroll;
-            el.scrollTop = scrollPosRef.current;
+            elapsedMsRef.current = (el.scrollTop / currentMaxScroll) * currentTotalMs;
           }
-
-          // Report whole-second progression to UI
-          const currentSec = Math.floor(elapsedMsRef.current / 1000);
-          if (currentSec !== lastReportedSecRef.current) {
-            lastReportedSecRef.current = currentSec;
-            onUpdateElapsed?.(currentSec);
-          }
-
-          if (elapsedMsRef.current >= totalMs) {
-            onAutoScrollComplete?.();
-            return;
-          }
-        } else {
-          // Speed mode: scroll by constant pixels
-          if (currentMaxScroll > 0) {
-            const pxPerSec = Math.max(12, (scrollSpeed || 3) * 18);
-            scrollPosRef.current = Math.min(currentMaxScroll, scrollPosRef.current + (dt / 1000) * pxPerSec);
+        } else if (currentMaxScroll > 0) {
+          if (scrollModeRef.current === 'duration') {
+            // Pace / Duration Mode: advances smoothly according to arrangement duration
+            elapsedMsRef.current = Math.min(currentTotalMs, elapsedMsRef.current + dt);
+            const ratio = elapsedMsRef.current / currentTotalMs;
+            scrollPosRef.current = Math.min(currentMaxScroll, ratio * currentMaxScroll);
             el.scrollTop = scrollPosRef.current;
 
-            elapsedMsRef.current = (scrollPosRef.current / currentMaxScroll) * totalMs;
+            // Report elapsed seconds to UI
             const currentSec = Math.floor(elapsedMsRef.current / 1000);
             if (currentSec !== lastReportedSecRef.current) {
               lastReportedSecRef.current = currentSec;
-              onUpdateElapsed?.(currentSec);
+              onUpdateElapsedRef.current?.(currentSec);
+            }
+
+            if (elapsedMsRef.current >= currentTotalMs || scrollPosRef.current >= currentMaxScroll - 1) {
+              onAutoScrollCompleteRef.current?.();
+              return;
+            }
+          } else {
+            // Speed Mode: continuous subpixel accumulation with calibrated gradual speeds
+            const currentSpeed = scrollSpeedRef.current;
+            const pxPerSec = SPEED_MAP[currentSpeed] || (currentSpeed * 12 + 10);
+            scrollPosRef.current = Math.min(currentMaxScroll, scrollPosRef.current + (dt / 1000) * pxPerSec);
+            el.scrollTop = scrollPosRef.current;
+
+            elapsedMsRef.current = (scrollPosRef.current / currentMaxScroll) * currentTotalMs;
+            const currentSec = Math.floor(elapsedMsRef.current / 1000);
+            if (currentSec !== lastReportedSecRef.current) {
+              lastReportedSecRef.current = currentSec;
+              onUpdateElapsedRef.current?.(currentSec);
             }
 
             if (scrollPosRef.current >= currentMaxScroll - 1) {
-              onAutoScrollComplete?.();
+              onAutoScrollCompleteRef.current?.();
               return;
             }
           }
@@ -198,15 +233,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
 
     animId = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(animId);
-  }, [
-    isAutoScrolling,
-    scrollSpeed,
-    playbackState?.isPlaying,
-    scrollMode,
-    totalMs,
-    onUpdateElapsed,
-    onAutoScrollComplete,
-  ]);
+  }, [isAutoScrolling, playbackState?.isPlaying]);
 
   // Section order roadmap parts
   const sectionParts = (song?.sectionOrder || '')
@@ -236,6 +263,8 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   const [refreshSuccess, setRefreshSuccess] = useState<boolean>(false);
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    if (userInteractionTimeoutRef.current) clearTimeout(userInteractionTimeoutRef.current);
+    isUserInteractingRef.current = true;
     if (isDrawingActive) return;
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
@@ -260,6 +289,11 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   };
 
   const handleTouchEnd = async (e: React.TouchEvent) => {
+    if (userInteractionTimeoutRef.current) clearTimeout(userInteractionTimeoutRef.current);
+    userInteractionTimeoutRef.current = setTimeout(() => {
+      isUserInteractingRef.current = false;
+    }, 120);
+
     if (isDrawingActive) return;
 
     const startX = touchStartX.current;
@@ -347,6 +381,13 @@ export const SongSheet: React.FC<SongSheetProps> = ({
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onWheel={() => {
+        if (userInteractionTimeoutRef.current) clearTimeout(userInteractionTimeoutRef.current);
+        isUserInteractingRef.current = true;
+        userInteractionTimeoutRef.current = setTimeout(() => {
+          isUserInteractingRef.current = false;
+        }, 200);
+      }}
       onScroll={handleScroll}
       style={{
         position: 'relative',

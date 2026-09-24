@@ -5,6 +5,19 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.65.0] — 2026-09-24
+### Fixed & Enhanced — The Band Stage Tool: Abuse-Proof Auto-Scroll Teleprompter & Instant Song Import Display
+- **Resilient, Abuse-Proof Auto-Scroll Engine (`SongSheet.tsx`)**:
+  - Re-architected auto-scroll loop with ref-based parameters (`scrollSpeedRef`, `scrollModeRef`, `onUpdateElapsedRef`, etc.) so prop/state updates from sliders or elapsed second ticks NEVER tear down or restart the animation loop.
+  - Eliminated the 1-2 second pause/freeze glitch caused by inline function recreations and circular state resets.
+  - Added continuous subpixel accumulator (`scrollPosRef`), preventing fractional movements from being truncated to 0 at lower 1x speeds.
+  - Calibrated musical gradual speed curve (14 px/s at 1x to 155 px/s at 10x) with smooth increments (+6 to +10 px/s) instead of sudden double-speed leaps.
+  - Stress-tested and abuse-proofed rapid mode/speed switching (e.g. 1x → 3x → 1x → 6x → 2x → 1x) with zero lag, zero animation death, and smooth instantaneous adaptation.
+  - Seamless manual touch / drag intervention: when user touches the screen, auto-scroll pauses fighting and resumes smoothly from where the user scrolled without pausing or jumping back.
+- **Immediate Navigation on Song Search & Import (`page.tsx`, `useSetlist.ts`)**:
+  - Updated `currentSong` resolver to check the full library (`songs`) as well as the active setlist so newly imported songs immediately open and render on screen.
+  - Automatically switches view to the imported song (`selectSong(newSong.id)`), whether added to the current setlist or imported to the master library.
+
 ## [v2.64.0] — 2026-09-24
 ### Fixed & Enhanced — The Band Stage Tool: Two-Finger Smooth Scrolling & Persistent Drawing Annotations
 - **Two-Finger Scroll Gesture on Canvas (`DrawingCanvas.tsx`)**:

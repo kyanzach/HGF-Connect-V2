@@ -207,29 +207,35 @@ export function useSetlist() {
   // Set initial song once lineup is loaded
   useEffect(() => {
     if (isLoading) return;
-    if (currentLineup.length === 0) return;
+    if (currentLineup.length === 0 && songs.length === 0) return;
 
-    const isValid = currentSongId && currentLineup.some((s) => s.id === currentSongId);
+    const isValid = currentSongId && (currentLineup.some((s) => s.id === currentSongId) || songs.some((s) => s.id === currentSongId));
 
     if (!isValid) {
-      let targetId = currentLineup[0].id;
+      let targetId = currentLineup[0]?.id || songs[0]?.id;
       if (typeof window !== 'undefined') {
         const savedSongId = localStorage.getItem(STORAGE_ACTIVE_SONG);
-        if (savedSongId && currentLineup.some((s) => s.id === savedSongId)) {
+        if (savedSongId && (currentLineup.some((s) => s.id === savedSongId) || songs.some((s) => s.id === savedSongId))) {
           targetId = savedSongId;
         }
       }
-      setCurrentSongId(targetId);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(STORAGE_ACTIVE_SONG, targetId);
+      if (targetId) {
+        setCurrentSongId(targetId);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(STORAGE_ACTIVE_SONG, targetId);
+        }
       }
     }
-  }, [currentLineup, currentSongId, isLoading]);
+  }, [currentLineup, currentSongId, isLoading, songs]);
 
   const currentSong = useMemo(() => {
-    if (!currentSongId) return currentLineup[0] || null;
-    return currentLineup.find((s) => s.id === currentSongId) || currentLineup[0] || null;
-  }, [currentSongId, currentLineup]);
+    if (!currentSongId) return currentLineup[0] || songs[0] || null;
+    const inLineup = currentLineup.find((s) => s.id === currentSongId);
+    if (inLineup) return inLineup;
+    const inLibrary = songs.find((s) => s.id === currentSongId);
+    if (inLibrary) return inLibrary;
+    return currentLineup[0] || songs[0] || null;
+  }, [currentSongId, currentLineup, songs]);
 
   const currentIndex = useMemo(() => {
     if (!currentSong) return 0;
