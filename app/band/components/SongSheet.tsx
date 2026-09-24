@@ -351,7 +351,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
       style={{
         position: 'relative',
         flex: 1,
-        overflowY: isDrawingActive ? 'hidden' : 'auto',
+        overflowY: 'auto',
         overflowX: 'hidden',
         paddingTop: '16px',
         paddingLeft: '20px',
@@ -361,8 +361,8 @@ export const SongSheet: React.FC<SongSheetProps> = ({
         color: '#f8fafc',
         fontFamily: 'monospace, system-ui',
         WebkitOverflowScrolling: 'touch',
-        touchAction: isDrawingActive ? 'none' : 'pan-y',
-        overscrollBehaviorY: isDrawingActive ? 'none' : 'contain',
+        touchAction: 'pan-y',
+        overscrollBehaviorY: 'contain',
       }}
     >
       <style>{`

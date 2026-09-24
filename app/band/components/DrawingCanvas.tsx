@@ -29,28 +29,35 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   const [isEraser, setIsEraser] = useState<boolean>(false);
   const [showAllMembers, setShowAllMembers] = useState<boolean>(true);
   const [mounted, setMounted] = useState<boolean>(false);
+
+  // Gesture state tracking
   const isDrawing = useRef<boolean>(false);
+  const isPanning = useRef<boolean>(false);
   const currentPoints = useRef<DrawingPoint[]>([]);
 
-  const isMd = currentUser?.role === 'MD';
+  // Two-finger panning state
+  const panStartYRef = useRef<number>(0);
+  const panStartXRef = useRef<number>(0);
+  const lastMidYRef = useRef<number>(0);
+  const lastMidXRef = useRef<number>(0);
+
+  const isMdOrAdmin = currentUser?.role === 'MD' || currentUser?.role === 'admin';
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  // Sync strokes from props, but NEVER wipe non-empty local strokes with an empty array!
   useEffect(() => {
-    setStrokes(savedStrokes || []);
+    if (Array.isArray(savedStrokes) && savedStrokes.length > 0) {
+      setStrokes(savedStrokes);
+    }
   }, [savedStrokes]);
 
   // Determine which strokes are visible based on user role and showAllMembers toggle
   const getVisibleStrokes = useCallback(() => {
-    if (isMd) {
-      if (showAllMembers) {
-        return strokes;
-      }
-      return strokes.filter(
-        (s) => s.scope === 'global' || !s.scope || s.userId === currentUser?.id
-      );
+    if (showAllMembers || isMdOrAdmin) {
+      return strokes;
     }
 
     return strokes.filter((s) => {
@@ -59,8 +66,9 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       if (!currentUser && (s.userId === 'guest' || s.scope === 'user')) return true;
       return false;
     });
-  }, [strokes, isMd, showAllMembers, currentUser]);
+  }, [strokes, isMdOrAdmin, showAllMembers, currentUser]);
 
+  // High-fidelity rendering with CSS-pixel coordinates & DPR scaling
   const redraw = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -70,7 +78,12 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     const rect = canvas.getBoundingClientRect();
-    const dpr = canvas.width / Math.max(rect.width, 1);
+    const cssW = Math.max(rect.width, 1);
+    const cssH = Math.max(rect.height, 1);
+    const dpr = canvas.width / cssW;
+
+    ctx.save();
+    ctx.scale(dpr, dpr);
 
     const visibleList = getVisibleStrokes();
 
@@ -78,20 +91,14 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       if (!stroke.points || stroke.points.length === 0) return;
 
       const p0 = stroke.points[0];
-      const p0x =
-        ((p0 as any).nx !== undefined
-          ? (p0 as any).nx
-          : (p0 as any).x / Math.max(canvas.width, 1)) * canvas.width;
-      const p0y =
-        ((p0 as any).ny !== undefined
-          ? (p0 as any).ny
-          : (p0 as any).y / Math.max(canvas.height, 1)) * canvas.height;
+      const p0x = p0.x !== undefined ? p0.x : (p0.nx !== undefined ? p0.nx * cssW : 0);
+      const p0y = p0.y !== undefined ? p0.y : (p0.ny !== undefined ? p0.ny * cssH : 0);
 
       // Handle single-point marks (dots, taps)
       if (stroke.points.length === 1) {
         ctx.beginPath();
         ctx.fillStyle = stroke.color;
-        const radius = Math.max(2, ((stroke.width || 4) * dpr) / 2);
+        const radius = Math.max(2, (stroke.width || 4) / 2);
         ctx.arc(p0x, p0y, radius, 0, Math.PI * 2);
         ctx.fill();
         return;
@@ -99,7 +106,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
 
       ctx.beginPath();
       ctx.strokeStyle = stroke.color;
-      ctx.lineWidth = (stroke.width || 4) * dpr;
+      ctx.lineWidth = stroke.width || 4;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
 
@@ -107,14 +114,8 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
 
       if (stroke.points.length === 2) {
         const p1 = stroke.points[1];
-        const p1x =
-          ((p1 as any).nx !== undefined
-            ? (p1 as any).nx
-            : (p1 as any).x / Math.max(canvas.width, 1)) * canvas.width;
-        const p1y =
-          ((p1 as any).ny !== undefined
-            ? (p1 as any).ny
-            : (p1 as any).y / Math.max(canvas.height, 1)) * canvas.height;
+        const p1x = p1.x !== undefined ? p1.x : (p1.nx !== undefined ? p1.nx * cssW : 0);
+        const p1y = p1.y !== undefined ? p1.y : (p1.ny !== undefined ? p1.ny * cssH : 0);
         ctx.lineTo(p1x, p1y);
       } else {
         // Smooth quadratic bezier curves for natural fluid strokes
@@ -122,23 +123,11 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
           const pt = stroke.points[i];
           const next = stroke.points[i + 1];
 
-          const ptx =
-            ((pt as any).nx !== undefined
-              ? (pt as any).nx
-              : (pt as any).x / Math.max(canvas.width, 1)) * canvas.width;
-          const pty =
-            ((pt as any).ny !== undefined
-              ? (pt as any).ny
-              : (pt as any).y / Math.max(canvas.height, 1)) * canvas.height;
+          const ptx = pt.x !== undefined ? pt.x : (pt.nx !== undefined ? pt.nx * cssW : 0);
+          const pty = pt.y !== undefined ? pt.y : (pt.ny !== undefined ? pt.ny * cssH : 0);
 
-          const nxtx =
-            ((next as any).nx !== undefined
-              ? (next as any).nx
-              : (next as any).x / Math.max(canvas.width, 1)) * canvas.width;
-          const nxty =
-            ((next as any).ny !== undefined
-              ? (next as any).ny
-              : (next as any).y / Math.max(canvas.height, 1)) * canvas.height;
+          const nxtx = next.x !== undefined ? next.x : (next.nx !== undefined ? next.nx * cssW : 0);
+          const nxty = next.y !== undefined ? next.y : (next.ny !== undefined ? next.ny * cssH : 0);
 
           const midX = (ptx + nxtx) / 2;
           const midY = (pty + nxty) / 2;
@@ -146,28 +135,24 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
           ctx.quadraticCurveTo(ptx, pty, midX, midY);
         }
         const last = stroke.points[stroke.points.length - 1];
-        const lastX =
-          ((last as any).nx !== undefined
-            ? (last as any).nx
-            : (last as any).x / Math.max(canvas.width, 1)) * canvas.width;
-        const lastY =
-          ((last as any).ny !== undefined
-            ? (last as any).ny
-            : (last as any).y / Math.max(canvas.height, 1)) * canvas.height;
+        const lastX = last.x !== undefined ? last.x : (last.nx !== undefined ? last.nx * cssW : 0);
+        const lastY = last.y !== undefined ? last.y : (last.ny !== undefined ? last.ny * cssH : 0);
         ctx.lineTo(lastX, lastY);
       }
 
       ctx.stroke();
     });
+
+    ctx.restore();
   }, [getVisibleStrokes]);
 
   useEffect(() => {
     redraw();
   }, [redraw]);
 
-  // Sync canvas size non-destructively with parent scrollable container (#sheetWrapper)
+  // Sync canvas size with parent scrollable container (#sheetWrapper)
   const updateCanvasSize = useCallback(() => {
-    if (isDrawing.current) return;
+    if (isDrawing.current || isPanning.current) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -187,7 +172,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     const bitmapW = Math.round(contentW * dpr);
     const bitmapH = Math.round(contentH * dpr);
 
-    if (canvas.width !== bitmapW || canvas.height !== bitmapH) {
+    if (Math.abs(canvas.width - bitmapW) > 2 || Math.abs(canvas.height - bitmapH) > 2) {
       canvas.width = bitmapW;
       canvas.height = bitmapH;
       redraw();
@@ -226,48 +211,49 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     }
   }, [isActive, updateCanvasSize, redraw]);
 
-  // Precise coordinate mapping: maps clientX/clientY into normalized 0..1 and canvas pixels
-  const getCanvasCoords = (e: React.PointerEvent<HTMLCanvasElement>) => {
+  // Precise coordinate mapping in CSS pixels
+  const getCanvasCoords = (clientX: number, clientY: number): DrawingPoint => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0, nx: 0, ny: 0 };
 
     const rect = canvas.getBoundingClientRect();
-    const cssX = e.clientX - rect.left;
-    const cssY = e.clientY - rect.top;
+    const cssX = clientX - rect.left;
+    const cssY = clientY - rect.top;
 
-    const nx = rect.width > 0 ? cssX / rect.width : 0;
-    const ny = rect.height > 0 ? cssY / rect.height : 0;
+    const cssW = Math.max(rect.width, 1);
+    const cssH = Math.max(rect.height, 1);
 
-    const clampedNx = Math.max(0, Math.min(1, nx));
-    const clampedNy = Math.max(0, Math.min(1, ny));
+    const clampedNx = Math.max(0, Math.min(1, cssX / cssW));
+    const clampedNy = Math.max(0, Math.min(1, cssY / cssH));
 
     return {
-      x: clampedNx * canvas.width,
-      y: clampedNy * canvas.height,
+      x: Math.round(cssX),
+      y: Math.round(cssY),
       nx: clampedNx,
       ny: clampedNy,
     };
   };
 
-  // Vector stroke eraser: deletes any stroke intersecting eraser radius
+  // Euclidean distance vector stroke eraser in CSS pixels
   const eraseStrokesAt = useCallback(
     (pos: DrawingPoint) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
 
       const rect = canvas.getBoundingClientRect();
-      const thresholdX = 24 / Math.max(rect.width, 1);
-      const thresholdY = 24 / Math.max(rect.height, 1);
+      const cssW = Math.max(rect.width, 1);
+      const cssH = Math.max(rect.height, 1);
+      const thresholdCss = 28; // 28px hit radius
 
       setStrokes((prevStrokes) => {
         const remaining = prevStrokes.filter((s) => {
-          if (!isMd && s.scope === 'global') return true;
-          if (!isMd && s.userId !== currentUser?.id && s.userId !== 'guest') return true;
+          if (!isMdOrAdmin && s.scope === 'global') return true;
+          if (!isMdOrAdmin && s.userId !== currentUser?.id && s.userId !== 'guest') return true;
 
           const hit = s.points.some((p) => {
-            const pnx = p.nx !== undefined ? p.nx : p.x / canvas.width;
-            const pny = p.ny !== undefined ? p.ny : p.y / canvas.height;
-            return Math.abs(pnx - pos.nx) < thresholdX && Math.abs(pny - pos.ny) < thresholdY;
+            const px = p.x !== undefined ? p.x : (p.nx !== undefined ? p.nx * cssW : 0);
+            const py = p.y !== undefined ? p.y : (p.ny !== undefined ? p.ny * cssH : 0);
+            return Math.hypot(px - pos.x, py - pos.y) < thresholdCss;
           });
           return !hit;
         });
@@ -279,102 +265,238 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         return prevStrokes;
       });
     },
-    [currentUser, isMd, onSaveStrokes]
+    [currentUser, isMdOrAdmin, onSaveStrokes]
   );
 
-  const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!isActive) return;
+  // Draw dot directly on canvas
+  const drawDotOnCanvas = (pos: DrawingPoint) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
-    try {
-      canvas.setPointerCapture(e.pointerId);
-    } catch (_) {}
-
-    isDrawing.current = true;
-    const pos = getCanvasCoords(e);
-
-    if (isEraser) {
-      eraseStrokesAt(pos);
-      return;
-    }
-
-    currentPoints.current = [pos];
-
     const ctx = canvas.getContext('2d');
-    if (ctx) {
-      const rect = canvas.getBoundingClientRect();
-      const dpr = canvas.width / Math.max(rect.width, 1);
+    if (!ctx) return;
 
-      ctx.beginPath();
-      ctx.fillStyle = color;
-      const radius = Math.max(2, (lineWidth * dpr) / 2);
-      ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    const rect = canvas.getBoundingClientRect();
+    const dpr = canvas.width / Math.max(rect.width, 1);
+
+    ctx.save();
+    ctx.scale(dpr, dpr);
+    ctx.beginPath();
+    ctx.fillStyle = color;
+    const radius = Math.max(2, lineWidth / 2);
+    ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
   };
 
-  const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!isDrawing.current || !isActive) return;
+  // Draw segment directly on canvas during stroke
+  const drawSegmentOnCanvas = (prev: DrawingPoint | undefined, curr: DrawingPoint) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
-    const pos = getCanvasCoords(e);
-
-    if (isEraser) {
-      eraseStrokesAt(pos);
-      return;
-    }
-
-    const prev = currentPoints.current[currentPoints.current.length - 1];
-    currentPoints.current.push(pos);
-
     const ctx = canvas.getContext('2d');
-    if (ctx) {
-      const rect = canvas.getBoundingClientRect();
-      const dpr = canvas.width / Math.max(rect.width, 1);
+    if (!ctx) return;
 
-      ctx.beginPath();
-      ctx.strokeStyle = color;
-      ctx.lineWidth = lineWidth * dpr;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      if (prev) {
-        ctx.moveTo(prev.x, prev.y);
-      } else {
-        ctx.moveTo(pos.x, pos.y);
-      }
-      ctx.lineTo(pos.x, pos.y);
-      ctx.stroke();
+    const rect = canvas.getBoundingClientRect();
+    const dpr = canvas.width / Math.max(rect.width, 1);
+
+    ctx.save();
+    ctx.scale(dpr, dpr);
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineWidth;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    if (prev) {
+      ctx.moveTo(prev.x, prev.y);
+    } else {
+      ctx.moveTo(curr.x, curr.y);
     }
+    ctx.lineTo(curr.x, curr.y);
+    ctx.stroke();
+    ctx.restore();
   };
 
-  const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!isDrawing.current) return;
-    isDrawing.current = false;
-    const canvas = canvasRef.current;
-    if (canvas) {
-      try {
-        canvas.releasePointerCapture(e.pointerId);
-      } catch (_) {}
-    }
+  // Commit current stroke
+  const commitCurrentStroke = () => {
+    if (currentPoints.current.length === 0) return;
 
-    if (!isEraser && currentPoints.current.length > 0) {
-      const newStroke: DrawingStroke = {
-        color,
-        width: lineWidth,
-        points: [...currentPoints.current],
-        scope: isMd ? 'global' : 'user',
-        userId: currentUser?.id || 'guest',
-        authorName: currentUser?.displayName || 'Musician',
-        role: currentUser?.role || 'member',
-        timestamp: Date.now(),
-      };
-      const updated = [...strokes, newStroke];
-      setStrokes(updated);
+    const newStroke: DrawingStroke = {
+      color,
+      width: lineWidth,
+      points: [...currentPoints.current],
+      scope: isMdOrAdmin ? 'global' : 'user',
+      userId: currentUser?.id || 'guest',
+      authorName: currentUser?.displayName || (currentUser?.role === 'admin' ? 'Admin' : 'Musician'),
+      role: currentUser?.role || 'member',
+      timestamp: Date.now(),
+    };
+
+    setStrokes((prev) => {
+      const updated = [...prev, newStroke];
       if (onSaveStrokes) onSaveStrokes(updated);
+      return updated;
+    });
+
+    currentPoints.current = [];
+  };
+
+  // ── Touch Event Handlers (One-Finger Draw, Two-Finger Pan/Scroll) ────────
+  const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isActive) return;
+    const touches = e.touches;
+
+    if (touches.length === 1 && !isPanning.current) {
+      // 1 Finger: Start drawing
+      isDrawing.current = true;
+      const pos = getCanvasCoords(touches[0].clientX, touches[0].clientY);
+
+      if (isEraser) {
+        eraseStrokesAt(pos);
+      } else {
+        currentPoints.current = [pos];
+        drawDotOnCanvas(pos);
+      }
+    } else if (touches.length >= 2) {
+      // 2 Fingers: Enter Two-Finger Pan/Scroll Mode!
+      isPanning.current = true;
+
+      // Immediately abort and discard any single-finger stroke that just started
+      if (isDrawing.current) {
+        isDrawing.current = false;
+        currentPoints.current = [];
+        redraw(); // Erase stray start dot/line
+      }
+
+      const midY = (touches[0].clientY + touches[1].clientY) / 2;
+      const midX = (touches[0].clientX + touches[1].clientX) / 2;
+      panStartYRef.current = midY;
+      panStartXRef.current = midX;
+      lastMidYRef.current = midY;
+      lastMidXRef.current = midX;
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isActive) return;
+    const touches = e.touches;
+
+    if (isPanning.current || touches.length >= 2) {
+      e.preventDefault(); // Stop native elasticity so we scroll container smoothly
+      if (!isPanning.current) {
+        isPanning.current = true;
+        if (isDrawing.current) {
+          isDrawing.current = false;
+          currentPoints.current = [];
+          redraw();
+        }
+      }
+
+      const midY = (touches[0].clientY + touches[1].clientY) / 2;
+      const midX = (touches[0].clientX + touches[1].clientX) / 2;
+      const deltaY = midY - lastMidYRef.current;
+      const deltaX = midX - lastMidXRef.current;
+
+      lastMidYRef.current = midY;
+      lastMidXRef.current = midX;
+
+      const wrapper = containerRef?.current || document.getElementById('sheetWrapper');
+      if (wrapper) {
+        wrapper.scrollTop -= deltaY;
+        wrapper.scrollLeft -= deltaX;
+      }
+      return;
+    }
+
+    if (isDrawing.current && touches.length === 1) {
+      e.preventDefault(); // Prevent page bounce while drawing
+      const pos = getCanvasCoords(touches[0].clientX, touches[0].clientY);
+
+      if (isEraser) {
+        eraseStrokesAt(pos);
+      } else {
+        const prev = currentPoints.current[currentPoints.current.length - 1];
+        currentPoints.current.push(pos);
+        drawSegmentOnCanvas(prev, pos);
+      }
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isActive) return;
+    const remaining = e.touches.length;
+
+    if (isPanning.current) {
+      if (remaining === 0) {
+        isPanning.current = false;
+      }
+      return;
+    }
+
+    if (isDrawing.current && remaining === 0) {
+      isDrawing.current = false;
+      if (!isEraser && currentPoints.current.length > 0) {
+        commitCurrentStroke();
+      }
+      currentPoints.current = [];
+    }
+  };
+
+  const handleTouchCancel = () => {
+    isDrawing.current = false;
+    isPanning.current = false;
+    currentPoints.current = [];
+    redraw();
+  };
+
+  // ── Mouse / Desktop Fallback ─────────────────────────────────────────────
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isActive || e.button !== 0) return;
+    isDrawing.current = true;
+    const pos = getCanvasCoords(e.clientX, e.clientY);
+
+    if (isEraser) {
+      eraseStrokesAt(pos);
+    } else {
+      currentPoints.current = [pos];
+      drawDotOnCanvas(pos);
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isActive || !isDrawing.current) return;
+    const pos = getCanvasCoords(e.clientX, e.clientY);
+
+    if (isEraser) {
+      eraseStrokesAt(pos);
+    } else {
+      const prev = currentPoints.current[currentPoints.current.length - 1];
+      currentPoints.current.push(pos);
+      drawSegmentOnCanvas(prev, pos);
+    }
+  };
+
+  const handleMouseUp = () => {
+    if (!isActive || !isDrawing.current) return;
+    isDrawing.current = false;
+    if (!isEraser && currentPoints.current.length > 0) {
+      commitCurrentStroke();
     }
     currentPoints.current = [];
+  };
+
+  const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
+    const wrapper = containerRef?.current || document.getElementById('sheetWrapper');
+    if (wrapper) {
+      wrapper.scrollTop += e.deltaY;
+      wrapper.scrollLeft += e.deltaX;
+    }
+  };
+
+  // ── Quick Scroll Buttons for Floating Toolbar ────────────────────────────
+  const scrollSheet = (offset: number) => {
+    const wrapper = containerRef?.current || document.getElementById('sheetWrapper');
+    if (wrapper) {
+      wrapper.scrollBy({ top: offset, behavior: 'smooth' });
+    }
   };
 
   const undo = () => {
@@ -382,7 +504,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     let targetIndex = -1;
     for (let i = strokes.length - 1; i >= 0; i--) {
       const s = strokes[i];
-      if (isMd || s.userId === currentUser?.id || s.userId === 'guest' || s.scope === 'user') {
+      if (isMdOrAdmin || s.userId === currentUser?.id || s.userId === 'guest' || s.scope === 'user') {
         targetIndex = i;
         break;
       }
@@ -396,7 +518,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   };
 
   const clearAll = () => {
-    const updated = isMd
+    const updated = isMdOrAdmin
       ? []
       : strokes.filter((s) => s.scope === 'global');
 
@@ -436,7 +558,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         overflowX: 'auto',
       }}
     >
-      {/* Scope Indicator Badge */}
+      {/* Scope / Gesture Badge */}
       <div
         style={{
           padding: '4px 9px',
@@ -445,14 +567,58 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
           fontWeight: 800,
           letterSpacing: '0.5px',
           textTransform: 'uppercase',
-          backgroundColor: isMd ? 'rgba(78, 177, 203, 0.2)' : 'rgba(234, 179, 8, 0.15)',
-          color: isMd ? '#4EB1CB' : '#facc15',
-          border: `1px solid ${isMd ? 'rgba(78, 177, 203, 0.4)' : 'rgba(234, 179, 8, 0.3)'}`,
+          backgroundColor: isMdOrAdmin ? 'rgba(78, 177, 203, 0.2)' : 'rgba(234, 179, 8, 0.15)',
+          color: isMdOrAdmin ? '#4EB1CB' : '#facc15',
+          border: `1px solid ${isMdOrAdmin ? 'rgba(78, 177, 203, 0.4)' : 'rgba(234, 179, 8, 0.3)'}`,
           whiteSpace: 'nowrap',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '5px',
         }}
       >
-        {isMd ? '🌐 GLOBAL (MD)' : '🔒 PERSONAL'}
+        <span>{isMdOrAdmin ? '🌐 GLOBAL' : '🔒 PERSONAL'}</span>
+        <span style={{ opacity: 0.6, fontSize: '9px' }}>• ✌️ 2-finger scroll</span>
       </div>
+
+      {/* Quick Scroll Buttons */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+        <button
+          onClick={() => scrollSheet(-320)}
+          title="Scroll Up (or use 2 fingers)"
+          style={{
+            padding: '5px 8px',
+            borderRadius: '8px',
+            background: '#1e293b',
+            color: '#94a3b8',
+            border: '1px solid #334155',
+            fontSize: '11px',
+            fontWeight: 800,
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          ▲ Up
+        </button>
+        <button
+          onClick={() => scrollSheet(320)}
+          title="Scroll Down to Bridge/Outro (or use 2 fingers)"
+          style={{
+            padding: '5px 8px',
+            borderRadius: '8px',
+            background: '#1e293b',
+            color: '#94a3b8',
+            border: '1px solid #334155',
+            fontSize: '11px',
+            fontWeight: 800,
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          ▼ Down
+        </button>
+      </div>
+
+      <div style={{ width: '1px', height: '18px', backgroundColor: '#334155', margin: '0 2px', flexShrink: 0 }} />
 
       {/* Color Palette */}
       {[
@@ -545,27 +711,6 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         🗑️ Clear
       </button>
 
-      {/* MD Show All Toggle */}
-      {isMd && (
-        <button
-          onClick={() => setShowAllMembers(!showAllMembers)}
-          title="Toggle view of all members annotations"
-          style={{
-            padding: '5px 10px',
-            borderRadius: '8px',
-            background: showAllMembers ? 'rgba(78, 177, 203, 0.2)' : '#1e293b',
-            color: showAllMembers ? '#4EB1CB' : '#94a3b8',
-            border: `1px solid ${showAllMembers ? '#4EB1CB' : '#334155'}`,
-            fontSize: '11px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          👁️ {showAllMembers ? 'Show All' : 'My Only'}
-        </button>
-      )}
-
       {/* Done Button */}
       <button
         onClick={onClose}
@@ -590,19 +735,14 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     <>
       <canvas
         ref={canvasRef}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-        onTouchStart={(e) => {
-          if (isActive) e.stopPropagation();
-        }}
-        onTouchMove={(e) => {
-          if (isActive) e.stopPropagation();
-        }}
-        onTouchEnd={(e) => {
-          if (isActive) e.stopPropagation();
-        }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchCancel}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onWheel={handleWheel}
         style={{
           position: 'absolute',
           top: 0,

@@ -5,6 +5,24 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.64.0] — 2026-09-24
+### Fixed & Enhanced — The Band Stage Tool: Two-Finger Smooth Scrolling & Persistent Drawing Annotations
+- **Two-Finger Scroll Gesture on Canvas (`DrawingCanvas.tsx`)**:
+  - Implemented multi-touch gesture separation: 1 finger draws smooth annotations, 2 fingers smoothly pan/scroll the song sheet up and down.
+  - Automatically aborts and discards any single-finger stroke if a 2nd finger joins, preventing accidental vertical lines when attempting to scroll.
+  - Supports mouse drag on desktop and trackpad/mouse wheel scrolling (`onWheel`).
+- **Toolbar Quick-Scroll Buttons (`DrawingCanvas.tsx`)**:
+  - Added dedicated `▲ Up` and `▼ Down` quick-scroll buttons directly to the floating drawing toolbar (320px smooth jump), allowing 1-tap navigation to the Bridge or Outro without needing multi-touch.
+  - Added status badge indicator: `✌️ 2-finger scroll`.
+- **Eliminated Stroke Disappearing & Appearing Glitches (`page.tsx`, `DrawingCanvas.tsx`)**:
+  - Added dedicated `localSongStrokes` memory cache and `getActiveDrawingStrokes` resolver in `page.tsx`.
+  - Re-anchored coordinate space to exact CSS pixels `(x, y)` with DPR context scaling, preventing annotations from shifting down or drifting off-screen when the document expands.
+  - Guarded against empty server poll overwrites: background sync will never overwrite non-empty local strokes with empty data from the server.
+  - Protected `DrawingCanvas` prop updates so that empty arrays never clear local strokes.
+  - Expanded global stroke visibility to Admins as well as MDs so all stage annotations are visible across band members.
+- **Scroll Container Architecture (`SongSheet.tsx`)**:
+  - Maintained `overflowY: 'auto'` and `touchAction: 'pan-y'` on `#sheetWrapper` while drawing is active so the full document height (Bridge, Outro) is always scrollable.
+
 ## [v2.63.0] — 2026-09-24
 ### Fixed — The Band Stage Tool: Strict Track Uploader-Only Playback Dock Visibility
 - **Strict Uploader-Only Playback Dock Scoping (`page.tsx`)**:

@@ -1,7 +1,7 @@
 // app/band/page.tsx
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import ConfirmModal from '@/components/ConfirmModal';
 import { useSetlist } from './hooks/useSetlist';
@@ -363,8 +363,29 @@ export default function BandStagePage() {
   }>({ open: false, feature: null });
 
   const [drawingSyncTick, setDrawingSyncTick] = useState<number>(0);
+  const [localSongStrokes, setLocalSongStrokes] = useState<Record<string, DrawingStroke[]>>({});
   const drawingSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastLocalStrokeTimeRef = useRef<number>(0);
+
+  const getActiveDrawingStrokes = useCallback((songId: string | undefined): DrawingStroke[] => {
+    if (!songId) return [];
+    if (localSongStrokes[songId] && localSongStrokes[songId].length > 0) {
+      return localSongStrokes[songId];
+    }
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem(`hgf_drawings_${songId}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch (_) {}
+    }
+    if (currentSong?.id === songId && Array.isArray(currentSong.drawingStrokes)) {
+      return currentSong.drawingStrokes;
+    }
+    return [];
+  }, [localSongStrokes, currentSong]);
 
   const handleImportScrapedSong = async (newSong: Song, addToSetlist = false) => {
     await optimisticAddSong(newSong, addToSetlist && activeSetlistId ? activeSetlistId : undefined);
@@ -429,17 +450,16 @@ export default function BandStagePage() {
   // Load strokes from localStorage fallback on song switch
   useEffect(() => {
     if (currentSong?.id) {
-      try {
-        const local = localStorage.getItem(`hgf_drawings_${currentSong.id}`);
-        if (local) {
-          const parsed = JSON.parse(local);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            currentSong.drawingStrokes = parsed;
-          }
-        }
-      } catch (_) {}
+      const strokes = getActiveDrawingStrokes(currentSong.id);
+      if (strokes.length > 0) {
+        currentSong.drawingStrokes = strokes;
+        setLocalSongStrokes((prev) => ({
+          ...prev,
+          [currentSong.id]: strokes,
+        }));
+      }
     }
-  }, [currentSong?.id]);
+  }, [currentSong?.id, getActiveDrawingStrokes]);
 
   // Bluetooth Pedal Listeners
   useFootPedal({
@@ -643,11 +663,18 @@ export default function BandStagePage() {
 
   const handleSaveStrokes = (strokes: DrawingStroke[]) => {
     if (!currentSong) return;
+    const songId = currentSong.id;
     lastLocalStrokeTimeRef.current = Date.now();
     currentSong.drawingStrokes = strokes;
+
+    setLocalSongStrokes((prev) => ({
+      ...prev,
+      [songId]: strokes,
+    }));
+
     // Persist to local cache immediately
     try {
-      localStorage.setItem(`hgf_drawings_${currentSong.id}`, JSON.stringify(strokes));
+      localStorage.setItem(`hgf_drawings_${songId}`, JSON.stringify(strokes));
     } catch (_) {}
 
     // Debounced persist to server so team members receive annotations in real time
@@ -658,7 +685,7 @@ export default function BandStagePage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            id: currentSong.id,
+            id: songId,
             title: currentSong.title,
             drawingStrokes: strokes,
           }),
@@ -685,10 +712,20 @@ export default function BandStagePage() {
         if (!res.ok) return;
         const remoteSong: Song = await res.json();
         if (remoteSong && Array.isArray(remoteSong.drawingStrokes)) {
-          const currentJson = JSON.stringify(currentSong.drawingStrokes || []);
+          const currentLocal = getActiveDrawingStrokes(currentSong.id);
+          // Safety: never overwrite existing local strokes with empty server strokes!
+          if (remoteSong.drawingStrokes.length === 0 && currentLocal.length > 0) {
+            return;
+          }
+
+          const currentJson = JSON.stringify(currentLocal || []);
           const remoteJson = JSON.stringify(remoteSong.drawingStrokes);
           if (currentJson !== remoteJson) {
             currentSong.drawingStrokes = remoteSong.drawingStrokes;
+            setLocalSongStrokes((prev) => ({
+              ...prev,
+              [currentSong.id]: remoteSong.drawingStrokes || [],
+            }));
             try {
               localStorage.setItem(`hgf_drawings_${currentSong.id}`, remoteJson);
             } catch (_) {}
@@ -699,7 +736,7 @@ export default function BandStagePage() {
     }, 3500);
 
     return () => clearInterval(syncInterval);
-  }, [currentSong?.id, isDrawingActive]);
+  }, [currentSong?.id, isDrawingActive, getActiveDrawingStrokes]);
 
   const handleSaveAsMdKey = async (newKey: string) => {
     if (!currentSong || currentUser?.role !== 'MD') return;
@@ -858,7 +895,7 @@ export default function BandStagePage() {
             isActive={isDrawingActive}
             onClose={() => setIsDrawingActive(false)}
             currentUser={currentUser}
-            savedStrokes={currentSong?.drawingStrokes || []}
+            savedStrokes={getActiveDrawingStrokes(currentSong?.id)}
             onSaveStrokes={handleSaveStrokes}
           />
         }
