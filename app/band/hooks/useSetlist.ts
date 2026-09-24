@@ -1,13 +1,14 @@
 // app/band/hooks/useSetlist.ts
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Song, Setlist, SetlistSongItem } from '../types/band';
 import { getSongsOffline, saveSongsOffline } from '../lib/offlineStorage';
 
 const STORAGE_ACTIVE_SETLIST = 'hgf_band_active_setlist_id';
 const STORAGE_ACTIVE_SONG = 'hgf_band_active_song_id';
 const STORAGE_LOCAL_SONGS = 'hgf_band_songs';
+const STORAGE_LOCAL_SETLISTS = 'hgf_band_setlists';
 const STORAGE_SESSION_KEYS = 'hgf_band_session_keys';
 
 export interface SessionSongOverride {
@@ -26,18 +27,46 @@ export function useSetlist() {
   const [setlistSessionOverrides, setSetlistSessionOverrides] = useState<Record<string, SessionSongOverride>>({});
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Fetch all songs and setlists
+  // Mutation lockouts to prevent background polling from overwriting instant local operations
+  const lastSetlistMutationTimeRef = useRef<number>(0);
+  const lastSongMutationTimeRef = useRef<number>(0);
+
+  // Restore instantly from localStorage on mount (0ms latency for offline/slow connections)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const cachedSongs = localStorage.getItem(STORAGE_LOCAL_SONGS);
+      if (cachedSongs) {
+        const parsed = JSON.parse(cachedSongs);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setSongs(parsed);
+          setIsLoading(false);
+        }
+      }
+      const cachedSetlists = localStorage.getItem(STORAGE_LOCAL_SETLISTS);
+      if (cachedSetlists) {
+        const parsed = JSON.parse(cachedSetlists);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setSetlists(parsed);
+        }
+      }
+    } catch (_) {}
+  }, []);
+
+  // Fetch all songs and setlists from server
   const refreshData = useCallback(async () => {
-    setIsLoading(true);
     try {
       // 1. Fetch songs
       const songsRes = await fetch('/api/worship', { cache: 'no-store' });
       if (songsRes.ok) {
         const remoteSongs: Song[] = await songsRes.json();
-        setSongs(remoteSongs);
-        saveSongsOffline(remoteSongs).catch(() => {});
-        if (typeof window !== 'undefined') {
-          localStorage.setItem(STORAGE_LOCAL_SONGS, JSON.stringify(remoteSongs));
+        // Only overwrite if not within a recent local song mutation window
+        if (Date.now() - lastSongMutationTimeRef.current > 8000) {
+          setSongs(remoteSongs);
+          saveSongsOffline(remoteSongs).catch(() => {});
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(STORAGE_LOCAL_SONGS, JSON.stringify(remoteSongs));
+          }
         }
       } else {
         const offline = await getSongsOffline();
@@ -48,7 +77,13 @@ export function useSetlist() {
       const setlistsRes = await fetch('/api/worship/setlists', { cache: 'no-store' });
       if (setlistsRes.ok) {
         const remoteSetlists: Setlist[] = await setlistsRes.json();
-        setSetlists(remoteSetlists);
+        // Only overwrite if not within a recent local setlist mutation window
+        if (Date.now() - lastSetlistMutationTimeRef.current > 8000) {
+          setSetlists(remoteSetlists);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(STORAGE_LOCAL_SETLISTS, JSON.stringify(remoteSetlists));
+          }
+        }
       }
     } catch (_) {
       const offline = await getSongsOffline();
@@ -75,7 +110,8 @@ export function useSetlist() {
         ]);
         if (!isMounted) return;
 
-        if (songsRes.ok) {
+        // Skip updating songs if local user just imported or added a song (< 8s ago)
+        if (songsRes.ok && Date.now() - lastSongMutationTimeRef.current > 8000) {
           const remoteSongs: Song[] = await songsRes.json();
           setSongs((prev) => {
             if (JSON.stringify(prev) !== JSON.stringify(remoteSongs)) {
@@ -89,10 +125,14 @@ export function useSetlist() {
           });
         }
 
-        if (setlistsRes.ok) {
+        // Skip updating setlists if local user just reordered or changed setlist (< 8s ago)
+        if (setlistsRes.ok && Date.now() - lastSetlistMutationTimeRef.current > 8000) {
           const remoteSetlists: Setlist[] = await setlistsRes.json();
           setSetlists((prev) => {
             if (JSON.stringify(prev) !== JSON.stringify(remoteSetlists)) {
+              if (typeof window !== 'undefined') {
+                localStorage.setItem(STORAGE_LOCAL_SETLISTS, JSON.stringify(remoteSetlists));
+              }
               return remoteSetlists;
             }
             return prev;
@@ -306,6 +346,8 @@ export function useSetlist() {
     const alreadyIn = existingSongs.some((it) => (typeof it === 'string' ? it === songId : it.id === songId));
     if (alreadyIn) return;
 
+    lastSetlistMutationTimeRef.current = Date.now();
+
     const foundSong = songs.find((s) => s.id === songId);
     const newItem: SetlistSongItem = foundSong
       ? {
@@ -327,19 +369,33 @@ export function useSetlist() {
       updatedAt: Date.now(),
     };
 
-    await fetch('/api/worship/setlists', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updatedSetlist),
-    });
-    await refreshData();
-  }, [activeSetlistId, setlists, refreshData]);
+    // Optimistically update in-memory state and localStorage
+    const newSetlists = setlists.map((s) => (s.id === targetSetId ? updatedSetlist : s));
+    setSetlists(newSetlists);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(STORAGE_LOCAL_SETLISTS, JSON.stringify(newSetlists));
+      } catch (_) {}
+    }
+
+    try {
+      await fetch('/api/worship/setlists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedSetlist),
+      });
+    } catch (err) {
+      console.error('Failed to sync added song to setlist on server:', err);
+    }
+  }, [activeSetlistId, setlists, songs]);
 
   const removeSongFromSetlist = useCallback(async (songId: string, setlistId?: string) => {
     const targetSetId = setlistId || activeSetlistId;
     if (!targetSetId) return;
     const targetSet = setlists.find((s) => s.id === targetSetId);
     if (!targetSet) return;
+
+    lastSetlistMutationTimeRef.current = Date.now();
 
     const existingSongs = targetSet.songs || [];
     const updatedSongs = existingSongs.filter((it) => (typeof it === 'string' ? it !== songId : it.id !== songId));
@@ -350,13 +406,25 @@ export function useSetlist() {
       updatedAt: Date.now(),
     };
 
-    await fetch('/api/worship/setlists', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updatedSetlist),
-    });
-    await refreshData();
-  }, [activeSetlistId, setlists, refreshData]);
+    // Optimistically update in-memory state and localStorage
+    const newSetlists = setlists.map((s) => (s.id === targetSetId ? updatedSetlist : s));
+    setSetlists(newSetlists);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(STORAGE_LOCAL_SETLISTS, JSON.stringify(newSetlists));
+      } catch (_) {}
+    }
+
+    try {
+      await fetch('/api/worship/setlists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedSetlist),
+      });
+    } catch (err) {
+      console.error('Failed to sync song removal from setlist on server:', err);
+    }
+  }, [activeSetlistId, setlists]);
 
   const reorderSongInSetlist = useCallback(async (fromIndex: number, toIndex: number, setlistId?: string) => {
     const targetSetId = setlistId || activeSetlistId;
@@ -366,6 +434,8 @@ export function useSetlist() {
     if (fromIndex < 0 || fromIndex >= targetSet.songs.length) return;
     if (toIndex < 0 || toIndex >= targetSet.songs.length) return;
     if (fromIndex === toIndex) return;
+
+    lastSetlistMutationTimeRef.current = Date.now();
 
     const updatedSongs = [...targetSet.songs];
     const [moved] = updatedSongs.splice(fromIndex, 1);
@@ -378,16 +448,106 @@ export function useSetlist() {
       updatedAt: Date.now(),
     };
 
-    // Optimistically update in-memory state for instant snappy response
-    setSetlists((prev) => prev.map((s) => (s.id === targetSetId ? updatedSetlist : s)));
+    // Optimistically update in-memory state and localStorage for instant 0ms snappy response
+    const newSetlists = setlists.map((s) => (s.id === targetSetId ? updatedSetlist : s));
+    setSetlists(newSetlists);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(STORAGE_LOCAL_SETLISTS, JSON.stringify(newSetlists));
+      } catch (_) {}
+    }
 
-    await fetch('/api/worship/setlists', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updatedSetlist),
-    });
-    await refreshData();
-  }, [activeSetlistId, setlists, refreshData]);
+    // Background sync to server without disruptive refreshData() to eliminate flicker/bounceback
+    try {
+      await fetch('/api/worship/setlists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedSetlist),
+      });
+    } catch (err) {
+      console.error('Failed to sync setlist reorder to server:', err);
+    }
+  }, [activeSetlistId, setlists]);
+
+  // Instant optimistic ingestion for newly scraped or created songs
+  const optimisticAddSong = useCallback(
+    async (newSong: Song, targetSetlistId?: string) => {
+      lastSongMutationTimeRef.current = Date.now();
+
+      // 1. Instantly inject into songs state and local storage
+      setSongs((prev) => {
+        const next = [newSong, ...prev.filter((s) => s.id !== newSong.id)];
+        saveSongsOffline(next).catch(() => {});
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem(STORAGE_LOCAL_SONGS, JSON.stringify(next));
+          } catch (_) {}
+        }
+        return next;
+      });
+
+      // 2. Select the song immediately
+      setCurrentSongId(newSong.id);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(STORAGE_ACTIVE_SONG, newSong.id);
+      }
+
+      // 3. If target setlist is provided, add song to setlist immediately
+      let updatedSetlist: Setlist | null = null;
+      if (targetSetlistId) {
+        lastSetlistMutationTimeRef.current = Date.now();
+        const targetSet = setlists.find((s) => s.id === targetSetlistId);
+        if (targetSet) {
+          const existingSongs = targetSet.songs || [];
+          const newItem: SetlistSongItem = {
+            id: newSong.id,
+            title: newSong.title,
+            key: newSong.key,
+            capo: newSong.capo,
+            tempo: typeof newSong.tempo === 'number' ? newSong.tempo : undefined,
+            timeSignature: newSong.timeSignature,
+            chords: newSong.chords,
+            duration: newSong.duration,
+          };
+          const updatedSongs = [...existingSongs, newItem];
+          updatedSetlist = {
+            ...targetSet,
+            songs: updatedSongs,
+            songCount: updatedSongs.length,
+            updatedAt: Date.now(),
+          };
+
+          const newSetlists = setlists.map((s) => (s.id === targetSetlistId ? updatedSetlist! : s));
+          setSetlists(newSetlists);
+          if (typeof window !== 'undefined') {
+            try {
+              localStorage.setItem(STORAGE_LOCAL_SETLISTS, JSON.stringify(newSetlists));
+            } catch (_) {}
+          }
+        }
+      }
+
+      // 4. Fire background server syncs
+      try {
+        await fetch('/api/worship', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newSong),
+        });
+
+        if (updatedSetlist) {
+          await fetch('/api/worship/setlists', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatedSetlist),
+          });
+        }
+      } catch (err) {
+        console.error('Failed to sync new song to server:', err);
+      }
+    },
+    [setlists]
+  );
 
   return {
     songs,
@@ -411,6 +571,7 @@ export function useSetlist() {
     addSongToSetlist,
     removeSongFromSetlist,
     reorderSongInSetlist,
+    optimisticAddSong,
     refreshData,
   };
 }

@@ -29,6 +29,11 @@ async function getStorageMetrics() {
         const filePath = path.join(AUDIO_DIR, f);
         const stat = await fs.stat(filePath);
         if (stat.isFile()) {
+          // Clean up and ignore 0-byte/empty audio files
+          if (stat.size === 0) {
+            try { await fs.unlink(filePath); } catch {}
+            continue;
+          }
           totalBytes += stat.size;
           list.push({
             filename: f,
@@ -87,6 +92,10 @@ export async function POST(req: NextRequest) {
 
     if (!file) {
       return NextResponse.json({ error: 'No audio file provided' }, { status: 400 });
+    }
+
+    if (file.size === 0) {
+      return NextResponse.json({ error: 'Audio file is empty (0 MB)' }, { status: 400 });
     }
 
     // Validate mime / extension

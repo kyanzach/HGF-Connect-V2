@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Song, AudioTrack, AudioMarker } from '../../types/band';
+import { Song, AudioTrack, AudioMarker, BandUser } from '../../types/band';
 import { saveAudioBlobOffline } from '../../lib/offlineStorage';
 import {
   extractRoadmapSections,
@@ -16,6 +16,7 @@ interface AudioStorageModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentSong: Song | null;
+  currentUser?: BandUser | null;
   onAttachTrack: (track: AudioTrack | null) => Promise<void>;
 }
 
@@ -23,6 +24,7 @@ export const AudioStorageModal: React.FC<AudioStorageModalProps> = ({
   isOpen,
   onClose,
   currentSong,
+  currentUser,
   onAttachTrack,
 }) => {
   const [storageMode, setStorageMode] = useState<'local' | 'cloud'>('local');
@@ -99,6 +101,7 @@ export const AudioStorageModal: React.FC<AudioStorageModalProps> = ({
           durationSec: Math.round(durationSec),
           markers: detectedMarkers,
           isLocalOnly: true,
+          uploadedBy: currentUser?.id,
           uploadedAt: Date.now(),
         };
 
@@ -135,6 +138,7 @@ export const AudioStorageModal: React.FC<AudioStorageModalProps> = ({
           durationSec: Math.round(durationSec),
           markers: detectedMarkers,
           isLocalOnly: false,
+          uploadedBy: currentUser?.id,
           uploadedAt: Date.now(),
         };
 

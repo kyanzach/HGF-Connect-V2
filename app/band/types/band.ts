@@ -18,6 +18,7 @@ export interface AudioTrack {
   waveform?: number[];
   markers?: AudioMarker[];
   isLocalOnly?: boolean;
+  uploadedBy?: string;
   uploadedAt?: number;
   updatedAt?: number;
 }

@@ -1,7 +1,7 @@
 // app/band/page.tsx
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import ConfirmModal from '@/components/ConfirmModal';
 import { useSetlist } from './hooks/useSetlist';
@@ -78,6 +78,7 @@ export default function BandStagePage() {
     addSongToSetlist,
     removeSongFromSetlist,
     reorderSongInSetlist,
+    optimisticAddSong,
     refreshData,
   } = useSetlist();
 
@@ -185,6 +186,21 @@ export default function BandStagePage() {
 
   const { data: session } = useSession();
   const [currentUser, setCurrentUser] = useState<BandUser | null>(null);
+
+  // Scope backtrack playback dock:
+  // Only the uploader, or MD/Admin sees the playback dock.
+  // Regular musicians reading charts will NOT see the bottom playback bar, maximizing screen space.
+  const isPlaybackDockVisible = useMemo(() => {
+    if (!hasAudio || !currentSong?.audioTrack) return false;
+    const track = currentSong.audioTrack;
+    if (track.isLocalOnly) {
+      if (track.uploadedBy && currentUser?.id && track.uploadedBy === currentUser.id) return true;
+      return currentUser?.role === 'MD' || currentUser?.role === 'admin';
+    }
+    const isMdOrAdmin = currentUser?.role === 'MD' || currentUser?.role === 'admin';
+    const isUploader = !!(track.uploadedBy && currentUser?.id && track.uploadedBy === currentUser.id);
+    return isMdOrAdmin || isUploader;
+  }, [hasAudio, currentSong?.audioTrack, currentUser]);
 
   // 1. Restore saved band user from localStorage or 10-year persistent cookie on mount & silently refresh against API
   useEffect(() => {
@@ -343,13 +359,10 @@ export default function BandStagePage() {
 
   const [drawingSyncTick, setDrawingSyncTick] = useState<number>(0);
   const drawingSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastLocalStrokeTimeRef = useRef<number>(0);
 
   const handleImportScrapedSong = async (newSong: Song, addToSetlist = false) => {
-    await handleSaveSong(newSong);
-    if (addToSetlist && activeSetlistId) {
-      await addSongToSetlist(newSong.id, activeSetlistId);
-    }
-    selectSong(newSong.id);
+    await optimisticAddSong(newSong, addToSetlist && activeSetlistId ? activeSetlistId : undefined);
   };
 
   // Planned arrangement duration in seconds (defaults to standard 4:00 if not yet explicitly saved on song)
@@ -619,6 +632,7 @@ export default function BandStagePage() {
 
   const handleSaveStrokes = (strokes: DrawingStroke[]) => {
     if (!currentSong) return;
+    lastLocalStrokeTimeRef.current = Date.now();
     currentSong.drawingStrokes = strokes;
     // Persist to local cache immediately
     try {
@@ -650,6 +664,7 @@ export default function BandStagePage() {
 
     const syncInterval = setInterval(async () => {
       if (isDrawingActive) return; // Do not interrupt user while actively drawing
+      if (Date.now() - lastLocalStrokeTimeRef.current < 6000) return; // Prevent overwriting freshly drawn local strokes
       if (typeof document !== 'undefined' && document.hidden) return; // Pause when tab is backgrounded
 
       try {
@@ -828,7 +843,7 @@ export default function BandStagePage() {
         onRefresh={refreshData}
         drawingCanvasElement={
           <DrawingCanvas
-            key={`drawing_${currentSong?.id}_${drawingSyncTick}`}
+            key={`drawing_${currentSong?.id}`}
             isActive={isDrawingActive}
             onClose={() => setIsDrawingActive(false)}
             currentUser={currentUser}
@@ -854,7 +869,7 @@ export default function BandStagePage() {
         isMetronomePulsing={isPulsing}
         onOpenMetronome={() => setIsMetronomeModalOpen(true)}
         isMetronomeAudioActive={isMetronomeAudioActive}
-        hasPlaybackDock={hasAudio}
+        hasPlaybackDock={isPlaybackDockVisible}
         duration={currentSongDuration}
         onOpenDurationPicker={() => setIsDurationModalOpen(true)}
       />
@@ -870,7 +885,7 @@ export default function BandStagePage() {
           setIsAutoScrolling(false);
           setShowAutoScrollBar(false);
         }}
-        hasPlaybackDock={hasAudio}
+        hasPlaybackDock={isPlaybackDockVisible}
         scrollMode={scrollMode}
         onToggleScrollMode={() => setScrollMode((prev) => (prev === 'duration' ? 'speed' : 'duration'))}
         duration={currentSongDuration}
@@ -881,9 +896,9 @@ export default function BandStagePage() {
       />
 
       {/* FLOATING AUDIO SCRUBBER DOCK */}
-      {hasAudio && (
+      {isPlaybackDockVisible && (
         <AudioPlaybackDock
-          isVisible={hasAudio}
+          isVisible={isPlaybackDockVisible}
           isPlaying={isBacktrackPlaying}
           currentTime={backtrackCurrentTime}
           duration={backtrackDuration}
@@ -974,6 +989,7 @@ export default function BandStagePage() {
         isOpen={isAudioStorageOpen}
         onClose={() => setIsAudioStorageOpen(false)}
         currentSong={currentSong}
+        currentUser={currentUser}
         onAttachTrack={handleAttachTrack}
       />
 

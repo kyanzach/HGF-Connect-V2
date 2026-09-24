@@ -5,6 +5,25 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.61.0] — 2026-09-24
+### Fixed & Enhanced — The Band Stage Tool: Local-First Zero-Latency Setlist Reordering, Instant Song Ingestion, Stabilized Drawing Strokes & Scoped Playback Dock
+- **Local-First Zero-Latency Setlist Sorting (`useSetlist.ts`)**:
+  - Eliminated setlist sorting flicker and split-second bouncebacks by persisting reordered lineup directly to local storage (`hgf_band_setlists`) and in-memory state before background synchronization.
+  - Implemented 8-second background polling lockouts (`lastSetlistMutationTimeRef`) to prevent asynchronous polling cycles from reverting snappy local modifications over slow connections.
+  - Removed disruptive re-fetching and full-page loading indicators on setlist mutations.
+- **Instant Optimistic Song Ingestion (`useSetlist.ts`, `page.tsx`)**:
+  - Added `optimisticAddSong` for 0ms instantaneous song importation and library ingestion upon clicking import in Search Chords.
+  - Bypasses multiple blocking network round-trips and loading delays by injecting the song and active setlist lineup locally and immediately selecting it while server sync completes in the background.
+- **Drawing "Ghost" Strokes Elimination (`page.tsx`)**:
+  - Fixed disappearing and reappearing drawing strokes caused by premature background polling overwriting in-flight debounced stroke saves.
+  - Added a 6-second local stroke protection window (`lastLocalStrokeTimeRef`) in the real-time sync loop.
+  - Stabilized `<DrawingCanvas>` DOM key to `drawing_${currentSong?.id}` so the canvas element is preserved without unmounting or destroying strokes when remote sync increments.
+- **Scoped Backtrack Playback Dock & 0 MB Cloud Storage Cleanup (`page.tsx`, `AudioStorageModal.tsx`, `route.ts`)**:
+  - Scoped bottom audio playback dock visibility so only MDs, Admins, or the specific user who attached the backtrack sees the player.
+  - Regular musicians reading chord charts now enjoy an uncluttered, distraction-free stage screen without bottom scrubber bars.
+  - Tagged audio tracks with `uploadedBy` identifier on upload/attach.
+  - Cleaned up 0 MB empty audio files from cloud storage and rejected 0-byte uploads in `/api/worship/audio`.
+
 ## [v2.60.0] — 2026-09-24
 ### Added & Enhanced — The Band Stage Tool: Hold & Drag Setlist Reordering & Search Chords Branding
 - **Setlist Hold & Drag Reordering (`SetlistSidebar.tsx`, `useSetlist.ts`)**:
