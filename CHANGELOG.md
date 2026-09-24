@@ -5,6 +5,23 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.68.2] — 2026-09-25
+### Fixed & Enhanced — The Band Stage Tool: Android APK & iOS Scroll/Draw Fixes & Gesture Isolation
+- **One-Finger Scrolling Up & Pull-to-Refresh Conflict Fixed (`SongSheet.tsx`, `MainActivity.kt`)**:
+  - Eliminated the scroll resistance and deadlock on Android APK when scrolling back up towards Verse 1.
+  - In `MainActivity.kt`, disabled aggressive `SwipeRefreshLayout` by default (`isEnabled = false`) so native Android touch interceptors will never hijack WebView touch streams, kill scroll momentum, or intercept upward scroll gestures.
+  - Added `touchStartedAtTopRef` in `SongSheet.tsx`: pull-to-refresh is strictly restricted to when the user explicitly started their touch when already parked at `scrollTop <= 0`. Scrolling back up from Chorus, Bridge, or mid-song will never trigger pull-to-refresh or disrupt scroll momentum.
+  - Disabled web pull-to-refresh inside the native Android Band APK (`HGFBandApp`) to guarantee 100% pure, uninterrupted, high-framerate teleprompter scrolling.
+  - Configured `overscrollBehaviorY: 'none'` on `#sheetWrapper` to prevent native overscroll bounce and scroll chaining.
+- **Drawing Canvas "Draw Once" & Bridge Area Fixes (`DrawingCanvas.tsx`)**:
+  - Fixed an issue on Android APK where drawing only worked for a single stroke and failed when attempting to draw lines further down in the Bridge area.
+  - Implemented native non-passive (`{ passive: false }`) touch event listeners (`touchstart`, `touchmove`, `touchend`, `touchcancel`) on `<canvas>`, guaranteeing `e.preventDefault()` cancels browser scroll gestures and stops Chromium from emitting `touchcancel`.
+  - Added child element observation and `MutationObserver` on `#sheetWrapper`, ensuring `<canvas>` automatically resizes to span the entire scrollable height of the song, and auto-expands before any stroke if new content expands.
+  - In `onTouchCancel`, strokes are now committed rather than discarded, guaranteeing annotations are never lost.
+- **Two-Finger Pan/Scroll Polish (Android APK & iPhone PWA) (`DrawingCanvas.tsx`)**:
+  - Calling `e.preventDefault()` and `e.stopPropagation()` on native non-passive `touchstart` suppresses iOS Safari pinch-to-zoom interference, enabling buttery-smooth two-finger panning on iPhone PWA.
+  - Clamped two-finger scrolling safely between 0 and `maxScroll` without bubbling or triggering pull-to-refresh when panning back to the top.
+
 ## [v2.68.1] — 2026-09-25
 ### Fixed & Enhanced — The Band Stage Tool: Always Open 1st Song in User-Arranged Setlist Lineup
 - **Setlist Selection Song Order Fix (`useSetlist.ts`)**:

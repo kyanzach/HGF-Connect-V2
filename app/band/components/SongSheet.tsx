@@ -282,6 +282,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [refreshSuccess, setRefreshSuccess] = useState<boolean>(false);
   const refreshDismissTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const touchStartedAtTopRef = useRef<boolean>(false);
 
   const dismissRefreshPill = useCallback(() => {
     if (refreshDismissTimeoutRef.current) {
@@ -327,6 +328,9 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     if (userInteractionTimeoutRef.current) clearTimeout(userInteractionTimeoutRef.current);
     isUserInteractingRef.current = true;
     if (isDrawingActive) return;
+
+    // Pull-to-refresh can ONLY start if the container is already parked at the very top (scrollTop <= 0)
+    touchStartedAtTopRef.current = Boolean(containerRef.current && containerRef.current.scrollTop <= 0);
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
   };
@@ -335,21 +339,33 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     if (isDrawingActive || isRefreshing) return;
     if (!containerRef.current || touchStartY.current === null) return;
 
-    // Allow pull-to-refresh at the top of the sheet (allowing for subpixel rendering <= 2px)
-    if (containerRef.current.scrollTop <= 2) {
+    // Inside native Android Band APK (HGFBandApp), disable web pull-to-refresh completely
+    // so stage teleprompter scrolling is 100% pure, unhindered, and never hijacked
+    const isBandApp = typeof navigator !== 'undefined' && navigator.userAgent.includes('HGFBandApp');
+    if (isBandApp) return;
+
+    // Pull-to-refresh is strictly restricted to when the user explicitly started dragging from the top.
+    // When scrolling up from Chorus/Bridge, touchStartedAtTopRef is false, so it will NEVER trigger pull-to-refresh.
+    if (touchStartedAtTopRef.current && containerRef.current.scrollTop <= 0) {
       const currentY = e.touches[0].clientY;
       const diffY = currentY - touchStartY.current;
-      if (diffY > 0) {
-        // Snappy responsive elastic resistance
-        const damped = Math.min(85, Math.pow(diffY, 0.88) * 1.5);
+      if (diffY > 15) {
+        // Snappy responsive elastic resistance after 15px threshold
+        const damped = Math.min(85, Math.pow(diffY - 15, 0.88) * 1.5);
         setPullDistance(damped);
+      } else {
+        if (pullDistance > 0) setPullDistance(0);
       }
     } else {
+      if (containerRef.current.scrollTop > 0) {
+        touchStartedAtTopRef.current = false;
+      }
       if (pullDistance > 0) setPullDistance(0);
     }
   };
 
   const handleTouchEnd = async (e: React.TouchEvent) => {
+    touchStartedAtTopRef.current = false;
     if (userInteractionTimeoutRef.current) clearTimeout(userInteractionTimeoutRef.current);
     userInteractionTimeoutRef.current = setTimeout(() => {
       isUserInteractingRef.current = false;
@@ -457,7 +473,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
         fontFamily: 'monospace, system-ui',
         WebkitOverflowScrolling: 'touch',
         touchAction: 'pan-y',
-        overscrollBehaviorY: 'contain',
+        overscrollBehaviorY: 'none',
       }}
     >
       <style>{`

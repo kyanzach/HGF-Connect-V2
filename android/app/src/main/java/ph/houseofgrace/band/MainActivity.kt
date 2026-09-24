@@ -71,10 +71,17 @@ class MainActivity : AppCompatActivity() {
             webView.reload()
         }
 
-        // Only allow pull-to-refresh when scrolled to top
-        webView.viewTreeObserver.addOnScrollChangedListener {
-            swipeRefreshLayout.isEnabled = webView.scrollY == 0
-        }
+        // Disable native swipe-to-refresh completely so stage teleprompter scrolling,
+        // two-finger panning, and annotations are never hijacked by Android's touch interceptor
+        swipeRefreshLayout.isEnabled = false
+
+        // Expose bridge so web app can toggle swipe refresh if explicitly requested
+        webView.addJavascriptInterface(object {
+            @android.webkit.JavascriptInterface
+            fun setSwipeRefreshEnabled(enabled: Boolean) {
+                runOnUiThread { swipeRefreshLayout.isEnabled = enabled }
+            }
+        }, "AndroidBand")
 
         configureWebView()
         configureCookies()
