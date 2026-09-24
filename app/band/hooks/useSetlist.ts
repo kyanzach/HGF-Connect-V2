@@ -209,13 +209,14 @@ export function useSetlist() {
     if (isLoading) return;
     if (currentLineup.length === 0 && songs.length === 0) return;
 
-    const isValid = currentSongId && (currentLineup.some((s) => s.id === currentSongId) || songs.some((s) => s.id === currentSongId));
+    const isSongInLineup = Boolean(currentSongId && currentLineup.some((s) => s.id === currentSongId));
+    const isValid = activeSetlist ? isSongInLineup : Boolean(currentSongId && songs.some((s) => s.id === currentSongId));
 
     if (!isValid) {
       let targetId = currentLineup[0]?.id || songs[0]?.id;
       if (typeof window !== 'undefined') {
         const savedSongId = localStorage.getItem(STORAGE_ACTIVE_SONG);
-        if (savedSongId && (currentLineup.some((s) => s.id === savedSongId) || songs.some((s) => s.id === savedSongId))) {
+        if (savedSongId && (activeSetlist ? currentLineup.some((s) => s.id === savedSongId) : songs.some((s) => s.id === savedSongId))) {
           targetId = savedSongId;
         }
       }
@@ -226,7 +227,7 @@ export function useSetlist() {
         }
       }
     }
-  }, [currentLineup, currentSongId, isLoading, songs]);
+  }, [currentLineup, currentSongId, isLoading, songs, activeSetlist]);
 
   const currentSong = useMemo(() => {
     if (!currentSongId) return currentLineup[0] || songs[0] || null;
@@ -282,13 +283,10 @@ export function useSetlist() {
     if (setId) {
       const target = setlists.find((s) => s.id === setId);
       if (target && target.songs && target.songs.length > 0) {
-        // If currently viewed song is already part of the target setlist, keep viewing it!
-        const isCurrentInTarget = currentSongId && target.songs.some((it) =>
-          (typeof it === 'string' ? it : it.id) === currentSongId
-        );
-        if (!isCurrentInTarget) {
-          const first = target.songs[0];
-          const firstId = typeof first === 'string' ? first : first.id;
+        // When selecting a setlist from dropdown, always open the 1st song in user's arranged sort order (e.g. 1. Faith)
+        const first = target.songs[0];
+        const firstId = typeof first === 'string' ? first : first.id;
+        if (firstId) {
           setCurrentSongId(firstId);
           if (typeof window !== 'undefined') {
             localStorage.setItem(STORAGE_ACTIVE_SONG, firstId);
@@ -296,7 +294,7 @@ export function useSetlist() {
         }
       }
     }
-  }, [setlists, currentSongId]);
+  }, [setlists]);
 
   const nextSong = useCallback(() => {
     if (currentIndex < currentLineup.length - 1) {

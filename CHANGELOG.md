@@ -5,6 +5,13 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.68.1] — 2026-09-25
+### Fixed & Enhanced — The Band Stage Tool: Always Open 1st Song in User-Arranged Setlist Lineup
+- **Setlist Selection Song Order Fix (`useSetlist.ts`)**:
+  - Fixed an issue where selecting a setlist on the dropdown (e.g. "Karen Sunday") kept displaying an unrelated alphabetical song (such as "All I Need Is You") if that song happened to be present later in the setlist or in the library.
+  - `selectSetlist(setId)` now strictly loads the **1st song in the user's arranged setlist sort order** (e.g., "1. Faith", followed by "2. God is Here").
+  - Fixed initial lineup song validation on mount/setlist switch: whenever an active setlist is selected, the active song is strictly enforced to be inside that setlist's lineup, defaulting to `currentLineup[0]` if the previous song belonged to another setlist or library.
+
 ## [v2.68.0] — 2026-09-25
 ### Added & Fixed — The Band Stage Tool: MD Live Stage Sync Harmony & Pace Duration Form Override
 - **MD Live Playback Sync (Church WiFi Stage Harmony) (`/api/worship/sync`, `page.tsx`, `SongSheet.tsx`)**:
