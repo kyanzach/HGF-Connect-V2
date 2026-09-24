@@ -5,6 +5,20 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.68.6] — 2026-09-25
+### Fixed & Enhanced — The Band Stage Tool: MD Playback Force-Transfer & Stage Timeline Sync Lockstep
+- **MD Playback Force Song Transfer (`app/band/page.tsx`)**:
+  - When the Musical Director (e.g. `Ren (MD)` or any user with `role === 'MD'`) taps Play on backtrack playback, all band members viewing that same setlist are immediately force-transferred to the song the MD is playing.
+  - Instantly synchronizes timeline position (`currentTime`) with network latency compensation (`latencySec = (Date.now() - sync.timestamp) / 1000`), locking follower screens directly to the MD's playback position.
+- **Intermittent & Slow Connection Recovery**:
+  - Resilient stage sync: band members with slow or intermittent connections immediately jump to the MD's exact song and calibrated timeline position upon reconnection.
+  - Added instantaneous polling triggers for `online`, window `focus`, and `visibilitychange` events, accompanied by high-speed 800ms stage polling.
+- **Strict Active Setlist Boundary**:
+  - Song jump and playback lockstep apply ONLY to band members currently on the same active setlist.
+  - Band members outside the setlist (e.g. browsing the song library, creating or editing songs, drafting another setlist) are completely unaffected and navigate freely without disruption.
+- **SongSheet Lockstep Recalibration (`SongSheet.tsx`)**:
+  - Enhanced auto-scroll synchronization to immediately recalculate chart scroll position when a song transfers, aligning the chord sheet to the MD's live playback percentage with zero layout lag.
+
 ## [v2.68.5] — 2026-09-25
 ### Fixed & Enhanced — The Band Stage Tool: MD Global vs User-Level Personal Drawings & Stage Playback Dock Scoping
 - **Stage Playback Dock Visibility Scoping (`page.tsx`)**:

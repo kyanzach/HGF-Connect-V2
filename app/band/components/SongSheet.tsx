@@ -156,16 +156,40 @@ export const SongSheet: React.FC<SongSheetProps> = ({
 
   // Playback-synced auto-scroll lockstep (when audio backtrack or live sync is playing)
   useEffect(() => {
-    if (!playbackState?.isPlaying || !playbackState.duration || !containerRef.current) return;
+    if (!playbackState?.isPlaying || !containerRef.current) return;
     if (isUserInteractingRef.current) return;
     const container = containerRef.current;
     const maxScroll = container.scrollHeight - container.clientHeight;
-    if (maxScroll > 0) {
-      const targetScroll = (playbackState.currentTime / playbackState.duration) * maxScroll;
+    const dur = playbackState.duration || effectiveTargetSecRef.current || 240;
+    if (maxScroll > 0 && dur > 0) {
+      const targetScroll = Math.min(maxScroll, Math.max(0, (playbackState.currentTime / dur) * maxScroll));
       container.scrollTop = targetScroll;
       scrollPosRef.current = targetScroll;
     }
   }, [playbackState?.isPlaying, playbackState?.currentTime, playbackState?.duration]);
+
+  // Immediate recalibration on song switch or reconnection when playback is active
+  useEffect(() => {
+    if (!playbackState?.isPlaying || !containerRef.current) return;
+    const scrollSync = () => {
+      if (!containerRef.current || isUserInteractingRef.current) return;
+      const container = containerRef.current;
+      const maxScroll = container.scrollHeight - container.clientHeight;
+      const dur = playbackState.duration || effectiveTargetSecRef.current || 240;
+      if (maxScroll > 0 && dur > 0) {
+        const targetScroll = Math.min(maxScroll, Math.max(0, (playbackState.currentTime / dur) * maxScroll));
+        container.scrollTop = targetScroll;
+        scrollPosRef.current = targetScroll;
+      }
+    };
+    scrollSync();
+    const t1 = setTimeout(scrollSync, 50);
+    const t2 = setTimeout(scrollSync, 150);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [song?.id, playbackState?.isPlaying]);
 
   // Resilient, abuse-proof Auto-Scroll loop (60fps/120fps requestAnimationFrame)
   useEffect(() => {

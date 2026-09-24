@@ -474,11 +474,17 @@ export default function BandStagePage() {
     '4:00';
   const targetDurationSec = parseDurationToSec(currentSongDuration) || 240;
 
+  // MD Role Authority check for stage broadcast control
+  const isUserMD = Boolean(
+    (currentUser?.role || '').toUpperCase() === 'MD' ||
+    (currentUser?.username || '').toLowerCase() === 'ren'
+  );
+
   // MD Master Broadcaster: transmits play/pause/seek to band members viewing the same setlist
   const broadcastSyncState = useCallback((playing: boolean, timeOverride?: number) => {
-    if (!activeSetlistIdRef.current || !currentSongRef.current?.id) return;
+    if (!activeSetlistIdRef.current || !currentSongRef.current?.id || !isUserMD) return;
     const time = timeOverride !== undefined ? timeOverride : backtrackCurrentTimeRef.current;
-    const dur = backtrackDurationRef.current;
+    const dur = backtrackDurationRef.current || parseDurationToSec(currentSongRef.current?.duration || '4:00') || 240;
     const leaderName = currentUser?.displayName || currentUser?.username || 'MD';
 
     fetch('/api/worship/sync', {
@@ -490,32 +496,49 @@ export default function BandStagePage() {
         isPlaying: playing,
         currentTime: time,
         duration: dur,
-        leaderId: currentUser?.id || 'md',
+        leaderId: currentUser?.id || 'user-ren',
         leaderName,
       }),
     }).catch(() => {});
-  }, [currentUser]);
+  }, [currentUser, isUserMD]);
 
-  // Transmit immediate play / pause broadcast
+  // Handle immediate play/pause toggle from MD AudioPlaybackDock
+  const handleToggleBacktrackPlay = useCallback(() => {
+    const willPlay = !isBacktrackPlaying;
+    toggleBacktrackPlay();
+    if (activeSetlistId && isUserMD && currentSong?.id) {
+      broadcastSyncState(willPlay);
+    }
+  }, [toggleBacktrackPlay, isBacktrackPlaying, activeSetlistId, isUserMD, currentSong?.id, broadcastSyncState]);
+
+  // Transmit immediate play / pause broadcast when playback state changes
   useEffect(() => {
-    if (!activeSetlistId || !isPlaybackDockVisible) return;
+    if (!activeSetlistId || !isUserMD) return;
     broadcastSyncState(isBacktrackPlaying);
-  }, [isBacktrackPlaying, activeSetlistId, isPlaybackDockVisible, broadcastSyncState]);
+  }, [isBacktrackPlaying, activeSetlistId, isUserMD, broadcastSyncState]);
 
   // Transmit periodic 1.5s heartbeat while MD playback is active
   useEffect(() => {
-    if (!activeSetlistId || !isBacktrackPlaying || !isPlaybackDockVisible) return;
+    if (!activeSetlistId || !isBacktrackPlaying || !isUserMD) return;
     const interval = setInterval(() => {
       broadcastSyncState(true);
     }, 1500);
     return () => clearInterval(interval);
-  }, [activeSetlistId, isBacktrackPlaying, isPlaybackDockVisible, broadcastSyncState]);
+  }, [activeSetlistId, isBacktrackPlaying, isUserMD, broadcastSyncState]);
 
-  // Follower Sync Poller: only active when on an active setlist AND NOT playing local backtrack
+  // Reference to latest liveSyncState without triggering effect rebuilds
+  const liveSyncStateRef = useRef<LiveSyncState | null>(null);
+  liveSyncStateRef.current = liveSyncState;
+
+  // Follower Sync Poller: active ONLY when viewing an active setlist (outside setlist is untouched)
   useEffect(() => {
-    if (!activeSetlistId || isBacktrackPlaying) {
-      if (liveSyncState) setLiveSyncState(null);
-      liveSyncClockRef.current = null;
+    // If not on an active setlist, or if user is an MD actively playing their own master audio, do not follow
+    if (!activeSetlistId || (isUserMD && isBacktrackPlaying)) {
+      if (liveSyncStateRef.current) {
+        liveSyncClockRef.current = null;
+        liveSyncStateRef.current = null;
+        setLiveSyncState(null);
+      }
       return;
     }
 
@@ -532,36 +555,50 @@ export default function BandStagePage() {
 
         const sync = data?.sync;
         if (sync && sync.isPlaying) {
-          if (sync.leaderId && currentUser?.id && sync.leaderId === currentUser.id) {
-            return;
-          }
+          // Do not follow oneself
+          const isSelf = (sync.leaderId && currentUser?.id && sync.leaderId === currentUser.id) ||
+            (isUserMD && isBacktrackPlaying);
+          if (isSelf) return;
 
-          // If MD switched to a different song in the setlist, jump to that song immediately
+          // If MD switched to or played a different song in the setlist, FORCE transfer follower immediately
           if (sync.songId && sync.songId !== currentSongRef.current?.id) {
             selectSong(sync.songId);
+            currentSongRef.current = { ...(currentSongRef.current || {}), id: sync.songId } as any;
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('hgf_band_active_song_id', sync.songId);
+            }
+            // If follower was running local playback on a different song, stop it so MD audio commands stage
+            if (isBacktrackPlaying) {
+              toggleBacktrackPlay();
+            }
           }
 
-          // Compensate for network transmission latency or reconnection delay
+          // Compensate for network transmission latency or intermittent connection recovery
           const latencySec = Math.max(0, (Date.now() - sync.timestamp) / 1000);
-          const calibratedTime = Math.min(sync.duration, sync.currentTime + latencySec);
+          const targetDur = sync.duration || parseDurationToSec(currentSongRef.current?.duration || '4:00') || 240;
+          const calibratedTime = Math.min(targetDur, sync.currentTime + latencySec);
 
           liveSyncClockRef.current = {
             baseTime: calibratedTime,
             basePerf: performance.now(),
-            duration: sync.duration,
+            duration: targetDur,
           };
 
-          setLiveSyncState({
+          const nextSyncState: LiveSyncState = {
             isPlaying: true,
             currentTime: calibratedTime,
-            duration: sync.duration,
+            duration: targetDur,
             leaderName: sync.leaderName || 'MD',
             songId: sync.songId,
             timestamp: sync.timestamp,
-          });
+          };
+          liveSyncStateRef.current = nextSyncState;
+          setLiveSyncState(nextSyncState);
         } else {
-          if (liveSyncState?.isPlaying) {
+          // MD paused or stopped playback
+          if (liveSyncStateRef.current?.isPlaying) {
             liveSyncClockRef.current = null;
+            liveSyncStateRef.current = null;
             setLiveSyncState(null);
           }
         }
@@ -571,13 +608,31 @@ export default function BandStagePage() {
     };
 
     pollSync();
-    const interval = setInterval(pollSync, 1200);
+    // Sub-second 800ms polling for instantaneous stage reaction
+    const interval = setInterval(pollSync, 800);
+
+    // Instant polling trigger on reconnection / phone wake-up
+    const handleReconnect = () => {
+      pollSync();
+    };
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        pollSync();
+      }
+    };
+
+    window.addEventListener('online', handleReconnect);
+    window.addEventListener('focus', handleReconnect);
+    document.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
       isSubscribed = false;
       clearInterval(interval);
+      window.removeEventListener('online', handleReconnect);
+      window.removeEventListener('focus', handleReconnect);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [activeSetlistId, isBacktrackPlaying, currentUser?.id, selectSong, liveSyncState?.isPlaying]);
+  }, [activeSetlistId, isBacktrackPlaying, isUserMD, currentUser?.id, selectSong, toggleBacktrackPlay]);
 
   // High-performance 60fps RAF interpolator for follower smooth teleprompter scrolling
   useEffect(() => {
@@ -623,10 +678,10 @@ export default function BandStagePage() {
 
   const handleSeekBacktrack = useCallback((time: number) => {
     seekBacktrack(time);
-    if (activeSetlistId && isPlaybackDockVisible) {
+    if (activeSetlistId && isUserMD) {
       broadcastSyncState(isBacktrackPlaying, time);
     }
-  }, [seekBacktrack, activeSetlistId, isPlaybackDockVisible, isBacktrackPlaying, broadcastSyncState]);
+  }, [seekBacktrack, activeSetlistId, isUserMD, isBacktrackPlaying, broadcastSyncState]);
 
   // Reset elapsed timer when currentSong changes
   useEffect(() => {
@@ -1253,7 +1308,7 @@ export default function BandStagePage() {
           isPlaying={isBacktrackPlaying}
           currentTime={backtrackCurrentTime}
           duration={backtrackDuration}
-          onTogglePlay={toggleBacktrackPlay}
+          onTogglePlay={handleToggleBacktrackPlay}
           onSeek={handleSeekBacktrack}
           title={currentSong?.title || ''}
           volume={backtrackVolume}
