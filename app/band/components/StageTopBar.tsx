@@ -94,8 +94,8 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
           height: '40px',
         }}
       >
-        {/* Left: Sidebar Toggle & Brand */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {/* Left: Sidebar Toggle & Band Emoji */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
           <button
             onClick={onToggleSidebar}
             title="Toggle Setlist & Songs Library"
@@ -103,45 +103,43 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: '36px',
-              height: '36px',
+              width: '34px',
+              height: '34px',
               borderRadius: '8px',
               border: '1px solid #334155',
               background: '#1e293b',
               color: '#f8fafc',
-              fontSize: '16px',
+              fontSize: '15px',
               cursor: 'pointer',
+              flexShrink: 0,
             }}
           >
             ☰
           </button>
-          <div
+          <button
             onClick={handleCopyShortlink}
-            title="Tap to copy shortlink (hgfapp.link/chords)"
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+            title={copiedLink ? 'Copied shortlink (hgfapp.link/chords)!' : 'HGF Band (Tap to copy hgfapp.link/chords)'}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '34px',
+              height: '34px',
+              borderRadius: '8px',
+              border: `1px solid ${copiedLink ? '#10b981' : '#2d3f5e'}`,
+              background: copiedLink ? 'rgba(16, 185, 129, 0.2)' : 'rgba(78, 177, 203, 0.12)',
+              fontSize: '17px',
+              cursor: 'pointer',
+              flexShrink: 0,
+              transition: 'all 0.2s ease',
+            }}
           >
-            <span style={{ fontWeight: 800, fontSize: '15px', letterSpacing: '0.5px', color: '#fff' }}>
-              THE BAND
-            </span>
-            <span
-              style={{
-                fontSize: '10px',
-                fontWeight: 700,
-                backgroundColor: copiedLink ? '#059669' : 'rgba(78, 177, 203, 0.18)',
-                color: copiedLink ? '#ffffff' : '#4EB1CB',
-                padding: '2px 6px',
-                borderRadius: '4px',
-                border: `1px solid ${copiedLink ? '#10b981' : 'rgba(78, 177, 203, 0.35)'}`,
-                transition: 'all 0.2s ease',
-              }}
-            >
-              {copiedLink ? '🔗 COPIED' : 'CHORDS'}
-            </span>
-          </div>
+            {copiedLink ? '🔗' : '🎸'}
+          </button>
         </div>
 
-        {/* Center: Setlist Dropdown */}
-        <div style={{ flex: 1, maxWidth: '320px', margin: '0 8px' }}>
+        {/* Center: Setlist Dropdown (now has ample room) */}
+        <div style={{ flex: 1, minWidth: 0, margin: '0 6px' }}>
           <select
             value={activeSetlistId || ''}
             onChange={(e) => onSelectSetlist(e.target.value ? e.target.value : null)}
@@ -152,12 +150,14 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
               background: '#131c2e',
               border: '1px solid #2d3f5e',
               color: '#e2e8f0',
-              padding: '0 10px',
-              fontSize: '13px',
+              padding: '0 8px',
+              fontSize: '12.5px',
               fontWeight: 600,
               cursor: 'pointer',
               outline: 'none',
               textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
             }}
           >
             <option value="">All Songs</option>
@@ -169,8 +169,8 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
           </select>
         </div>
 
-        {/* Right: Install App & Musician Profile */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        {/* Right: Install App & Musician Profile Icon */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
           {onOpenInstallModal && (
             <button
               onClick={onOpenInstallModal}
@@ -178,9 +178,9 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '5px',
+                gap: '4px',
                 height: '34px',
-                padding: '0 10px',
+                padding: '0 8px',
                 borderRadius: '8px',
                 background: 'rgba(78, 177, 203, 0.15)',
                 border: '1px solid rgba(78, 177, 203, 0.4)',
@@ -189,6 +189,7 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
                 fontWeight: 700,
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
+                flexShrink: 0,
               }}
             >
               <span>📲</span>
@@ -197,25 +198,23 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
           )}
           <button
             onClick={onOpenAuthModal}
+            title={currentUser ? `${currentUser.displayName} (${currentUser.role || 'musician'})` : 'Login'}
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
+              justifyContent: 'center',
+              width: '34px',
               height: '34px',
-              padding: '0 12px',
-              borderRadius: '999px',
+              borderRadius: '50%',
               background: currentUser ? 'rgba(78, 177, 203, 0.15)' : '#1e293b',
               border: `1px solid ${currentUser ? '#4EB1CB' : '#334155'}`,
               color: currentUser ? '#4EB1CB' : '#cbd5e1',
-              fontSize: '12px',
-              fontWeight: 700,
+              fontSize: '15px',
               cursor: 'pointer',
+              flexShrink: 0,
             }}
           >
             <span>👤</span>
-            <span style={{ maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {currentUser ? currentUser.displayName : 'Login'}
-            </span>
           </button>
         </div>
       </div>

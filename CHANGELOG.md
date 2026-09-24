@@ -5,6 +5,13 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.67.0] — 2026-09-24
+### Changed & Enhanced — The Band Stage Tool: Clean TopBar Header & Uncrowded Setlist Selector
+- **Compact Brand & Header Restructure (`StageTopBar.tsx`)**:
+  - Replaced wide `THE BAND` text logo and `CHORDS` badge with a sleek, compact band emoji button (`🎸`). Retained 1-tap copy of `hgfapp.link/chords` with instant visual checkmark feedback (`🔗`).
+  - Streamlined musician user auth button in the top right: removed the wide username text (`Ryan (Admin)` / `Login`) in favor of a clean, circular icon button (`👤`) with tooltip title.
+  - Eliminated horizontal header crowding on mobile viewports (~390px), expanding the setlist selector dropdown from a squished blank button (~30px) to full responsive flex width (~200px+), allowing setlist titles and worship leader names to display cleanly without truncation.
+
 ## [v2.66.0] — 2026-09-24
 ### Fixed & Enhanced — The Band Stage Tool: Ceiling & Floor Bounds Clamp & Two-Finger Gesture Lockout Fix
 - **Ceiling & Floor Boundaries Clamp (`DrawingCanvas.tsx`, `page.tsx`)**:
