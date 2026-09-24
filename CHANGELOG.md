@@ -5,7 +5,28 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v2.57.0] — 2026-09-24
+## [v2.58.0] — 2026-09-24
+### Fixed & Enhanced — The Band Stage Tool: Transposition, Key Selection, Scraper Import & Real-Time Drawing Sync
+- **Frictionless Transposition & Key Selection (`app/band/page.tsx`)**:
+  - Eliminated the invasive `mdGateModal` confirmation popup that continuously interrupted worship musicians whenever adjusting or transposing keys during rehearsal or stage performance.
+  - Transposition (+/- semitones) and Key Picker modal selections now apply immediately with zero popups, saving setlist session overrides automatically.
+- **Accurate Form Key Selection & Transposition (`useSetlist.ts`, `musicTheory.ts`, `SongEditorModal.tsx`)**:
+  - Fixed critical bug in `useSetlist.ts` lineup builder where `originalKey` was overwritten with `mdKey`, causing semitone transposition distance to calculate as 0 and leaving chords in the original scraped key despite the key badge changing.
+  - Preserved physical chord baseline key `found.originalKey || found.key || 'C'` and added `detectRootKeyFromChords` fallback in `musicTheory.ts` to auto-detect the root key when `originalKey` is omitted or uncalibrated.
+  - Upgraded `SongEditorModal.tsx` KEY field to an auto-transposing `select` dropdown with all 12 enharmonic keys; selecting a new key instantly transposes the chord sheet text in the editor.
+- **Target Key Selector on Song Scraper & Search (`SongScraperModal.tsx`)**:
+  - Added an interactive **Target Import Key** selector before importing scraped tabs from Ultimate Guitar / worship archives.
+  - Monospace preview box now dynamically transposes chords in real time to the selected target key before saving.
+  - Clicking "+ Import" from search results directs worship leaders to the preview with the key selector ready.
+- **Real-Time Cross-Device Drawing Sync (`page.tsx`, `api/worship/route.ts`)**:
+  - Upgraded `handleSaveStrokes` to debounce and persist annotations directly to the server `/api/worship`, rather than only local storage.
+  - Added safe field merging on `POST /api/worship` to protect against data wiping on partial song updates.
+  - Implemented 3.5s background polling in `page.tsx` so annotations drawn or erased by the MD (Ren) immediately appear on all connected band members' phones and tablets.
+- **Floating Drawing Toolbar & Rendering Stability (`DrawingCanvas.tsx`)**:
+  - Teleported the Drawing Toolbar to `document.body` via `createPortal` and pinned it to the bottom of the viewport (`bottom: calc(env(safe-area-inset-bottom, 0px) + 20px)`), completely preventing overlap with the top stage bar and keeping it floating during scrolling.
+  - Removed destructive 1.2s `setInterval` and `canvas.style.width = '0px'` resets that caused strokes to disappear; replaced with a non-destructive `ResizeObserver` guarded against mid-stroke resets.
+  - Added single-point tap rendering (`ctx.arc`) so dots and accents stick, along with quadratic bezier smoothing for smooth curves.
+  - Replaced opaque dark strokes with true vector stroke hit-testing erasing so erased annotations disappear cleanly.
 ### Added — LIFE Group Registration: Disciple vs. Discipler Goal Preference
 - **Interactive UI/UX Preference Cards (`JoinFormClient.tsx`)**:
   - Added a tactile, mobile-friendly selection widget directly after the Mobile Number input on `/lifegroup/join`.

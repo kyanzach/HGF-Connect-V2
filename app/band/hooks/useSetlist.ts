@@ -105,7 +105,7 @@ export function useSetlist() {
           ...found,
           chords: mdChords,
           key: override?.key || mdKey,
-          originalKey: mdKey || found.originalKey || found.key,
+          originalKey: found.originalKey || found.key || 'C',
           capo: override?.capo !== undefined ? override.capo : mdCapo,
           tempo: override?.tempo !== undefined ? override.tempo : mdTempo,
           timeSignature: override?.timeSignature || mdTimeSig,

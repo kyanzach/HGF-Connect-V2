@@ -1,7 +1,7 @@
 // app/band/page.tsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import ConfirmModal from '@/components/ConfirmModal';
 import { useSetlist } from './hooks/useSetlist';
@@ -334,16 +334,14 @@ export default function BandStagePage() {
   const [scrollMode, setScrollMode] = useState<'duration' | 'speed'>('duration');
   const [elapsedScrollSeconds, setElapsedScrollSeconds] = useState<number>(0);
 
-  // Login Gate & MD Setlist Gate Modals
+  // Login Gate Modal
   const [loginPrompt, setLoginPrompt] = useState<{
     open: boolean;
     feature: 'draw' | 'notes' | null;
   }>({ open: false, feature: null });
 
-  const [mdGateModal, setMdGateModal] = useState<{
-    open: boolean;
-    pendingKey: string;
-  }>({ open: false, pendingKey: '' });
+  const [drawingSyncTick, setDrawingSyncTick] = useState<number>(0);
+  const drawingSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleImportScrapedSong = async (newSong: Song, addToSetlist = false) => {
     await handleSaveSong(newSong);
@@ -377,24 +375,15 @@ export default function BandStagePage() {
     if (!currentSong) return;
     if (newKey === effectiveKey) return;
 
-    // If inside an active setlist with designated Worship Leader defaults
+    // Apply key instantly; record session override if inside active setlist
     if (activeSetlistId && activeSongMdDefaults) {
       if (newKey === activeSongMdDefaults.key) {
-        // Reverting directly to Worship Leader key
         revertToMdDefault(currentSong.id);
-        setTargetKey(newKey);
-        return;
+      } else {
+        setSongSessionOverride(currentSong.id, { key: newKey });
       }
-
-      // Prompt user with Worship Leader Key Gate
-      setMdGateModal({
-        open: true,
-        pendingKey: newKey,
-      });
-      return;
     }
 
-    // Direct application (All songs mode)
     setTargetKey(newKey);
   };
 
@@ -412,18 +401,10 @@ export default function BandStagePage() {
     handleKeyChangeRequest(nextKey);
   };
 
-  const handleConfirmSessionKey = () => {
-    if (!currentSong || !mdGateModal.pendingKey) return;
-    setSongSessionOverride(currentSong.id, { key: mdGateModal.pendingKey });
-    setTargetKey(mdGateModal.pendingKey);
-    setMdGateModal({ open: false, pendingKey: '' });
-  };
-
   const handleRevertToMdKey = () => {
     if (!currentSong || !activeSongMdDefaults) return;
     revertToMdDefault(currentSong.id);
     setTargetKey(activeSongMdDefaults.key);
-    setMdGateModal({ open: false, pendingKey: '' });
   };
 
   // Load strokes from localStorage fallback on song switch
@@ -642,7 +623,56 @@ export default function BandStagePage() {
     try {
       localStorage.setItem(`hgf_drawings_${currentSong.id}`, JSON.stringify(strokes));
     } catch (_) {}
+
+    // Debounced persist to server so team members receive annotations in real time
+    if (drawingSaveTimerRef.current) clearTimeout(drawingSaveTimerRef.current);
+    drawingSaveTimerRef.current = setTimeout(async () => {
+      try {
+        await fetch('/api/worship', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: currentSong.id,
+            title: currentSong.title,
+            drawingStrokes: strokes,
+          }),
+        });
+      } catch (err) {
+        console.error('Failed to sync drawing strokes to server:', err);
+      }
+    }, 600);
   };
+
+  // Real-time synchronization of drawing annotations across devices
+  useEffect(() => {
+    if (!currentSong?.id) return;
+
+    const syncInterval = setInterval(async () => {
+      if (isDrawingActive) return; // Do not interrupt user while actively drawing
+      if (typeof document !== 'undefined' && document.hidden) return; // Pause when tab is backgrounded
+
+      try {
+        const res = await fetch(`/api/worship?id=${encodeURIComponent(currentSong.id)}`, {
+          cache: 'no-store',
+        });
+        if (!res.ok) return;
+        const remoteSong: Song = await res.json();
+        if (remoteSong && Array.isArray(remoteSong.drawingStrokes)) {
+          const currentJson = JSON.stringify(currentSong.drawingStrokes || []);
+          const remoteJson = JSON.stringify(remoteSong.drawingStrokes);
+          if (currentJson !== remoteJson) {
+            currentSong.drawingStrokes = remoteSong.drawingStrokes;
+            try {
+              localStorage.setItem(`hgf_drawings_${currentSong.id}`, remoteJson);
+            } catch (_) {}
+            setDrawingSyncTick((prev) => prev + 1);
+          }
+        }
+      } catch (_) {}
+    }, 3500);
+
+    return () => clearInterval(syncInterval);
+  }, [currentSong?.id, isDrawingActive]);
 
   const handleSaveAsMdKey = async (newKey: string) => {
     if (!currentSong) return;
@@ -795,6 +825,7 @@ export default function BandStagePage() {
         onOpenMetronomeModal={() => setIsMetronomeModalOpen(true)}
         drawingCanvasElement={
           <DrawingCanvas
+            key={`drawing_${currentSong?.id}_${drawingSyncTick}`}
             isActive={isDrawingActive}
             onClose={() => setIsDrawingActive(false)}
             currentUser={currentUser}
@@ -1031,35 +1062,6 @@ export default function BandStagePage() {
           setIsAuthModalOpen(true);
         }}
         onCancel={() => setLoginPrompt({ open: false, feature: null })}
-      />
-
-      {/* Worship Leader Key Gate Modal */}
-      <ConfirmModal
-        open={mdGateModal.open}
-        title="Worship Leader Key Gate"
-        message={
-          <span>
-            The Worship Leader set this song to{' '}
-            <strong style={{ color: '#4EB1CB' }}>
-              Key {activeSongMdDefaults?.key || 'C'}
-            </strong>{' '}
-            {activeSongMdDefaults?.tempo ? `(${activeSongMdDefaults.tempo} BPM)` : ''} for setlist{' '}
-            <em>&quot;{activeSetlist?.name}&quot;</em> to match their vocal range.
-            <br />
-            <br />
-            Changing to{' '}
-            <strong style={{ color: '#f59e0b' }}>Key {mdGateModal.pendingKey}</strong>{' '}
-            will be <strong>temporary for this session only</strong>. It will automatically restore back to the Worship Leader Key ({activeSongMdDefaults?.key || 'Original'}) on the next day or after your session (when logged out).
-            <br />
-            <br />
-            Would you like to proceed for this session?
-          </span>
-        }
-        confirmLabel="Change for This Session Only"
-        confirmColor="#f59e0b"
-        cancelLabel={`Keep Worship Leader Key (${activeSongMdDefaults?.key || 'Original'})`}
-        onConfirm={handleConfirmSessionKey}
-        onCancel={handleRevertToMdKey}
       />
 
       {/* Audio Chapter Timings & Cues Calibration Modal */}

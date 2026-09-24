@@ -106,40 +106,50 @@ export async function POST(req: NextRequest) {
       drawingStrokes,
     } = body;
 
-    if (!title || typeof title !== 'string' || !title.trim()) {
-      return NextResponse.json({ error: 'Song title is required' }, { status: 400 });
+    const songId = id ? sanitize(id) : sanitize((title || '').toLowerCase().replace(/\s+/g, '-'));
+    if (!songId) {
+      return NextResponse.json({ error: 'Song id or title is required' }, { status: 400 });
     }
 
-    const songId = id ? sanitize(id) : sanitize(title.toLowerCase().replace(/\s+/g, '-'));
+    const filePath = path.join(SONGS_DIR, `${songId}.json`);
+    let existing: any = {};
+    try {
+      const raw = await fs.readFile(filePath, 'utf-8');
+      existing = JSON.parse(raw);
+    } catch {}
+
+    const resolvedTitle = (title && typeof title === 'string' && title.trim())
+      ? title.trim()
+      : (existing.title || 'Untitled Song');
+
     const songData = {
       id: songId,
-      title: title.trim(),
-      alternativeTitle: (alternativeTitle || '').trim(),
-      artist: (artist || '').trim(),
-      key: key || '',
-      originalKey: originalKey || key || '',
-      chords: chords || '',
-      chordFormat: chordFormat || 'chords_over_lyrics',
-      capo: capo || '0',
-      tempo: Number(tempo) || null,
-      timeSignature: timeSignature || '4/4',
-      duration: (duration || '').trim(),
-      sectionOrder: (sectionOrder || '').trim(),
-      songNumber: (songNumber || '').trim(),
-      copyright: (copyright || '').trim(),
-      webUrl: (webUrl || '').trim(),
-      notes: notes || '',
-      exhortation: exhortation || '',
-      lyrics: lyrics || '',
-      arrangement: Array.isArray(arrangement) ? arrangement : [],
-      tags: Array.isArray(tags) ? tags : [],
-      audioTrack: audioTrack || null,
-      useBacktrack: body.useBacktrack !== undefined ? !!body.useBacktrack : true,
-      drawingStrokes: Array.isArray(drawingStrokes) ? drawingStrokes : [],
+      title: resolvedTitle,
+      alternativeTitle: alternativeTitle !== undefined ? (alternativeTitle || '').trim() : (existing.alternativeTitle || ''),
+      artist: artist !== undefined ? (artist || '').trim() : (existing.artist || ''),
+      key: key !== undefined ? key : (existing.key || ''),
+      originalKey: originalKey !== undefined ? originalKey : (existing.originalKey || existing.key || key || ''),
+      chords: chords !== undefined ? chords : (existing.chords || ''),
+      chordFormat: chordFormat !== undefined ? chordFormat : (existing.chordFormat || 'chords_over_lyrics'),
+      capo: capo !== undefined ? capo : (existing.capo || '0'),
+      tempo: tempo !== undefined ? (Number(tempo) || null) : (existing.tempo || null),
+      timeSignature: timeSignature !== undefined ? timeSignature : (existing.timeSignature || '4/4'),
+      duration: duration !== undefined ? (duration || '').trim() : (existing.duration || ''),
+      sectionOrder: sectionOrder !== undefined ? (sectionOrder || '').trim() : (existing.sectionOrder || ''),
+      songNumber: songNumber !== undefined ? (songNumber || '').trim() : (existing.songNumber || ''),
+      copyright: copyright !== undefined ? (copyright || '').trim() : (existing.copyright || ''),
+      webUrl: webUrl !== undefined ? (webUrl || '').trim() : (existing.webUrl || ''),
+      notes: notes !== undefined ? notes : (existing.notes || ''),
+      exhortation: exhortation !== undefined ? exhortation : (existing.exhortation || ''),
+      lyrics: lyrics !== undefined ? lyrics : (existing.lyrics || ''),
+      arrangement: Array.isArray(arrangement) ? arrangement : (existing.arrangement || []),
+      tags: Array.isArray(tags) ? tags : (existing.tags || []),
+      audioTrack: audioTrack !== undefined ? audioTrack : (existing.audioTrack || null),
+      useBacktrack: body.useBacktrack !== undefined ? !!body.useBacktrack : (existing.useBacktrack !== undefined ? existing.useBacktrack : true),
+      drawingStrokes: Array.isArray(drawingStrokes) ? drawingStrokes : (existing.drawingStrokes || []),
       updatedAt: Math.max(Number(body.updatedAt) || 0, Date.now()),
     };
 
-    const filePath = path.join(SONGS_DIR, `${songId}.json`);
     await fs.writeFile(filePath, JSON.stringify(songData, null, 2), 'utf-8');
 
     return NextResponse.json({ ok: true, song: songData });

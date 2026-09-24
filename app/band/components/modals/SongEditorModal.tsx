@@ -4,7 +4,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ConfirmModal from '@/components/ConfirmModal';
 import { Song } from '../../types/band';
-import { getDiatonicChordsForKey } from '../../lib/musicTheory';
+import {
+  getDiatonicChordsForKey,
+  getRootNote,
+  calculateSemitoneDistance,
+  transposeChordSheetText,
+  FLAT_KEYS,
+  ENHARMONIC_KEYS,
+} from '../../lib/musicTheory';
 
 interface SongEditorModalProps {
   isOpen: boolean;
@@ -81,7 +88,7 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
         title: title.trim(),
         artist: artist.trim(),
         key,
-        originalKey: song?.originalKey || key,
+        originalKey: key,
         capo,
         tempo: parseInt(tempo, 10) || 72,
         timeSignature,
@@ -95,6 +102,19 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleKeyChange = (newKey: string) => {
+    const oldRoot = getRootNote(key);
+    const newRoot = getRootNote(newKey);
+    if (oldRoot && newRoot && oldRoot !== newRoot && chords.trim()) {
+      const diff = calculateSemitoneDistance(oldRoot, newRoot);
+      if (diff !== 0) {
+        const transposed = transposeChordSheetText(chords, diff, FLAT_KEYS.includes(newKey));
+        setChords(transposed);
+      }
+    }
+    setKey(newKey);
   };
 
   // Cursor-aware chord and tag insertion
@@ -285,10 +305,9 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
               <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#94a3b8', marginBottom: '4px' }}>
                 KEY
               </label>
-              <input
-                type="text"
+              <select
                 value={key}
-                onChange={(e) => setKey(e.target.value)}
+                onChange={(e) => handleKeyChange(e.target.value)}
                 style={{
                   width: '100%',
                   height: '36px',
@@ -296,12 +315,19 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
                   background: '#131c2e',
                   border: '1px solid #2d3f5e',
                   color: '#facc15',
-                  padding: '0 10px',
+                  padding: '0 8px',
                   fontSize: '13px',
                   fontWeight: 800,
                   boxSizing: 'border-box',
+                  cursor: 'pointer',
                 }}
-              />
+              >
+                {ENHARMONIC_KEYS.map((k) => (
+                  <option key={k.key} value={k.key} style={{ background: '#0f1420', color: '#fff' }}>
+                    Key {k.display}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#94a3b8', marginBottom: '4px' }}>

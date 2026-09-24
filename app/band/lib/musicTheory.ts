@@ -234,3 +234,52 @@ export function parseAndTransposeSheetLines(
 
   return result;
 }
+
+export function transposeChordSheetText(
+  text: string,
+  semitones: number,
+  preferFlats = false
+): string {
+  if (!text || semitones === 0) return text;
+  const lines = parseAndTransposeSheetLines(text, semitones, preferFlats);
+  return lines
+    .map((line) => {
+      if (line.type === 'section') return line.raw;
+      if (line.type === 'empty') return '';
+      if (line.type === 'lyrics') return line.raw;
+      if (line.type === 'chord_line' || line.type === 'chordpro') {
+        return (line.items || []).map((it) => it.text).join('');
+      }
+      return line.raw;
+    })
+    .join('\n');
+}
+
+export function detectRootKeyFromChords(chords: string): string | null {
+  if (!chords) return null;
+  const lines = chords.split('\n');
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    // Skip common section headers like [Intro], [Chorus], Verse 1:
+    if (/^\[?(intro|verse|chorus|bridge|outro|interlude|tag|hook|pre-chorus|channel)/i.test(trimmed)) {
+      continue;
+    }
+
+    // Look for bracketed chord first: e.g. [D], [G#m]
+    const bracketMatch = trimmed.match(/\[([A-G][b#]?(?:m|maj|min|sus|add|2|4|7|9|11|13)*(?:\/[A-G][b#]?)?)\]/i);
+    if (bracketMatch) {
+      return getRootNote(bracketMatch[1]);
+    }
+
+    // Check if line contains chords
+    const words = trimmed.split(/\s+/);
+    const chordTokens = words.filter((w) =>
+      /^[A-G][b#]?(?:m|maj|min|sus|add|dim|aug|2|4|5|6|7|9|11|13)*(?:\/[A-G][b#]?)?$/i.test(w)
+    );
+    if (chordTokens.length > 0 && chordTokens.length >= words.length * 0.6) {
+      return getRootNote(chordTokens[0]);
+    }
+  }
+  return null;
+}

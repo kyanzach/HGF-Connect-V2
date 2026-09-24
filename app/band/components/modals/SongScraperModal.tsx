@@ -3,6 +3,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { Song, Setlist } from '../../types/band';
+import {
+  ENHARMONIC_KEYS,
+  FLAT_KEYS,
+  calculateSemitoneDistance,
+  transposeChordSheetText,
+  detectRootKeyFromChords,
+} from '../../lib/musicTheory';
 
 interface ScrapedResult {
   id?: number | string;
@@ -57,6 +64,7 @@ export const SongScraperModal: React.FC<SongScraperModalProps> = ({
   
   // Preview state
   const [previewData, setPreviewData] = useState<ScrapedDetail | null>(null);
+  const [targetKey, setTargetKey] = useState<string>('C');
   const [isLoadingPreview, setIsLoadingPreview] = useState<boolean>(false);
   const [isImporting, setIsImporting] = useState<boolean>(false);
 
@@ -117,6 +125,9 @@ export const SongScraperModal: React.FC<SongScraperModalProps> = ({
       const data: ScrapedDetail = await res.json();
       if (data && (data.chords_over_lyrics || data.chords_text || data.lyrics)) {
         setPreviewData(data);
+        const rawChords = data.chords_over_lyrics || data.chords_text || data.lyrics || '';
+        const detected = data.original_key || data.key || detectRootKeyFromChords(rawChords) || 'C';
+        setTargetKey(detected);
         setStatusText('');
       } else {
         setStatusText('Could not extract chord sheet from this tab version.');
@@ -134,16 +145,20 @@ export const SongScraperModal: React.FC<SongScraperModalProps> = ({
 
     try {
       const rawChords = previewData.chords_over_lyrics || previewData.chords_text || previewData.lyrics || '';
+      const originalScrapedKey = previewData.original_key || previewData.key || detectRootKeyFromChords(rawChords) || 'C';
+      const diff = calculateSemitoneDistance(originalScrapedKey, targetKey);
+      const finalChords = diff !== 0 ? transposeChordSheetText(rawChords, diff, FLAT_KEYS.includes(targetKey)) : rawChords;
+
       const newSong: Song = {
         id: `song-${Date.now()}`,
         title: previewData.song_name || query || 'New Song',
         artist: previewData.artist_name || 'HGF Worship',
-        key: previewData.key || 'C',
-        originalKey: previewData.original_key || previewData.key || 'C',
+        key: targetKey,
+        originalKey: targetKey,
         capo: String(previewData.capo || 0),
         tempo: previewData.bpm ? parseInt(String(previewData.bpm), 10) : 72,
         timeSignature: '4/4',
-        chords: rawChords.trim(),
+        chords: finalChords.trim(),
         updatedAt: Date.now(),
       };
 
@@ -155,47 +170,22 @@ export const SongScraperModal: React.FC<SongScraperModalProps> = ({
   };
 
   const handleDirectImportFromList = async (tabUrl: string) => {
-    setIsLoadingPreview(true);
-    setStatusText('Fetching chords and importing...');
-    try {
-      const res = await fetch('/api/worship/scrape', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'fetch', url: tabUrl, stripChords: false }),
-      });
-      const data: ScrapedDetail = await res.json();
-      if (data) {
-        const rawChords = data.chords_over_lyrics || data.chords_text || data.lyrics || '';
-        const newSong: Song = {
-          id: `song-${Date.now()}`,
-          title: data.song_name || query || 'New Song',
-          artist: data.artist_name || 'HGF Worship',
-          key: data.key || 'C',
-          originalKey: data.original_key || data.key || 'C',
-          capo: String(data.capo || 0),
-          tempo: data.bpm ? parseInt(String(data.bpm), 10) : 72,
-          timeSignature: '4/4',
-          chords: rawChords.trim(),
-          updatedAt: Date.now(),
-        };
-        await onImportSong(newSong, !!activeSetlist);
-        onClose();
-      }
-    } catch (_) {
-      setStatusText('Error importing tab.');
-    } finally {
-      setIsLoadingPreview(false);
-    }
+    // Open preview with target key option ready so musicians can choose key before importing
+    handleFetchPreview(tabUrl);
   };
 
   const handleOverwrite = () => {
     if (!previewData || !onOverwriteChords) return;
     const rawChords = previewData.chords_over_lyrics || previewData.chords_text || previewData.lyrics || '';
+    const originalScrapedKey = previewData.original_key || previewData.key || detectRootKeyFromChords(rawChords) || 'C';
+    const diff = calculateSemitoneDistance(originalScrapedKey, targetKey);
+    const finalChords = diff !== 0 ? transposeChordSheetText(rawChords, diff, FLAT_KEYS.includes(targetKey)) : rawChords;
+
     onOverwriteChords(
-      rawChords.trim(),
+      finalChords.trim(),
       previewData.song_name,
       previewData.artist_name,
-      previewData.key,
+      targetKey,
       previewData.bpm ? parseInt(String(previewData.bpm), 10) : undefined
     );
     onClose();
@@ -497,26 +487,115 @@ export const SongScraperModal: React.FC<SongScraperModalProps> = ({
                 </div>
               </div>
 
-              {/* Monospace Chord Sheet Box */}
-              <div
-                style={{
-                  flex: 1,
-                  maxHeight: '380px',
-                  overflowY: 'auto',
-                  backgroundColor: '#070a0f',
-                  border: '1px solid #1e293b',
-                  borderRadius: '10px',
-                  padding: '14px',
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                  fontSize: '13px',
-                  lineHeight: 1.6,
-                  color: '#e2e8f0',
-                  whiteSpace: 'pre-wrap',
-                  userSelect: 'text',
-                }}
-              >
-                {previewData.chords_over_lyrics || previewData.chords_text || previewData.lyrics || 'No chords extracted.'}
-              </div>
+              {/* Target Key Selection Bar before Importing */}
+              {(() => {
+                const rawPreviewChords = previewData.chords_over_lyrics || previewData.chords_text || previewData.lyrics || '';
+                const originalScrapedKey = previewData.original_key || previewData.key || detectRootKeyFromChords(rawPreviewChords) || 'C';
+                const previewDiff = calculateSemitoneDistance(originalScrapedKey, targetKey);
+                const displayedPreviewChords = previewDiff !== 0
+                  ? transposeChordSheetText(rawPreviewChords, previewDiff, FLAT_KEYS.includes(targetKey))
+                  : rawPreviewChords;
+
+                return (
+                  <>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '12px',
+                        background: '#131c2e',
+                        border: '1px solid #2d3f5e',
+                        borderRadius: '10px',
+                        padding: '8px 14px',
+                        marginBottom: '10px',
+                        flexWrap: 'wrap',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#94a3b8' }}>
+                          Original Tab:
+                        </span>
+                        <span
+                          style={{
+                            fontSize: '12px',
+                            fontWeight: 800,
+                            color: '#facc15',
+                            background: '#1e293b',
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            border: '1px solid #334155',
+                          }}
+                        >
+                          Key of {originalScrapedKey}
+                        </span>
+                        {previewDiff !== 0 && (
+                          <span style={{ fontSize: '11px', fontWeight: 700, color: '#38bdf8' }}>
+                            ({previewDiff > 0 ? `+${previewDiff}` : previewDiff} semitones)
+                          </span>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <label
+                          style={{
+                            fontSize: '12px',
+                            fontWeight: 800,
+                            color: '#ffffff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                          }}
+                        >
+                          🎵 Import in Key:
+                          <select
+                            value={targetKey}
+                            onChange={(e) => setTargetKey(e.target.value)}
+                            style={{
+                              background: '#0c1017',
+                              color: '#4EB1CB',
+                              border: '1px solid #4EB1CB',
+                              borderRadius: '6px',
+                              padding: '5px 12px',
+                              fontSize: '13px',
+                              fontWeight: 800,
+                              cursor: 'pointer',
+                              outline: 'none',
+                            }}
+                          >
+                            {ENHARMONIC_KEYS.map((k) => (
+                              <option key={k.key} value={k.key} style={{ background: '#0c1017', color: '#fff' }}>
+                                Key of {k.display}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Monospace Chord Sheet Box */}
+                    <div
+                      style={{
+                        flex: 1,
+                        maxHeight: '380px',
+                        overflowY: 'auto',
+                        backgroundColor: '#070a0f',
+                        border: '1px solid #1e293b',
+                        borderRadius: '10px',
+                        padding: '14px',
+                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                        fontSize: '13px',
+                        lineHeight: 1.6,
+                        color: '#e2e8f0',
+                        whiteSpace: 'pre-wrap',
+                        userSelect: 'text',
+                      }}
+                    >
+                      {displayedPreviewChords || 'No chords extracted.'}
+                    </div>
+                  </>
+                );
+              })()}
 
               {/* Import Action Buttons */}
               <div
@@ -544,7 +623,7 @@ export const SongScraperModal: React.FC<SongScraperModalProps> = ({
                       cursor: 'pointer',
                     }}
                   >
-                    ✍️ Overwrite Current Chords
+                    ✍️ Overwrite in Key {targetKey}
                   </button>
                 )}
 
@@ -563,7 +642,7 @@ export const SongScraperModal: React.FC<SongScraperModalProps> = ({
                       cursor: isImporting ? 'not-allowed' : 'pointer',
                     }}
                   >
-                    ➕ Import & Add to {activeSetlist.name}
+                    ➕ Import in Key {targetKey} & Add to {activeSetlist.name}
                   </button>
                 )}
 
@@ -581,7 +660,7 @@ export const SongScraperModal: React.FC<SongScraperModalProps> = ({
                     cursor: isImporting ? 'not-allowed' : 'pointer',
                   }}
                 >
-                  {isImporting ? 'Importing...' : '➕ Import as New Song'}
+                  {isImporting ? 'Importing...' : `➕ Import in Key ${targetKey}`}
                 </button>
               </div>
             </div>

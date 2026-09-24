@@ -9,14 +9,21 @@ import {
   calculateSemitoneDistance,
   getRootNote,
   parseAndTransposeSheetLines,
+  detectRootKeyFromChords,
   FLAT_KEYS,
   KEY_DISPLAY_MAP,
   SheetLine,
 } from '../lib/musicTheory';
 
 export function useMusicTheory(song: Song | null, activeSetlistId?: string | null) {
+  // Baseline key auto-detected from chord tokens if missing
+  const detectedKey = useMemo(() => {
+    if (!song?.chords) return null;
+    return detectRootKeyFromChords(song.chords);
+  }, [song?.chords]);
+
   // Baseline key that the chord chart is physically written in
-  const chartKey = song?.originalKey || song?.key || 'C';
+  const chartKey = song?.originalKey || detectedKey || song?.key || 'C';
 
   // The active key to render (defaults to active song.key or chartKey)
   const [activeKey, setActiveKey] = useState<string>(song?.key || chartKey);

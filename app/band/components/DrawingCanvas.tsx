@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { DrawingStroke, DrawingPoint, BandUser } from '../types/band';
 
 interface DrawingCanvasProps {
@@ -27,10 +28,15 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   const [lineWidth, setLineWidth] = useState<number>(4);
   const [isEraser, setIsEraser] = useState<boolean>(false);
   const [showAllMembers, setShowAllMembers] = useState<boolean>(true);
+  const [mounted, setMounted] = useState<boolean>(false);
   const isDrawing = useRef<boolean>(false);
   const currentPoints = useRef<DrawingPoint[]>([]);
 
   const isMdOrAdmin = currentUser?.role === 'MD' || currentUser?.role === 'admin';
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     setStrokes(savedStrokes || []);
@@ -42,15 +48,11 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       if (showAllMembers) {
         return strokes;
       }
-      // Show only global strokes and MD's own strokes
       return strokes.filter(
         (s) => s.scope === 'global' || !s.scope || s.userId === currentUser?.id
       );
     }
 
-    // Regular member / guest view:
-    // 1. All global strokes (from MD and Admin)
-    // 2. Plus this user's personal strokes
     return strokes.filter((s) => {
       if (s.scope === 'global' || !s.scope) return true;
       if (currentUser && s.userId === currentUser.id) return true;
@@ -74,41 +76,87 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
 
     visibleList.forEach((stroke) => {
       if (!stroke.points || stroke.points.length === 0) return;
+
+      const p0 = stroke.points[0];
+      const p0x =
+        ((p0 as any).nx !== undefined
+          ? (p0 as any).nx
+          : (p0 as any).x / Math.max(canvas.width, 1)) * canvas.width;
+      const p0y =
+        ((p0 as any).ny !== undefined
+          ? (p0 as any).ny
+          : (p0 as any).y / Math.max(canvas.height, 1)) * canvas.height;
+
+      // Handle single-point marks (dots, taps)
+      if (stroke.points.length === 1) {
+        ctx.beginPath();
+        ctx.fillStyle = stroke.color;
+        const radius = Math.max(2, ((stroke.width || 4) * dpr) / 2);
+        ctx.arc(p0x, p0y, radius, 0, Math.PI * 2);
+        ctx.fill();
+        return;
+      }
+
       ctx.beginPath();
       ctx.strokeStyle = stroke.color;
       ctx.lineWidth = (stroke.width || 4) * dpr;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
 
-      const p0 = stroke.points[0];
-      const p0nx = (p0 as any).nx !== undefined
-        ? (p0 as any).nx
-        : Array.isArray(p0)
-        ? (p0 as any)[0]
-        : (p0 as any).x / Math.max(canvas.width, 1);
-      const p0ny = (p0 as any).ny !== undefined
-        ? (p0 as any).ny
-        : Array.isArray(p0)
-        ? (p0 as any)[1]
-        : (p0 as any).y / Math.max(canvas.height, 1);
+      ctx.moveTo(p0x, p0y);
 
-      ctx.moveTo(p0nx * canvas.width, p0ny * canvas.height);
+      if (stroke.points.length === 2) {
+        const p1 = stroke.points[1];
+        const p1x =
+          ((p1 as any).nx !== undefined
+            ? (p1 as any).nx
+            : (p1 as any).x / Math.max(canvas.width, 1)) * canvas.width;
+        const p1y =
+          ((p1 as any).ny !== undefined
+            ? (p1 as any).ny
+            : (p1 as any).y / Math.max(canvas.height, 1)) * canvas.height;
+        ctx.lineTo(p1x, p1y);
+      } else {
+        // Smooth quadratic bezier curves for natural fluid strokes
+        for (let i = 1; i < stroke.points.length - 1; i++) {
+          const pt = stroke.points[i];
+          const next = stroke.points[i + 1];
 
-      for (let i = 1; i < stroke.points.length; i++) {
-        const pt = stroke.points[i];
-        const nx = (pt as any).nx !== undefined
-          ? (pt as any).nx
-          : Array.isArray(pt)
-          ? (pt as any)[0]
-          : (pt as any).x / Math.max(canvas.width, 1);
-        const ny = (pt as any).ny !== undefined
-          ? (pt as any).ny
-          : Array.isArray(pt)
-          ? (pt as any)[1]
-          : (pt as any).y / Math.max(canvas.height, 1);
+          const ptx =
+            ((pt as any).nx !== undefined
+              ? (pt as any).nx
+              : (pt as any).x / Math.max(canvas.width, 1)) * canvas.width;
+          const pty =
+            ((pt as any).ny !== undefined
+              ? (pt as any).ny
+              : (pt as any).y / Math.max(canvas.height, 1)) * canvas.height;
 
-        ctx.lineTo(nx * canvas.width, ny * canvas.height);
+          const nxtx =
+            ((next as any).nx !== undefined
+              ? (next as any).nx
+              : (next as any).x / Math.max(canvas.width, 1)) * canvas.width;
+          const nxty =
+            ((next as any).ny !== undefined
+              ? (next as any).ny
+              : (next as any).y / Math.max(canvas.height, 1)) * canvas.height;
+
+          const midX = (ptx + nxtx) / 2;
+          const midY = (pty + nxty) / 2;
+
+          ctx.quadraticCurveTo(ptx, pty, midX, midY);
+        }
+        const last = stroke.points[stroke.points.length - 1];
+        const lastX =
+          ((last as any).nx !== undefined
+            ? (last as any).nx
+            : (last as any).x / Math.max(canvas.width, 1)) * canvas.width;
+        const lastY =
+          ((last as any).ny !== undefined
+            ? (last as any).ny
+            : (last as any).y / Math.max(canvas.height, 1)) * canvas.height;
+        ctx.lineTo(lastX, lastY);
       }
+
       ctx.stroke();
     });
   }, [getVisibleStrokes]);
@@ -117,22 +165,20 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     redraw();
   }, [redraw]);
 
-  // Sync canvas size with parent scrollable container (#sheetWrapper)
+  // Sync canvas size non-destructively with parent scrollable container (#sheetWrapper)
   const updateCanvasSize = useCallback(() => {
+    if (isDrawing.current) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const wrapper = containerRef?.current || document.getElementById('sheetWrapper');
     if (!wrapper) return;
 
-    // Temporarily reset inline dimensions so canvas doesn't artificially inflate wrapper scroll dimensions
-    canvas.style.width = '0px';
-    canvas.style.height = '0px';
-
     const contentW = Math.max(wrapper.scrollWidth, wrapper.clientWidth);
     const contentH = Math.max(wrapper.scrollHeight, wrapper.clientHeight);
 
-    // Apply explicit CSS dimensions matching actual scrollable content
+    if (contentW <= 0 || contentH <= 0) return;
+
     canvas.style.width = `${contentW}px`;
     canvas.style.height = `${contentH}px`;
 
@@ -150,21 +196,27 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
 
   useEffect(() => {
     updateCanvasSize();
-    const handleResize = () => {
-      updateCanvasSize();
-    };
+    const handleResize = () => updateCanvasSize();
     window.addEventListener('resize', handleResize);
     window.addEventListener('orientationchange', handleResize);
-    const interval = setInterval(updateCanvasSize, 1200);
+
+    const wrapper = containerRef?.current || document.getElementById('sheetWrapper');
+    let ro: ResizeObserver | null = null;
+    if (wrapper && typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(() => {
+        updateCanvasSize();
+      });
+      ro.observe(wrapper);
+    }
 
     return () => {
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('orientationchange', handleResize);
-      clearInterval(interval);
+      if (ro) ro.disconnect();
     };
-  }, [updateCanvasSize]);
+  }, [updateCanvasSize, containerRef]);
 
-  // Whenever isActive changes to true, force a resize & redraw so coordinates match perfectly
+  // Whenever isActive changes to true, ensure dimensions & redraw
   useEffect(() => {
     if (isActive) {
       setTimeout(() => {
@@ -174,7 +226,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     }
   }, [isActive, updateCanvasSize, redraw]);
 
-  // Precise coordinate mapping: maps clientX/clientY relative to rendered bounding rect into normalized 0..1 and canvas bitmap pixels
+  // Precise coordinate mapping: maps clientX/clientY into normalized 0..1 and canvas pixels
   const getCanvasCoords = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0, nx: 0, ny: 0 };
@@ -197,6 +249,39 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     };
   };
 
+  // Vector stroke eraser: deletes any stroke intersecting eraser radius
+  const eraseStrokesAt = useCallback(
+    (pos: DrawingPoint) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const thresholdX = 24 / Math.max(rect.width, 1);
+      const thresholdY = 24 / Math.max(rect.height, 1);
+
+      setStrokes((prevStrokes) => {
+        const remaining = prevStrokes.filter((s) => {
+          if (!isMdOrAdmin && s.scope === 'global') return true;
+          if (!isMdOrAdmin && s.userId !== currentUser?.id && s.userId !== 'guest') return true;
+
+          const hit = s.points.some((p) => {
+            const pnx = p.nx !== undefined ? p.nx : p.x / canvas.width;
+            const pny = p.ny !== undefined ? p.ny : p.y / canvas.height;
+            return Math.abs(pnx - pos.nx) < thresholdX && Math.abs(pny - pos.ny) < thresholdY;
+          });
+          return !hit;
+        });
+
+        if (remaining.length !== prevStrokes.length) {
+          if (onSaveStrokes) onSaveStrokes(remaining);
+          return remaining;
+        }
+        return prevStrokes;
+      });
+    },
+    [currentUser, isMdOrAdmin, onSaveStrokes]
+  );
+
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!isActive) return;
     const canvas = canvasRef.current;
@@ -208,6 +293,12 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
 
     isDrawing.current = true;
     const pos = getCanvasCoords(e);
+
+    if (isEraser) {
+      eraseStrokesAt(pos);
+      return;
+    }
+
     currentPoints.current = [pos];
 
     const ctx = canvas.getContext('2d');
@@ -216,13 +307,10 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       const dpr = canvas.width / Math.max(rect.width, 1);
 
       ctx.beginPath();
-      ctx.strokeStyle = isEraser ? '#0a0d14' : color;
-      ctx.lineWidth = (isEraser ? 24 : lineWidth) * dpr;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.moveTo(pos.x, pos.y);
-      ctx.lineTo(pos.x, pos.y);
-      ctx.stroke();
+      ctx.fillStyle = color;
+      const radius = Math.max(2, (lineWidth * dpr) / 2);
+      ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
+      ctx.fill();
     }
   };
 
@@ -230,28 +318,35 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     if (!isDrawing.current || !isActive) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
 
     const pos = getCanvasCoords(e);
+
+    if (isEraser) {
+      eraseStrokesAt(pos);
+      return;
+    }
+
     const prev = currentPoints.current[currentPoints.current.length - 1];
     currentPoints.current.push(pos);
 
-    const rect = canvas.getBoundingClientRect();
-    const dpr = canvas.width / Math.max(rect.width, 1);
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = canvas.width / Math.max(rect.width, 1);
 
-    ctx.beginPath();
-    ctx.strokeStyle = isEraser ? '#0a0d14' : color;
-    ctx.lineWidth = (isEraser ? 24 : lineWidth) * dpr;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    if (prev) {
-      ctx.moveTo(prev.x, prev.y);
-    } else {
-      ctx.moveTo(pos.x, pos.y);
+      ctx.beginPath();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = lineWidth * dpr;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      if (prev) {
+        ctx.moveTo(prev.x, prev.y);
+      } else {
+        ctx.moveTo(pos.x, pos.y);
+      }
+      ctx.lineTo(pos.x, pos.y);
+      ctx.stroke();
     }
-    ctx.lineTo(pos.x, pos.y);
-    ctx.stroke();
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -264,10 +359,10 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       } catch (_) {}
     }
 
-    if (currentPoints.current.length > 0) {
+    if (!isEraser && currentPoints.current.length > 0) {
       const newStroke: DrawingStroke = {
-        color: isEraser ? '#0a0d14' : color,
-        width: isEraser ? 24 : lineWidth,
+        color,
+        width: lineWidth,
         points: [...currentPoints.current],
         scope: isMdOrAdmin ? 'global' : 'user',
         userId: currentUser?.id || 'guest',
@@ -301,7 +396,6 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   };
 
   const clearAll = () => {
-    // If MD/Admin, clear everything. If personal/guest/member, clear all non-global strokes
     const updated = isMdOrAdmin
       ? []
       : strokes.filter((s) => s.scope === 'global');
@@ -319,13 +413,181 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     setTimeout(redraw, 20);
   };
 
+  const toolbarElement = (
+    <div
+      style={{
+        position: 'fixed',
+        bottom: 'calc(env(safe-area-inset-bottom, 0px) + 20px)',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: 1200,
+        backgroundColor: 'rgba(15, 20, 32, 0.96)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        border: '1px solid #2d3f5e',
+        borderRadius: '40px',
+        padding: '7px 16px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        boxShadow: '0 16px 40px rgba(0, 0, 0, 0.9)',
+        userSelect: 'none',
+        maxWidth: '96vw',
+        overflowX: 'auto',
+      }}
+    >
+      {/* Scope Indicator Badge */}
+      <div
+        style={{
+          padding: '4px 9px',
+          borderRadius: '20px',
+          fontSize: '10px',
+          fontWeight: 800,
+          letterSpacing: '0.5px',
+          textTransform: 'uppercase',
+          backgroundColor: isMdOrAdmin ? 'rgba(78, 177, 203, 0.2)' : 'rgba(234, 179, 8, 0.15)',
+          color: isMdOrAdmin ? '#4EB1CB' : '#facc15',
+          border: `1px solid ${isMdOrAdmin ? 'rgba(78, 177, 203, 0.4)' : 'rgba(234, 179, 8, 0.3)'}`,
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {isMdOrAdmin ? '🌐 GLOBAL (MD)' : '🔒 PERSONAL'}
+      </div>
+
+      {/* Color Palette */}
+      {[
+        { c: '#facc15', label: 'Yellow' },
+        { c: '#f87171', label: 'Red' },
+        { c: '#4EB1CB', label: 'Cyan' },
+        { c: '#10b981', label: 'Green' },
+        { c: '#ffffff', label: 'White' },
+      ].map((item) => (
+        <button
+          key={item.c}
+          onClick={() => {
+            setColor(item.c);
+            setIsEraser(false);
+          }}
+          title={item.label}
+          style={{
+            width: '22px',
+            height: '22px',
+            borderRadius: '50%',
+            backgroundColor: item.c,
+            border: color === item.c && !isEraser ? '2px solid #fff' : '1px solid rgba(255,255,255,0.2)',
+            cursor: 'pointer',
+            transform: color === item.c && !isEraser ? 'scale(1.2)' : 'scale(1)',
+            transition: 'transform 0.1s ease',
+            flexShrink: 0,
+          }}
+        />
+      ))}
+
+      <div style={{ width: '1px', height: '18px', backgroundColor: '#334155', margin: '0 2px', flexShrink: 0 }} />
+
+      {/* Eraser */}
+      <button
+        onClick={() => setIsEraser(!isEraser)}
+        title="Tap or drag over strokes to erase"
+        style={{
+          padding: '5px 10px',
+          borderRadius: '8px',
+          background: isEraser ? '#4EB1CB' : '#1e293b',
+          color: isEraser ? '#000' : '#fff',
+          border: 'none',
+          fontSize: '11px',
+          fontWeight: 800,
+          cursor: 'pointer',
+          whiteSpace: 'nowrap',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+        }}
+      >
+        🧹 Eraser
+      </button>
+
+      {/* Undo */}
+      <button
+        onClick={undo}
+        title="Undo last stroke"
+        style={{
+          padding: '5px 10px',
+          borderRadius: '8px',
+          background: '#1e293b',
+          color: '#fff',
+          border: 'none',
+          fontSize: '11px',
+          fontWeight: 700,
+          cursor: 'pointer',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        ↶ Undo
+      </button>
+
+      {/* Clear */}
+      <button
+        onClick={clearAll}
+        title="Clear annotations"
+        style={{
+          padding: '5px 10px',
+          borderRadius: '8px',
+          background: '#ef4444',
+          color: '#fff',
+          border: 'none',
+          fontSize: '11px',
+          fontWeight: 700,
+          cursor: 'pointer',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        🗑️ Clear
+      </button>
+
+      {/* MD/Admin Show All Toggle */}
+      {isMdOrAdmin && (
+        <button
+          onClick={() => setShowAllMembers(!showAllMembers)}
+          title="Toggle view of all members annotations"
+          style={{
+            padding: '5px 10px',
+            borderRadius: '8px',
+            background: showAllMembers ? 'rgba(78, 177, 203, 0.2)' : '#1e293b',
+            color: showAllMembers ? '#4EB1CB' : '#94a3b8',
+            border: `1px solid ${showAllMembers ? '#4EB1CB' : '#334155'}`,
+            fontSize: '11px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          👁️ {showAllMembers ? 'Show All' : 'My Only'}
+        </button>
+      )}
+
+      {/* Done Button */}
+      <button
+        onClick={onClose}
+        style={{
+          padding: '5px 14px',
+          borderRadius: '20px',
+          background: '#4EB1CB',
+          color: '#000',
+          border: 'none',
+          fontSize: '12px',
+          fontWeight: 800,
+          cursor: 'pointer',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        Done
+      </button>
+    </div>
+  );
+
   return (
     <>
-      {/* 
-        CANVAS ALWAYS REMAINS MOUNTED DIRECTLY OVER THE FULL SCROLLABLE SHEET.
-        When isActive is false: pointerEvents: none allows normal scrolling and tapping.
-        When isActive is true: pointerEvents: auto captures pen/finger/mouse drawing with touch-action: none.
-      */}
       <canvas
         ref={canvasRef}
         onPointerDown={handlePointerDown}
@@ -344,175 +606,10 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         }}
       />
 
-      {/* DRAWING FLOATING TOOLBAR */}
-      {isActive && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 'max(60px, calc(env(safe-area-inset-top) + 50px))',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 99,
-            backgroundColor: 'rgba(15, 20, 32, 0.94)',
-            backdropFilter: 'blur(12px)',
-            border: '1px solid #2d3f5e',
-            borderRadius: '40px',
-            padding: '6px 14px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            boxShadow: '0 12px 32px rgba(0, 0, 0, 0.85)',
-            userSelect: 'none',
-            maxWidth: '96vw',
-            overflowX: 'auto',
-          }}
-        >
-          {/* Scope Indicator Badge */}
-          <div
-            style={{
-              padding: '3px 8px',
-              borderRadius: '20px',
-              fontSize: '10px',
-              fontWeight: 800,
-              letterSpacing: '0.5px',
-              textTransform: 'uppercase',
-              backgroundColor: isMdOrAdmin ? 'rgba(78, 177, 203, 0.2)' : 'rgba(234, 179, 8, 0.15)',
-              color: isMdOrAdmin ? '#4EB1CB' : '#facc15',
-              border: `1px solid ${isMdOrAdmin ? 'rgba(78, 177, 203, 0.4)' : 'rgba(234, 179, 8, 0.3)'}`,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {isMdOrAdmin ? '🌐 GLOBAL (MD)' : '🔒 PERSONAL'}
-          </div>
-
-          {/* Color Palette */}
-          {[
-            { c: '#facc15', label: 'Yellow' },
-            { c: '#f87171', label: 'Red' },
-            { c: '#4EB1CB', label: 'Cyan' },
-            { c: '#10b981', label: 'Green' },
-            { c: '#ffffff', label: 'White' },
-          ].map((item) => (
-            <button
-              key={item.c}
-              onClick={() => {
-                setColor(item.c);
-                setIsEraser(false);
-              }}
-              title={item.label}
-              style={{
-                width: '22px',
-                height: '22px',
-                borderRadius: '50%',
-                backgroundColor: item.c,
-                border: color === item.c && !isEraser ? '2px solid #fff' : '1px solid rgba(255,255,255,0.2)',
-                cursor: 'pointer',
-                transform: color === item.c && !isEraser ? 'scale(1.2)' : 'scale(1)',
-                transition: 'transform 0.1s ease',
-                flexShrink: 0,
-              }}
-            />
-          ))}
-
-          <div style={{ width: '1px', height: '18px', backgroundColor: '#334155', margin: '0 2px', flexShrink: 0 }} />
-
-          {/* Eraser */}
-          <button
-            onClick={() => setIsEraser(!isEraser)}
-            title="Eraser"
-            style={{
-              padding: '4px 8px',
-              borderRadius: '6px',
-              background: isEraser ? '#4EB1CB' : '#1e293b',
-              color: isEraser ? '#000' : '#fff',
-              border: 'none',
-              fontSize: '11px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            🧹 Eraser
-          </button>
-
-          {/* Undo */}
-          <button
-            onClick={undo}
-            title="Undo last stroke"
-            style={{
-              padding: '4px 8px',
-              borderRadius: '6px',
-              background: '#1e293b',
-              color: '#fff',
-              border: 'none',
-              fontSize: '11px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            ↶ Undo
-          </button>
-
-          {/* Clear */}
-          <button
-            onClick={clearAll}
-            title="Clear annotations"
-            style={{
-              padding: '4px 8px',
-              borderRadius: '6px',
-              background: '#ef4444',
-              color: '#fff',
-              border: 'none',
-              fontSize: '11px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            🗑️ Clear
-          </button>
-
-          {/* MD/Admin Show All Toggle */}
-          {isMdOrAdmin && (
-            <button
-              onClick={() => setShowAllMembers(!showAllMembers)}
-              title="Toggle view of all members annotations"
-              style={{
-                padding: '4px 8px',
-                borderRadius: '6px',
-                background: showAllMembers ? 'rgba(78, 177, 203, 0.2)' : '#1e293b',
-                color: showAllMembers ? '#4EB1CB' : '#94a3b8',
-                border: `1px solid ${showAllMembers ? '#4EB1CB' : '#334155'}`,
-                fontSize: '11px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              👁️ {showAllMembers ? 'Show All' : 'My Only'}
-            </button>
-          )}
-
-          {/* Done Button */}
-          <button
-            onClick={onClose}
-            style={{
-              padding: '4px 12px',
-              borderRadius: '20px',
-              background: '#4EB1CB',
-              color: '#000',
-              border: 'none',
-              fontSize: '11px',
-              fontWeight: 800,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            Done
-          </button>
-        </div>
-      )}
+      {/* FLOATING TOOLBAR DOCKED TO BODY VIA PORTAL */}
+      {isActive && mounted && typeof document !== 'undefined'
+        ? createPortal(toolbarElement, document.body)
+        : null}
     </>
   );
 };
