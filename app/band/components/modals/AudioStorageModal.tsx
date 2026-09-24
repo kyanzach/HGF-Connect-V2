@@ -119,6 +119,9 @@ export const AudioStorageModal: React.FC<AudioStorageModalProps> = ({
       const formData = new FormData();
       formData.append('file', file);
       formData.append('songId', currentSong.id);
+      if (currentUser?.id) {
+        formData.append('uploadedBy', currentUser.id);
+      }
 
       const res = await fetch('/api/worship/audio', {
         method: 'POST',

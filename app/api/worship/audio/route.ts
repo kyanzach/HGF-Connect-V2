@@ -89,6 +89,7 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
     const songId = (formData.get('songId') as string | null) || '';
+    const uploadedBy = (formData.get('uploadedBy') as string | null) || '';
 
     if (!file) {
       return NextResponse.json({ error: 'No audio file provided' }, { status: 400 });
@@ -132,6 +133,7 @@ export async function POST(req: NextRequest) {
       url: fileUrl,
       size: fileSize,
       sizeMb: (fileSize / (1024 * 1024)).toFixed(1),
+      uploadedBy: uploadedBy || null,
       uploadedAt: Date.now(),
       songId: songId || null,
     };

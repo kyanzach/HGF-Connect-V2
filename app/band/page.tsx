@@ -188,18 +188,23 @@ export default function BandStagePage() {
   const [currentUser, setCurrentUser] = useState<BandUser | null>(null);
 
   // Scope backtrack playback dock:
-  // Only the uploader, or MD/Admin sees the playback dock.
-  // Regular musicians reading charts will NOT see the bottom playback bar, maximizing screen space.
+  // STRICT RULE: ONLY the specific user who created/uploaded the playback track can see it!
+  // Neither Admin nor MD see it unless THEY personally created/uploaded the track.
+  // Regular musicians, admins, and band members who did not upload this track will NEVER see the playback bar.
   const isPlaybackDockVisible = useMemo(() => {
     if (!hasAudio || !currentSong?.audioTrack) return false;
     const track = currentSong.audioTrack;
-    if (track.isLocalOnly) {
-      if (track.uploadedBy && currentUser?.id && track.uploadedBy === currentUser.id) return true;
-      return currentUser?.role === 'MD' || currentUser?.role === 'admin';
-    }
-    const isMdOrAdmin = currentUser?.role === 'MD' || currentUser?.role === 'admin';
-    const isUploader = !!(track.uploadedBy && currentUser?.id && track.uploadedBy === currentUser.id);
-    return isMdOrAdmin || isUploader;
+
+    if (!currentUser?.id) return false;
+
+    const trackUploader = (track.uploadedBy || '').trim().toLowerCase();
+    const currentUserId = (currentUser.id || '').trim().toLowerCase();
+    const currentUsername = (currentUser.username || '').trim().toLowerCase();
+
+    // Must have a valid uploader and must match current user
+    if (!trackUploader) return false;
+
+    return trackUploader === currentUserId || trackUploader === currentUsername;
   }, [hasAudio, currentSong?.audioTrack, currentUser]);
 
   // 1. Restore saved band user from localStorage or 10-year persistent cookie on mount & silently refresh against API
@@ -507,9 +512,15 @@ export default function BandStagePage() {
 
   const handleAttachTrack = async (audioTrack: AudioTrack | null) => {
     if (!currentSong) return;
+    const resolvedTrack: AudioTrack | null = audioTrack
+      ? {
+          ...audioTrack,
+          uploadedBy: audioTrack.uploadedBy || currentUser?.id,
+        }
+      : null;
     const updatedSong: Song = {
       ...currentSong,
-      audioTrack,
+      audioTrack: resolvedTrack,
       updatedAt: Date.now(),
     };
 

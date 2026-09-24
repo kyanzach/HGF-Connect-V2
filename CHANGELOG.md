@@ -5,6 +5,14 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.63.0] — 2026-09-24
+### Fixed — The Band Stage Tool: Strict Track Uploader-Only Playback Dock Visibility
+- **Strict Uploader-Only Playback Dock Scoping (`page.tsx`)**:
+  - Removed admin and MD bypasses from `isPlaybackDockVisible`. Neither Admin, developer, nor worship leaders see the playback dock unless THEY personally uploaded the track (`track.uploadedBy === currentUser.id`).
+  - Guarantees regular musicians, admins, and band members reading charts will NEVER see the bottom playback bar for tracks uploaded by others.
+  - Automatically tags `uploadedBy` on newly uploaded cloud tracks and locally attached tracks (`AudioStorageModal.tsx`, `audio/route.ts`).
+  - Attributed legacy "God Is Here" WAV backtrack to uploader (`user-ren`), immediately hiding the dock for `Ryan (Admin)`.
+
 ## [v2.62.0] — 2026-09-24
 ### Enhanced — The Band Stage Tool: Pull-To-Hard-Refresh with Dancing Note Emojis & Snappy Touch Response
 - **Full App & Chart Hard Refresh on Pull-Down (`SongSheet.tsx`, `MainActivity.kt`)**:
