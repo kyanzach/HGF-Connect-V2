@@ -38,6 +38,8 @@ interface SongSheetProps {
   targetDurationSec?: number;
   onUpdateElapsed?: (elapsedSec: number) => void;
   onAutoScrollComplete?: () => void;
+  isLiveSyncFollower?: boolean;
+  mdLeaderName?: string;
 }
 
 export const SongSheet: React.FC<SongSheetProps> = ({
@@ -66,6 +68,8 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   targetDurationSec = 0,
   onUpdateElapsed,
   onAutoScrollComplete,
+  isLiveSyncFollower = false,
+  mdLeaderName = 'MD',
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number | null>(null);
@@ -114,6 +118,21 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     onUpdateElapsedRef.current?.(0);
   }, [song?.id]);
 
+  // Recalibrate elapsedMs proportionally when targetDurationSec changes (e.g. from 4:00 to 7:00) so pace does not freeze or reset
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const container = containerRef.current;
+    const maxScroll = container.scrollHeight - container.clientHeight;
+    if (maxScroll > 0) {
+      const newTotalMs = (targetDurationSec > 0 ? targetDurationSec : 240) * 1000;
+      const currentRatio = Math.min(1, Math.max(0, container.scrollTop / maxScroll));
+      elapsedMsRef.current = currentRatio * newTotalMs;
+      const currentSec = Math.floor(elapsedMsRef.current / 1000);
+      lastReportedSecRef.current = currentSec;
+      onUpdateElapsedRef.current?.(currentSec);
+    }
+  }, [targetDurationSec]);
+
   // Handle user manual scroll: update scrollPosRef and sync elapsed timer only when user actively touches/scrolls
   const handleScroll = () => {
     if (!containerRef.current) return;
@@ -135,9 +154,10 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     }
   };
 
-  // Playback-synced auto-scroll lockstep (when audio backtrack is playing)
+  // Playback-synced auto-scroll lockstep (when audio backtrack or live sync is playing)
   useEffect(() => {
     if (!playbackState?.isPlaying || !playbackState.duration || !containerRef.current) return;
+    if (isUserInteractingRef.current) return;
     const container = containerRef.current;
     const maxScroll = container.scrollHeight - container.clientHeight;
     if (maxScroll > 0) {
@@ -633,6 +653,33 @@ export const SongSheet: React.FC<SongSheetProps> = ({
                   {song.timeSignature}
                 </span>
               )}
+              {/* In-Sync with MD Live Broadcast Pill for Followers */}
+              {isLiveSyncFollower && playbackState?.isPlaying && (
+                <span
+                  style={{
+                    padding: '3px 10px',
+                    borderRadius: '8px',
+                    background: 'rgba(34, 197, 94, 0.16)',
+                    border: '1px solid #22c55e',
+                    color: '#4ade80',
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    boxShadow: '0 0 12px rgba(34, 197, 94, 0.25)',
+                    letterSpacing: '0.4px',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  <span style={{ fontSize: '8px' }}>🟢</span>
+                  <span>SYNCED ({mdLeaderName})</span>
+                  <span style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: 900 }}>
+                    {`${Math.floor((playbackState.currentTime || 0) / 60)}:${Math.floor((playbackState.currentTime || 0) % 60).toString().padStart(2, '0')}`}
+                  </span>
+                </span>
+              )}
+
               {/* Planned Live Arrangement Duration / Stage Timer */}
               {(!playbackState || !playbackState.isPlaying) && (plannedDuration || targetDurationSec > 0) && (
                 <button

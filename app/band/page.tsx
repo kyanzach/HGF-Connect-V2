@@ -396,9 +396,193 @@ export default function BandStagePage() {
     selectSong(newSong.id);
   };
 
+  // Session duration overrides keyed by songId for immediate reactive UI updates
+  const [sessionDurationOverrides, setSessionDurationOverrides] = useState<Record<string, string>>({});
+
+  // MD Live Stage Sync state for church WiFi stage harmony
+  interface LiveSyncState {
+    isPlaying: boolean;
+    currentTime: number;
+    duration: number;
+    leaderName: string;
+    songId: string;
+    timestamp: number;
+  }
+  const [liveSyncState, setLiveSyncState] = useState<LiveSyncState | null>(null);
+  const [liveInterpolatedTime, setLiveInterpolatedTime] = useState<number>(0);
+  const liveSyncClockRef = useRef<{ baseTime: number; basePerf: number; duration: number } | null>(null);
+
+  const backtrackCurrentTimeRef = useRef(backtrackCurrentTime);
+  backtrackCurrentTimeRef.current = backtrackCurrentTime;
+  const backtrackDurationRef = useRef(backtrackDuration);
+  backtrackDurationRef.current = backtrackDuration;
+  const isBacktrackPlayingRef = useRef(isBacktrackPlaying);
+  isBacktrackPlayingRef.current = isBacktrackPlaying;
+  const currentSongRef = useRef(currentSong);
+  currentSongRef.current = currentSong;
+  const activeSetlistIdRef = useRef(activeSetlistId);
+  activeSetlistIdRef.current = activeSetlistId;
+
   // Planned arrangement duration in seconds (defaults to standard 4:00 if not yet explicitly saved on song)
-  const currentSongDuration = currentSong?.duration || '4:00';
+  const currentSongDuration =
+    (currentSong?.id && sessionDurationOverrides[currentSong.id]) ||
+    currentSong?.duration ||
+    '4:00';
   const targetDurationSec = parseDurationToSec(currentSongDuration) || 240;
+
+  // MD Master Broadcaster: transmits play/pause/seek to band members viewing the same setlist
+  const broadcastSyncState = useCallback((playing: boolean, timeOverride?: number) => {
+    if (!activeSetlistIdRef.current || !currentSongRef.current?.id) return;
+    const time = timeOverride !== undefined ? timeOverride : backtrackCurrentTimeRef.current;
+    const dur = backtrackDurationRef.current;
+    const leaderName = currentUser?.displayName || currentUser?.username || 'MD';
+
+    fetch('/api/worship/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        setlistId: activeSetlistIdRef.current,
+        songId: currentSongRef.current.id,
+        isPlaying: playing,
+        currentTime: time,
+        duration: dur,
+        leaderId: currentUser?.id || 'md',
+        leaderName,
+      }),
+    }).catch(() => {});
+  }, [currentUser]);
+
+  // Transmit immediate play / pause broadcast
+  useEffect(() => {
+    if (!activeSetlistId || !isPlaybackDockVisible) return;
+    broadcastSyncState(isBacktrackPlaying);
+  }, [isBacktrackPlaying, activeSetlistId, isPlaybackDockVisible, broadcastSyncState]);
+
+  // Transmit periodic 1.5s heartbeat while MD playback is active
+  useEffect(() => {
+    if (!activeSetlistId || !isBacktrackPlaying || !isPlaybackDockVisible) return;
+    const interval = setInterval(() => {
+      broadcastSyncState(true);
+    }, 1500);
+    return () => clearInterval(interval);
+  }, [activeSetlistId, isBacktrackPlaying, isPlaybackDockVisible, broadcastSyncState]);
+
+  // Follower Sync Poller: only active when on an active setlist AND NOT playing local backtrack
+  useEffect(() => {
+    if (!activeSetlistId || isBacktrackPlaying) {
+      if (liveSyncState) setLiveSyncState(null);
+      liveSyncClockRef.current = null;
+      return;
+    }
+
+    let isSubscribed = true;
+
+    const pollSync = async () => {
+      try {
+        const res = await fetch(`/api/worship/sync?setlistId=${encodeURIComponent(activeSetlistId)}`, {
+          cache: 'no-store',
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!isSubscribed) return;
+
+        const sync = data?.sync;
+        if (sync && sync.isPlaying) {
+          if (sync.leaderId && currentUser?.id && sync.leaderId === currentUser.id) {
+            return;
+          }
+
+          // If MD switched to a different song in the setlist, jump to that song immediately
+          if (sync.songId && sync.songId !== currentSongRef.current?.id) {
+            selectSong(sync.songId);
+          }
+
+          // Compensate for network transmission latency or reconnection delay
+          const latencySec = Math.max(0, (Date.now() - sync.timestamp) / 1000);
+          const calibratedTime = Math.min(sync.duration, sync.currentTime + latencySec);
+
+          liveSyncClockRef.current = {
+            baseTime: calibratedTime,
+            basePerf: performance.now(),
+            duration: sync.duration,
+          };
+
+          setLiveSyncState({
+            isPlaying: true,
+            currentTime: calibratedTime,
+            duration: sync.duration,
+            leaderName: sync.leaderName || 'MD',
+            songId: sync.songId,
+            timestamp: sync.timestamp,
+          });
+        } else {
+          if (liveSyncState?.isPlaying) {
+            liveSyncClockRef.current = null;
+            setLiveSyncState(null);
+          }
+        }
+      } catch (_) {
+        // Resilient to offline drops; will jump to current position once reconnected
+      }
+    };
+
+    pollSync();
+    const interval = setInterval(pollSync, 1200);
+
+    return () => {
+      isSubscribed = false;
+      clearInterval(interval);
+    };
+  }, [activeSetlistId, isBacktrackPlaying, currentUser?.id, selectSong, liveSyncState?.isPlaying]);
+
+  // High-performance 60fps RAF interpolator for follower smooth teleprompter scrolling
+  useEffect(() => {
+    if (!liveSyncState?.isPlaying) {
+      setLiveInterpolatedTime(0);
+      return;
+    }
+
+    let animId: number;
+    const tick = () => {
+      if (liveSyncClockRef.current) {
+        const deltaSec = (performance.now() - liveSyncClockRef.current.basePerf) / 1000;
+        const current = Math.min(
+          liveSyncClockRef.current.duration,
+          liveSyncClockRef.current.baseTime + deltaSec
+        );
+        setLiveInterpolatedTime(current);
+      }
+      animId = requestAnimationFrame(tick);
+    };
+
+    animId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(animId);
+  }, [liveSyncState?.isPlaying]);
+
+  const isLiveSyncFollower = Boolean(
+    activeSetlistId &&
+    !isBacktrackPlaying &&
+    liveSyncState?.isPlaying
+  );
+
+  const effectivePlaybackState = isLiveSyncFollower && liveSyncState
+    ? {
+        isPlaying: true,
+        currentTime: liveInterpolatedTime,
+        duration: liveSyncState.duration,
+      }
+    : {
+        isPlaying: isBacktrackPlaying,
+        currentTime: backtrackCurrentTime,
+        duration: backtrackDuration,
+      };
+
+  const handleSeekBacktrack = useCallback((time: number) => {
+    seekBacktrack(time);
+    if (activeSetlistId && isPlaybackDockVisible) {
+      broadcastSyncState(isBacktrackPlaying, time);
+    }
+  }, [seekBacktrack, activeSetlistId, isPlaybackDockVisible, isBacktrackPlaying, broadcastSyncState]);
 
   // Reset elapsed timer when currentSong changes
   useEffect(() => {
@@ -779,9 +963,18 @@ export default function BandStagePage() {
     if (!currentSong) return;
 
     // Apply immediate session override for instant reactive feedback
-    setSongSessionOverride(currentSong.id, { duration: newDuration });
+    setSessionDurationOverrides((prev) => ({
+      ...prev,
+      [currentSong.id]: newDuration,
+    }));
+    currentSong.duration = newDuration;
 
-    if (savePermanent) {
+    if (activeSetlistId) {
+      setSongSessionOverride(currentSong.id, { duration: newDuration });
+    }
+
+    const shouldPersist = savePermanent || currentUser?.role === 'admin' || currentUser?.role === 'MD';
+    if (shouldPersist) {
       if (activeSetlist) {
         const updatedSongs = (activeSetlist.songs || []).map((s) => {
           const id = typeof s === 'string' ? s : s.id;
@@ -802,7 +995,7 @@ export default function BandStagePage() {
 
   const handleStepDuration = (deltaSec: number) => {
     if (!currentSong) return;
-    const currentSec = parseDurationToSec(currentSong.duration) || 240;
+    const currentSec = parseDurationToSec(currentSongDuration) || 240;
     const nextSec = Math.max(30, currentSec + deltaSec);
     const nextDurStr = formatSecToMMSS(nextSec);
     handleApplyDuration(nextDurStr, false);
@@ -893,11 +1086,9 @@ export default function BandStagePage() {
         targetDurationSec={targetDurationSec}
         onUpdateElapsed={setElapsedScrollSeconds}
         onAutoScrollComplete={() => setIsAutoScrolling(false)}
-        playbackState={{
-          isPlaying: isBacktrackPlaying,
-          currentTime: backtrackCurrentTime,
-          duration: backtrackDuration,
-        }}
+        playbackState={effectivePlaybackState}
+        isLiveSyncFollower={isLiveSyncFollower}
+        mdLeaderName={liveSyncState?.leaderName}
         bpm={tempo}
         isMetronomePulsing={isPulsing}
         isMetronomeAudioActive={isMetronomeAudioActive}
@@ -966,7 +1157,7 @@ export default function BandStagePage() {
           currentTime={backtrackCurrentTime}
           duration={backtrackDuration}
           onTogglePlay={toggleBacktrackPlay}
-          onSeek={seekBacktrack}
+          onSeek={handleSeekBacktrack}
           title={currentSong?.title || ''}
           volume={backtrackVolume}
           isMuted={isBacktrackMuted}
@@ -1164,10 +1355,10 @@ export default function BandStagePage() {
       <DurationPickerModal
         isOpen={isDurationModalOpen}
         onClose={() => setIsDurationModalOpen(false)}
-        currentDuration={currentSong?.duration}
+        currentDuration={currentSongDuration}
         songTitle={currentSong?.title}
         onApplyDuration={handleApplyDuration}
-        isBandAdmin={currentUser?.role === 'MD'}
+        isBandAdmin={currentUser?.role === 'admin' || currentUser?.role === 'MD'}
       />
     </div>
   );

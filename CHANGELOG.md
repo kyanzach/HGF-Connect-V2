@@ -5,6 +5,23 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.68.0] — 2026-09-25
+### Added & Fixed — The Band Stage Tool: MD Live Stage Sync Harmony & Pace Duration Form Override
+- **MD Live Playback Sync (Church WiFi Stage Harmony) (`/api/worship/sync`, `page.tsx`, `SongSheet.tsx`)**:
+  - Engineered real-time setlist-level playback synchronization across the worship team on church WiFi.
+  - When the Music Director (MD) starts playing the backtrack on an active setlist, their playback time, play/pause state, and track position are broadcast to an in-memory/disk backed sync endpoint (`/api/worship/sync`).
+  - Followers viewing the **same setlist** automatically synchronize their chord teleprompter scrolling to the MD's playback in real-time, scrolling in lockstep harmony without delay.
+  - Automatically switches followers to the MD's active song if the MD jumps songs within the setlist.
+  - Follower devices do not play audio locally and do not see the playback dock; their chord sheet scrolls silently in sync with a subtle green `🟢 SYNCED (MD)` status pill.
+  - Built-in latency compensation and 60fps requestAnimationFrame interpolation ensures fluid subpixel auto-scrolling.
+  - Reconnect / Slow connection handling: if a follower's connection drops or reconnects, the next sync poll calculates real-time elapsed offset and immediately jumps the follower's scroll position straight to where the MD's playback currently is.
+  - Strict Setlist-Level Isolation: sync strictly activates ONLY when users are on the exact same setlist. Musicians browsing "All Songs" or viewing chords outside the setlist are never interrupted or forced.
+- **Fixed Pace Duration Setting Form (`page.tsx`, `SongSheet.tsx`, `DurationPickerModal.tsx`)**:
+  - Fixed issue where setting a custom arrangement duration in Pace mode (e.g. changing 4:00 to 7:00) failed to apply and continued playing at the default 4:00.
+  - Added reactive `sessionDurationOverrides` in `page.tsx` for immediate state updates, direct song duration mutation, setlist session overrides, and permanent database persistence for Admins and MDs.
+  - Fixed `isBandAdmin` permission check in `DurationPickerModal` to recognize Admin (`role === 'admin'`) alongside MD, enabling the "Save as default duration" option.
+  - Added proportional `elapsedMsRef` recalibration in `SongSheet.tsx` so changing arrangement duration while auto-scrolling seamlessly scales the elapsed timer without backwards jumps or teleprompter freezing.
+
 ## [v2.67.1] — 2026-09-25
 ### Changed & Enhanced — The Band Stage Tool: Fast Auto-Dismiss & Split-Second Tap-To-Close for Refresh Notification
 - **Instant Refresh Notification Dismissal (`SongSheet.tsx`)**:
