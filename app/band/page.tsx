@@ -77,6 +77,7 @@ export default function BandStagePage() {
     resetAllSessionOverrides,
     addSongToSetlist,
     removeSongFromSetlist,
+    reorderSongInSetlist,
     refreshData,
   } = useSetlist();
 
@@ -924,6 +925,7 @@ export default function BandStagePage() {
         }}
         onAddSongToSetlist={addSongToSetlist}
         onRemoveSongFromSetlist={removeSongFromSetlist}
+        onReorderSongInSetlist={reorderSongInSetlist}
         onDeleteSong={handleDeleteSong}
       />
 

@@ -358,6 +358,37 @@ export function useSetlist() {
     await refreshData();
   }, [activeSetlistId, setlists, refreshData]);
 
+  const reorderSongInSetlist = useCallback(async (fromIndex: number, toIndex: number, setlistId?: string) => {
+    const targetSetId = setlistId || activeSetlistId;
+    if (!targetSetId) return;
+    const targetSet = setlists.find((s) => s.id === targetSetId);
+    if (!targetSet || !Array.isArray(targetSet.songs)) return;
+    if (fromIndex < 0 || fromIndex >= targetSet.songs.length) return;
+    if (toIndex < 0 || toIndex >= targetSet.songs.length) return;
+    if (fromIndex === toIndex) return;
+
+    const updatedSongs = [...targetSet.songs];
+    const [moved] = updatedSongs.splice(fromIndex, 1);
+    updatedSongs.splice(toIndex, 0, moved);
+
+    const updatedSetlist: Setlist = {
+      ...targetSet,
+      songs: updatedSongs,
+      songCount: updatedSongs.length,
+      updatedAt: Date.now(),
+    };
+
+    // Optimistically update in-memory state for instant snappy response
+    setSetlists((prev) => prev.map((s) => (s.id === targetSetId ? updatedSetlist : s)));
+
+    await fetch('/api/worship/setlists', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedSetlist),
+    });
+    await refreshData();
+  }, [activeSetlistId, setlists, refreshData]);
+
   return {
     songs,
     setlists,
@@ -379,6 +410,7 @@ export function useSetlist() {
     isCurrentSongSessionOverridden,
     addSongToSetlist,
     removeSongFromSetlist,
+    reorderSongInSetlist,
     refreshData,
   };
 }

@@ -63,6 +63,17 @@ export const SetlistAdminModal: React.FC<SetlistAdminModalProps> = ({
     );
   };
 
+  const moveSongInSelection = (fromIdx: number, toIdx: number) => {
+    if (fromIdx < 0 || fromIdx >= selectedSongIds.length) return;
+    if (toIdx < 0 || toIdx >= selectedSongIds.length) return;
+    setSelectedSongIds((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return next;
+    });
+  };
+
   const handleSave = async () => {
     if (!name.trim()) {
       setErrorMsg('Setlist name is required.');
@@ -242,10 +253,128 @@ export const SetlistAdminModal: React.FC<SetlistAdminModalProps> = ({
                 </div>
               </div>
 
+              {/* Ordered songs in this setlist */}
+              {selectedSongIds.length > 0 && (
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#4EB1CB', marginBottom: '6px' }}>
+                    SETLIST LINEUP ORDER ({selectedSongIds.length} Songs)
+                  </label>
+                  <div
+                    style={{
+                      maxHeight: '160px',
+                      overflowY: 'auto',
+                      border: '1px solid rgba(78, 177, 203, 0.3)',
+                      borderRadius: '8px',
+                      padding: '6px',
+                      background: 'rgba(78, 177, 203, 0.05)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px',
+                      marginBottom: '12px',
+                    }}
+                  >
+                    {selectedSongIds.map((songId, idx) => {
+                      const songObj = allSongs.find((s) => s.id === songId);
+                      return (
+                        <div
+                          key={`order_${songId}_${idx}`}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            background: '#131c2e',
+                            border: '1px solid #1e293b',
+                            gap: '8px',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flex: 1 }}>
+                            <span style={{ fontSize: '11px', fontWeight: 800, color: '#4EB1CB', width: '18px' }}>
+                              {idx + 1}.
+                            </span>
+                            <span style={{ fontSize: '13px', fontWeight: 600, color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {songObj?.title || songId}
+                            </span>
+                            <span style={{ fontSize: '11px', color: '#facc15' }}>
+                              ({songObj?.key || 'C'})
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                            <button
+                              type="button"
+                              disabled={idx === 0}
+                              onClick={() => moveSongInSelection(idx, idx - 1)}
+                              title="Move Up"
+                              style={{
+                                background: 'rgba(255, 255, 255, 0.06)',
+                                border: '1px solid rgba(255, 255, 255, 0.12)',
+                                color: idx === 0 ? 'rgba(148, 163, 184, 0.25)' : '#94a3b8',
+                                borderRadius: '3px',
+                                width: '22px',
+                                height: '18px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '8px',
+                                cursor: idx === 0 ? 'default' : 'pointer',
+                              }}
+                            >
+                              ▲
+                            </button>
+                            <button
+                              type="button"
+                              disabled={idx === selectedSongIds.length - 1}
+                              onClick={() => moveSongInSelection(idx, idx + 1)}
+                              title="Move Down"
+                              style={{
+                                background: 'rgba(255, 255, 255, 0.06)',
+                                border: '1px solid rgba(255, 255, 255, 0.12)',
+                                color: idx === selectedSongIds.length - 1 ? 'rgba(148, 163, 184, 0.25)' : '#94a3b8',
+                                borderRadius: '3px',
+                                width: '22px',
+                                height: '18px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '8px',
+                                cursor: idx === selectedSongIds.length - 1 ? 'default' : 'pointer',
+                              }}
+                            >
+                              ▼
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => toggleSongInSet(songId)}
+                              title="Remove from setlist"
+                              style={{
+                                background: 'rgba(239, 68, 68, 0.15)',
+                                border: '1px solid rgba(239, 68, 68, 0.3)',
+                                color: '#ef4444',
+                                borderRadius: '3px',
+                                width: '22px',
+                                height: '18px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '10px',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Select Songs for this Setlist */}
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#94a3b8', marginBottom: '6px' }}>
-                  SONGS IN THIS SETLIST ({selectedSongIds.length})
+                  ADD / REMOVE SONGS IN LIBRARY
                 </label>
                 <div
                   style={{

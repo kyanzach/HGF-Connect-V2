@@ -1,7 +1,7 @@
 // app/band/components/SetlistSidebar.tsx
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import ConfirmModal from '@/components/ConfirmModal';
 import { Song, Setlist } from '../types/band';
 
@@ -20,6 +20,7 @@ interface SetlistSidebarProps {
   onOpenScraper: (initialQuery?: string) => void;
   onAddSongToSetlist?: (songId: string, setlistId?: string) => void;
   onRemoveSongFromSetlist?: (songId: string, setlistId: string) => void;
+  onReorderSongInSetlist?: (fromIndex: number, toIndex: number) => Promise<void> | void;
   onDeleteSong?: (id: string) => Promise<void> | void;
 }
 
@@ -38,6 +39,7 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
   onOpenScraper,
   onAddSongToSetlist,
   onRemoveSongFromSetlist,
+  onReorderSongInSetlist,
   onDeleteSong,
 }) => {
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -49,6 +51,112 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
 
   // Quick setlist picker dropdown for rows when in "All Songs" mode
   const [pickerSongId, setPickerSongId] = useState<string | null>(null);
+
+  // Setlist Drag & Drop reordering state
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [dropPosition, setDropPosition] = useState<'top' | 'bottom' | null>(null);
+
+  const touchDragStartIndex = useRef<number | null>(null);
+  const touchTargetIndex = useRef<number | null>(null);
+
+  const isSetlistSortingEnabled = Boolean(activeSetlist && !searchQuery.trim());
+
+  // Desktop HTML5 Drag Handlers
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    if (!isSetlistSortingEnabled) return;
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    if (!isSetlistSortingEnabled || draggedIndex === null) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const mid = rect.top + rect.height / 2;
+    const pos = e.clientY < mid ? 'top' : 'bottom';
+
+    setDragOverIndex(index);
+    setDropPosition(pos);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverIndex(null);
+    setDropPosition(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    if (draggedIndex !== null && draggedIndex !== targetIndex && onReorderSongInSetlist) {
+      let finalTarget = targetIndex;
+      if (dropPosition === 'bottom' && targetIndex < draggedIndex) {
+        finalTarget = Math.min(displayList.length - 1, targetIndex + 1);
+      } else if (dropPosition === 'top' && targetIndex > draggedIndex) {
+        finalTarget = Math.max(0, targetIndex - 1);
+      }
+      onReorderSongInSetlist(draggedIndex, finalTarget);
+    }
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+    setDropPosition(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+    setDropPosition(null);
+  };
+
+  // Mobile Touch Drag Handlers (Hold & Drag)
+  const handleTouchStart = (e: React.TouchEvent, index: number) => {
+    if (!isSetlistSortingEnabled) return;
+    touchDragStartIndex.current = index;
+    touchTargetIndex.current = index;
+    setDraggedIndex(index);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchDragStartIndex.current === null) return;
+    const touch = e.touches[0];
+    const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
+    const row = targetEl?.closest('[data-setlist-index]') as HTMLElement | null;
+
+    if (row) {
+      const idxAttr = row.getAttribute('data-setlist-index');
+      if (idxAttr !== null) {
+        const idx = parseInt(idxAttr, 10);
+        if (!isNaN(idx)) {
+          touchTargetIndex.current = idx;
+          const rect = row.getBoundingClientRect();
+          const pos = touch.clientY < rect.top + rect.height / 2 ? 'top' : 'bottom';
+          setDragOverIndex(idx);
+          setDropPosition(pos);
+        }
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    const fromIdx = touchDragStartIndex.current;
+    const toIdx = touchTargetIndex.current;
+    if (fromIdx !== null && toIdx !== null && fromIdx !== toIdx && onReorderSongInSetlist) {
+      let finalTarget = toIdx;
+      if (dropPosition === 'bottom' && toIdx < fromIdx) {
+        finalTarget = Math.min(displayList.length - 1, toIdx + 1);
+      } else if (dropPosition === 'top' && toIdx > fromIdx) {
+        finalTarget = Math.max(0, toIdx - 1);
+      }
+      onReorderSongInSetlist(fromIdx, finalTarget);
+    }
+    touchDragStartIndex.current = null;
+    touchTargetIndex.current = null;
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+    setDropPosition(null);
+  };
 
   const displayList = useMemo(() => {
     let list: Song[] = [];
@@ -333,10 +441,19 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
             displayList.map((song, idx) => {
               const isActive = song.id === currentSongId;
               const inCurSetlist = activeSetlistSongIds.has(song.id);
+              const isCurrentlyDragged = draggedIndex === idx;
+              const isOverThis = dragOverIndex === idx;
 
               return (
                 <div
                   key={`${song.id}-${idx}`}
+                  data-setlist-index={idx}
+                  draggable={isSetlistSortingEnabled}
+                  onDragStart={(e) => handleDragStart(e, idx)}
+                  onDragOver={(e) => handleDragOver(e, idx)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, idx)}
+                  onDragEnd={handleDragEnd}
                   onClick={() => {
                     onSelectSong(song.id);
                     onClose();
@@ -344,17 +461,102 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
                   style={{
                     padding: '8px 10px',
                     borderRadius: '8px',
-                    background: isActive ? 'rgba(78, 177, 203, 0.18)' : 'transparent',
-                    border: `1px solid ${isActive ? '#4EB1CB' : 'transparent'}`,
+                    background: isCurrentlyDragged
+                      ? 'rgba(78, 177, 203, 0.12)'
+                      : isActive
+                      ? 'rgba(78, 177, 203, 0.18)'
+                      : 'transparent',
+                    border: isCurrentlyDragged
+                      ? '1px dashed #4EB1CB'
+                      : `1px solid ${isActive ? '#4EB1CB' : 'transparent'}`,
+                    borderTop: isOverThis && dropPosition === 'top' ? '2px solid #4EB1CB' : undefined,
+                    borderBottom: isOverThis && dropPosition === 'bottom' ? '2px solid #4EB1CB' : undefined,
+                    opacity: isCurrentlyDragged ? 0.4 : 1,
                     marginBottom: '4px',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     gap: '6px',
-                    transition: 'background 0.15s ease',
+                    transition: isCurrentlyDragged ? 'none' : 'background 0.15s ease',
                   }}
                 >
+                  {/* Left Drag Handle & 1-Tap Step Reorder Buttons (Active Setlist Only) */}
+                  {isSetlistSortingEnabled && (
+                    <div
+                      style={{ display: 'flex', alignItems: 'center', gap: '3px', flexShrink: 0 }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div
+                        title="Hold & drag to sort setlist"
+                        onTouchStart={(e) => handleTouchStart(e, idx)}
+                        onTouchMove={handleTouchMove}
+                        onTouchEnd={handleTouchEnd}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '20px',
+                          height: '28px',
+                          color: draggedIndex === idx ? '#4EB1CB' : '#64748b',
+                          cursor: 'grab',
+                          userSelect: 'none',
+                          touchAction: 'none',
+                          fontSize: '15px',
+                          letterSpacing: '-1px',
+                        }}
+                      >
+                        ⠿
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <button
+                          disabled={idx === 0}
+                          onClick={() => onReorderSongInSetlist?.(idx, idx - 1)}
+                          title="Move Up"
+                          style={{
+                            background: 'rgba(255, 255, 255, 0.06)',
+                            border: '1px solid rgba(255, 255, 255, 0.12)',
+                            color: idx === 0 ? 'rgba(148, 163, 184, 0.25)' : '#94a3b8',
+                            borderRadius: '3px',
+                            width: '18px',
+                            height: '13px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '7px',
+                            cursor: idx === 0 ? 'default' : 'pointer',
+                            padding: 0,
+                            lineHeight: 1,
+                          }}
+                        >
+                          ▲
+                        </button>
+                        <button
+                          disabled={idx === displayList.length - 1}
+                          onClick={() => onReorderSongInSetlist?.(idx, idx + 1)}
+                          title="Move Down"
+                          style={{
+                            background: 'rgba(255, 255, 255, 0.06)',
+                            border: '1px solid rgba(255, 255, 255, 0.12)',
+                            color: idx === displayList.length - 1 ? 'rgba(148, 163, 184, 0.25)' : '#94a3b8',
+                            borderRadius: '3px',
+                            width: '18px',
+                            height: '13px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '7px',
+                            cursor: idx === displayList.length - 1 ? 'default' : 'pointer',
+                            padding: 0,
+                            lineHeight: 1,
+                          }}
+                        >
+                          ▼
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Title & Artist */}
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div
@@ -704,7 +906,7 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
               cursor: 'pointer',
             }}
           >
-            🎸 Scrape Tabs
+            🔍 Search Chords
           </button>
           <button
             onClick={() => {

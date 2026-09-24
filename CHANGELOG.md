@@ -5,6 +5,20 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.60.0] — 2026-09-24
+### Added & Enhanced — The Band Stage Tool: Hold & Drag Setlist Reordering & Search Chords Branding
+- **Setlist Hold & Drag Reordering (`SetlistSidebar.tsx`, `useSetlist.ts`)**:
+  - Restored full cross-platform drag-and-drop sorting for songs at the active setlist level.
+  - Added dedicated drag handles (`⠿`) with responsive touch dragging via `document.elementFromPoint` for mobile and standard HTML5 drag-and-drop for desktop.
+  - Added 1-tap quick step reorder buttons (`▲` / `▼`) on every song row in the active setlist for instantaneous single-handed reordering.
+  - Supported real-time visual feedback including drag-over indicators (`borderTop` / `borderBottom`), opacity dimming, and dashed teal boundary markers.
+  - Implemented `reorderSongInSetlist` with zero-latency optimistic local state updates and instant synchronization to `/api/worship/setlists`.
+- **Setlist Admin Lineup Order Editor (`SetlistAdminModal.tsx`)**:
+  - Added an interactive **Setlist Lineup Order** section in the setlist editor displaying all selected songs with numbered sequence badges, 1-tap `▲` / `▼` position adjustments, and direct removal controls.
+- **Search Chords UI Branding (`SetlistSidebar.tsx`, `SongScraperModal.tsx`)**:
+  - Renamed the `"🎸 Scrape Tabs"` button in the sidebar footer to `"🔍 Search Chords"`.
+  - Updated the Song Scraper modal header from `"Search & Scrape Worship Chords"` to `"Search Worship Chords"`.
+
 ## [v2.59.0] — 2026-09-24
 ### Added & Enhanced — The Band Stage Tool: Drawing Gesture Isolation, Tactile Pull-to-Refresh & MD Auto-Sync
 - **Drawing Gesture Isolation & Android/iOS Refresh Prevention (`DrawingCanvas.tsx`, `SongSheet.tsx`)**:

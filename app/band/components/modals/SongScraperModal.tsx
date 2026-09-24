@@ -234,7 +234,7 @@ export const SongScraperModal: React.FC<SongScraperModalProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '18px' }}>🔍</span>
             <div style={{ fontWeight: 800, fontSize: '16px', color: '#fff' }}>
-              {previewData ? 'Tab Preview' : 'Search & Scrape Worship Chords'}
+              {previewData ? 'Tab Preview' : 'Search Worship Chords'}
             </div>
           </div>
           <button
