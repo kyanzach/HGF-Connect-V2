@@ -78,6 +78,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   const touchStartY = useRef<number | null>(null);
   const lastTapTimeRef = useRef<number>(0);
   const lastTapPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const lastHandledTouchTapRef = useRef<number>(0);
   const scrollPosRef = useRef<number>(0);
   const elapsedMsRef = useRef<number>(0);
   const lastReportedSecRef = useRef<number>(-1);
@@ -372,7 +373,10 @@ export const SongSheet: React.FC<SongSheetProps> = ({
 
     // Detect double-tap gesture to toggle clean immersion mode
     const moveDist = Math.hypot(diffX, diffY);
-    if (moveDist < 18 && e.changedTouches.length === 1 && !isDrawingActive) {
+    const target = e.target as HTMLElement | null;
+    const isInteractive = Boolean(target?.closest('button, a, input, select, textarea, [data-interactive="true"]'));
+
+    if (moveDist < 30 && e.changedTouches.length === 1 && !isDrawingActive && !isInteractive) {
       const now = Date.now();
       const timeDiff = now - lastTapTimeRef.current;
       const tapDist = Math.hypot(
@@ -380,8 +384,10 @@ export const SongSheet: React.FC<SongSheetProps> = ({
         e.changedTouches[0].clientY - lastTapPosRef.current.y
       );
 
-      if (timeDiff > 40 && timeDiff < 360 && tapDist < 36) {
+      // 50ms - 480ms window, generous 60px tap distance for thumb/finger pad shifts
+      if (timeDiff > 50 && timeDiff < 480 && tapDist < 60) {
         lastTapTimeRef.current = 0;
+        lastHandledTouchTapRef.current = now;
         onDoubleTap?.();
         return;
       } else {
@@ -431,6 +437,8 @@ export const SongSheet: React.FC<SongSheetProps> = ({
       onTouchEnd={handleTouchEnd}
       onDoubleClick={(e) => {
         if (isDrawingActive) return;
+        // Suppress synthetic mouse dblclick on touch devices that already handled touch double-tap
+        if (Date.now() - lastHandledTouchTapRef.current < 750) return;
         const target = e.target as HTMLElement | null;
         if (target?.closest('button, a, input, select, textarea, [data-interactive="true"]')) return;
         onDoubleTap?.();

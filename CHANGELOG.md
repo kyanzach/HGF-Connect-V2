@@ -5,6 +5,20 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.68.10] — 2026-09-25
+### Fixed & Enhanced — Rock-Solid Double-Tap Calibration, Anti-Flutter Cooldown & Floating "Show Tools" Button
+- **Fixed Inconsistent Double-Tap Flutter & Accidental Rapid Toggling (`page.tsx`)**:
+  - Added a 450ms hardware debounce lock to `handleToggleImmersionMode`.
+  - Strictly prevents rapid double-toggling or stutter where a synthetic mouse `dblclick` immediately un-toggled the immersion mode 300ms after a touch double-tap was already handled.
+- **Calibrated Double-Tap Touch Recognition Tolerances (`SongSheet.tsx`)**:
+  - Increased finger drag tolerance from 18px to 30px to accommodate natural finger squash, roll, and thumb jitter during rapid taps.
+  - Expanded tap spacing tolerance from 36px to 60px so natural thumb spacing between tap 1 and tap 2 never rejects the gesture.
+  - Widened the double-tap timing window from 360ms to 480ms, making double-tap responsive and effortless without requiring hyper-fast finger speed.
+  - Added synthetic `dblclick` event suppression (`lastHandledTouchTapRef`) so desktop mouse double-clicks work on PC/Mac while touchscreens never double-fire.
+- **Dedicated Floating "Show Tools" Button in Immersion Mode (`page.tsx`)**:
+  - Added a floating glassmorphic pill button (`[ 👁️ Show Tools ]`) at the top right of the screen whenever immersion mode is active.
+  - Band members can now exit clean immersion mode anytime with a single tap, eliminating all stage stress or reliance on gesture timing while playing instruments.
+
 ## [v2.68.9] — 2026-09-25
 ### Removed, Added & Enhanced — Pure Native Android Scrolling, Floating Force Cache Refresh & Sheet Music Logo
 - **Removed Finicky Pull-to-Refresh (`SongSheet.tsx`)**:

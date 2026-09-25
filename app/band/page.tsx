@@ -464,15 +464,21 @@ export default function BandStagePage() {
   const [isImmersionMode, setIsImmersionMode] = useState<boolean>(false);
   const [isImmersionPlaybackExpanded, setIsImmersionPlaybackExpanded] = useState<boolean>(false);
   const [immersionToast, setImmersionToast] = useState<string | null>(null);
+  const lastToggleImmersionTimeRef = useRef<number>(0);
 
   const handleToggleImmersionMode = useCallback(() => {
+    const now = Date.now();
+    // 450ms debounce cooldown: strictly prevents duplicate triggers, bounce, and rapid toggling
+    if (now - lastToggleImmersionTimeRef.current < 450) return;
+    lastToggleImmersionTimeRef.current = now;
+
     setIsImmersionMode((prev) => {
       const next = !prev;
       if (next) {
         setIsSidebarOpen(false);
         setIsImmersionPlaybackExpanded(false);
-        setImmersionToast('✨ Clean Stage Mode — Double-tap to restore');
-        setTimeout(() => setImmersionToast(null), 2200);
+        setImmersionToast('✨ Stage Immersion Mode — Tap "Show Tools" or double-tap to restore');
+        setTimeout(() => setImmersionToast(null), 2500);
       } else {
         setImmersionToast(null);
       }
@@ -1512,6 +1518,39 @@ export default function BandStagePage() {
             </span>
           </button>
         </div>
+      )}
+
+      {/* IMMERSION MODE FLOATING "SHOW TOOLS" RESTORE BUTTON */}
+      {isImmersionMode && (
+        <button
+          type="button"
+          onClick={handleToggleImmersionMode}
+          title="Restore toolbars, sidebar, and controls"
+          style={{
+            position: 'fixed',
+            top: 'calc(14px + env(safe-area-inset-top, 0px))',
+            right: '16px',
+            zIndex: 95,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '7px 14px',
+            borderRadius: '20px',
+            backgroundColor: 'rgba(15, 23, 42, 0.88)',
+            border: '1px solid rgba(78, 177, 203, 0.5)',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.65)',
+            color: '#38bdf8',
+            fontSize: '0.78rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <span style={{ fontSize: '0.85rem' }}>👁️</span>
+          <span>Show Tools</span>
+        </button>
       )}
 
       {/* IMMERSION MODE TOAST NOTIFICATION */}
