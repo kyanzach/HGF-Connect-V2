@@ -318,8 +318,8 @@ export const AudioPlaybackDock: React.FC<AudioPlaybackDockProps> = ({
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
-            background: 'rgba(30, 41, 59, 0.7)',
-            padding: '3px 8px',
+            background: 'rgba(30, 41, 59, 0.75)',
+            padding: '4px 10px',
             borderRadius: '16px',
             border: '1px solid #334155',
           }}
@@ -331,7 +331,7 @@ export const AudioPlaybackDock: React.FC<AudioPlaybackDockProps> = ({
               background: 'transparent',
               border: 'none',
               color: isMuted ? '#ef4444' : '#38bdf8',
-              fontSize: '13px',
+              fontSize: '14px',
               cursor: 'pointer',
               padding: 0,
               display: 'flex',
@@ -344,17 +344,31 @@ export const AudioPlaybackDock: React.FC<AudioPlaybackDockProps> = ({
             type="range"
             min="0"
             max="1"
-            step="0.05"
+            step="0.01"
             value={isMuted ? 0 : volume}
+            onInput={(e) => onSetVolume && onSetVolume(parseFloat((e.target as HTMLInputElement).value))}
             onChange={(e) => onSetVolume && onSetVolume(parseFloat(e.target.value))}
             title={`Volume: ${Math.round((isMuted ? 0 : volume) * 100)}%`}
             style={{
-              width: '56px',
-              height: '4px',
-              accentColor: '#38bdf8',
+              width: '64px',
+              height: '6px',
+              accentColor: isMuted ? '#ef4444' : '#38bdf8',
               cursor: 'pointer',
+              touchAction: 'none',
             }}
           />
+          <span
+            style={{
+              fontSize: '10px',
+              fontWeight: 700,
+              color: isMuted ? '#ef4444' : '#94a3b8',
+              fontVariantNumeric: 'tabular-nums',
+              minWidth: '26px',
+              textAlign: 'right',
+            }}
+          >
+            {isMuted ? '0%' : `${Math.round(volume * 100)}%`}
+          </span>
         </div>
       </div>
     </div>

@@ -24,10 +24,77 @@ export function useAudioPlayback(song: Song | null) {
 
   // Persistent single Audio element across all songs
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const gainNodeRef = useRef<GainNode | null>(null);
+  const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
   const blobUrlRef = useRef<string | null>(null);
   const playPromiseRef = useRef<Promise<void> | null>(null);
 
-  // Initialize volume once
+  // Helper to ensure Web Audio graph is connected (GainNode digital volume for Android WebView & iOS)
+  const initWebAudio = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (!audioCtxRef.current) {
+      try {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioContextClass) {
+          const ctx = new AudioContextClass();
+          const gain = ctx.createGain();
+          const source = ctx.createMediaElementSource(audio);
+
+          source.connect(gain);
+          gain.connect(ctx.destination);
+
+          audioCtxRef.current = ctx;
+          gainNodeRef.current = gain;
+          sourceNodeRef.current = source;
+
+          const targetVol = isMuted ? 0 : volume;
+          gain.gain.setValueAtTime(targetVol, ctx.currentTime);
+          gain.gain.value = targetVol;
+        }
+      } catch (err) {
+        console.warn('[useAudioPlayback] Web Audio setup deferred or not supported:', err);
+      }
+    }
+
+    if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+      audioCtxRef.current.resume().catch(() => {});
+    }
+  }, [volume, isMuted]);
+
+  // Unified volume & mute application across both HTML5 element and Web Audio API GainNode
+  const applyVolume = useCallback(
+    (vol: number, muted: boolean) => {
+      const targetVol = muted ? 0 : Math.max(0, Math.min(1, vol));
+
+      // 1. Direct HTML5 element volume & muted (Desktop & native browser fallback)
+      if (audioRef.current) {
+        audioRef.current.muted = muted;
+        try {
+          audioRef.current.volume = targetVol;
+        } catch (_) {}
+      }
+
+      // 2. Web Audio API GainNode (Essential for Android WebView & iOS where audio.volume is ignored)
+      initWebAudio();
+      if (gainNodeRef.current && audioCtxRef.current) {
+        try {
+          if (audioCtxRef.current.state === 'suspended' && targetVol > 0) {
+            audioCtxRef.current.resume().catch(() => {});
+          }
+          gainNodeRef.current.gain.cancelScheduledValues(audioCtxRef.current.currentTime);
+          gainNodeRef.current.gain.setValueAtTime(targetVol, audioCtxRef.current.currentTime);
+          gainNodeRef.current.gain.value = targetVol;
+        } catch (_) {}
+      }
+    },
+    [initWebAudio]
+  );
+
+  // Initialize volume once from localStorage
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_VOLUME_KEY);
@@ -40,27 +107,35 @@ export function useAudioPlayback(song: Song | null) {
     } catch {}
   }, []);
 
-  // Update volume & mute on persistent audio element
+  // Synchronize volume & mute whenever state changes
   useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = isMuted ? 0 : volume;
-    }
-  }, [volume, isMuted]);
+    applyVolume(volume, isMuted);
+  }, [volume, isMuted, applyVolume]);
 
-  const setVolume = useCallback((val: number) => {
-    const clamped = Math.max(0, Math.min(1, val));
-    setVolumeState(clamped);
-    if (clamped > 0 && isMuted) {
-      setIsMuted(false);
-    }
-    try {
-      localStorage.setItem(STORAGE_VOLUME_KEY, clamped.toString());
-    } catch {}
-  }, [isMuted]);
+  const setVolume = useCallback(
+    (val: number) => {
+      const clamped = Math.max(0, Math.min(1, val));
+      setVolumeState(clamped);
+      if (clamped > 0 && isMuted) {
+        setIsMuted(false);
+        applyVolume(clamped, false);
+      } else {
+        applyVolume(clamped, isMuted);
+      }
+      try {
+        localStorage.setItem(STORAGE_VOLUME_KEY, clamped.toString());
+      } catch {}
+    },
+    [isMuted, applyVolume]
+  );
 
   const toggleMute = useCallback(() => {
-    setIsMuted((prev) => !prev);
-  }, []);
+    setIsMuted((prev) => {
+      const nextMuted = !prev;
+      applyVolume(volume, nextMuted);
+      return nextMuted;
+    });
+  }, [volume, applyVolume]);
 
   // Initialize single audio element on mount
   useEffect(() => {
@@ -95,6 +170,8 @@ export function useAudioPlayback(song: Song | null) {
       audio.onerror = () => {
         setIsPlaying(false);
       };
+
+      initWebAudio();
     }
 
     return () => {
@@ -104,12 +181,20 @@ export function useAudioPlayback(song: Song | null) {
         audioRef.current.load();
         audioRef.current = null;
       }
+      if (audioCtxRef.current) {
+        try {
+          audioCtxRef.current.close().catch(() => {});
+        } catch (_) {}
+        audioCtxRef.current = null;
+      }
+      gainNodeRef.current = null;
+      sourceNodeRef.current = null;
       if (blobUrlRef.current) {
         URL.revokeObjectURL(blobUrlRef.current);
         blobUrlRef.current = null;
       }
     };
-  }, []);
+  }, [initWebAudio]);
 
   // Fast, synchronous chapter setup (ZERO LIVE DECODING LAG)
   useEffect(() => {
@@ -180,7 +265,7 @@ export function useAudioPlayback(song: Song | null) {
       if (isCancelled || !audioRef.current) return;
 
       audio.src = playUrl;
-      audio.volume = isMuted ? 0 : volume;
+      applyVolume(volume, isMuted);
       audio.load();
     };
 
@@ -189,11 +274,17 @@ export function useAudioPlayback(song: Song | null) {
     return () => {
       isCancelled = true;
     };
-  }, [song?.id, song?.audioTrack?.url, song?.audioTrack?.filename]);
+  }, [song?.id, song?.audioTrack?.url, song?.audioTrack?.filename, applyVolume, volume, isMuted]);
 
   const togglePlay = useCallback(() => {
     const audio = audioRef.current;
     if (!audio || !audio.src) return;
+
+    initWebAudio();
+    if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+      audioCtxRef.current.resume().catch(() => {});
+    }
+    applyVolume(volume, isMuted);
 
     if (audio.paused) {
       playPromiseRef.current = audio.play();
@@ -224,12 +315,17 @@ export function useAudioPlayback(song: Song | null) {
         setIsPlaying(false);
       }
     }
-  }, []);
+  }, [initWebAudio, applyVolume, volume, isMuted]);
 
   const seek = useCallback(
     (timeSec: number) => {
       const audio = audioRef.current;
       if (!audio) return;
+      initWebAudio();
+      if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+        audioCtxRef.current.resume().catch(() => {});
+      }
+      applyVolume(volume, isMuted);
       const clamped = Math.max(0, Math.min(duration || 99999, timeSec));
       if (typeof (audio as any).fastSeek === 'function') {
         (audio as any).fastSeek(clamped);
@@ -238,7 +334,7 @@ export function useAudioPlayback(song: Song | null) {
       }
       setCurrentTime(clamped);
     },
-    [duration]
+    [duration, initWebAudio, applyVolume, volume, isMuted]
   );
 
   // Active marker based on current time

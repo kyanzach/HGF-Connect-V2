@@ -5,6 +5,17 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.68.14] — 2026-09-25
+### Fixed — Android WebView & Mobile Audio Playback Volume & Mute Control
+- **Hardware-Level Digital Attenuation via Web Audio API `GainNode` (`useAudioPlayback.ts`)**:
+  - Replaced native `HTMLAudioElement.volume` calls with a dedicated Web Audio API `GainNode` pipeline (`createMediaElementSource` → `GainNode` → `destination`).
+  - Android WebView (Chromium) and iOS Safari notoriously ignore programmatic writes to `HTMLAudioElement.volume` (locking audio output strictly to system maximum). Routing audio through a hardware `GainNode` allows precise 0% to 100% digital volume attenuation and 0-gain full muting on Samsung Galaxy S21 Ultra and all mobile devices.
+- **Explicit `audio.muted` Synchronization**:
+  - Explicitly synchronized `audioRef.current.muted = isMuted` and `gainNode.gain.setValueAtTime(isMuted ? 0 : volume, ...)` on all mute toggles and track switches, guaranteeing instant complete silence when muted.
+- **Real-Time Touch Slider Scrubbing & Percentage Indicator (`AudioPlaybackDock.tsx`)**:
+  - Attached `onInput` event listener to the volume slider so sliding your finger adjusts the volume continuously in real-time instead of waiting for touch release.
+  - Added a responsive volume percentage badge (`0%` - `100%`) alongside the slider with touch-action isolation.
+
 ## [v2.68.13] — 2026-09-25
 ### Added / Changed — Android Band APK v1.1.0 Release & Active Version Detection
 - **Native Android APK Bumped to v1.1.0 (`versionCode = 2`, `versionName = 1.1.0`)**:
