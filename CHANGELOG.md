@@ -5,6 +5,16 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.68.12] — 2026-09-25
+### Fixed — Android Band APK Bridge Swipe-To-Refresh Lock & Clean Release Binary
+- **Active AndroidBand APK Bridge Lock (`page.tsx`, `SongSheet.tsx`)**:
+  - Automatically invokes `window.AndroidBand.setSwipeRefreshEnabled(false)` on mount, on touchstart, and via interval.
+  - Instantly disables the native Android `SwipeRefreshLayout` circular arrow inside existing installed APKs on Samsung S21 and other Android devices without requiring immediate manual re-installation.
+  - Musicians can now swipe downwards smoothly to reach Verse 1 from Chorus/Bridge without triggering involuntary page reloads or touch interception.
+- **Rebuilt & Published Clean Universal APK (`public/downloads/hgf-band.apk`)**:
+  - Recompiled release APK with Gradle 8.9 and OpenJDK 21 from native source (`ph.houseofgrace.band`).
+  - Completely stripped `SwipeRefreshLayout` from the native Android XML hierarchy and enabled `overScrollMode = never` on `WebView`.
+
 ## [v2.68.11] — 2026-09-25
 ### Fixed — Universal Eradication of Pull-To-Refresh on Android (Web, PWA & Native APK)
 - **Universal Browser Pull-To-Refresh Disabled (`globals.css`, `page.tsx`, `SongSheet.tsx`)**:

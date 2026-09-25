@@ -380,6 +380,12 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    try {
+      if (typeof window !== 'undefined' && (window as any).AndroidBand?.setSwipeRefreshEnabled) {
+        (window as any).AndroidBand.setSwipeRefreshEnabled(false);
+      }
+    } catch (_) {}
+
     if (userInteractionTimeoutRef.current) clearTimeout(userInteractionTimeoutRef.current);
     isUserInteractingRef.current = true;
     if (isDrawingActive) return;

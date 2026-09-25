@@ -206,6 +206,26 @@ export default function BandStagePage() {
     return isUserMD;
   }, [hasAudio, currentSong?.audioTrack, isUserMD]);
 
+  // Permanently disable native Android SwipeRefreshLayout in HGFBandApp APK bridge
+  useEffect(() => {
+    const disableAndroidSwipe = () => {
+      try {
+        if (typeof window !== 'undefined' && (window as any).AndroidBand?.setSwipeRefreshEnabled) {
+          (window as any).AndroidBand.setSwipeRefreshEnabled(false);
+        }
+      } catch (_) {}
+    };
+
+    disableAndroidSwipe();
+    const interval = setInterval(disableAndroidSwipe, 1000);
+    window.addEventListener('touchstart', disableAndroidSwipe, { passive: true });
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('touchstart', disableAndroidSwipe);
+    };
+  }, []);
+
   // 1. Restore saved band user from localStorage or 10-year persistent cookie on mount & silently refresh against API
   useEffect(() => {
     try {
