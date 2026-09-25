@@ -69,7 +69,7 @@ export default function BandInstallPage() {
               marginBottom: '14px',
             }}
           >
-            🎸
+            🎼
           </div>
           <h1
             style={{
@@ -361,7 +361,7 @@ export default function BandInstallPage() {
               cursor: 'pointer',
             }}
           >
-            <span>🎸</span>
+            <span>🎼</span>
             <span>Open The Band Tool in Browser</span>
           </Link>
 

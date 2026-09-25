@@ -5,6 +5,19 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.68.9] — 2026-09-25
+### Removed, Added & Enhanced — Pure Native Android Scrolling, Floating Force Cache Refresh & Sheet Music Logo
+- **Removed Finicky Pull-to-Refresh (`SongSheet.tsx`)**:
+  - Completely eradicated web pull-to-refresh mechanics, elastic drag thresholds, and `overscrollBehaviorY` restrictions from the song sheet.
+  - Eliminated touch-scroll freezing and false pull-to-refresh triggers when Android musicians scroll upward to the top of lyrics or chords.
+  - Teleprompter scrolling is now 100% native, unhindered, and silky-smooth across all Android, iOS, and desktop browsers.
+- **Dedicated Floating Force Refresh & Cache Clear FAB (`NavigationDock.tsx`, `page.tsx`)**:
+  - Added a dedicated floating circular `🔄` button placed directly on top of the BPM metronome pill in the stage dock.
+  - Tapping this button forcefully unregisters old service worker caches, clears browser cache storage, and refetches fresh songs, lyrics, and setlists directly from the cloud without disrupting the session.
+  - Includes a smooth 360-degree spinning animation while refreshing and a confirmation toast notification banner (`✅ Sheet lyrics & app updated!`).
+- **Logo Icon Updated to Sheet Note Emoji (`StageTopBar.tsx`, `install/page.tsx`)**:
+  - Replaced the guitar emoji (`🎸`) with the musical score / sheet note emoji (`🎼`) on the main stage top bar brand button and PWA/APK installation screens.
+
 ## [v2.68.8] — 2026-09-25
 ### Fixed & Added — Pointer Capture Drawing, Strict MD Playback Scoping, Audio Pacing Auto-Sync & Double-Tap Immersion Mode
 - **Playback Audio Duration Auto-Sync to Pacing Scroll Tool (`page.tsx`)**:

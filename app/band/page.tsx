@@ -480,6 +480,39 @@ export default function BandStagePage() {
     });
   }, []);
 
+  // Floating Force Clear Cache & Refresh Sheets
+  const [isForceRefreshing, setIsForceRefreshing] = useState<boolean>(false);
+  const [refreshToast, setRefreshToast] = useState<string | null>(null);
+
+  const handleForceRefreshApp = useCallback(async () => {
+    setIsForceRefreshing(true);
+    try {
+      if (typeof window !== 'undefined') {
+        if ('serviceWorker' in navigator) {
+          try {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map((r) => r.update().catch(() => {})));
+          } catch (_) {}
+        }
+        if ('caches' in window) {
+          try {
+            const keys = await caches.keys();
+            await Promise.all(keys.filter((k) => k.includes('hgf-connect') || k.includes('band')).map((k) => caches.delete(k)));
+          } catch (_) {}
+        }
+      }
+      await refreshData();
+      setRefreshToast('✅ Sheet lyrics & app updated!');
+      setTimeout(() => setRefreshToast(null), 2500);
+    } catch (err) {
+      console.error('Refresh error:', err);
+      setRefreshToast('⚠️ Update failed, retrying...');
+      setTimeout(() => setRefreshToast(null), 2000);
+    } finally {
+      setIsForceRefreshing(false);
+    }
+  }, [refreshData]);
+
   // MD Live Stage Sync state for church WiFi stage harmony
   interface LiveSyncState {
     isPlaying: boolean;
@@ -1325,7 +1358,6 @@ export default function BandStagePage() {
         isMetronomeAudioActive={isMetronomeAudioActive}
         onOpenMetronomeModal={() => setIsMetronomeModalOpen(true)}
         isDrawingActive={isDrawingActive}
-        onRefresh={refreshData}
         onDoubleTap={handleToggleImmersionMode}
         isImmersionMode={isImmersionMode}
         drawingCanvasElement={
@@ -1360,6 +1392,8 @@ export default function BandStagePage() {
           hasPlaybackDock={isPlaybackDockVisible}
           duration={currentSongDuration}
           onOpenDurationPicker={() => setIsDurationModalOpen(true)}
+          onForceRefresh={handleForceRefreshApp}
+          isForceRefreshing={isForceRefreshing}
         />
       )}
 
@@ -1503,6 +1537,32 @@ export default function BandStagePage() {
           }}
         >
           {immersionToast}
+        </div>
+      )}
+
+      {/* REFRESH TOAST NOTIFICATION */}
+      {refreshToast && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 'calc(16px + env(safe-area-inset-top, 0px))',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 100,
+            backgroundColor: 'rgba(15, 23, 42, 0.94)',
+            color: '#10b981',
+            border: '1px solid rgba(16, 185, 129, 0.45)',
+            padding: '8px 20px',
+            borderRadius: '24px',
+            fontSize: '0.84rem',
+            fontWeight: 700,
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.7)',
+            pointerEvents: 'none',
+          }}
+        >
+          {refreshToast}
         </div>
       )}
 

@@ -19,7 +19,6 @@ interface SongSheetProps {
   onSwipeRight?: () => void;
   drawingCanvasElement?: React.ReactNode;
   isDrawingActive?: boolean;
-  onRefresh?: () => Promise<void>;
   playbackState?: {
     isPlaying: boolean;
     currentTime: number;
@@ -56,7 +55,6 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   onSwipeRight,
   drawingCanvasElement,
   isDrawingActive = false,
-  onRefresh,
   playbackState,
   bpm,
   isMetronomePulsing,
@@ -346,94 +344,16 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     }
   };
 
-  const [pullDistance, setPullDistance] = useState<number>(0);
-  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
-  const [refreshSuccess, setRefreshSuccess] = useState<boolean>(false);
-  const refreshDismissTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const touchStartedAtTopRef = useRef<boolean>(false);
-
-  const dismissRefreshPill = useCallback(() => {
-    if (refreshDismissTimeoutRef.current) {
-      clearTimeout(refreshDismissTimeoutRef.current);
-      refreshDismissTimeoutRef.current = null;
-    }
-    setIsRefreshing(false);
-    setRefreshSuccess(false);
-    setPullDistance(0);
-  }, []);
-
-  // Auto-dismiss within 2 seconds OR immediately upon any touch / tap anywhere
-  useEffect(() => {
-    if (!refreshSuccess) return;
-
-    // 1. Auto dismiss after 2.2 seconds if untouched
-    refreshDismissTimeoutRef.current = setTimeout(() => {
-      dismissRefreshPill();
-    }, 2200);
-
-    // 2. Split-second immediate dismiss on touch/click anywhere on screen
-    const handleDismissOnInteraction = () => {
-      dismissRefreshPill();
-    };
-
-    window.addEventListener('touchstart', handleDismissOnInteraction, { passive: true, capture: true });
-    window.addEventListener('mousedown', handleDismissOnInteraction, { capture: true });
-
-    return () => {
-      if (refreshDismissTimeoutRef.current) {
-        clearTimeout(refreshDismissTimeoutRef.current);
-        refreshDismissTimeoutRef.current = null;
-      }
-      window.removeEventListener('touchstart', handleDismissOnInteraction, { capture: true });
-      window.removeEventListener('mousedown', handleDismissOnInteraction, { capture: true });
-    };
-  }, [refreshSuccess, dismissRefreshPill]);
-
   const handleTouchStart = (e: React.TouchEvent) => {
-    if (refreshSuccess) {
-      dismissRefreshPill();
-    }
     if (userInteractionTimeoutRef.current) clearTimeout(userInteractionTimeoutRef.current);
     isUserInteractingRef.current = true;
     if (isDrawingActive) return;
 
-    // Pull-to-refresh can ONLY start if the container is already parked at the very top (scrollTop <= 0)
-    touchStartedAtTopRef.current = Boolean(containerRef.current && containerRef.current.scrollTop <= 0);
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
   };
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (isDrawingActive || isRefreshing) return;
-    if (!containerRef.current || touchStartY.current === null) return;
-
-    // Inside native Android Band APK (HGFBandApp), disable web pull-to-refresh completely
-    // so stage teleprompter scrolling is 100% pure, unhindered, and never hijacked
-    const isBandApp = typeof navigator !== 'undefined' && navigator.userAgent.includes('HGFBandApp');
-    if (isBandApp) return;
-
-    // Pull-to-refresh is strictly restricted to when the user explicitly started dragging from the top.
-    // When scrolling up from Chorus/Bridge, touchStartedAtTopRef is false, so it will NEVER trigger pull-to-refresh.
-    if (touchStartedAtTopRef.current && containerRef.current.scrollTop <= 0) {
-      const currentY = e.touches[0].clientY;
-      const diffY = currentY - touchStartY.current;
-      if (diffY > 15) {
-        // Snappy responsive elastic resistance after 15px threshold
-        const damped = Math.min(85, Math.pow(diffY - 15, 0.88) * 1.5);
-        setPullDistance(damped);
-      } else {
-        if (pullDistance > 0) setPullDistance(0);
-      }
-    } else {
-      if (containerRef.current.scrollTop > 0) {
-        touchStartedAtTopRef.current = false;
-      }
-      if (pullDistance > 0) setPullDistance(0);
-    }
-  };
-
-  const handleTouchEnd = async (e: React.TouchEvent) => {
-    touchStartedAtTopRef.current = false;
+  const handleTouchEnd = (e: React.TouchEvent) => {
     if (userInteractionTimeoutRef.current) clearTimeout(userInteractionTimeoutRef.current);
     userInteractionTimeoutRef.current = setTimeout(() => {
       isUserInteractingRef.current = false;
@@ -446,39 +366,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     touchStartX.current = null;
     touchStartY.current = null;
 
-    // Trigger hard refresh when pulled past responsive threshold (48px)
-    if (pullDistance >= 48 && !isRefreshing) {
-      setIsRefreshing(true);
-      setPullDistance(46);
-      try {
-        // 1. Invalidate service worker cache to check for new app build on cloud
-        if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-          try {
-            const regs = await navigator.serviceWorker.getRegistrations();
-            await Promise.all(regs.map((r) => r.update().catch(() => {})));
-          } catch (_) {}
-        }
-
-        // 2. Fetch latest songs and setlists in parallel
-        if (onRefresh) {
-          await Promise.race([
-            onRefresh(),
-            new Promise((resolve) => setTimeout(resolve, 1000)),
-          ]);
-        }
-
-        setRefreshSuccess(true);
-        setPullDistance(0);
-      } catch (_) {
-        setIsRefreshing(false);
-        setPullDistance(0);
-      }
-      return; // Do NOT trigger horizontal song navigation
-    } else {
-      setPullDistance(0);
-    }
-
-    if (startX === null || startY === null) return;
+    if (startX === null || startY === null || e.changedTouches.length === 0) return;
     const diffX = e.changedTouches[0].clientX - startX;
     const diffY = e.changedTouches[0].clientY - startY;
 
@@ -540,7 +428,6 @@ export const SongSheet: React.FC<SongSheetProps> = ({
       ref={containerRef}
       id="sheetWrapper"
       onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       onDoubleClick={(e) => {
         if (isDrawingActive) return;
@@ -572,135 +459,8 @@ export const SongSheet: React.FC<SongSheetProps> = ({
         fontFamily: 'monospace, system-ui',
         WebkitOverflowScrolling: 'touch',
         touchAction: 'pan-y',
-        overscrollBehaviorY: 'none',
       }}
     >
-      <style>{`
-        @keyframes noteWave1 {
-          0%, 100% {
-            transform: translateY(0px) rotate(-6deg) scale(1);
-            opacity: 0.8;
-          }
-          50% {
-            transform: translateY(-8px) rotate(14deg) scale(1.3);
-            opacity: 1;
-            filter: drop-shadow(0 0 8px rgba(78, 177, 203, 0.9));
-          }
-        }
-        @keyframes noteWave2 {
-          0%, 100% {
-            transform: translateY(0px) rotate(6deg) scale(1);
-            opacity: 0.8;
-          }
-          50% {
-            transform: translateY(-10px) rotate(-14deg) scale(1.35);
-            opacity: 1;
-            filter: drop-shadow(0 0 10px rgba(78, 177, 203, 0.95));
-          }
-        }
-        @keyframes noteWave3 {
-          0%, 100% {
-            transform: translateY(0px) rotate(-4deg) scale(1);
-            opacity: 0.8;
-          }
-          50% {
-            transform: translateY(-8px) rotate(12deg) scale(1.3);
-            opacity: 1;
-            filter: drop-shadow(0 0 8px rgba(78, 177, 203, 0.9));
-          }
-        }
-        @keyframes pillPulse {
-          0%, 100% {
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7), 0 0 12px rgba(78, 177, 203, 0.25);
-          }
-          50% {
-            box-shadow: 0 8px 28px rgba(0, 0, 0, 0.8), 0 0 20px rgba(78, 177, 203, 0.55);
-          }
-        }
-      `}</style>
-
-      {/* NATIVE PULL-TO-REFRESH PILL INDICATOR WITH WAVING NOTE EMOJIS */}
-      {(pullDistance > 0 || isRefreshing) && (
-        <div
-          style={{
-            position: 'sticky',
-            top: '8px',
-            zIndex: 40,
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            pointerEvents: refreshSuccess ? 'auto' : 'none',
-            cursor: refreshSuccess ? 'pointer' : 'default',
-            marginBottom: `${Math.max(0, pullDistance - 20)}px`,
-            transition: isRefreshing ? 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)' : 'none',
-          }}
-          onClick={refreshSuccess ? dismissRefreshPill : undefined}
-        >
-          <div
-            onClick={refreshSuccess ? dismissRefreshPill : undefined}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '10px',
-              padding: '8px 18px',
-              borderRadius: '999px',
-              background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.96) 0%, rgba(10, 15, 26, 0.98) 100%)',
-              border: '1.5px solid rgba(78, 177, 203, 0.55)',
-              boxShadow: isRefreshing
-                ? '0 8px 30px rgba(0, 0, 0, 0.85), 0 0 20px rgba(78, 177, 203, 0.45)'
-                : '0 8px 24px rgba(0, 0, 0, 0.6), 0 0 12px rgba(78, 177, 203, 0.2)',
-              animation: isRefreshing ? 'pillPulse 1.5s ease-in-out infinite' : 'none',
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
-              color: '#4EB1CB',
-              fontSize: '13px',
-              fontWeight: 700,
-              letterSpacing: '0.01em',
-              transform: `scale(${Math.min(1, 0.8 + (pullDistance / 80) * 0.2)})`,
-              opacity: Math.min(1, pullDistance / 26),
-            }}
-          >
-            {isRefreshing ? (
-              <>
-                {refreshSuccess ? (
-                  <>
-                    <span style={{ fontSize: '15px', color: '#10b981' }}>✓</span>
-                    <span style={{ color: '#10b981' }}>Latest version & charts loaded!</span>
-                  </>
-                ) : (
-                  <>
-                    {/* WAVING NOTE EMOJIS */}
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '16px' }}>
-                      <span style={{ display: 'inline-block', animation: 'noteWave1 0.75s ease-in-out infinite 0s' }}>🎵</span>
-                      <span style={{ display: 'inline-block', animation: 'noteWave2 0.75s ease-in-out infinite 0.15s' }}>🎶</span>
-                      <span style={{ display: 'inline-block', animation: 'noteWave3 0.75s ease-in-out infinite 0.3s' }}>🎵</span>
-                    </div>
-                    <span style={{ color: '#e2e8f0' }}>Reloading app & charts...</span>
-                  </>
-                )}
-              </>
-            ) : (
-              <>
-                <span
-                  style={{
-                    display: 'inline-block',
-                    fontSize: '16px',
-                    transform: `translateY(${Math.min(3, (pullDistance / 48) * 3)}px) rotate(${Math.min(25, (pullDistance / 48) * 25)}deg) scale(${1 + (pullDistance / 90) * 0.2})`,
-                    transition: 'transform 0.08s ease-out',
-                    filter: pullDistance >= 48 ? 'drop-shadow(0 0 6px #4EB1CB)' : 'none',
-                  }}
-                >
-                  {pullDistance >= 48 ? '🎶' : '🎵'}
-                </span>
-                <span style={{ color: pullDistance >= 48 ? '#38bdf8' : '#94a3b8' }}>
-                  {pullDistance >= 48 ? 'Release to hard reload app' : 'Pull down to hard refresh'}
-                </span>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Persistent Full-Sheet Annotation Canvas */}
       {drawingCanvasElement}
 

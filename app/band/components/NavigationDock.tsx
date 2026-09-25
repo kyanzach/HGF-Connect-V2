@@ -21,6 +21,8 @@ interface NavigationDockProps {
   hasPlaybackDock?: boolean;
   duration?: string;
   onOpenDurationPicker?: () => void;
+  onForceRefresh?: () => void;
+  isForceRefreshing?: boolean;
 }
 
 export const NavigationDock: React.FC<NavigationDockProps> = ({
@@ -40,6 +42,8 @@ export const NavigationDock: React.FC<NavigationDockProps> = ({
   hasPlaybackDock = false,
   duration,
   onOpenDurationPicker,
+  onForceRefresh,
+  isForceRefreshing = false,
 }) => {
   return (
     <div
@@ -57,6 +61,48 @@ export const NavigationDock: React.FC<NavigationDockProps> = ({
         transition: 'bottom 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
       }}
     >
+      <style>{`
+        @keyframes spinRefresh {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
+
+      {/* Force Refresh & Update Sheets FAB (Floating on top of BPM) */}
+      {onForceRefresh && (
+        <button
+          onClick={onForceRefresh}
+          disabled={isForceRefreshing}
+          title="Force Refresh & Update Sheets (Clears Cache)"
+          style={{
+            width: '44px',
+            height: '44px',
+            borderRadius: '50%',
+            backgroundColor: 'rgba(22, 28, 38, 0.92)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            border: '1.5px solid rgba(78, 177, 203, 0.55)',
+            color: '#4EB1CB',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: isForceRefreshing ? 'wait' : 'pointer',
+            boxShadow: '0 6px 16px rgba(0,0,0,0.5)',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <span
+            style={{
+              fontSize: '18px',
+              display: 'inline-block',
+              animation: isForceRefreshing ? 'spinRefresh 0.75s linear infinite' : 'none',
+            }}
+          >
+            🔄
+          </span>
+        </button>
+      )}
+
       {/* BPM Metronome FAB (Moved to Floating Dock) */}
       {onOpenMetronome && (
         <button

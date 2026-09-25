@@ -139,7 +139,7 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
               transition: 'all 0.2s ease',
             }}
           >
-            {copiedLink ? '🔗' : '🎸'}
+            {copiedLink ? '🔗' : '🎼'}
           </button>
         </div>
 
