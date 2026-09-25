@@ -38,6 +38,13 @@
   box-sizing: border-box;
 }
 
+html,
+body {
+  /* Prevent browser pull-to-refresh and bounce on mobile */
+  overscroll-behavior: none !important;
+  overscroll-behavior-y: none !important;
+}
+
 body {
   background: var(--color-background);
   color: var(--color-foreground);

@@ -138,6 +138,40 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     }
   }, [targetDurationSec]);
 
+  // Bulletproof block against Android browser pull-to-refresh:
+  // Intercept touchmove when already at scrollTop <= 0 and dragging downward, preventing native browser reload gesture
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    let startClientY = 0;
+    const onTouchStartNative = (e: TouchEvent) => {
+      if (e.touches.length > 0) {
+        startClientY = e.touches[0].clientY;
+      }
+    };
+
+    const onTouchMoveNative = (e: TouchEvent) => {
+      if (e.touches.length > 0) {
+        const currentClientY = e.touches[0].clientY;
+        // User is at top of lyrics sheet and dragging downwards -> cancel browser pull-to-refresh
+        if (el.scrollTop <= 0 && currentClientY > startClientY) {
+          if (e.cancelable) {
+            e.preventDefault();
+          }
+        }
+      }
+    };
+
+    el.addEventListener('touchstart', onTouchStartNative, { passive: true });
+    el.addEventListener('touchmove', onTouchMoveNative, { passive: false });
+
+    return () => {
+      el.removeEventListener('touchstart', onTouchStartNative);
+      el.removeEventListener('touchmove', onTouchMoveNative);
+    };
+  }, []);
+
   // Handle user manual scroll: update scrollPosRef and sync elapsed timer only when user actively touches/scrolls
   const handleScroll = () => {
     if (!containerRef.current) return;
@@ -467,6 +501,8 @@ export const SongSheet: React.FC<SongSheetProps> = ({
         fontFamily: 'monospace, system-ui',
         WebkitOverflowScrolling: 'touch',
         touchAction: 'pan-y',
+        overscrollBehavior: 'none',
+        overscrollBehaviorY: 'none',
       }}
     >
       {/* Persistent Full-Sheet Annotation Canvas */}

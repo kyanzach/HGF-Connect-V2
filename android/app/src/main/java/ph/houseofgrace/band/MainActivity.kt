@@ -20,7 +20,6 @@ import android.widget.ProgressBar
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 
 class MainActivity : AppCompatActivity() {
 
@@ -29,7 +28,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private lateinit var webView: WebView
-    private lateinit var swipeRefreshLayout: SwipeRefreshLayout
     private lateinit var progressBar: ProgressBar
 
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
@@ -61,27 +59,10 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         webView = findViewById(R.id.webView)
-        swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout)
         progressBar = findViewById(R.id.progressBar)
 
-        swipeRefreshLayout.setColorSchemeResources(R.color.stage_teal)
-        swipeRefreshLayout.setProgressBackgroundColorSchemeResource(R.color.stage_background)
-        swipeRefreshLayout.setOnRefreshListener {
-            webView.clearCache(true)
-            webView.reload()
-        }
-
-        // Disable native swipe-to-refresh completely so stage teleprompter scrolling,
-        // two-finger panning, and annotations are never hijacked by Android's touch interceptor
-        swipeRefreshLayout.isEnabled = false
-
-        // Expose bridge so web app can toggle swipe refresh if explicitly requested
-        webView.addJavascriptInterface(object {
-            @android.webkit.JavascriptInterface
-            fun setSwipeRefreshEnabled(enabled: Boolean) {
-                runOnUiThread { swipeRefreshLayout.isEnabled = enabled }
-            }
-        }, "AndroidBand")
+        // Disable all overscroll effects so stage teleprompter scrolling is 100% pure native
+        webView.overScrollMode = View.OVER_SCROLL_NEVER
 
         configureWebView()
         configureCookies()
@@ -148,7 +129,6 @@ class MainActivity : AppCompatActivity() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
                 progressBar.visibility = View.GONE
-                swipeRefreshLayout.isRefreshing = false
                 CookieManager.getInstance().flush()
             }
         }

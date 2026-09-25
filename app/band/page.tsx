@@ -1286,6 +1286,8 @@ export default function BandStagePage() {
         maxHeight: 'var(--app-viewport-height, 100dvh)',
         width: '100vw',
         overflow: 'hidden',
+        overscrollBehavior: 'none',
+        overscrollBehaviorY: 'none',
         backgroundColor: '#0a0d14',
       }}
     >

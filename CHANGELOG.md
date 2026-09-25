@@ -5,6 +5,19 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.68.11] — 2026-09-25
+### Fixed — Universal Eradication of Pull-To-Refresh on Android (Web, PWA & Native APK)
+- **Universal Browser Pull-To-Refresh Disabled (`globals.css`, `page.tsx`, `SongSheet.tsx`)**:
+  - Enforced `overscroll-behavior: none !important` and `overscroll-behavior-y: none !important` on `html, body`.
+  - Added `overscrollBehavior: 'none'` and `overscrollBehaviorY: 'none'` to the `/band` page root and the `#sheetWrapper` teleprompter container.
+  - In Android Chrome and mobile browsers, this informs the Chromium compositor to disable the browser's native blue reload spinner and prevent page refresh gestures when dragging downwards at `scrollTop = 0`.
+- **Hardware-Level Downward Drag Interceptor (`SongSheet.tsx`)**:
+  - Added a non-passive `touchmove` event listener to `#sheetWrapper` that intercepts and prevents downward drag default behavior strictly when the user is parked at `scrollTop <= 0`.
+  - Upward and downward scrolling through chords and lyrics remains 100% fluid, silky-smooth, and responsive without freezing.
+- **Native Android APK Layout Cleanup (`activity_main.xml`, `MainActivity.kt`)**:
+  - Completely removed `SwipeRefreshLayout` from the native Android app layout, housing `WebView` directly inside `RelativeLayout`.
+  - Configured `webView.overScrollMode = View.OVER_SCROLL_NEVER`, ensuring Android touch interceptors never capture or interrupt stage teleprompter scrolling.
+
 ## [v2.68.10] — 2026-09-25
 ### Fixed & Enhanced — Rock-Solid Double-Tap Calibration, Anti-Flutter Cooldown & Floating "Show Tools" Button
 - **Fixed Inconsistent Double-Tap Flutter & Accidental Rapid Toggling (`page.tsx`)**:
