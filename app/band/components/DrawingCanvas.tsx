@@ -373,187 +373,36 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     currentPoints.current = [];
   }, [color, lineWidth, isMd, currentUser, onSaveStrokes]);
 
-  // ── Native Non-Passive Touch Event Handlers ──────────────────────────────
-  // Using native addEventListener with { passive: false } guarantees that e.preventDefault()
-  // works 100% of the time, preventing iOS pinch-to-zoom interference and Android WebView touch cancellations.
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !isActive) return;
+  // ── High-Performance Pointer Events (Pen, Touch, Stylus, Mouse) ─────────
+  // Using Pointer Events with setPointerCapture guarantees that rapid circles, loops,
+  // and fast horizontal strokes NEVER cut off, and secondary palm touches are ignored.
+  const activePointerIdRef = useRef<number | null>(null);
 
-    const onNativeTouchStart = (e: TouchEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
+  const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!isActive) return;
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
 
-      // Ensure canvas spans any newly scrolled sections (Bridge / Outro)
-      const wrapper = containerRef?.current || document.getElementById('sheetWrapper');
-      if (wrapper) {
-        const requiredH = Math.max(wrapper.scrollHeight, wrapper.clientHeight);
-        if (requiredH > (canvas.clientHeight || 0) + 10) {
-          updateCanvasSize();
-        }
-      }
+    // Palm / Secondary touch rejection: if already drawing, ignore additional touches
+    if (activePointerIdRef.current !== null) {
+      return;
+    }
 
-      const touches = e.touches;
-      if (touches.length === 1) {
-        // Exactly 1 finger: Drawing Mode
-        isPanning.current = false;
-        isDrawing.current = true;
-        const pos = getCanvasCoords(touches[0].clientX, touches[0].clientY);
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch (_) {}
 
-        if (isEraser) {
-          eraseStrokesAt(pos);
-        } else {
-          currentPoints.current = [pos];
-          drawDotOnCanvas(pos);
-        }
-      } else if (touches.length >= 2) {
-        // 2 or more fingers: Two-Finger Pan / Scroll Mode
-        isPanning.current = true;
-        if (isDrawing.current) {
-          isDrawing.current = false;
-          currentPoints.current = [];
-          redraw();
-        }
-
-        const midY = (touches[0].clientY + touches[1].clientY) / 2;
-        const midX = (touches[0].clientX + touches[1].clientX) / 2;
-        panStartYRef.current = midY;
-        panStartXRef.current = midX;
-        lastMidYRef.current = midY;
-        lastMidXRef.current = midX;
-      }
-    };
-
-    const onNativeTouchMove = (e: TouchEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-
-      const touches = e.touches;
-
-      // Two-finger Pan / Scroll ONLY when at least 2 touch points exist
-      if (touches.length >= 2) {
-        if (!isPanning.current) {
-          isPanning.current = true;
-          if (isDrawing.current) {
-            isDrawing.current = false;
-            currentPoints.current = [];
-            redraw();
-          }
-        }
-
-        const midY = (touches[0].clientY + touches[1].clientY) / 2;
-        const midX = (touches[0].clientX + touches[1].clientX) / 2;
-
-        if (!lastMidYRef.current || isNaN(lastMidYRef.current)) {
-          lastMidYRef.current = midY;
-        }
-        if (!lastMidXRef.current || isNaN(lastMidXRef.current)) {
-          lastMidXRef.current = midX;
-        }
-
-        const deltaY = midY - lastMidYRef.current;
-        const deltaX = midX - lastMidXRef.current;
-
-        lastMidYRef.current = midY;
-        lastMidXRef.current = midX;
-
-        const wrapper = containerRef?.current || document.getElementById('sheetWrapper');
-        if (wrapper && !isNaN(deltaY)) {
-          const maxScroll = Math.max(0, wrapper.scrollHeight - wrapper.clientHeight);
-          const nextScroll = Math.max(0, Math.min(maxScroll, wrapper.scrollTop - deltaY));
-          wrapper.scrollTop = nextScroll;
-
-          if (!isNaN(deltaX)) {
-            const maxScrollX = Math.max(0, wrapper.scrollWidth - wrapper.clientWidth);
-            wrapper.scrollLeft = Math.max(0, Math.min(maxScrollX, wrapper.scrollLeft - deltaX));
-          }
-        }
-        return;
-      }
-
-      if (isPanning.current) {
-        isPanning.current = false;
-        lastMidYRef.current = 0;
-        lastMidXRef.current = 0;
-        return;
-      }
-
-      // Single-finger Drawing: ONLY when exactly 1 finger is active and drawing flag is set
-      if (isDrawing.current && touches.length === 1) {
-        const pos = getCanvasCoords(touches[0].clientX, touches[0].clientY);
-
-        if (isEraser) {
-          eraseStrokesAt(pos);
-        } else {
-          const prev = currentPoints.current[currentPoints.current.length - 1];
-          currentPoints.current.push(pos);
-          drawSegmentOnCanvas(prev, pos);
-        }
-      }
-    };
-
-    const onNativeTouchEnd = (e: TouchEvent) => {
-      e.stopPropagation();
-      const remaining = e.touches.length;
-
-      if (remaining < 2) {
-        isPanning.current = false;
-        lastMidYRef.current = 0;
-        lastMidXRef.current = 0;
-      }
-
-      if (remaining === 0) {
-        if (isDrawing.current) {
-          isDrawing.current = false;
-          if (!isEraser && currentPoints.current.length > 0) {
-            commitCurrentStroke();
-          }
-          currentPoints.current = [];
-        }
-      }
-    };
-
-    const onNativeTouchCancel = (e: TouchEvent) => {
-      e.stopPropagation();
-      // Retain drawn points even if Android/OS issues touchcancel
-      if (isDrawing.current && !isEraser && currentPoints.current.length > 0) {
-        commitCurrentStroke();
-      }
-      isDrawing.current = false;
-      isPanning.current = false;
-      lastMidYRef.current = 0;
-      lastMidXRef.current = 0;
-      currentPoints.current = [];
-    };
-
-    canvas.addEventListener('touchstart', onNativeTouchStart, { passive: false });
-    canvas.addEventListener('touchmove', onNativeTouchMove, { passive: false });
-    canvas.addEventListener('touchend', onNativeTouchEnd, { passive: false });
-    canvas.addEventListener('touchcancel', onNativeTouchCancel, { passive: false });
-
-    return () => {
-      canvas.removeEventListener('touchstart', onNativeTouchStart);
-      canvas.removeEventListener('touchmove', onNativeTouchMove);
-      canvas.removeEventListener('touchend', onNativeTouchEnd);
-      canvas.removeEventListener('touchcancel', onNativeTouchCancel);
-    };
-  }, [
-    isActive,
-    isEraser,
-    getCanvasCoords,
-    eraseStrokesAt,
-    drawDotOnCanvas,
-    drawSegmentOnCanvas,
-    commitCurrentStroke,
-    updateCanvasSize,
-    redraw,
-    containerRef,
-  ]);
-
-  // ── Mouse / Desktop Fallback ─────────────────────────────────────────────
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isActive || e.button !== 0) return;
+    activePointerIdRef.current = e.pointerId;
     isDrawing.current = true;
+
+    // Ensure canvas spans any newly scrolled sections
+    const wrapper = containerRef?.current || document.getElementById('sheetWrapper');
+    if (wrapper && canvasRef.current) {
+      const requiredH = Math.max(wrapper.scrollHeight, wrapper.clientHeight);
+      if (requiredH > (canvasRef.current.clientHeight || 0) + 10) {
+        updateCanvasSize();
+      }
+    }
+
     const pos = getCanvasCoords(e.clientX, e.clientY);
 
     if (isEraser) {
@@ -564,8 +413,10 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     }
   };
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!isActive || !isDrawing.current) return;
+    if (e.pointerId !== activePointerIdRef.current) return;
+
     const pos = getCanvasCoords(e.clientX, e.clientY);
 
     if (isEraser) {
@@ -577,9 +428,35 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     }
   };
 
-  const handleMouseUp = () => {
+  const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!isActive || !isDrawing.current) return;
+    if (e.pointerId !== activePointerIdRef.current) return;
+
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch (_) {}
+
+    activePointerIdRef.current = null;
     isDrawing.current = false;
+
+    if (!isEraser && currentPoints.current.length > 0) {
+      commitCurrentStroke();
+    }
+    currentPoints.current = [];
+  };
+
+  const handlePointerCancel = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!isActive || !isDrawing.current) return;
+    if (e.pointerId !== activePointerIdRef.current) return;
+
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch (_) {}
+
+    activePointerIdRef.current = null;
+    isDrawing.current = false;
+
+    // Retain drawn points even if Android/OS issues pointercancel
     if (!isEraser && currentPoints.current.length > 0) {
       commitCurrentStroke();
     }
@@ -857,9 +734,10 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     <>
       <canvas
         ref={canvasRef}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
         onWheel={handleWheel}
         style={{
           position: 'absolute',

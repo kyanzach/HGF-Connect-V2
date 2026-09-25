@@ -23,6 +23,7 @@ interface StageTopBarProps {
   onOpenEditSong: () => void;
   isDrawingActive: boolean;
   onToggleDrawing: () => void;
+  isUserMD?: boolean;
   onOpenAudioManager: () => void;
   onOpenScratchpad: () => void;
   onOpenAmbientPad: () => void;
@@ -45,6 +46,7 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
   onOpenEditSong,
   isDrawingActive,
   onToggleDrawing,
+  isUserMD = false,
   onOpenAudioManager,
   onOpenScratchpad,
   onOpenAmbientPad,
@@ -377,28 +379,30 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
             <span>🎨</span>
             <span>Draw</span>
           </button>
-          <button
-            onClick={onOpenAudioManager}
-            title="Backing Tracks / Multi-Track Audio"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '5px',
-              padding: '0 10px',
-              height: '34px',
-              borderRadius: '8px',
-              background: '#1e293b',
-              border: '1px solid #334155',
-              color: '#f8fafc',
-              fontSize: '12px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            <span>🎧</span>
-            <span>Track</span>
-          </button>
+          {isUserMD && (
+            <button
+              onClick={onOpenAudioManager}
+              title="Backing Tracks / Multi-Track Audio (MD Only)"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '0 10px',
+                height: '34px',
+                borderRadius: '8px',
+                background: '#1e293b',
+                border: '1px solid #334155',
+                color: '#f8fafc',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <span>🎧</span>
+              <span>Track</span>
+            </button>
+          )}
           <button
             onClick={() => {
               if (!currentUser) {

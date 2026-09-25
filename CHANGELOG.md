@@ -5,6 +5,22 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.68.8] — 2026-09-25
+### Fixed & Added — Pointer Capture Drawing, Strict MD Playback Scoping, Audio Pacing Auto-Sync & Double-Tap Immersion Mode
+- **Playback Audio Duration Auto-Sync to Pacing Scroll Tool (`page.tsx`)**:
+  - Automatically defaults the song's pacing duration to the total time of an uploaded or existing audio backtrack (e.g. `8:09`), matching audio duration in real-time as metadata loads or when tracks are uploaded.
+  - Preserves user flexibility: any musician can still adjust or override the duration using the pacing steppers (`+/-`) or duration picker modal without altering the underlying track file.
+- **Strict MD Playback Controller Scoping (`page.tsx`, `StageTopBar.tsx`)**:
+  - Restricted the floating `AudioPlaybackDock` and `AudioStorageModal` strictly to Musical Directors (`isUserMD`), removing all legacy bypasses for regular musicians or uploader matches.
+  - Scoped the `🎧 Track` button in `StageTopBar` so non-MD users cannot see or open audio playback controls.
+- **Double-Tap Clean Stage Immersion Mode (`page.tsx`, `SongSheet.tsx`)**:
+  - Implemented responsive double-tap gesture (and double-click on desktop) across all scenes to instantly hide the top bar, bottom navigation dock, auto-scroll bar, and sidebar, displaying only lyrics and chords in pure clean mode.
+  - If a playback track exists, renders a discreet floating pull-pill at bottom center (`🎧 MM:SS / MM:SS [▲ Player]`) for the MD to expand or hide playback controls without leaving clean mode.
+  - Double-tapping anywhere on the song sheet restores all stage tools and docks immediately.
+- **Pointer Events API & Palm Rejection for Drawing (`DrawingCanvas.tsx`)**:
+  - Upgraded freehand drawing engine from legacy touch events to the modern Pointer Events API (`onPointerDown`, `onPointerMove`, `onPointerUp`) with active `setPointerCapture`.
+  - Added palm rejection (`activePointerIdRef`) and gesture isolation: fast circles, loops, and horizontal lines now draw continuously and smoothly without cutting off, dropping strokes, or triggering browser swipe-navigation gestures.
+
 ## [v2.68.7] — 2026-09-25
 ### Fixed & Enhanced — Smooth 60fps/120fps Playback Auto-Scroll, MD Live Whiteboard Streaming & Setlist Jump Fix
 - **Smooth 60fps/120fps Continuous Auto-Scroll (`SongSheet.tsx`)**:

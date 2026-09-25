@@ -40,6 +40,8 @@ interface SongSheetProps {
   onAutoScrollComplete?: () => void;
   isLiveSyncFollower?: boolean;
   mdLeaderName?: string;
+  onDoubleTap?: () => void;
+  isImmersionMode?: boolean;
 }
 
 export const SongSheet: React.FC<SongSheetProps> = ({
@@ -70,10 +72,14 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   onAutoScrollComplete,
   isLiveSyncFollower = false,
   mdLeaderName = 'MD',
+  onDoubleTap,
+  isImmersionMode = false,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
+  const lastTapTimeRef = useRef<number>(0);
+  const lastTapPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const scrollPosRef = useRef<number>(0);
   const elapsedMsRef = useRef<number>(0);
   const lastReportedSecRef = useRef<number>(-1);
@@ -476,6 +482,29 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     const diffX = e.changedTouches[0].clientX - startX;
     const diffY = e.changedTouches[0].clientY - startY;
 
+    // Detect double-tap gesture to toggle clean immersion mode
+    const moveDist = Math.hypot(diffX, diffY);
+    if (moveDist < 18 && e.changedTouches.length === 1 && !isDrawingActive) {
+      const now = Date.now();
+      const timeDiff = now - lastTapTimeRef.current;
+      const tapDist = Math.hypot(
+        e.changedTouches[0].clientX - lastTapPosRef.current.x,
+        e.changedTouches[0].clientY - lastTapPosRef.current.y
+      );
+
+      if (timeDiff > 40 && timeDiff < 360 && tapDist < 36) {
+        lastTapTimeRef.current = 0;
+        onDoubleTap?.();
+        return;
+      } else {
+        lastTapTimeRef.current = now;
+        lastTapPosRef.current = {
+          x: e.changedTouches[0].clientX,
+          y: e.changedTouches[0].clientY,
+        };
+      }
+    }
+
     // Must be predominantly horizontal swipe > 60px
     if (Math.abs(diffX) > 60 && Math.abs(diffX) > Math.abs(diffY) * 1.5) {
       if (diffX < 0 && onSwipeLeft) {
@@ -513,6 +542,12 @@ export const SongSheet: React.FC<SongSheetProps> = ({
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onDoubleClick={(e) => {
+        if (isDrawingActive) return;
+        const target = e.target as HTMLElement | null;
+        if (target?.closest('button, a, input, select, textarea, [data-interactive="true"]')) return;
+        onDoubleTap?.();
+      }}
       onWheel={() => {
         if (userInteractionTimeoutRef.current) clearTimeout(userInteractionTimeoutRef.current);
         isUserInteractingRef.current = true;
@@ -526,10 +561,12 @@ export const SongSheet: React.FC<SongSheetProps> = ({
         flex: 1,
         overflowY: 'auto',
         overflowX: 'hidden',
-        paddingTop: '16px',
+        paddingTop: isImmersionMode ? 'calc(env(safe-area-inset-top, 0px) + 24px)' : '16px',
         paddingLeft: '20px',
         paddingRight: '20px',
-        paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 180px)',
+        paddingBottom: isImmersionMode
+          ? 'calc(env(safe-area-inset-bottom, 0px) + 80px)'
+          : 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 180px)',
         backgroundColor: '#0a0d14',
         color: '#f8fafc',
         fontFamily: 'monospace, system-ui',

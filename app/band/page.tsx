@@ -200,28 +200,11 @@ export default function BandStagePage() {
     ((session?.user as any)?.role || '').toUpperCase() === 'MD'
   );
 
-  // Scope backtrack playback dock:
-  // MD (Musical Director) and Admin ALWAYS have stage playback controls for songs with audio.
-  // Regular musicians only see the playback bar if THEY personally uploaded the track.
+  // Scope backtrack playback dock: strictly visible to MDs (Musical Directors) only
   const isPlaybackDockVisible = useMemo(() => {
     if (!hasAudio || !currentSong?.audioTrack) return false;
-    const track = currentSong.audioTrack;
-
-    if (!currentUser?.id && !isUserMD) return false;
-
-    // MD (Musical Director) and Admin ALWAYS have stage playback controls
-    const isMDOrAdmin = isUserMD || currentUser?.role === 'admin' || (session?.user as any)?.role === 'admin';
-    if (isMDOrAdmin) return true;
-
-    const trackUploader = (track.uploadedBy || '').trim().toLowerCase();
-    const currentUserId = (currentUser?.id || '').trim().toLowerCase();
-    const currentUsername = (currentUser?.username || '').trim().toLowerCase();
-
-    // Must have a valid uploader and must match current user
-    if (!trackUploader) return false;
-
-    return trackUploader === currentUserId || trackUploader === currentUsername;
-  }, [hasAudio, currentSong?.audioTrack, currentUser]);
+    return isUserMD;
+  }, [hasAudio, currentSong?.audioTrack, isUserMD]);
 
   // 1. Restore saved band user from localStorage or 10-year persistent cookie on mount & silently refresh against API
   useEffect(() => {
@@ -477,6 +460,26 @@ export default function BandStagePage() {
   // Session duration overrides keyed by songId for immediate reactive UI updates
   const [sessionDurationOverrides, setSessionDurationOverrides] = useState<Record<string, string>>({});
 
+  // Clean Stage Immersion Mode (double-tap anywhere to hide all toolbars, sidebar, docks)
+  const [isImmersionMode, setIsImmersionMode] = useState<boolean>(false);
+  const [isImmersionPlaybackExpanded, setIsImmersionPlaybackExpanded] = useState<boolean>(false);
+  const [immersionToast, setImmersionToast] = useState<string | null>(null);
+
+  const handleToggleImmersionMode = useCallback(() => {
+    setIsImmersionMode((prev) => {
+      const next = !prev;
+      if (next) {
+        setIsSidebarOpen(false);
+        setIsImmersionPlaybackExpanded(false);
+        setImmersionToast('✨ Clean Stage Mode — Double-tap to restore');
+        setTimeout(() => setImmersionToast(null), 2200);
+      } else {
+        setImmersionToast(null);
+      }
+      return next;
+    });
+  }, []);
+
   // MD Live Stage Sync state for church WiFi stage harmony
   interface LiveSyncState {
     isPlaying: boolean;
@@ -514,11 +517,28 @@ export default function BandStagePage() {
   const effectiveSetlistIdRef = useRef<string | null>(effectiveSetlistId);
   effectiveSetlistIdRef.current = effectiveSetlistId;
 
-  // Planned arrangement duration in seconds (defaults to standard 4:00 if not yet explicitly saved on song)
-  const currentSongDuration =
-    (currentSong?.id && sessionDurationOverrides[currentSong.id]) ||
-    currentSong?.duration ||
-    '4:00';
+  // Planned arrangement duration in seconds:
+  // Automatically defaults to audio playback duration (e.g. 8:09) if present,
+  // falling back to song's saved duration or 4:00, with user session overrides taking precedence.
+  const currentSongDuration = useMemo(() => {
+    if (currentSong?.id && sessionDurationOverrides[currentSong.id]) {
+      return sessionDurationOverrides[currentSong.id];
+    }
+    // 1. Backtrack audio element loaded duration (> 5s)
+    if (backtrackDuration && backtrackDuration > 5) {
+      return formatSecToMMSS(Math.round(backtrackDuration));
+    }
+    // 2. AudioTrack saved metadata duration (> 5s)
+    const audioTrackDur = currentSong?.audioTrack?.durationSec || (currentSong?.audioTrack as any)?.duration;
+    if (audioTrackDur && audioTrackDur > 5) {
+      return formatSecToMMSS(Math.round(audioTrackDur));
+    }
+    // 3. Fallback to song duration if saved
+    if (currentSong?.duration) {
+      return currentSong.duration;
+    }
+    return '4:00';
+  }, [currentSong?.id, currentSong?.duration, currentSong?.audioTrack, sessionDurationOverrides, backtrackDuration]);
   const targetDurationSec = parseDurationToSec(currentSongDuration) || 240;
 
   // MD Master Broadcaster: transmits play/pause/seek to band members viewing the same setlist
@@ -1231,48 +1251,51 @@ export default function BandStagePage() {
       }}
     >
       {/* TOPBAR */}
-      <StageTopBar
-        currentKey={effectiveKey}
-        displayKey={displayKey}
-        onTranspose={handleTransposeDelta}
-        onOpenKeyPicker={() => setIsKeyPickerOpen(true)}
-        bpm={tempo}
-        isMetronomePulsing={isPulsing}
-        isMetronomeAudioActive={isMetronomeAudioActive}
-        onToggleMetronomeAudio={toggleMetronomeAudio}
-        onOpenMetronomeModal={() => setIsMetronomeModalOpen(true)}
-        setlists={setlists}
-        activeSetlistId={activeSetlistId}
-        onSelectSetlist={handleSelectSetlist}
-        currentUser={currentUser}
-        onOpenAuthModal={() => setIsAuthModalOpen(true)}
-        onOpenEditSong={() => {
-          setEditingSong(currentSong);
-          setIsEditModalOpen(true);
-        }}
-        isDrawingActive={isDrawingActive}
-        onToggleDrawing={() => {
-          if (!currentUser) {
-            setLoginPrompt({ open: true, feature: 'draw' });
-            return;
-          }
-          setIsDrawingActive(!isDrawingActive);
-        }}
-        onOpenAudioManager={() => setIsAudioStorageOpen(true)}
-        onOpenScratchpad={() => {
-          if (!currentUser) {
-            setLoginPrompt({ open: true, feature: 'notes' });
-            return;
-          }
-          setIsScratchpadOpen(true);
-        }}
-        onOpenAmbientPad={() => setIsAmbientPadOpen(true)}
-        onToggleSidebar={() => setIsSidebarOpen(true)}
-        isSessionOverridden={isCurrentSongSessionOverridden}
-        worshipLeaderKey={activeSongMdDefaults?.key}
-        onRevertKey={handleRevertToMdKey}
-        onOpenInstallModal={() => setIsInstallModalOpen(true)}
-      />
+      {!isImmersionMode && (
+        <StageTopBar
+          currentKey={effectiveKey}
+          displayKey={displayKey}
+          onTranspose={handleTransposeDelta}
+          onOpenKeyPicker={() => setIsKeyPickerOpen(true)}
+          bpm={tempo}
+          isMetronomePulsing={isPulsing}
+          isMetronomeAudioActive={isMetronomeAudioActive}
+          onToggleMetronomeAudio={toggleMetronomeAudio}
+          onOpenMetronomeModal={() => setIsMetronomeModalOpen(true)}
+          setlists={setlists}
+          activeSetlistId={activeSetlistId}
+          onSelectSetlist={handleSelectSetlist}
+          currentUser={currentUser}
+          isUserMD={isUserMD}
+          onOpenAuthModal={() => setIsAuthModalOpen(true)}
+          onOpenEditSong={() => {
+            setEditingSong(currentSong);
+            setIsEditModalOpen(true);
+          }}
+          isDrawingActive={isDrawingActive}
+          onToggleDrawing={() => {
+            if (!currentUser) {
+              setLoginPrompt({ open: true, feature: 'draw' });
+              return;
+            }
+            setIsDrawingActive(!isDrawingActive);
+          }}
+          onOpenAudioManager={() => setIsAudioStorageOpen(true)}
+          onOpenScratchpad={() => {
+            if (!currentUser) {
+              setLoginPrompt({ open: true, feature: 'notes' });
+              return;
+            }
+            setIsScratchpadOpen(true);
+          }}
+          onOpenAmbientPad={() => setIsAmbientPadOpen(true)}
+          onToggleSidebar={() => setIsSidebarOpen(true)}
+          isSessionOverridden={isCurrentSongSessionOverridden}
+          worshipLeaderKey={activeSongMdDefaults?.key}
+          onRevertKey={handleRevertToMdKey}
+          onOpenInstallModal={() => setIsInstallModalOpen(true)}
+        />
+      )}
 
       {/* STAGE SONG SHEET (Embeds persistent drawing canvas over sheet content) */}
       <SongSheet
@@ -1303,6 +1326,8 @@ export default function BandStagePage() {
         onOpenMetronomeModal={() => setIsMetronomeModalOpen(true)}
         isDrawingActive={isDrawingActive}
         onRefresh={refreshData}
+        onDoubleTap={handleToggleImmersionMode}
+        isImmersionMode={isImmersionMode}
         drawingCanvasElement={
           <DrawingCanvas
             key={`drawing_${currentSong?.id}_${currentUser?.id || 'guest'}`}
@@ -1316,49 +1341,53 @@ export default function BandStagePage() {
       />
 
       {/* FLOATING NAVIGATION DOCK */}
-      <NavigationDock
-        onPrevSong={prevSong}
-        onNextSong={nextSong}
-        canPrev={currentIndex > 0}
-        canNext={currentIndex < currentLineup.length - 1}
-        currentIndex={currentIndex}
-        totalSongs={currentLineup.length}
-        fontSizePx={fontSizePx}
-        onChangeFontSize={(delta) => setFontSizePx((prev) => Math.max(12, Math.min(32, prev + delta)))}
-        isAutoScrolling={isAutoScrolling}
-        onToggleAutoScroll={handleToggleAutoScroll}
-        bpm={tempo}
-        isMetronomePulsing={isPulsing}
-        onOpenMetronome={() => setIsMetronomeModalOpen(true)}
-        isMetronomeAudioActive={isMetronomeAudioActive}
-        hasPlaybackDock={isPlaybackDockVisible}
-        duration={currentSongDuration}
-        onOpenDurationPicker={() => setIsDurationModalOpen(true)}
-      />
+      {!isImmersionMode && (
+        <NavigationDock
+          onPrevSong={prevSong}
+          onNextSong={nextSong}
+          canPrev={currentIndex > 0}
+          canNext={currentIndex < currentLineup.length - 1}
+          currentIndex={currentIndex}
+          totalSongs={currentLineup.length}
+          fontSizePx={fontSizePx}
+          onChangeFontSize={(delta) => setFontSizePx((prev) => Math.max(12, Math.min(32, prev + delta)))}
+          isAutoScrolling={isAutoScrolling}
+          onToggleAutoScroll={handleToggleAutoScroll}
+          bpm={tempo}
+          isMetronomePulsing={isPulsing}
+          onOpenMetronome={() => setIsMetronomeModalOpen(true)}
+          isMetronomeAudioActive={isMetronomeAudioActive}
+          hasPlaybackDock={isPlaybackDockVisible}
+          duration={currentSongDuration}
+          onOpenDurationPicker={() => setIsDurationModalOpen(true)}
+        />
+      )}
 
       {/* AUTO-SCROLL CONTROL BAR */}
-      <AutoScrollBar
-        isVisible={showAutoScrollBar}
-        isPlaying={isAutoScrolling}
-        speed={autoScrollSpeed}
-        onTogglePlay={() => setIsAutoScrolling(!isAutoScrolling)}
-        onChangeSpeed={setAutoScrollSpeed}
-        onClose={() => {
-          setIsAutoScrolling(false);
-          setShowAutoScrollBar(false);
-        }}
-        hasPlaybackDock={isPlaybackDockVisible}
-        scrollMode={scrollMode}
-        onToggleScrollMode={() => setScrollMode((prev) => (prev === 'duration' ? 'speed' : 'duration'))}
-        duration={currentSongDuration}
-        elapsedSeconds={elapsedScrollSeconds}
-        targetDurationSec={targetDurationSec}
-        onOpenDurationPicker={() => setIsDurationModalOpen(true)}
-        onStepDurationSeconds={handleStepDuration}
-      />
+      {!isImmersionMode && (
+        <AutoScrollBar
+          isVisible={showAutoScrollBar}
+          isPlaying={isAutoScrolling}
+          speed={autoScrollSpeed}
+          onTogglePlay={() => setIsAutoScrolling(!isAutoScrolling)}
+          onChangeSpeed={setAutoScrollSpeed}
+          onClose={() => {
+            setIsAutoScrolling(false);
+            setShowAutoScrollBar(false);
+          }}
+          hasPlaybackDock={isPlaybackDockVisible}
+          scrollMode={scrollMode}
+          onToggleScrollMode={() => setScrollMode((prev) => (prev === 'duration' ? 'speed' : 'duration'))}
+          duration={currentSongDuration}
+          elapsedSeconds={elapsedScrollSeconds}
+          targetDurationSec={targetDurationSec}
+          onOpenDurationPicker={() => setIsDurationModalOpen(true)}
+          onStepDurationSeconds={handleStepDuration}
+        />
+      )}
 
-      {/* FLOATING AUDIO SCRUBBER DOCK */}
-      {isPlaybackDockVisible && (
+      {/* FLOATING AUDIO SCRUBBER DOCK (Standard Stage Mode - MD Only) */}
+      {!isImmersionMode && isPlaybackDockVisible && (
         <AudioPlaybackDock
           isVisible={isPlaybackDockVisible}
           isPlaying={isBacktrackPlaying}
@@ -1378,6 +1407,103 @@ export default function BandStagePage() {
           isAnalyzingAudio={isAnalyzingAudio}
           onOpenChaptersModal={() => setIsAudioChaptersModalOpen(true)}
         />
+      )}
+
+      {/* IMMERSION MODE FLOATING PLAYBACK PULL-PILL (MD Only) */}
+      {isImmersionMode && isPlaybackDockVisible && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 85,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 8,
+            maxWidth: '94vw',
+          }}
+        >
+          {isImmersionPlaybackExpanded && (
+            <div style={{ marginBottom: 4, width: 'min(94vw, 560px)' }}>
+              <AudioPlaybackDock
+                isVisible={true}
+                isPlaying={isBacktrackPlaying}
+                currentTime={backtrackCurrentTime}
+                duration={backtrackDuration}
+                onTogglePlay={handleToggleBacktrackPlay}
+                onSeek={handleSeekBacktrack}
+                title={currentSong?.title || ''}
+                volume={backtrackVolume}
+                isMuted={isBacktrackMuted}
+                onSetVolume={setBacktrackVolume}
+                onToggleMute={toggleBacktrackMute}
+                markers={audioMarkers}
+                activeMarker={activeAudioMarker}
+                onJumpPrev={jumpPrevAudioMarker}
+                onJumpNext={jumpNextAudioMarker}
+                isAnalyzingAudio={isAnalyzingAudio}
+                onOpenChaptersModal={() => setIsAudioChaptersModalOpen(true)}
+              />
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => setIsImmersionPlaybackExpanded((prev) => !prev)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '8px 18px',
+              borderRadius: 24,
+              backgroundColor: 'rgba(15, 23, 42, 0.94)',
+              border: '1px solid rgba(78, 177, 203, 0.45)',
+              boxShadow: '0 6px 24px rgba(0, 0, 0, 0.65)',
+              color: '#f8fafc',
+              fontSize: '0.82rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            <span>🎧</span>
+            <span style={{ color: '#4EB1CB', fontFamily: 'monospace', letterSpacing: '0.5px' }}>
+              {formatSecToMMSS(Math.round(backtrackCurrentTime))} / {formatSecToMMSS(Math.round(backtrackDuration || targetDurationSec))}
+            </span>
+            <span style={{ fontSize: '0.74rem', color: '#94a3b8', marginLeft: 4 }}>
+              {isImmersionPlaybackExpanded ? '▼ Hide' : '▲ Player'}
+            </span>
+          </button>
+        </div>
+      )}
+
+      {/* IMMERSION MODE TOAST NOTIFICATION */}
+      {immersionToast && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 'calc(16px + env(safe-area-inset-top, 0px))',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 100,
+            backgroundColor: 'rgba(15, 23, 42, 0.94)',
+            color: '#4EB1CB',
+            border: '1px solid rgba(78, 177, 203, 0.45)',
+            padding: '8px 20px',
+            borderRadius: '24px',
+            fontSize: '0.84rem',
+            fontWeight: 700,
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.7)',
+            pointerEvents: 'none',
+          }}
+        >
+          {immersionToast}
+        </div>
       )}
 
       {/* SETLIST & SONG LIBRARY SIDEBAR */}
@@ -1448,7 +1574,7 @@ export default function BandStagePage() {
       />
 
       <AudioStorageModal
-        isOpen={isAudioStorageOpen}
+        isOpen={isAudioStorageOpen && isUserMD}
         onClose={() => setIsAudioStorageOpen(false)}
         currentSong={currentSong}
         currentUser={currentUser}
