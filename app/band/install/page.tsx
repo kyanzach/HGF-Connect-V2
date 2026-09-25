@@ -1,12 +1,22 @@
-// app/band/install/page.tsx
 'use client';
+// app/band/install/page.tsx
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { APP_VERSION } from '@/lib/version';
 
 export default function BandInstallPage() {
   const [platform, setPlatform] = useState<'android' | 'apple'>('android');
   const [copiedLink, setCopiedLink] = useState(false);
+  const [deviceInfo, setDeviceInfo] = useState<{
+    isNative: boolean;
+    nativeVersion: string | null;
+    isOutdated: boolean;
+  }>({
+    isNative: false,
+    nativeVersion: null,
+    isOutdated: false,
+  });
 
   useEffect(() => {
     // Auto-detect Apple iOS/iPadOS devices
@@ -16,6 +26,31 @@ export default function BandInstallPage() {
       setPlatform('apple');
     } else {
       setPlatform('android');
+    }
+
+    const ua = navigator.userAgent || '';
+    const match = ua.match(/HGFBandApp\/([\d.]+)/);
+    let ver = match && match[1] ? match[1] : null;
+
+    if (!ver && (window as any).AndroidBand?.getAppVersion) {
+      try {
+        ver = (window as any).AndroidBand.getAppVersion();
+      } catch (_) {}
+    }
+
+    if (ver) {
+      const isOutdated = ver === '1.0' || ver === '1.0.0';
+      setDeviceInfo({
+        isNative: true,
+        nativeVersion: ver,
+        isOutdated,
+      });
+    } else {
+      setDeviceInfo({
+        isNative: false,
+        nativeVersion: null,
+        isOutdated: false,
+      });
     }
   }, []);
 
@@ -82,15 +117,40 @@ export default function BandInstallPage() {
           >
             HGF Band Stage App
           </h1>
-          <p
-            style={{
-              fontSize: '14px',
-              color: '#94a3b8',
-              margin: 0,
-            }}
-          >
-            Official Stage Tool for House of Grace Fellowship Musicians
-          </p>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginTop: '6px', flexWrap: 'wrap', justifyContent: 'center' }}>
+            <span
+              style={{
+                fontSize: '12px',
+                fontWeight: 700,
+                padding: '3px 10px',
+                borderRadius: '8px',
+                background: deviceInfo.isNative
+                  ? deviceInfo.isOutdated
+                    ? 'rgba(234, 179, 8, 0.2)'
+                    : 'rgba(34, 197, 94, 0.2)'
+                  : 'rgba(78, 177, 203, 0.2)',
+                color: deviceInfo.isNative
+                  ? deviceInfo.isOutdated
+                    ? '#facc15'
+                    : '#4ade80'
+                  : '#4EB1CB',
+                border: `1px solid ${
+                  deviceInfo.isNative
+                    ? deviceInfo.isOutdated
+                      ? 'rgba(234, 179, 8, 0.4)'
+                      : 'rgba(34, 197, 94, 0.4)'
+                    : 'rgba(78, 177, 203, 0.4)'
+                }`,
+              }}
+            >
+              You&apos;re on: {deviceInfo.isNative ? `APK v${deviceInfo.nativeVersion}` : `Web v${APP_VERSION}`}
+            </span>
+            {deviceInfo.isNative && deviceInfo.isOutdated && (
+              <span style={{ fontSize: '12px', color: '#facc15', fontWeight: 600 }}>
+                ⚠️ Update Available: v1.1.0
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Platform Selector */}
@@ -163,15 +223,58 @@ export default function BandInstallPage() {
               boxShadow: '0 12px 30px rgba(0, 0, 0, 0.5)',
             }}
           >
+            {/* Outdated APK Warning Banner */}
+            {deviceInfo.isNative && deviceInfo.isOutdated && (
+              <div
+                style={{
+                  padding: '12px 14px',
+                  borderRadius: '10px',
+                  background: 'rgba(234, 179, 8, 0.15)',
+                  border: '1px solid rgba(234, 179, 8, 0.5)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                }}
+              >
+                <span style={{ fontSize: '22px' }}>⚠️</span>
+                <div style={{ fontSize: '12px', color: '#fef08a', lineHeight: '1.4' }}>
+                  <strong>Update Required on this Device:</strong> You are currently running <strong>APK v{deviceInfo.nativeVersion}</strong>. Tap below to download and install <strong>v1.1.0</strong> to fix the pull-to-refresh and smooth verse 1 scrolling.
+                </div>
+              </div>
+            )}
+
+            {/* Up to date APK Banner */}
+            {deviceInfo.isNative && !deviceInfo.isOutdated && (
+              <div
+                style={{
+                  padding: '12px 14px',
+                  borderRadius: '10px',
+                  background: 'rgba(34, 197, 94, 0.15)',
+                  border: '1px solid rgba(34, 197, 94, 0.5)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                }}
+              >
+                <span style={{ fontSize: '20px' }}>✅</span>
+                <div style={{ fontSize: '12px', color: '#86efac', lineHeight: '1.4' }}>
+                  <strong>Up to Date:</strong> This device is running <strong>APK v{deviceInfo.nativeVersion}</strong> with smooth verse scrolling and screen stay-awake active.
+                </div>
+              </div>
+            )}
+
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '12px', fontWeight: 700, color: '#4EB1CB', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>
                 Sunday Stage Edition
               </div>
-              <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#fff', margin: 0 }}>
-                HGF Band Native App (v1.0)
+              <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                <span>HGF Band Native App</span>
+                <span style={{ fontSize: '11px', background: '#4EB1CB', color: '#070a0f', fontWeight: 800, padding: '2px 6px', borderRadius: '4px' }}>
+                  v1.1.0
+                </span>
               </h2>
               <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>
-                Direct APK download • Ready for music stands
+                Direct APK download • Build v1.1.0 • Ready for music stands
               </div>
             </div>
 
@@ -195,7 +298,7 @@ export default function BandInstallPage() {
               }}
             >
               <span style={{ fontSize: '20px' }}>⬇️</span>
-              <span>Download HGF Band APK</span>
+              <span>Download HGF Band APK (v1.1.0)</span>
             </a>
 
             {/* Stage Feature Grid */}

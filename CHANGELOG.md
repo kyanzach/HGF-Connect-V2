@@ -5,6 +5,21 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.68.13] — 2026-09-25
+### Added / Changed — Android Band APK v1.1.0 Release & Active Version Detection
+- **Native Android APK Bumped to v1.1.0 (`versionCode = 2`, `versionName = 1.1.0`)**:
+  - Rebuilt and signed release binary (`public/downloads/hgf-band.apk`, MD5: `b4be6c668a34fab6bc68dee28d0a8e02`).
+  - Updated User-Agent to `HGFBandApp/1.1.0` and exposed `window.AndroidBand.getAppVersion()` and `getVersionCode()`.
+  - Completely eliminates native `SwipeRefreshLayout` circular arrow spinner on Android 14/15 devices (Samsung Galaxy S21 Ultra, etc.).
+- **Live Device & Version Detection in Band Install Modal (`BandInstallModal.tsx`)**:
+  - Automatically identifies whether the user is on the native Android APK (`APK v1.0` vs `APK v1.1.0`) or on `Web v2.68.13`.
+  - Displays a dynamic badge in the modal title: `You're on: APK v1.0` or `You're on: Web v2.68.13`.
+  - If running on `v1.0`, displays an alert banner explaining that an update to `v1.1.0` is required to fix the pull-to-refresh reload bug.
+  - If running on `v1.1.0`, confirms device is up to date with native pull-to-refresh disabled.
+- **Updated Install Portal & Download Cards (`/band/install`, `BandInstallModal.tsx`)**:
+  - Clear label: `Download HGF Band APK (v1.1.0)` with package metadata (`ph.houseofgrace.band • Build v1.1.0`).
+  - Added device status badge to `/band/install` page header so musicians visiting the web link immediately see what version they are on.
+
 ## [v2.68.12] — 2026-09-25
 ### Fixed — Android Band APK Bridge Swipe-To-Refresh Lock & Clean Release Binary
 - **Active AndroidBand APK Bridge Lock (`page.tsx`, `SongSheet.tsx`)**:

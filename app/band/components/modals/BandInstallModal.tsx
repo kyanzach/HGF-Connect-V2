@@ -1,7 +1,8 @@
 // app/band/components/modals/BandInstallModal.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { APP_VERSION } from '@/lib/version';
 
 interface BandInstallModalProps {
   isOpen: boolean;
@@ -11,6 +12,44 @@ interface BandInstallModalProps {
 export const BandInstallModal: React.FC<BandInstallModalProps> = ({ isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState<'android' | 'apple'>('android');
   const [copiedLink, setCopiedLink] = useState(false);
+  const [deviceInfo, setDeviceInfo] = useState<{
+    isNative: boolean;
+    nativeVersion: string | null;
+    isOutdated: boolean;
+  }>({
+    isNative: false,
+    nativeVersion: null,
+    isOutdated: false,
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const ua = navigator.userAgent || '';
+    const match = ua.match(/HGFBandApp\/([\d.]+)/);
+    let ver = match && match[1] ? match[1] : null;
+
+    if (!ver && (window as any).AndroidBand?.getAppVersion) {
+      try {
+        ver = (window as any).AndroidBand.getAppVersion();
+      } catch (_) {}
+    }
+
+    if (ver) {
+      // Current release APK is v1.1.0
+      const isOutdated = ver === '1.0' || ver === '1.0.0';
+      setDeviceInfo({
+        isNative: true,
+        nativeVersion: ver,
+        isOutdated,
+      });
+    } else {
+      setDeviceInfo({
+        isNative: false,
+        nativeVersion: null,
+        isOutdated: false,
+      });
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -64,14 +103,51 @@ export const BandInstallModal: React.FC<BandInstallModalProps> = ({ isOpen, onCl
             background: '#070a0f',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '20px' }}>📲</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '22px' }}>📲</span>
             <div>
-              <div style={{ fontWeight: 800, fontSize: '16px', color: '#fff' }}>
-                HGF Band Stage App
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span style={{ fontWeight: 800, fontSize: '16px', color: '#fff' }}>
+                  HGF Band Stage App
+                </span>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    background: deviceInfo.isNative
+                      ? deviceInfo.isOutdated
+                        ? 'rgba(234, 179, 8, 0.2)'
+                        : 'rgba(34, 197, 94, 0.2)'
+                      : 'rgba(78, 177, 203, 0.2)',
+                    color: deviceInfo.isNative
+                      ? deviceInfo.isOutdated
+                        ? '#facc15'
+                        : '#4ade80'
+                      : '#4EB1CB',
+                    border: `1px solid ${
+                      deviceInfo.isNative
+                        ? deviceInfo.isOutdated
+                          ? 'rgba(234, 179, 8, 0.4)'
+                          : 'rgba(34, 197, 94, 0.4)'
+                        : 'rgba(78, 177, 203, 0.4)'
+                    }`,
+                  }}
+                >
+                  You&apos;re on: {deviceInfo.isNative ? `APK v${deviceInfo.nativeVersion}` : `Web v${APP_VERSION}`}
+                </span>
               </div>
-              <div style={{ fontSize: '11px', color: '#4EB1CB', fontWeight: 600 }}>
-                Musician Stage Setup for Sunday
+              <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 500, marginTop: '2px' }}>
+                {deviceInfo.isNative ? (
+                  deviceInfo.isOutdated ? (
+                    <span style={{ color: '#facc15' }}>⚠️ Update available (v1.1.0) • Fixes pull-to-refresh &amp; verse scrolling</span>
+                  ) : (
+                    <span style={{ color: '#4ade80' }}>✅ Up-to-date with latest APK build (v{deviceInfo.nativeVersion})</span>
+                  )
+                ) : (
+                  <span>Musician Stage Setup for Sunday • Web v{APP_VERSION}</span>
+                )}
               </div>
             </div>
           </div>
@@ -154,6 +230,46 @@ export const BandInstallModal: React.FC<BandInstallModalProps> = ({ isOpen, onCl
         <div style={{ padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {activeTab === 'android' ? (
             <>
+              {/* Outdated APK Warning Banner */}
+              {deviceInfo.isNative && deviceInfo.isOutdated && (
+                <div
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: '10px',
+                    background: 'rgba(234, 179, 8, 0.15)',
+                    border: '1px solid rgba(234, 179, 8, 0.5)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                  }}
+                >
+                  <span style={{ fontSize: '22px' }}>⚠️</span>
+                  <div style={{ fontSize: '12px', color: '#fef08a', lineHeight: '1.4' }}>
+                    <strong>Update Required on this Device:</strong> You are currently running <strong>APK v{deviceInfo.nativeVersion}</strong>. Tap below to download and install <strong>v1.1.0</strong> to remove the native pull-to-refresh and enable smooth scrolling to Verse 1.
+                  </div>
+                </div>
+              )}
+
+              {/* Up-to-date APK Confirmation */}
+              {deviceInfo.isNative && !deviceInfo.isOutdated && (
+                <div
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: '10px',
+                    background: 'rgba(34, 197, 94, 0.15)',
+                    border: '1px solid rgba(34, 197, 94, 0.5)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                  }}
+                >
+                  <span style={{ fontSize: '20px' }}>✅</span>
+                  <div style={{ fontSize: '12px', color: '#86efac', lineHeight: '1.4' }}>
+                    <strong>Up to Date:</strong> This device is running <strong>APK v{deviceInfo.nativeVersion}</strong> with smooth verse scrolling and screen stay-awake active.
+                  </div>
+                </div>
+              )}
+
               {/* Android Download Banner */}
               <div
                 style={{
@@ -168,11 +284,17 @@ export const BandInstallModal: React.FC<BandInstallModalProps> = ({ isOpen, onCl
                 }}
               >
                 <div>
-                  <div style={{ fontWeight: 800, fontSize: '15px', color: '#fff' }}>
-                    Dedicated Stage APK
+                  <div style={{ fontWeight: 800, fontSize: '15px', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    <span>Dedicated Stage APK</span>
+                    <span style={{ fontSize: '11px', background: '#4EB1CB', color: '#070a0f', fontWeight: 800, padding: '2px 6px', borderRadius: '4px' }}>
+                      v1.1.0
+                    </span>
                   </div>
                   <div style={{ fontSize: '12px', color: '#cbd5e1', marginTop: '4px' }}>
-                    Package: <code style={{ color: '#4EB1CB' }}>ph.houseofgrace.band</code>
+                    Package: <code style={{ color: '#4EB1CB' }}>ph.houseofgrace.band</code> • Build: <strong style={{ color: '#fff' }}>v1.1.0</strong>
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
+                    ✨ Clean build • Pull-to-refresh removed • Smooth verse 1 scrolling
                   </div>
                 </div>
 
@@ -195,7 +317,7 @@ export const BandInstallModal: React.FC<BandInstallModalProps> = ({ isOpen, onCl
                   }}
                 >
                   <span>⬇️</span>
-                  <span>Download HGF Band APK (v1.0)</span>
+                  <span>Download HGF Band APK (v1.1.0)</span>
                 </a>
               </div>
 

@@ -10,6 +10,7 @@ import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
 import android.webkit.CookieManager
+import android.webkit.JavascriptInterface
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -97,7 +98,9 @@ class MainActivity : AppCompatActivity() {
 
         // Append custom user agent identifier
         val defaultUa = s.userAgentString
-        s.userAgentString = "$defaultUa HGFBandApp/1.0"
+        s.userAgentString = "$defaultUa HGFBandApp/1.1.0"
+
+        webView.addJavascriptInterface(BandAppInterface(), "AndroidBand")
 
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
@@ -219,5 +222,17 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         webView.destroy()
         super.onDestroy()
+    }
+
+    inner class BandAppInterface {
+        @JavascriptInterface
+        fun getAppVersion(): String {
+            return "1.1.0"
+        }
+
+        @JavascriptInterface
+        fun getVersionCode(): Int {
+            return 2
+        }
     }
 }
