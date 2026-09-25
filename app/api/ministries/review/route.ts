@@ -74,18 +74,7 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // 4. Send welcoming/transactional SMS
-      if (member.phone) {
-        try {
-          const { sendSms } = await import("@/lib/sms");
-          const smsMessage = `Hi ${member.firstName}! Great news! 🥳\n\nYour request to join the ${ministry.name} ministry has been approved. Welcome to the team!\n\nWe're excited to serve together.\n\nGod bless!\n\n— Your HGF Family`;
-          
-          // Use dynamically routed HGFMinistry sender ID (since message contains the word "ministry")
-          await sendSms(member.phone, smsMessage, member.id);
-        } catch (smsErr) {
-          console.error("Failed to send welcome SMS for ministry approval:", smsErr);
-        }
-      }
+      // 4. In-app notification already created above; SMS omitted to conserve credits
     } else if (action === "revert") {
       // Revert status to pending
       await db.memberMinistry.update({

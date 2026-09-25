@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { BIBLE_VERSES, TEMPLATES } from "@/lib/smsTemplates";
+import { BIBLE_VERSES, TEMPLATES, fitToGsmSingleCredit } from "@/lib/smsTemplates";
 
 // POST /api/sms/reminders/check — Secure cron endpoint to generate and batch SMS reminders
 export async function POST(request: NextRequest) {
@@ -102,15 +102,17 @@ export async function POST(request: NextRequest) {
         same_day: getReminderDateTime(0, "07:00:00")
       };
 
-      // Event speaker and location sanitization
-      const eventLocation = event.location ? event.location.replace(/[ññ]/g, "n").replace(/[ÑÑ]/g, "N") : "";
+      // Event speaker and location sanitization (capped at 20 chars to guarantee 1-credit SMS)
+      let eventLocation = event.location ? event.location.replace(/[ññ]/g, "n").replace(/[ÑÑ]/g, "N").trim() : "HGF Church";
+      if (eventLocation.length > 20) {
+        eventLocation = eventLocation.substring(0, 20).trim();
+      }
 
-      // Format event date/time for template replacements
+      // Format event date/time concisely for 1-credit SMS (e.g. Sun, Sep 27)
       const eventDateFormatted = new Date(event.eventDate).toLocaleDateString("en-US", {
-        weekday: "long",
-        month: "long",
-        day: "numeric",
-        year: "numeric"
+        weekday: "short",
+        month: "short",
+        day: "numeric"
       });
 
       // Extract hours/minutes from startTime (1970-01-01T09:30:00.000Z)
@@ -125,19 +127,15 @@ export async function POST(request: NextRequest) {
       const eventTypeKey = event.eventType as string;
       const typeKey = TEMPLATES[eventTypeKey] ? eventTypeKey : "other";
 
-      const reminderTypes: Array<{ type: "fiveday" | "threeday" | "oneday" | "same_day"; field: string }> = [
-        { type: "fiveday", field: "sms5dayReminder" },
-        { type: "threeday", field: "sms3dayReminder" },
-        { type: "oneday", field: "sms1dayReminder" },
-        { type: "same_day", field: "smsSameDayReminder" }
-      ];
+      // Conserve SMS credits: schedule at most ONE reminder per event (1-day before).
+      // 5-day and 3-day reminders are eradicated to slash SMS frequency.
+      // If 1-day reminder is already in the past, fall back to same-day urgent reminder.
+      const onedayDate = new Date(times.oneday);
+      const reminderTypes: Array<{ type: "oneday" | "same_day"; field: string }> = onedayDate > manilaTime
+        ? [{ type: "oneday", field: "sms1dayReminder" }]
+        : [{ type: "same_day", field: "smsSameDayReminder" }];
 
       for (const item of reminderTypes) {
-        // Skip 5-day reminder for Sunday service to prevent repetitive notifications
-        if (event.eventType === "sunday_service" && item.type === "fiveday") {
-          continue;
-        }
-
         let scheduledTimeStr = times[item.type];
         let scheduledDate = new Date(scheduledTimeStr);
         let useUrgent = false;
@@ -292,7 +290,9 @@ export async function POST(request: NextRequest) {
 
         // Insert individual recipient rows
         const recipientData = eligibleMembers.map(member => {
-          const personalizedMessage = reminder.message.replace(/{name}/g, member.firstName);
+          let personalizedMessage = reminder.message.replace(/{name}/g, member.firstName?.trim() || "Friend");
+          // Apply strict 1-credit GSM-7 safety trimmer (<= 160 characters)
+          personalizedMessage = fitToGsmSingleCredit(personalizedMessage, 160);
           return {
             batchId: batch.id,
             memberId: member.id,

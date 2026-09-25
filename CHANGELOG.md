@@ -5,6 +5,26 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.69.0] — 2026-09-25
+### Changed / Optimized — SMS Credit Conservation & 1-Credit (160 Character) Overhaul
+- **Strict 1-Credit (< 160 Chars) Event Reminder Templates & Short Verses (`lib/smsTemplates.ts`)**:
+  - Replaced long verbose Bible verse quotations (previously 100-140 chars) with concise, punchy scripture hooks (30-45 chars).
+  - Redesigned reminder templates across all categories (`sunday_service`, `prayer_meeting`, `bible_study`, `special_event`, `grace_night`, `other`) to fit within single-credit GSM-7 limits (~125-135 characters total with dynamic variables).
+  - Introduced `fitToGsmSingleCredit(message, 160)` safety guard that dynamically trims or removes verse quotes before clamping to guarantee no reminder ever spills into a 2nd credit.
+- **Eradicated Excessive Reminder Cadence (`app/api/sms/reminders/check/route.ts`)**:
+  - Reduced reminder frequency from 3-4 reminders per event down to **exactly 1 reminder** (scheduled 1 day prior, e.g. Saturday afternoon for Sunday service).
+  - Removed `fiveday` and `threeday` reminders completely, cutting event reminder SMS transmissions by 66%.
+  - Added short date formatting (`Sun, Sep 27`) and capped location strings to 20 characters to preserve credit budget.
+- **Removed Redundant Attendance Confirmation SMS (`app/api/sms/batches/process/route.ts`)**:
+  - Intercepted batches with `source === "attendance"` in the central batch processor, marking them completed with skipped status to prevent sending attendance SMS via the gateway.
+- **Removed Account Activation / Approval SMS (`app/api/members/[id]/route.ts`)**:
+  - Removed automatic SMS notification upon member registration approval from pending to active status.
+- **Optimized Marketplace & Birthday SMS to 1 Credit (`marketplace/prospects`, `admin/sms/settings`)**:
+  - Shortened buyer prospect SMS to fit within 1 credit (<160 chars).
+  - Shortened default birthday template and verses, stripping emojis to preserve GSM-7 encoding (160 chars) and prevent UTF-16 / UCS-2 credit penalties.
+- **Removed Ministry Review Approval SMS (`app/api/ministries/review/route.ts`)**:
+  - Ministry approvals now rely exclusively on in-app notifications.
+
 ## [v2.68.14] — 2026-09-25
 ### Fixed — Android WebView & Mobile Audio Playback Volume & Mute Control
 - **Hardware-Level Digital Attenuation via Web Audio API `GainNode` (`useAudioPlayback.ts`)**:

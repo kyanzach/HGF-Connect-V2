@@ -6,19 +6,19 @@ import { BIBLE_VERSES as DEFAULT_REMINDER_VERSES } from "@/lib/smsTemplates";
 export const dynamic = "force-dynamic";
 
 export const DEFAULT_BIRTHDAY_VERSES = [
-  { ref: "Psalm 139:13-14", text: "For you created my inmost being; you knit me together in my mother's womb. I praise you because I am fearfully and wonderfully made." },
-  { ref: "Numbers 6:24-26", text: "The Lord bless you and keep you; the Lord make his face shine on you and be gracious to you; the Lord turn his face toward you and give you peace." },
-  { ref: "Ephesians 2:10", text: "For we are God's handiwork, created in Christ Jesus to do good works, which God prepared in advance for us to do." },
-  { ref: "Jeremiah 29:11", text: "For I know the plans I have for you, declares the Lord, plans to prosper you and not to harm you, plans to give you hope and a future." },
-  { ref: "Psalm 20:4", text: "May he give you the desire of your heart and make all your plans succeed." },
-  { ref: "Psalm 37:4", text: "Take delight in the Lord, and he will give you the desires of your heart." },
-  { ref: "3 John 1:2", text: "Dear friend, I pray that you may enjoy good health and that all may go well with you, even as your soul is getting along well." },
-  { ref: "Proverbs 9:11", text: "For through wisdom your days will be many, and years will be added to your life." },
-  { ref: "Psalm 118:24", text: "This is the day the LORD has made; let us rejoice and be glad in it." },
-  { ref: "Zephaniah 3:17", text: "The LORD your God is with you, the Mighty Warrior who saves. He will take great delight in you; in his love he will no longer rebuke you, but will rejoice over you with singing." }
+  { ref: "Ps 139:14", text: "I praise You, for I am wonderfully made." },
+  { ref: "Num 6:24", text: "The Lord bless you and keep you." },
+  { ref: "Eph 2:10", text: "We are God's handiwork, created in Christ." },
+  { ref: "Jer 29:11", text: "I have plans to give you hope and a future." },
+  { ref: "Ps 20:4", text: "May He give you the desire of your heart." },
+  { ref: "Ps 37:4", text: "Take delight in the Lord and He will bless you." },
+  { ref: "3Jn 1:2", text: "I pray that you enjoy good health and all goes well." },
+  { ref: "Prov 9:11", text: "Through wisdom your days will be many." },
+  { ref: "Ps 118:24", text: "This is the day the LORD has made; rejoice in it." },
+  { ref: "Zeph 3:17", text: "The LORD your God is with you; He rejoices over you." }
 ];
 
-export const DEFAULT_BIRTHDAY_TEMPLATE = `🎉 Happy Birthday, {firstName}! 🎂 House of Grace Fellowship celebrates you today and thanks God for the gift of your life! "{verseText}" ({verseRef}) God bless you abundantly! ❤️`;
+export const DEFAULT_BIRTHDAY_TEMPLATE = `HGF: Happy Birthday, {firstName}! We celebrate you today! "{verseText}" ({verseRef}) God bless you abundantly! -HGF`;
 
 /**
  * GET /api/admin/sms/settings

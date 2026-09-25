@@ -56,6 +56,23 @@ export async function POST(request: NextRequest) {
 
     logs.push(`Found batch ID ${batch.id} (Source: ${batch.source}, Priority: ${batch.priority}) with ${batch.recipients.length} pending recipients.`);
 
+    // If batch source is "attendance", cancel and complete without sending SMS to conserve credits
+    if (batch.source === "attendance") {
+      await db.customSmsBatchRecipient.updateMany({
+        where: { batchId: batch.id, sendStatus: "pending" },
+        data: {
+          sendStatus: "failed",
+          errorMessage: "Skipped: Attendance confirmation SMS disabled to conserve credits",
+        },
+      });
+      await db.customSmsBatch.update({
+        where: { id: batch.id },
+        data: { status: "completed" },
+      });
+      logs.push(`Batch ID ${batch.id} (Attendance) skipped and marked completed to conserve SMS credits.`);
+      return NextResponse.json({ success: true, message: `Batch ${batch.id} skipped (attendance SMS disabled).`, logs });
+    }
+
     // If batch has no pending recipients left, mark as completed
     if (batch.recipients.length === 0) {
       await db.customSmsBatch.update({

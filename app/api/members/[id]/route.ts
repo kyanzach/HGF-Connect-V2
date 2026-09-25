@@ -220,14 +220,7 @@ export async function PATCH(
 
   const updated = await db.member.update({ where: { id }, data: updateData });
 
-  // If status changes to active/approved (from pending), send welcome SMS notification
-  if ((updateData.status === "active" || updateData.status === "approved") && existingMember && existingMember.status === "pending" && existingMember.phone) {
-    const { sendSms } = await import("@/lib/sms");
-    const smsMessage = `Hi ${existingMember.firstName}! Great news! 🥳\n\nYour registration with HGF Connect has been approved. Welcome to our community!\n\nYou can now access your account at connect.houseofgrace.ph.\n\nGod bless!`;
-    
-    sendSms(existingMember.phone, smsMessage, id, undefined, "HGF Connect")
-      .catch(err => console.error(`Failed to send approval SMS to member ID ${id}:`, err));
-  }
+  // Account approval / activation SMS removed to conserve credits
 
   return NextResponse.json({ success: true, member: { id: updated.id, status: updated.status } });
 }
