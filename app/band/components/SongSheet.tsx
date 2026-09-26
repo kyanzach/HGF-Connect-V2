@@ -19,11 +19,6 @@ interface SongSheetProps {
   onSwipeRight?: () => void;
   drawingCanvasElement?: React.ReactNode;
   isDrawingActive?: boolean;
-  playbackState?: {
-    isPlaying: boolean;
-    currentTime: number;
-    duration: number;
-  };
   bpm?: number | string | null;
   isMetronomePulsing?: boolean;
   isMetronomeAudioActive?: boolean;
@@ -60,7 +55,6 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   onSwipeRight,
   drawingCanvasElement,
   isDrawingActive = false,
-  playbackState,
   bpm,
   isMetronomePulsing,
   isMetronomeAudioActive,
@@ -274,84 +268,9 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     }
   };
 
-  // Playback-synced smooth 60fps/120fps continuous scroll loop (eliminates jelly / jitter completely)
-  const playbackTimeRef = useRef<number>(playbackState?.currentTime || 0);
-  playbackTimeRef.current = playbackState?.currentTime || 0;
-
-  useEffect(() => {
-    if (!playbackState?.isPlaying || !containerRef.current) return;
-    let animId: number;
-    let lastTime = performance.now();
-    let virtualTime = playbackTimeRef.current;
-
-    const frame = (now: number) => {
-      const dt = Math.min(64, Math.max(1, now - lastTime)) / 1000;
-      lastTime = now;
-
-      if (!isUserInteractingRef.current && containerRef.current) {
-        const el = containerRef.current;
-        const maxScroll = el.scrollHeight - el.clientHeight;
-        const dur = playbackState.duration || effectiveTargetSecRef.current || 240;
-
-        if (maxScroll > 0 && dur > 0) {
-          // Continuously advance time between discrete 250ms audio timeupdate events
-          virtualTime += dt;
-          const reportedTime = playbackTimeRef.current;
-          // Smoothly pull virtual time towards reported audio position if drift exceeds 0.3s
-          const drift = reportedTime - virtualTime;
-          if (Math.abs(drift) > 0.8) {
-            virtualTime = reportedTime;
-          } else if (Math.abs(drift) > 0.05) {
-            virtualTime += drift * 0.1;
-          }
-
-          const targetScroll = Math.min(maxScroll, Math.max(0, (virtualTime / dur) * maxScroll));
-          const diff = targetScroll - el.scrollTop;
-
-          if (Math.abs(diff) > 100) {
-            // Instant section jump or seek
-            el.scrollTop = targetScroll;
-          } else if (Math.abs(diff) > 0.2) {
-            // Fluid sub-pixel lerp step (60fps / 120fps ProMotion butter smooth)
-            el.scrollTop += diff * 0.25;
-          }
-          scrollPosRef.current = el.scrollTop;
-        }
-      }
-
-      animId = requestAnimationFrame(frame);
-    };
-
-    animId = requestAnimationFrame(frame);
-    return () => cancelAnimationFrame(animId);
-  }, [playbackState?.isPlaying, playbackState?.duration]);
-
-  // Immediate recalibration on song switch or reconnection when playback is active
-  useEffect(() => {
-    if (!playbackState?.isPlaying || !containerRef.current) return;
-    const scrollSync = () => {
-      if (!containerRef.current || isUserInteractingRef.current) return;
-      const container = containerRef.current;
-      const maxScroll = container.scrollHeight - container.clientHeight;
-      const dur = playbackState.duration || effectiveTargetSecRef.current || 240;
-      if (maxScroll > 0 && dur > 0) {
-        const targetScroll = Math.min(maxScroll, Math.max(0, (playbackTimeRef.current / dur) * maxScroll));
-        container.scrollTop = targetScroll;
-        scrollPosRef.current = targetScroll;
-      }
-    };
-    scrollSync();
-    const t1 = setTimeout(scrollSync, 40);
-    const t2 = setTimeout(scrollSync, 120);
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-    };
-  }, [song?.id, playbackState?.isPlaying]);
-
   // Resilient, abuse-proof Auto-Scroll loop (60fps/120fps requestAnimationFrame)
   useEffect(() => {
-    if (!isAutoScrolling || playbackState?.isPlaying || !containerRef.current) return;
+    if (!isAutoScrolling || !containerRef.current) return;
     const container = containerRef.current;
     const maxScroll = container.scrollHeight - container.clientHeight;
     const totalMs = effectiveTargetSecRef.current * 1000;
@@ -435,7 +354,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
 
     animId = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(animId);
-  }, [isAutoScrolling, playbackState?.isPlaying]);
+  }, [isAutoScrolling]);
 
   // Section order roadmap parts
   const sectionParts = (song?.sectionOrder || '')
@@ -683,35 +602,8 @@ export const SongSheet: React.FC<SongSheetProps> = ({
                   {song.timeSignature}
                 </span>
               )}
-              {/* In-Sync with MD Live Broadcast Pill for Followers */}
-              {isLiveSyncFollower && playbackState?.isPlaying && (
-                <span
-                  style={{
-                    padding: '3px 10px',
-                    borderRadius: '8px',
-                    background: 'rgba(34, 197, 94, 0.16)',
-                    border: '1px solid #22c55e',
-                    color: '#4ade80',
-                    fontSize: '11px',
-                    fontWeight: 800,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    boxShadow: '0 0 12px rgba(34, 197, 94, 0.25)',
-                    letterSpacing: '0.4px',
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  <span style={{ fontSize: '8px' }}>🟢</span>
-                  <span>SYNCED ({mdLeaderName})</span>
-                  <span style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: 900 }}>
-                    {`${Math.floor((playbackState.currentTime || 0) / 60)}:${Math.floor((playbackState.currentTime || 0) % 60).toString().padStart(2, '0')}`}
-                  </span>
-                </span>
-              )}
-
               {/* Planned Live Arrangement Duration / Stage Timer */}
-              {(!playbackState || !playbackState.isPlaying) && (plannedDuration || targetDurationSec > 0) && (
+              {(plannedDuration || targetDurationSec > 0) && (
                 <button
                   onClick={onOpenDurationPicker}
                   title="Planned Song Arrangement Duration • Tap to change"
@@ -738,7 +630,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
                   </span>
                 </button>
               )}
-              {(!playbackState || !playbackState.isPlaying) && !plannedDuration && targetDurationSec <= 0 && onOpenDurationPicker && (
+              {!plannedDuration && targetDurationSec <= 0 && onOpenDurationPicker && (
                 <button
                   onClick={onOpenDurationPicker}
                   title="Set planned arrangement duration for this song"

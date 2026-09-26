@@ -5,6 +5,18 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.70.4] — 2026-09-26
+### Fixed — Complete Decoupling of Audio Playback from Sheet Scrolling & Volume Slider Stress-Test Stability
+- **Completely Decoupled Audio Playback from Sheet Scrolling (`SongSheet.tsx`, `app/band/page.tsx`)**:
+  - Permanently removed all playback-driven continuous animation frame scroll loops and recalibration timeouts from `SongSheet`. Audio playback is now strictly for audio output (mp3/wav) and never touches, moves, or freezes scroll position.
+  - Removed `playbackState` prop and removed `playbackState.isPlaying` block from user auto-scrolling (`isAutoScrolling`), allowing MDs and musicians to freely swipe, touch-drag, scroll, and toggle speed/pace auto-scroll without any interference or freezing from audio playback.
+  - Always keep planned duration timer visible and interactive regardless of playback state.
+- **Volume Stress-Test Stability & Zero-Stall Audio (`useAudioPlayback.ts`)**:
+  - Replaced `cancelScheduledValues` and `setValueAtTime` with direct synchronous assignment `gain.value = targetVol` and direct `audio.volume = targetVol; audio.muted = muted;`, eliminating WebKit/Chromium audio decoder pipeline stalls during rapid slider dragging.
+  - Made `initWebAudio` a stable zero-dependency callback, eliminating spurious audio element teardowns and AudioContext closures on volume changes.
+  - Set empty dependency array `[]` on audio element lifecycle mount effect to ensure the persistent audio element is never unmounted during active playback.
+  - Throttled `localStorage` writes to prevent main-thread I/O bottlenecks during rapid volume gestures.
+
 ## [v2.70.3] — 2026-09-26
 ### Fixed — Ambient Pad Web Audio Volume Engine, Audio Playback Stability & Setlist Sorting Lock & Worship Leader Space Visibility
 - **Ambient Pad Web Audio Volume Engine (`padSynth.ts`, `AmbientPadModal.tsx`)**:

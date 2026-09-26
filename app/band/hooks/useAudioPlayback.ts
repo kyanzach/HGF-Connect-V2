@@ -31,6 +31,8 @@ export function useAudioPlayback(song: Song | null) {
   const playPromiseRef = useRef<Promise<void> | null>(null);
   const loadedTrackKeyRef = useRef<string>('');
 
+  const volumeStorageTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   // Helper to ensure Web Audio graph is connected (GainNode digital volume for Android WebView & iOS)
   const initWebAudio = useCallback(() => {
     if (typeof window === 'undefined') return;
@@ -51,10 +53,6 @@ export function useAudioPlayback(song: Song | null) {
           audioCtxRef.current = ctx;
           gainNodeRef.current = gain;
           sourceNodeRef.current = source;
-
-          const targetVol = isMuted ? 0 : volume;
-          gain.gain.setValueAtTime(targetVol, ctx.currentTime);
-          gain.gain.value = targetVol;
         }
       } catch (err) {
         console.warn('[useAudioPlayback] Web Audio setup deferred or not supported:', err);
@@ -64,40 +62,29 @@ export function useAudioPlayback(song: Song | null) {
     if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
       audioCtxRef.current.resume().catch(() => {});
     }
-  }, [volume, isMuted]);
+  }, []);
 
-  // Unified volume & mute application across both HTML5 element and Web Audio API GainNode
+  // Unified instantaneous volume & mute application across both HTML5 element and Web Audio API GainNode
   const applyVolume = useCallback(
     (vol: number, muted: boolean) => {
       const targetVol = muted ? 0 : Math.max(0, Math.min(1, vol));
 
-      // 1. Direct HTML5 element mute state
+      // 1. Direct HTML5 element volume & mute (Universal support across Chrome, Safari, Android & Desktop)
       if (audioRef.current) {
         audioRef.current.muted = muted;
-      }
-
-      // 2. Web Audio API GainNode (Essential for Android WebView & iOS where audio.volume is ignored)
-      initWebAudio();
-      if (gainNodeRef.current && audioCtxRef.current) {
-        try {
-          if (audioCtxRef.current.state === 'suspended' && targetVol > 0) {
-            audioCtxRef.current.resume().catch(() => {});
-          }
-          gainNodeRef.current.gain.cancelScheduledValues(audioCtxRef.current.currentTime);
-          gainNodeRef.current.gain.setValueAtTime(targetVol, audioCtxRef.current.currentTime);
-          gainNodeRef.current.gain.value = targetVol;
-          if (audioRef.current) {
-            audioRef.current.volume = 1;
-          }
-        } catch (_) {}
-      } else if (audioRef.current) {
-        // Fallback to HTMLAudioElement volume if Web Audio is inactive
         try {
           audioRef.current.volume = targetVol;
         } catch (_) {}
       }
+
+      // 2. Web Audio API GainNode direct assignment without cancelScheduledValues pipeline stalls
+      if (gainNodeRef.current) {
+        try {
+          gainNodeRef.current.gain.value = targetVol;
+        } catch (_) {}
+      }
     },
-    [initWebAudio]
+    []
   );
 
   // Initialize volume once from localStorage
@@ -128,9 +115,16 @@ export function useAudioPlayback(song: Song | null) {
       } else {
         applyVolume(clamped, isMuted);
       }
-      try {
-        localStorage.setItem(STORAGE_VOLUME_KEY, clamped.toString());
-      } catch {}
+
+      // Debounce localStorage writes so rapid slider gestures do not choke the JS thread
+      if (volumeStorageTimeoutRef.current) {
+        clearTimeout(volumeStorageTimeoutRef.current);
+      }
+      volumeStorageTimeoutRef.current = setTimeout(() => {
+        try {
+          localStorage.setItem(STORAGE_VOLUME_KEY, clamped.toString());
+        } catch {}
+      }, 250);
     },
     [isMuted, applyVolume]
   );
@@ -202,7 +196,7 @@ export function useAudioPlayback(song: Song | null) {
         blobUrlRef.current = null;
       }
     };
-  }, [initWebAudio]);
+  }, []);
 
   // Fast, synchronous chapter setup (ZERO LIVE DECODING LAG)
   useEffect(() => {

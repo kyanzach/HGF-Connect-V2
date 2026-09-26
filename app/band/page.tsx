@@ -882,12 +882,6 @@ export default function BandStagePage() {
   // Playback auto-scroll is strictly local when the user plays their own audio.
   const isLiveSyncFollower = false;
 
-  const effectivePlaybackState = {
-    isPlaying: isBacktrackPlaying,
-    currentTime: backtrackCurrentTime,
-    duration: backtrackDuration,
-  };
-
   const handleSeekBacktrack = useCallback((time: number) => {
     seekBacktrack(time);
     if (effectiveSetlistId && isUserMD) {
@@ -1557,7 +1551,6 @@ export default function BandStagePage() {
         targetDurationSec={targetDurationSec}
         onUpdateElapsed={setElapsedScrollSeconds}
         onAutoScrollComplete={() => setIsAutoScrolling(false)}
-        playbackState={effectivePlaybackState}
         isLiveSyncFollower={isLiveSyncFollower}
         mdLeaderName={liveSyncState?.leaderName}
         bpm={tempo}
