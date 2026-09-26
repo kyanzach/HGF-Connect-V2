@@ -136,8 +136,9 @@ export const AmbientPadModal: React.FC<AmbientPadModalProps> = ({
               type="range"
               min="0"
               max="1"
-              step="0.05"
+              step="0.01"
               value={volume}
+              onInput={(e) => onChangeVolume(parseFloat((e.target as HTMLInputElement).value))}
               onChange={(e) => onChangeVolume(parseFloat(e.target.value))}
               style={{ width: '100%', accentColor: '#38bdf8', cursor: 'pointer' }}
             />

@@ -27,6 +27,14 @@ export class AmbientPadPlayer {
   private deckB: HTMLAudioElement | null = null;
   private activeDeckName: 'A' | 'B' = 'A';
 
+  // Web Audio Graph for linear, hardware-accelerated volume (Essential for iOS Safari & Android WebView)
+  private audioCtx: AudioContext | null = null;
+  private masterGain: GainNode | null = null;
+  private gainDeckA: GainNode | null = null;
+  private gainDeckB: GainNode | null = null;
+  private sourceA: MediaElementAudioSourceNode | null = null;
+  private sourceB: MediaElementAudioSourceNode | null = null;
+
   private currentKey: string = 'C';
   private masterVolume: number = 0.85;
 
@@ -49,25 +57,89 @@ export class AmbientPadPlayer {
       if (!this.deckA) {
         this.deckA = new Audio();
         this.deckA.loop = true;
-        this.deckA.volume = 0;
+        this.deckA.volume = 1;
+        this.deckA.crossOrigin = 'anonymous';
         (this.deckA as any).playsInline = true;
       }
       if (!this.deckB) {
         this.deckB = new Audio();
         this.deckB.loop = true;
-        this.deckB.volume = 0;
+        this.deckB.volume = 1;
+        this.deckB.crossOrigin = 'anonymous';
         (this.deckB as any).playsInline = true;
       }
+      this.initWebAudio();
     } catch (e) {
       console.error('Failed to initialize pad decks:', e);
     }
   }
 
+  private initWebAudio() {
+    if (typeof window === 'undefined') return;
+    if (this.audioCtx) {
+      if (this.audioCtx.state === 'suspended') {
+        this.audioCtx.resume().catch(() => {});
+      }
+      return;
+    }
+    try {
+      const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtxClass || !this.deckA || !this.deckB) return;
+
+      const ctx = new AudioCtxClass();
+      const masterGain = ctx.createGain();
+      masterGain.gain.setValueAtTime(this.masterVolume, ctx.currentTime);
+      masterGain.gain.value = this.masterVolume;
+      masterGain.connect(ctx.destination);
+
+      const gainA = ctx.createGain();
+      gainA.gain.setValueAtTime(0, ctx.currentTime);
+      gainA.gain.value = 0;
+      gainA.connect(masterGain);
+
+      const gainB = ctx.createGain();
+      gainB.gain.setValueAtTime(0, ctx.currentTime);
+      gainB.gain.value = 0;
+      gainB.connect(masterGain);
+
+      const sourceA = ctx.createMediaElementSource(this.deckA);
+      sourceA.connect(gainA);
+
+      const sourceB = ctx.createMediaElementSource(this.deckB);
+      sourceB.connect(gainB);
+
+      this.audioCtx = ctx;
+      this.masterGain = masterGain;
+      this.gainDeckA = gainA;
+      this.gainDeckB = gainB;
+      this.sourceA = sourceA;
+      this.sourceB = sourceB;
+    } catch (err) {
+      console.warn('[AmbientPadPlayer] Web Audio setup deferred or not supported:', err);
+    }
+  }
+
   public setVolume(vol: number) {
     this.masterVolume = Math.max(0, Math.min(1, vol));
-    const activeDeck = this.getActiveDeck();
-    if (activeDeck && this.isPlaying && !this.isFadingOut && !this.fadeTimer) {
-      activeDeck.volume = this.masterVolume;
+
+    // 1. Direct Web Audio API Master Gain (Immediate volume control on ALL platforms including iOS)
+    if (this.audioCtx && this.masterGain) {
+      try {
+        if (this.audioCtx.state === 'suspended') {
+          this.audioCtx.resume().catch(() => {});
+        }
+        this.masterGain.gain.cancelScheduledValues(this.audioCtx.currentTime);
+        this.masterGain.gain.setValueAtTime(this.masterVolume, this.audioCtx.currentTime);
+        this.masterGain.gain.value = this.masterVolume;
+      } catch (_) {}
+    }
+
+    // 2. Direct HTML5 element volume fallback
+    if (!this.masterGain) {
+      const activeDeck = this.getActiveDeck();
+      if (activeDeck) {
+        try { activeDeck.volume = this.masterVolume; } catch (_) {}
+      }
     }
   }
 
@@ -123,6 +195,11 @@ export class AmbientPadPlayer {
     }
     if (!this.deckA || !this.deckB) return;
 
+    this.initWebAudio();
+    if (this.audioCtx && this.audioCtx.state === 'suspended') {
+      this.audioCtx.resume().catch(() => {});
+    }
+
     this.requestId++;
     const thisReq = this.requestId;
 
@@ -144,6 +221,9 @@ export class AmbientPadPlayer {
 
     if (!incomingDeck) return;
 
+    const incomingGain = this.activeDeckName === 'A' ? this.gainDeckA : this.gainDeckB;
+    const outgoingGain = this.activeDeckName === 'A' ? this.gainDeckB : this.gainDeckA;
+
     this.currentKey = rootKey;
     this.isPlaying = true;
     this.isFadingOut = false;
@@ -156,7 +236,15 @@ export class AmbientPadPlayer {
       incomingDeck.src = path;
     }
     incomingDeck.loop = true;
-    incomingDeck.volume = 0;
+
+    if (incomingGain && this.audioCtx) {
+      incomingGain.gain.setValueAtTime(0, this.audioCtx.currentTime);
+      incomingGain.gain.value = 0;
+      incomingDeck.volume = 1;
+    } else {
+      incomingDeck.volume = 0;
+    }
+
     try {
       if (incomingDeck.readyState > 0) {
         incomingDeck.currentTime = 0;
@@ -170,7 +258,6 @@ export class AmbientPadPlayer {
           if (thisReq !== this.requestId) {
             incomingDeck.pause();
             incomingDeck.currentTime = 0;
-            incomingDeck.volume = 0;
             return;
           }
 
@@ -178,7 +265,6 @@ export class AmbientPadPlayer {
           let step = 0;
           const totalSteps = 60;
           const intervalMs = 50;
-          const targetVol = this.masterVolume;
           const outgoingStartVol = outgoingDeck ? outgoingDeck.volume : 0;
 
           this.fadeTimer = setInterval(() => {
@@ -191,23 +277,40 @@ export class AmbientPadPlayer {
             step++;
             const progress = Math.min(1, step / totalSteps);
 
-            // Ramp incoming deck up
-            incomingDeck.volume = Math.min(targetVol, targetVol * progress);
+            // Web Audio Gain ramp
+            if (incomingGain && this.audioCtx) {
+              incomingGain.gain.cancelScheduledValues(this.audioCtx.currentTime);
+              incomingGain.gain.setValueAtTime(progress, this.audioCtx.currentTime);
+              incomingGain.gain.value = progress;
+            }
+            if (outgoingGain && this.audioCtx && outgoingDeck && !outgoingDeck.paused) {
+              outgoingGain.gain.cancelScheduledValues(this.audioCtx.currentTime);
+              outgoingGain.gain.setValueAtTime(1 - progress, this.audioCtx.currentTime);
+              outgoingGain.gain.value = 1 - progress;
+            }
 
-            // Ramp outgoing deck down if active
-            if (outgoingDeck && !outgoingDeck.paused) {
-              outgoingDeck.volume = Math.max(0, outgoingStartVol * (1 - progress));
+            // Fallback for direct element volume if Web Audio is inactive
+            if (!this.masterGain) {
+              incomingDeck.volume = Math.min(this.masterVolume, this.masterVolume * progress);
+              if (outgoingDeck && !outgoingDeck.paused) {
+                outgoingDeck.volume = Math.max(0, outgoingStartVol * (1 - progress));
+              }
             }
 
             if (step >= totalSteps) {
               clearInterval(this.fadeTimer);
               this.fadeTimer = null;
 
-              incomingDeck.volume = targetVol;
+              if (incomingGain && this.audioCtx) {
+                incomingGain.gain.value = 1;
+              }
+              if (outgoingGain && this.audioCtx) {
+                outgoingGain.gain.value = 0;
+              }
+
               if (outgoingDeck) {
                 outgoingDeck.pause();
                 outgoingDeck.currentTime = 0;
-                outgoingDeck.volume = 0;
               }
             }
           }, intervalMs);
@@ -239,15 +342,21 @@ export class AmbientPadPlayer {
 
     if (immediate || (!this.isPlaying && !this.isFadingOut)) {
       // Immediate hard stop: kill all sound instantly
+      if (this.gainDeckA && this.audioCtx) {
+        this.gainDeckA.gain.cancelScheduledValues(this.audioCtx.currentTime);
+        this.gainDeckA.gain.value = 0;
+      }
+      if (this.gainDeckB && this.audioCtx) {
+        this.gainDeckB.gain.cancelScheduledValues(this.audioCtx.currentTime);
+        this.gainDeckB.gain.value = 0;
+      }
       if (deckA) {
         deckA.pause();
         deckA.currentTime = 0;
-        deckA.volume = 0;
       }
       if (deckB) {
         deckB.pause();
         deckB.currentTime = 0;
-        deckB.volume = 0;
       }
       this.isPlaying = false;
       this.isFadingOut = false;
@@ -281,18 +390,33 @@ export class AmbientPadPlayer {
       step++;
       const progress = Math.min(1, step / totalSteps);
 
-      activeAudios.forEach((audio, idx) => {
-        audio.volume = Math.max(0, startVols[idx] * (1 - progress));
-      });
+      // Web Audio fade out
+      if (this.gainDeckA && this.audioCtx && deckA && !deckA.paused) {
+        this.gainDeckA.gain.cancelScheduledValues(this.audioCtx.currentTime);
+        this.gainDeckA.gain.value = Math.max(0, 1 - progress);
+      }
+      if (this.gainDeckB && this.audioCtx && deckB && !deckB.paused) {
+        this.gainDeckB.gain.cancelScheduledValues(this.audioCtx.currentTime);
+        this.gainDeckB.gain.value = Math.max(0, 1 - progress);
+      }
+
+      // Direct element fallback if Web Audio is inactive
+      if (!this.masterGain) {
+        activeAudios.forEach((audio, idx) => {
+          audio.volume = Math.max(0, startVols[idx] * (1 - progress));
+        });
+      }
 
       if (step >= totalSteps) {
         clearInterval(this.fadeTimer);
         this.fadeTimer = null;
 
+        if (this.gainDeckA && this.audioCtx) this.gainDeckA.gain.value = 0;
+        if (this.gainDeckB && this.audioCtx) this.gainDeckB.gain.value = 0;
+
         activeAudios.forEach((audio) => {
           audio.pause();
           audio.currentTime = 0;
-          audio.volume = 0;
         });
 
         this.isFadingOut = false;

@@ -29,6 +29,7 @@ export function useAudioPlayback(song: Song | null) {
   const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
   const blobUrlRef = useRef<string | null>(null);
   const playPromiseRef = useRef<Promise<void> | null>(null);
+  const loadedTrackKeyRef = useRef<string>('');
 
   // Helper to ensure Web Audio graph is connected (GainNode digital volume for Android WebView & iOS)
   const initWebAudio = useCallback(() => {
@@ -70,12 +71,9 @@ export function useAudioPlayback(song: Song | null) {
     (vol: number, muted: boolean) => {
       const targetVol = muted ? 0 : Math.max(0, Math.min(1, vol));
 
-      // 1. Direct HTML5 element volume & muted (Desktop & native browser fallback)
+      // 1. Direct HTML5 element mute state
       if (audioRef.current) {
         audioRef.current.muted = muted;
-        try {
-          audioRef.current.volume = targetVol;
-        } catch (_) {}
       }
 
       // 2. Web Audio API GainNode (Essential for Android WebView & iOS where audio.volume is ignored)
@@ -88,6 +86,14 @@ export function useAudioPlayback(song: Song | null) {
           gainNodeRef.current.gain.cancelScheduledValues(audioCtxRef.current.currentTime);
           gainNodeRef.current.gain.setValueAtTime(targetVol, audioCtxRef.current.currentTime);
           gainNodeRef.current.gain.value = targetVol;
+          if (audioRef.current) {
+            audioRef.current.volume = 1;
+          }
+        } catch (_) {}
+      } else if (audioRef.current) {
+        // Fallback to HTMLAudioElement volume if Web Audio is inactive
+        try {
+          audioRef.current.volume = targetVol;
         } catch (_) {}
       }
     },
@@ -142,6 +148,8 @@ export function useAudioPlayback(song: Song | null) {
     if (!audioRef.current) {
       const audio = new Audio();
       audio.preload = 'auto';
+      audio.crossOrigin = 'anonymous';
+      (audio as any).playsInline = true;
       audioRef.current = audio;
 
       audio.onloadedmetadata = () => {
@@ -228,18 +236,31 @@ export function useAudioPlayback(song: Song | null) {
     const audio = audioRef.current;
     if (!audio) return;
 
-    if (!song?.audioTrack || (!song.audioTrack.url && !song.audioTrack.filename)) {
-      audio.pause();
-      audio.removeAttribute('src');
-      setIsPlaying(false);
-      setCurrentTime(0);
-      setDuration(0);
+    const trackUrl = song?.audioTrack?.url || '';
+    const trackFilename = song?.audioTrack?.filename || '';
+    const targetTrackKey = song?.id && (trackUrl || trackFilename) ? `${song.id}_${trackUrl}_${trackFilename}` : '';
+
+    if (!targetTrackKey) {
+      if (loadedTrackKeyRef.current !== '') {
+        loadedTrackKeyRef.current = '';
+        audio.pause();
+        audio.removeAttribute('src');
+        setIsPlaying(false);
+        setCurrentTime(0);
+        setDuration(0);
+      }
       return;
     }
 
+    // Crucial: If this exact track is already loaded in the audio element, DO NOT reload or pause!
+    if (loadedTrackKeyRef.current === targetTrackKey && audio.src) {
+      return;
+    }
+    loadedTrackKeyRef.current = targetTrackKey;
+
     let isCancelled = false;
 
-    // Pause immediately to prevent overlapping audio
+    // Pause immediately only when changing to a different track
     if (!audio.paused) {
       audio.pause();
       setIsPlaying(false);
@@ -247,12 +268,11 @@ export function useAudioPlayback(song: Song | null) {
     setCurrentTime(0);
 
     const loadTrack = async () => {
-      let playUrl = song.audioTrack?.url || '';
-      const filename = song.audioTrack?.filename;
+      let playUrl = trackUrl;
 
       // Check local IndexedDB storage first
-      if (filename) {
-        const cachedBlob = await getAudioBlobOffline(filename);
+      if (trackFilename) {
+        const cachedBlob = await getAudioBlobOffline(trackFilename);
         if (cachedBlob && !isCancelled) {
           if (blobUrlRef.current) {
             URL.revokeObjectURL(blobUrlRef.current);
@@ -265,7 +285,6 @@ export function useAudioPlayback(song: Song | null) {
       if (isCancelled || !audioRef.current) return;
 
       audio.src = playUrl;
-      applyVolume(volume, isMuted);
       audio.load();
     };
 
@@ -274,7 +293,7 @@ export function useAudioPlayback(song: Song | null) {
     return () => {
       isCancelled = true;
     };
-  }, [song?.id, song?.audioTrack?.url, song?.audioTrack?.filename, applyVolume, volume, isMuted]);
+  }, [song?.id, song?.audioTrack?.url, song?.audioTrack?.filename]);
 
   const togglePlay = useCallback(() => {
     const audio = audioRef.current;

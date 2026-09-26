@@ -138,11 +138,18 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
   const dropPositionRef = useRef<'top' | 'bottom' | null>(null);
   dropPositionRef.current = dropPosition;
 
-  const isSetlistSortingEnabled = Boolean(activeSetlist && !searchQuery.trim() && sortBy === 'order');
+  const isSetlistSortingEnabled = Boolean(currentUser && activeSetlist && !searchQuery.trim() && sortBy === 'order');
+
+  // Non-logged-in users cannot alter setlist order: lock permanently to 'order'
+  useEffect(() => {
+    if (!currentUser && activeSetlist && sortBy !== 'order') {
+      setSortBy('order');
+    }
+  }, [currentUser, activeSetlist, sortBy]);
 
   // Desktop HTML5 Drag Handlers
   const handleDragStart = (e: React.DragEvent, index: number) => {
-    if (!isSetlistSortingEnabled) return;
+    if (!isSetlistSortingEnabled || !currentUser) return;
     setDraggedIndex(index);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', String(index));
@@ -548,42 +555,66 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
             <span style={{ fontSize: '10px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginRight: '4px' }}>
               Sort:
             </span>
-            {(activeSetlist
-              ? [
-                  { id: 'order' as SortOption, label: 'Setlist' },
-                  { id: 'title' as SortOption, label: 'A-Z' },
-                  { id: 'key' as SortOption, label: 'Key' },
-                  { id: 'artist' as SortOption, label: 'Artist' },
-                ]
-              : [
-                  { id: 'title' as SortOption, label: 'A-Z' },
-                  { id: 'key' as SortOption, label: 'Key' },
-                  { id: 'artist' as SortOption, label: 'Artist' },
-                  { id: 'recent' as SortOption, label: 'Recent' },
-                ]
-            ).map((st) => {
-              const active = sortBy === st.id;
-              return (
-                <button
-                  key={st.id}
-                  onClick={() => setSortBy(st.id)}
-                  style={{
-                    flex: 1,
-                    height: '24px',
-                    borderRadius: '6px',
-                    border: `1px solid ${active ? '#4EB1CB' : '#334155'}`,
-                    background: active ? 'rgba(78, 177, 203, 0.2)' : '#1e293b',
-                    color: active ? '#4EB1CB' : '#94a3b8',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  {st.label}
-                </button>
-              );
-            })}
+            {activeSetlist && !currentUser ? (
+              <div
+                style={{
+                  flex: 1,
+                  height: '24px',
+                  borderRadius: '6px',
+                  border: '1px solid rgba(78, 177, 203, 0.3)',
+                  background: 'rgba(78, 177, 203, 0.1)',
+                  color: '#4EB1CB',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  userSelect: 'none',
+                }}
+                title="Setlist order is locked for guest viewers"
+              >
+                <span>🔒</span>
+                <span>Setlist Order (Locked)</span>
+              </div>
+            ) : (
+              (activeSetlist
+                ? [
+                    { id: 'order' as SortOption, label: 'Setlist' },
+                    { id: 'title' as SortOption, label: 'A-Z' },
+                    { id: 'key' as SortOption, label: 'Key' },
+                    { id: 'artist' as SortOption, label: 'Artist' },
+                  ]
+                : [
+                    { id: 'title' as SortOption, label: 'A-Z' },
+                    { id: 'key' as SortOption, label: 'Key' },
+                    { id: 'artist' as SortOption, label: 'Artist' },
+                    { id: 'recent' as SortOption, label: 'Recent' },
+                  ]
+              ).map((st) => {
+                const active = sortBy === st.id;
+                return (
+                  <button
+                    key={st.id}
+                    onClick={() => setSortBy(st.id)}
+                    style={{
+                      flex: 1,
+                      height: '24px',
+                      borderRadius: '6px',
+                      border: `1px solid ${active ? '#4EB1CB' : '#334155'}`,
+                      background: active ? 'rgba(78, 177, 203, 0.2)' : '#1e293b',
+                      color: active ? '#4EB1CB' : '#94a3b8',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    {st.label}
+                  </button>
+                );
+              })
+            )}
           </div>
         </div>
 

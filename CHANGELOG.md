@@ -5,6 +5,22 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.70.3] — 2026-09-26
+### Fixed — Ambient Pad Web Audio Volume Engine, Audio Playback Stability & Setlist Sorting Lock & Worship Leader Space Visibility
+- **Ambient Pad Web Audio Volume Engine (`padSynth.ts`, `AmbientPadModal.tsx`)**:
+  - Engineered Web Audio API `AudioContext` with `masterGain` and dual deck gain nodes (`gainDeckA`, `gainDeckB`) for `AmbientPadPlayer`, resolving the limitation where `audio.volume` is ignored on iOS Safari and mobile WebViews.
+  - Master volume adjustments now execute immediately on all platforms without waiting for or colliding with 3.0s crossfade intervals.
+  - Added real-time continuous input (`onInput` + `step="0.01"`) on the pad volume slider in `AmbientPadModal`.
+- **Audio Backtrack Playback & Volume Reliability (`useAudioPlayback.ts`)**:
+  - Eliminated audio interruptions by indexing loaded tracks with `loadedTrackKeyRef`, preventing re-rendering components from resetting currentTime to 0 or pausing playback mid-song.
+  - Removed volume dependencies from the audio loading effect to prevent spurious audio reload cycles when adjusting playback volume.
+  - Added `crossOrigin = 'anonymous'` and `playsInline` to prevent tainted canvas/media element CORS silences on Web Audio.
+- **Locked Setlist Sorting for Non-Login Users (`SetlistSidebar.tsx`)**:
+  - Gated setlist reordering (`isSetlistSortingEnabled`) strictly to logged-in users, hiding drag handles and step reorder buttons for guests.
+  - Locked sort mode to `🔒 Setlist Order (Locked)` for guest viewers in active setlists, preventing non-login users from altering song sequence.
+- **Worship Leader Space Role Scoping (`SongSheet.tsx`)**:
+  - Scoped the Worship Leader Space (`🎙️ Worship Leader Space`) strictly to worship leaders and admins, explicitly hiding it from musician roles (MD, drummer, bassist, guitarist, keyboardist, sound, etc.) and non-logged-in users.
+
 ## [v2.70.2] — 2026-09-26
 ### Added / Changed — URL Copy & App Reload on Logo, Device vs Personal Sheet Lyrics Storage, Non-Login View-Only Access & MD Worship Leader Key Integrity
 - **Top Header Logo App Reload & URL Copy (`StageTopBar.tsx`, `NavigationDock.tsx`)**:

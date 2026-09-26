@@ -118,15 +118,37 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     setIsEditingLeaderNotes(false);
   }, [song?.id, song?.exhortation, song?.notes]);
 
-  const isLeaderOrAdmin = useMemo(() => {
+  const isWorshipLeader = useMemo(() => {
     if (!currentUser) return false;
     const role = (currentUser.role || '').toLowerCase();
     const uname = (currentUser.username || '').toLowerCase();
+
+    // Explicitly exclude musician roles so MD, drummer, bassist, guitarist, keyboardist, etc. NEVER see this space
+    const musicianRoles = [
+      'md',
+      'drummer',
+      'drums',
+      'bassist',
+      'bass',
+      'guitarist',
+      'guitar',
+      'keyboardist',
+      'keys',
+      'sound',
+      'multimedia',
+      'backup_singer',
+      'vocalist',
+    ];
+    if (musicianRoles.includes(role)) {
+      return false;
+    }
+
+    // Must be role 'leader' / 'worship_leader' or designated leader username (or admin not in musician role)
     return (
       role === 'leader' ||
-      role === 'admin' ||
-      role === 'md' ||
-      ['ryan', 'karen', 'vanneza', 'darlene', 'tanna'].includes(uname)
+      role === 'worship_leader' ||
+      (role === 'admin' && !uname.includes('ren')) ||
+      ['karen', 'vanneza', 'darlene', 'tanna'].includes(uname)
     );
   }, [currentUser]);
 
@@ -807,7 +829,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
       </div>
 
       {/* WORSHIP LEADER PERSONAL SPACE: INTRO, SCRIPTURE VERSE & EXHORTATION */}
-      {song && (song.exhortation || song.notes || isLeaderOrAdmin) && (
+      {song && isWorshipLeader && (
         <div
           style={{
             marginBottom: '20px',
@@ -831,7 +853,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
                 </div>
               </div>
             </div>
-            {isLeaderOrAdmin && !isEditingLeaderNotes && (
+            {isWorshipLeader && !isEditingLeaderNotes && (
               <button
                 type="button"
                 onClick={() => setIsEditingLeaderNotes(true)}
@@ -966,7 +988,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
                 {song.exhortation || song.notes}
               </div>
             ) : (
-              isLeaderOrAdmin && (
+              isWorshipLeader && (
                 <div
                   onClick={() => setIsEditingLeaderNotes(true)}
                   style={{
