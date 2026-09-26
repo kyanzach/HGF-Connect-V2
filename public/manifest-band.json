@@ -1,7 +1,7 @@
 {
-  "name": "HGF Band",
-  "short_name": "HGF Band",
-  "description": "House of Grace Fellowship — Dedicated Musician Songbook & Stage Tool",
+  "name": "HGF Worship Team Setlist & Chords",
+  "short_name": "HGF Worship",
+  "description": "House of Grace Fellowship — Dedicated Musician Songbook, Setlists & Stage Tool",
   "start_url": "/band",
   "scope": "/band",
   "display": "standalone",

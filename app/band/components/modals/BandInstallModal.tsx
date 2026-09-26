@@ -108,7 +108,7 @@ export const BandInstallModal: React.FC<BandInstallModalProps> = ({ isOpen, onCl
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 <span style={{ fontWeight: 800, fontSize: '16px', color: '#fff' }}>
-                  HGF Band Stage App
+                  HGF Worship Team Setlist &amp; Chords
                 </span>
                 <span
                   style={{
@@ -317,7 +317,7 @@ export const BandInstallModal: React.FC<BandInstallModalProps> = ({ isOpen, onCl
                   }}
                 >
                   <span>⬇️</span>
-                  <span>Download HGF Band APK (v1.1.0)</span>
+                  <span>Download HGF Worship APK (v1.1.0)</span>
                 </a>
               </div>
 
@@ -353,10 +353,10 @@ export const BandInstallModal: React.FC<BandInstallModalProps> = ({ isOpen, onCl
                   📋 Quick Install Steps:
                 </div>
                 <ol style={{ margin: 0, paddingLeft: '18px', fontSize: '12px', color: '#94a3b8', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <li>Tap <strong>Download HGF Band APK</strong> above.</li>
+                  <li>Tap <strong>Download HGF Worship APK</strong> above.</li>
                   <li>When browser warns <em>"File might be harmful"</em>, tap <strong>Download anyway</strong>.</li>
                   <li>Tap the downloaded file and choose <strong>Install</strong> (Allow <em>"Install unknown apps"</em> if asked).</li>
-                  <li>Open <strong>HGF Band</strong> directly from your app drawer!</li>
+                  <li>Open <strong>HGF Worship</strong> directly from your app drawer!</li>
                 </ol>
               </div>
             </>
@@ -414,7 +414,7 @@ export const BandInstallModal: React.FC<BandInstallModalProps> = ({ isOpen, onCl
                     4
                   </div>
                   <div style={{ fontSize: '13px', color: '#e2e8f0' }}>
-                    Tap <strong>Add</strong> at top right. The <strong>HGF Band</strong> icon will now appear on your home screen and open in full native standalone mode!
+                    Tap <strong>Add</strong> at top right. The <strong>HGF Worship</strong> icon will now appear on your home screen and open in full native standalone mode!
                   </div>
                 </div>
               </div>

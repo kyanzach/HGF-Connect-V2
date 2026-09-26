@@ -159,7 +159,7 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
                 ? 'Updating to latest app version...'
                 : copiedLink
                 ? 'Link copied! Updating app to latest version...'
-                : 'HGF Band (Tap to copy hgfapp.link/chords & reload/update app)'
+                : 'HGF Worship Team Setlist & Chords (Tap to copy hgfapp.link/chords & reload/update app)'
             }
             style={{
               display: 'flex',
@@ -227,7 +227,7 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
           {onOpenInstallModal && (
             <button
               onClick={onOpenInstallModal}
-              title="Install HGF Band App (Android APK / iPad)"
+              title="Install HGF Worship App (Android APK / iPad)"
               style={{
                 display: 'flex',
                 alignItems: 'center',

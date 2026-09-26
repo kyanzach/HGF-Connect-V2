@@ -115,7 +115,7 @@ export default function BandInstallPage() {
               margin: '0 0 6px',
             }}
           >
-            HGF Band Stage App
+            HGF Worship Team Setlist &amp; Chords
           </h1>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginTop: '6px', flexWrap: 'wrap', justifyContent: 'center' }}>
             <span
@@ -268,7 +268,7 @@ export default function BandInstallPage() {
                 Sunday Stage Edition
               </div>
               <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                <span>HGF Band Native App</span>
+                <span>HGF Worship Native App</span>
                 <span style={{ fontSize: '11px', background: '#4EB1CB', color: '#070a0f', fontWeight: 800, padding: '2px 6px', borderRadius: '4px' }}>
                   v1.1.0
                 </span>
@@ -298,7 +298,7 @@ export default function BandInstallPage() {
               }}
             >
               <span style={{ fontSize: '20px' }}>⬇️</span>
-              <span>Download HGF Band APK (v1.1.0)</span>
+              <span>Download HGF Worship APK (v1.1.0)</span>
             </a>
 
             {/* Stage Feature Grid */}
@@ -371,11 +371,11 @@ export default function BandInstallPage() {
                   lineHeight: '1.4',
                 }}
               >
-                <li>Tap <strong>Download HGF Band APK</strong> button above.</li>
+                <li>Tap <strong>Download HGF Worship APK</strong> button above.</li>
                 <li>If prompted with <em>"File might be harmful"</em>, tap <strong>Download anyway</strong>.</li>
                 <li>Open the file from your notifications or Downloads folder, then tap <strong>Install</strong>.</li>
                 <li>If prompted, toggle on <em>"Allow from this source"</em> (Install unknown apps).</li>
-                <li>Launch <strong>HGF Band</strong> from your home screen!</li>
+                <li>Launch <strong>HGF Worship</strong> from your home screen!</li>
               </ol>
             </div>
           </div>
@@ -437,7 +437,7 @@ export default function BandInstallPage() {
                   4
                 </div>
                 <div style={{ fontSize: '14px', color: '#e2e8f0', lineHeight: '1.4' }}>
-                  Tap <strong>Add</strong> at top right. The <strong>HGF Band</strong> app icon is now on your iPad! When launched, it opens directly into fullscreen stage view without any Safari address bar.
+                  Tap <strong>Add</strong> at top right. The <strong>HGF Worship</strong> app icon is now on your iPad! When launched, it opens directly into fullscreen stage view without any Safari address bar.
                 </div>
               </div>
             </div>

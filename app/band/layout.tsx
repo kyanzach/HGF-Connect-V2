@@ -2,13 +2,49 @@
 import type { Metadata, Viewport } from 'next';
 
 export const metadata: Metadata = {
-  title: 'HGF Band — Musician Songbook & Stage Tool',
-  description: 'Live chord transposer, setlist lineup, ambient worship pads, and in-ear audio playback for church musicians.',
+  title: 'HGF Worship Team Setlist & Chords',
+  description:
+    'Official worship team companion app for House of Grace Fellowship. Real-time setlist sync, live chord transposer, ambient worship pads, and audio track playback.',
   manifest: '/manifest-band.json',
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon-32x32.png',
+    apple: '/icons/icon-180.png',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'HGF Band',
+    title: 'HGF Worship',
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'en_PH',
+    url: 'https://connect.houseofgrace.ph/band',
+    siteName: 'HGF Worship Team Setlist & Chords',
+    title: 'HGF Worship Team Setlist & Chords',
+    description:
+      'Official worship team companion app for House of Grace Fellowship. Real-time setlist sync, live chord transposer, ambient worship pads, and audio track playback.',
+    images: [
+      {
+        url: 'https://connect.houseofgrace.ph/og-band.png',
+        width: 1200,
+        height: 630,
+        alt: 'HGF Worship Team Setlist & Chords',
+      },
+      {
+        url: 'https://connect.houseofgrace.ph/og-band-square.png',
+        width: 800,
+        height: 800,
+        alt: 'HGF Worship Team Setlist & Chords (Square)',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'HGF Worship Team Setlist & Chords',
+    description:
+      'Official worship team companion app for House of Grace Fellowship. Real-time setlist sync, chord transposer, ambient worship pads, and audio playback.',
+    images: ['https://connect.houseofgrace.ph/og-band.png'],
   },
 };
 

@@ -5,6 +5,22 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.70.6] — 2026-09-26
+### Added & Changed — HGF Worship Team Setlist & Chords Branding, Full Multi-Platform OG Images & High-Res App Icons
+- **App Rebrand — "HGF Worship Team Setlist & Chords" (`app/band/layout.tsx`, `manifest-band.json`, `strings.xml`, `BandInstallModal.tsx`, `install/page.tsx`)**:
+  - Rebranded the musician companion tool from "HGF Band" to "HGF Worship Team Setlist & Chords" (short name: "HGF Worship").
+  - Configured comprehensive Open Graph metadata with rich title, description, and multi-format preview imagery.
+  - Added Twitter / X `summary_large_image` card configuration.
+  - Updated Android `app_name` string in `strings.xml` to `HGF Worship`.
+- **Multi-Format Open Graph (OG) Images (`public/og-band.png`, `public/og-band.jpg`, `public/og-band-square.png`)**:
+  - Standard 1.91:1 Landscape OG Image (`1200x630` px) tailored for Facebook, LinkedIn, Twitter/X large cards, and iMessage previews, featuring the studio portrait with soft blurred ambient edges so no faces or instruments are cropped.
+  - Square OG Image (`800x800` px) tailored for WhatsApp, Telegram, and compact social feed embeds.
+  - Clean unbranded version (`public/og-band-clean.png`) for background use.
+- **PWA & Android App Launcher Icons (`public/icons/`, `android/app/src/main/res/`)**:
+  - Generated crisp, safe-zone padded app icons (`512x512`, `192x192`, `180x180`, `favicon.ico`, `favicon-32x32.png`, `favicon-16x16.png`, and `apple-touch-icon.png`).
+  - Generated Android maskable adaptive icon (`icon-maskable-512.png`) with 15% inner padding to prevent OS circle/squircle masking from clipping band members.
+  - Updated native Android APK mipmap launcher icons across `mdpi`, `hdpi`, `xhdpi`, `xxhdpi`, and `xxxhdpi`.
+
 ## [v2.70.5] — 2026-09-26
 ### Fixed — Audio Scrubber Smooth Scrubbing, Instant Timeline Section Jump & Generous Bottom Sheet Clearance
 - **Smooth Audio Scrubber Buffer Dragging & Auto-Play (`AudioPlaybackDock.tsx`, `useAudioPlayback.ts`)**:
