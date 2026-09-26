@@ -41,6 +41,7 @@ interface SongSheetProps {
   currentUser?: BandUser | null;
   onUpdateSongNotes?: (notes: string) => Promise<void>;
   onRevertToMasterLyrics?: () => void;
+  hasPlaybackDock?: boolean;
 }
 
 export const SongSheet: React.FC<SongSheetProps> = ({
@@ -76,6 +77,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   currentUser,
   onUpdateSongNotes,
   onRevertToMasterLyrics,
+  hasPlaybackDock = false,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number | null>(null);
@@ -501,7 +503,9 @@ export const SongSheet: React.FC<SongSheetProps> = ({
         paddingRight: '20px',
         paddingBottom: isImmersionMode
           ? 'calc(env(safe-area-inset-bottom, 0px) + 80px)'
-          : 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 180px)',
+          : hasPlaybackDock
+          ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 280px)'
+          : 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 160px)',
         backgroundColor: '#0a0d14',
         color: '#f8fafc',
         fontFamily: 'monospace, system-ui',

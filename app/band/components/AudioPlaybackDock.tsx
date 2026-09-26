@@ -10,7 +10,7 @@ interface AudioPlaybackDockProps {
   currentTime: number;
   duration: number;
   onTogglePlay: () => void;
-  onSeek: (time: number) => void;
+  onSeek: (time: number, autoPlay?: boolean) => void;
   title: string;
   // Volume controls
   volume?: number;
@@ -53,10 +53,13 @@ export const AudioPlaybackDock: React.FC<AudioPlaybackDockProps> = ({
   onOpenChaptersModal,
 }) => {
   const [showVolumeSlider, setShowVolumeSlider] = useState<boolean>(false);
+  const [isScrubbing, setIsScrubbing] = useState<boolean>(false);
+  const [scrubTime, setScrubTime] = useState<number | null>(null);
 
   if (!isVisible) return null;
 
-  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const displayTime = isScrubbing && scrubTime !== null ? scrubTime : currentTime;
+  const progressPercent = duration > 0 ? (displayTime / duration) * 100 : 0;
 
   return (
     <div
@@ -128,7 +131,7 @@ export const AudioPlaybackDock: React.FC<AudioPlaybackDockProps> = ({
         </div>
 
         <div style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
-          {formatSeconds(currentTime)} / {formatSeconds(duration)}
+          {formatSeconds(displayTime)} / {formatSeconds(duration)}
         </div>
       </div>
 
@@ -145,7 +148,7 @@ export const AudioPlaybackDock: React.FC<AudioPlaybackDockProps> = ({
                 title={`${marker.label} (${formatSeconds(marker.time)})`}
                 onClick={(e) => {
                   e.stopPropagation();
-                  onSeek(marker.time);
+                  onSeek(marker.time, true);
                 }}
                 style={{
                   position: 'absolute',
@@ -168,8 +171,41 @@ export const AudioPlaybackDock: React.FC<AudioPlaybackDockProps> = ({
           min="0"
           max={duration || 100}
           step="0.1"
-          value={currentTime}
-          onChange={(e) => onSeek(parseFloat(e.target.value))}
+          value={displayTime}
+          onPointerDown={() => {
+            setIsScrubbing(true);
+            setScrubTime(currentTime);
+          }}
+          onTouchStart={() => {
+            setIsScrubbing(true);
+            setScrubTime(currentTime);
+          }}
+          onInput={(e) => {
+            const val = parseFloat((e.target as HTMLInputElement).value);
+            setScrubTime(val);
+          }}
+          onChange={(e) => {
+            const val = parseFloat(e.target.value);
+            setScrubTime(val);
+          }}
+          onPointerUp={(e) => {
+            const val = parseFloat((e.target as HTMLInputElement).value);
+            onSeek(val, true);
+            setIsScrubbing(false);
+            setScrubTime(null);
+          }}
+          onTouchEnd={() => {
+            const val = scrubTime !== null ? scrubTime : currentTime;
+            onSeek(val, true);
+            setIsScrubbing(false);
+            setScrubTime(null);
+          }}
+          onKeyUp={(e) => {
+            const val = parseFloat((e.target as HTMLInputElement).value);
+            onSeek(val, true);
+            setIsScrubbing(false);
+            setScrubTime(null);
+          }}
           style={{
             width: '100%',
             height: '6px',
@@ -223,7 +259,7 @@ export const AudioPlaybackDock: React.FC<AudioPlaybackDockProps> = ({
             return (
               <button
                 key={marker.id}
-                onClick={() => onSeek(marker.time)}
+                onClick={() => onSeek(marker.time, true)}
                 style={{
                   background: isActive ? 'rgba(56, 189, 248, 0.25)' : 'rgba(30, 41, 59, 0.7)',
                   border: `1px solid ${isActive ? '#38bdf8' : '#334155'}`,

@@ -30,6 +30,7 @@ export function useAudioPlayback(song: Song | null) {
   const blobUrlRef = useRef<string | null>(null);
   const playPromiseRef = useRef<Promise<void> | null>(null);
   const loadedTrackKeyRef = useRef<string>('');
+  const pendingSeekRef = useRef<number | null>(null);
 
   const volumeStorageTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -148,6 +149,21 @@ export function useAudioPlayback(song: Song | null) {
 
       audio.onloadedmetadata = () => {
         setDuration(audio.duration || 0);
+        if (pendingSeekRef.current !== null) {
+          try {
+            audio.currentTime = pendingSeekRef.current;
+          } catch (_) {}
+          pendingSeekRef.current = null;
+        }
+      };
+
+      audio.oncanplay = () => {
+        if (pendingSeekRef.current !== null) {
+          try {
+            audio.currentTime = pendingSeekRef.current;
+          } catch (_) {}
+          pendingSeekRef.current = null;
+        }
       };
 
       audio.ontimeupdate = () => {
@@ -331,7 +347,7 @@ export function useAudioPlayback(song: Song | null) {
   }, [initWebAudio, applyVolume, volume, isMuted]);
 
   const seek = useCallback(
-    (timeSec: number) => {
+    (timeSec: number, autoPlay: boolean = true) => {
       const audio = audioRef.current;
       if (!audio) return;
       initWebAudio();
@@ -340,12 +356,36 @@ export function useAudioPlayback(song: Song | null) {
       }
       applyVolume(volume, isMuted);
       const clamped = Math.max(0, Math.min(duration || 99999, timeSec));
-      if (typeof (audio as any).fastSeek === 'function') {
-        (audio as any).fastSeek(clamped);
+
+      if (audio.readyState >= 1) {
+        try {
+          audio.currentTime = clamped;
+        } catch (_) {
+          pendingSeekRef.current = clamped;
+        }
       } else {
-        audio.currentTime = clamped;
+        pendingSeekRef.current = clamped;
       }
       setCurrentTime(clamped);
+
+      // Auto-start playback on section jump or timeline interaction if paused
+      if (autoPlay && audio.paused && audio.src) {
+        playPromiseRef.current = audio.play();
+        if (playPromiseRef.current !== undefined) {
+          playPromiseRef.current
+            .then(() => {
+              setIsPlaying(true);
+            })
+            .catch((err) => {
+              if (err.name !== 'AbortError') {
+                console.warn('Playback play request was aborted:', err);
+              }
+            })
+            .finally(() => {
+              playPromiseRef.current = null;
+            });
+        }
+      }
     },
     [duration, initWebAudio, applyVolume, volume, isMuted]
   );
@@ -361,32 +401,32 @@ export function useAudioPlayback(song: Song | null) {
     return markers[0] || null;
   }, [markers, currentTime]);
 
-  // Jump to previous marker
+  // Jump to previous marker (auto-plays target section)
   const jumpPrevMarker = useCallback(() => {
     if (markers.length === 0) {
-      seek(0);
+      seek(0, true);
       return;
     }
     const curIdx = activeMarker ? markers.findIndex((m) => m.id === activeMarker.id) : 0;
     if (curIdx >= 0) {
       const currentMarker = markers[curIdx];
       if (currentTime - currentMarker.time > 2.5) {
-        seek(currentMarker.time);
+        seek(currentMarker.time, true);
       } else if (curIdx > 0) {
-        seek(markers[curIdx - 1].time);
+        seek(markers[curIdx - 1].time, true);
       } else {
-        seek(0);
+        seek(0, true);
       }
     } else {
-      seek(0);
+      seek(0, true);
     }
   }, [markers, activeMarker, currentTime, seek]);
 
-  // Jump to next marker
+  // Jump to next marker (auto-plays target section)
   const jumpNextMarker = useCallback(() => {
     if (markers.length === 0) return;
     const next = markers.find((m) => m.time > currentTime + 0.8);
-    if (next) seek(next.time);
+    if (next) seek(next.time, true);
   }, [markers, currentTime, seek]);
 
   const updateMarkers = (newMarkers: AudioMarker[]) => {

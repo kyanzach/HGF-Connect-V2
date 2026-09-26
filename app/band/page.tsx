@@ -882,10 +882,10 @@ export default function BandStagePage() {
   // Playback auto-scroll is strictly local when the user plays their own audio.
   const isLiveSyncFollower = false;
 
-  const handleSeekBacktrack = useCallback((time: number) => {
-    seekBacktrack(time);
+  const handleSeekBacktrack = useCallback((time: number, autoPlay: boolean = true) => {
+    seekBacktrack(time, autoPlay);
     if (effectiveSetlistId && isUserMD) {
-      broadcastSyncState(isBacktrackPlaying, time);
+      broadcastSyncState(autoPlay ? true : isBacktrackPlaying, time);
     }
   }, [seekBacktrack, effectiveSetlistId, isUserMD, isBacktrackPlaying, broadcastSyncState]);
 
@@ -1564,6 +1564,7 @@ export default function BandStagePage() {
         onToggleLyricsOnly={handleToggleLyricsOnly}
         currentUser={currentUser}
         onUpdateSongNotes={handleSaveSongNotes}
+        hasPlaybackDock={isPlaybackDockVisible}
         drawingCanvasElement={
           <DrawingCanvas
             key={`drawing_${currentSong?.id}_${currentUser?.id || 'guest'}`}

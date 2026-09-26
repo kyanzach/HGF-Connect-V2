@@ -5,6 +5,20 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.70.5] — 2026-09-26
+### Fixed — Audio Scrubber Smooth Scrubbing, Instant Timeline Section Jump & Generous Bottom Sheet Clearance
+- **Smooth Audio Scrubber Buffer Dragging & Auto-Play (`AudioPlaybackDock.tsx`, `useAudioPlayback.ts`)**:
+  - Added local scrub state (`isScrubbing`, `scrubTime`) to `AudioPlaybackDock` preventing `<input type="range">` from snapping back or jittering under fingers while dragging the buffer.
+  - Commits seek cleanly on pointer release (`onPointerUp`, `onTouchEnd`, `onKeyUp`) and automatically initiates playback from that timeline point if paused.
+  - Tapping arrangement chapter chips (e.g. "Interlude", "Chorus", "Bridge") or pressing Next/Prev Section buttons now automatically seeks frame-accurately and triggers immediate playback without requiring a manual Play button tap.
+- **Accurate Timeline Seeking & Metadata Preload (`useAudioPlayback.ts`)**:
+  - Removed inexact `fastSeek()` which was causing seeks to be delayed, jump to wrong keyframes, or feel out of sync.
+  - Added `pendingSeekRef` in `useAudioPlayback` to capture early timeline seeks/jumps prior to `loadedmetadata` / `canplay` without dropping or resetting to 0:00.
+  - Configured `audio.preload = 'auto'` so track audio data buffers immediately upon selection.
+- **Generous Bottom Clearance for Long Songs (`SongSheet.tsx`, `app/band/page.tsx`)**:
+  - Added `hasPlaybackDock` prop to `SongSheet`, boosting bottom padding to `calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 280px)` whenever the audio playback dock is active.
+  - Guarantees that the bottom-most chords of long songs (such as "Oceans") can be scrolled completely above both the navigation dock and audio dock without clipping.
+
 ## [v2.70.4] — 2026-09-26
 ### Fixed — Complete Decoupling of Audio Playback from Sheet Scrolling & Volume Slider Stress-Test Stability
 - **Completely Decoupled Audio Playback from Sheet Scrolling (`SongSheet.tsx`, `app/band/page.tsx`)**:
