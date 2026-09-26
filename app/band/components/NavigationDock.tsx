@@ -201,33 +201,6 @@ export const NavigationDock: React.FC<NavigationDockProps> = ({
         >
           📜
         </button>
-        {duration && (
-          <div
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenDurationPicker?.();
-            }}
-            title={`Planned Duration: ${duration} • Tap to adjust`}
-            style={{
-              position: 'absolute',
-              top: '-6px',
-              right: '-6px',
-              backgroundColor: '#0c1017',
-              border: '1px solid #4EB1CB',
-              color: '#4EB1CB',
-              fontSize: '9px',
-              fontWeight: 900,
-              padding: '1px 5px',
-              borderRadius: '999px',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              boxShadow: '0 2px 6px rgba(0,0,0,0.7)',
-              fontFamily: 'monospace',
-            }}
-          >
-            {duration}
-          </div>
-        )}
       </div>
 
       {/* Lyrics-Only Mode Toggle (Singers / Vocalists Tool) */}

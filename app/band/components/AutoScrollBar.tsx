@@ -102,18 +102,18 @@ export const AutoScrollBar: React.FC<AutoScrollBarProps> = ({
         {isPlaying ? '⏸' : '▶'}
       </button>
 
-      {/* Mode Toggle Button (Duration vs Speed) */}
+      {/* Mode Toggle Button (Speed vs Pace) */}
       {onToggleScrollMode && (
         <button
           onClick={onToggleScrollMode}
-          title={scrollMode === 'duration' ? 'Switch to Raw Speed Mode' : 'Switch to Paced Duration Mode'}
+          title={scrollMode === 'speed' ? 'Switch to Pace Mode (Song Duration)' : 'Switch to Speed Mode'}
           style={{
             height: '28px',
             padding: '0 8px',
             borderRadius: '999px',
-            border: `1px solid ${scrollMode === 'duration' ? '#4EB1CB' : '#334155'}`,
-            background: scrollMode === 'duration' ? 'rgba(78, 177, 203, 0.2)' : '#131c2e',
-            color: scrollMode === 'duration' ? '#4EB1CB' : '#94a3b8',
+            border: `1px solid ${scrollMode === 'speed' ? '#38bdf8' : '#4EB1CB'}`,
+            background: scrollMode === 'speed' ? 'rgba(56, 189, 248, 0.15)' : 'rgba(78, 177, 203, 0.15)',
+            color: scrollMode === 'speed' ? '#38bdf8' : '#4EB1CB',
             fontSize: '11px',
             fontWeight: 800,
             cursor: 'pointer',
@@ -121,9 +121,10 @@ export const AutoScrollBar: React.FC<AutoScrollBarProps> = ({
             alignItems: 'center',
             gap: '4px',
             flexShrink: 0,
+            transition: 'all 0.15s ease',
           }}
         >
-          <span>{scrollMode === 'duration' ? '⏱️ Pace' : '⚡ Speed'}</span>
+          <span>{scrollMode === 'speed' ? '⚡ Speed' : '⏱️ Pace'}</span>
         </button>
       )}
 

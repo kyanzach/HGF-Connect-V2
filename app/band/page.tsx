@@ -403,8 +403,8 @@ export default function BandStagePage() {
   const [isDurationModalOpen, setIsDurationModalOpen] = useState<boolean>(false);
   const [isInstallModalOpen, setIsInstallModalOpen] = useState<boolean>(false);
 
-  // Auto-scroll pacing & duration mode
-  const [scrollMode, setScrollMode] = useState<'duration' | 'speed'>('duration');
+  // Auto-scroll pacing & duration mode (default is speed mode)
+  const [scrollMode, setScrollMode] = useState<'duration' | 'speed'>('speed');
   const [elapsedScrollSeconds, setElapsedScrollSeconds] = useState<number>(0);
 
   // Login Gate Modal
@@ -483,7 +483,6 @@ export default function BandStagePage() {
   // Clean Stage Immersion Mode (double-tap anywhere to hide all toolbars, sidebar, docks)
   const [isImmersionMode, setIsImmersionMode] = useState<boolean>(false);
   const [isImmersionPlaybackExpanded, setIsImmersionPlaybackExpanded] = useState<boolean>(false);
-  const [immersionToast, setImmersionToast] = useState<string | null>(null);
   const lastToggleImmersionTimeRef = useRef<number>(0);
 
   const handleToggleImmersionMode = useCallback(() => {
@@ -497,10 +496,6 @@ export default function BandStagePage() {
       if (next) {
         setIsSidebarOpen(false);
         setIsImmersionPlaybackExpanded(false);
-        setImmersionToast('✨ Stage Immersion Mode — Tap "Show Tools" or double-tap to restore');
-        setTimeout(() => setImmersionToast(null), 2500);
-      } else {
-        setImmersionToast(null);
       }
       return next;
     });
@@ -1618,31 +1613,7 @@ export default function BandStagePage() {
         </button>
       )}
 
-      {/* IMMERSION MODE TOAST NOTIFICATION */}
-      {immersionToast && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 'calc(16px + env(safe-area-inset-top, 0px))',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 100,
-            backgroundColor: 'rgba(15, 23, 42, 0.94)',
-            color: '#4EB1CB',
-            border: '1px solid rgba(78, 177, 203, 0.45)',
-            padding: '8px 20px',
-            borderRadius: '24px',
-            fontSize: '0.84rem',
-            fontWeight: 700,
-            backdropFilter: 'blur(10px)',
-            WebkitBackdropFilter: 'blur(10px)',
-            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.7)',
-            pointerEvents: 'none',
-          }}
-        >
-          {immersionToast}
-        </div>
-      )}
+
 
       {/* REFRESH TOAST NOTIFICATION */}
       {refreshToast && (

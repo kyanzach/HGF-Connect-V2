@@ -5,6 +5,17 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.70.1] — 2026-09-26
+### Changed / Fixed — Auto-Scroll Speed Default, Floating Badge Removal & Immersion Toast Silencing
+- **Default Auto-Scroll to Speed Mode (`app/band/page.tsx`, `AutoScrollBar.tsx`)**:
+  - Changed the initial auto-scroll mode from Pace (`duration`) to Speed (`speed`).
+  - The scroll control bar defaults to raw speed slider mode (`⚡ Speed`), allowing immediate tempo adjustment.
+  - Tapping `⚡ Speed` smoothly toggles to Pace mode (`⏱️ Pace`) and reveals song arrangement target duration controls.
+- **Removed Floating Time Badge on Scroll FAB (`NavigationDock.tsx`)**:
+  - Removed the duration badge overlay from the floating `📜` scroll button in the stage dock to eliminate visual clutter and confusion.
+- **Silenced Double-Tap Immersion Mode Toast Notification (`app/band/page.tsx`)**:
+  - Double-tapping the sheet still toggles stage immersion mode cleanly (hiding/restoring docks, headers, and controls), but no longer shows the intrusive popup toast notification.
+
 ## [v2.70.0] — 2026-09-26
 ### Added / Changed — Lyrics-Only Mode, Worship Leader Space, Interlocked Chords & Band Member Accounts
 - **Interlocked Chord-to-Word Alignment & Responsive Wrapping (`app/band/lib/musicTheory.ts`, `SongSheet.tsx`)**:
