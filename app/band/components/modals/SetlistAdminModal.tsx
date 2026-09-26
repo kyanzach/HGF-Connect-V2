@@ -15,6 +15,8 @@ interface SetlistAdminModalProps {
   onSelectActiveSetlist: (id: string) => void;
 }
 
+const WORSHIP_LEADERS = ['Ryan', 'Karen', 'Vanneza', 'Darlene', 'Tanna'];
+
 export const SetlistAdminModal: React.FC<SetlistAdminModalProps> = ({
   isOpen,
   onClose,
@@ -30,6 +32,7 @@ export const SetlistAdminModal: React.FC<SetlistAdminModalProps> = ({
   const [name, setName] = useState<string>('');
   const [serviceDate, setServiceDate] = useState<string>('');
   const [leader, setLeader] = useState<string>('');
+  const [isCustomLeader, setIsCustomLeader] = useState<boolean>(false);
   const [selectedSongIds, setSelectedSongIds] = useState<string[]>([]);
   const [errorMsg, setErrorMsg] = useState<string>('');
 
@@ -46,6 +49,7 @@ export const SetlistAdminModal: React.FC<SetlistAdminModalProps> = ({
     setName('');
     setServiceDate(new Date().toISOString().split('T')[0]);
     setLeader('');
+    setIsCustomLeader(false);
     setSelectedSongIds([]);
     setErrorMsg('');
   };
@@ -54,7 +58,10 @@ export const SetlistAdminModal: React.FC<SetlistAdminModalProps> = ({
     setEditingSet(set);
     setName(set.name);
     setServiceDate(set.serviceDate || '');
-    setLeader(set.leader || '');
+    const currentLeader = set.leader || '';
+    setLeader(currentLeader);
+    const isPreset = WORSHIP_LEADERS.some((l) => l.toLowerCase() === currentLeader.toLowerCase());
+    setIsCustomLeader(!isPreset && Boolean(currentLeader.trim()));
     const ids = (set.songs || []).map((s) => (typeof s === 'string' ? s : s.id));
     setSelectedSongIds(ids);
     setErrorMsg('');
@@ -187,32 +194,61 @@ export const SetlistAdminModal: React.FC<SetlistAdminModalProps> = ({
                   ⚠️ {errorMsg}
                 </div>
               )}
+              {/* Setlist Name */}
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#94a3b8', marginBottom: '4px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 800, color: '#94a3b8', marginBottom: '6px', letterSpacing: '0.3px' }}>
                   SETLIST NAME *
                 </label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Sunday Service - Sept 21"
+                  placeholder="e.g. Sunday Service - Sept 28"
                   style={{
                     width: '100%',
-                    height: '36px',
-                    borderRadius: '8px',
+                    height: '42px',
+                    borderRadius: '10px',
                     background: '#131c2e',
-                    border: '1px solid #2d3f5e',
+                    border: '1.5px solid #2d3f5e',
                     color: '#fff',
-                    padding: '0 10px',
-                    fontSize: '13px',
+                    padding: '0 12px',
+                    fontSize: '14px',
+                    fontWeight: 600,
                     boxSizing: 'border-box',
+                    outline: 'none',
                   }}
                 />
+                {/* Quick Name Presets */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
+                  {['Sunday Service', 'Midweek Service', 'Youth Service', 'Worship Night'].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => {
+                        const d = serviceDate ? new Date(serviceDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+                        setName(d ? `${preset} - ${d}` : preset);
+                      }}
+                      style={{
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        background: 'rgba(78, 177, 203, 0.08)',
+                        border: '1px solid rgba(78, 177, 203, 0.25)',
+                        color: '#4EB1CB',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      +{preset}
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              {/* Service Date & Worship Leader in Clean, Non-overlapping Stack / Grid */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#94a3b8', marginBottom: '4px' }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 800, color: '#94a3b8', marginBottom: '6px', letterSpacing: '0.3px' }}>
                     SERVICE DATE
                   </label>
                   <input
@@ -221,38 +257,154 @@ export const SetlistAdminModal: React.FC<SetlistAdminModalProps> = ({
                     onChange={(e) => setServiceDate(e.target.value)}
                     style={{
                       width: '100%',
-                      height: '36px',
-                      borderRadius: '8px',
+                      height: '42px',
+                      borderRadius: '10px',
                       background: '#131c2e',
-                      border: '1px solid #2d3f5e',
+                      border: '1.5px solid #2d3f5e',
                       color: '#fff',
-                      padding: '0 10px',
-                      fontSize: '13px',
+                      padding: '0 12px',
+                      fontSize: '14px',
                       boxSizing: 'border-box',
+                      outline: 'none',
                     }}
                   />
                 </div>
+
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#94a3b8', marginBottom: '4px' }}>
-                    WORSHIP LEADER
-                  </label>
-                  <input
-                    type="text"
-                    value={leader}
-                    onChange={(e) => setLeader(e.target.value)}
-                    placeholder="e.g. Karen"
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 800, color: '#94a3b8', letterSpacing: '0.3px' }}>
+                      WORSHIP LEADER
+                    </label>
+                    {leader && (
+                      <span style={{ fontSize: '11px', color: '#4EB1CB', fontWeight: 700 }}>
+                        Active: {leader}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Quick-tap Leader Selection Pills */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
+                    {WORSHIP_LEADERS.map((wl) => {
+                      const isSelected = !isCustomLeader && leader.toLowerCase() === wl.toLowerCase();
+                      return (
+                        <button
+                          key={wl}
+                          type="button"
+                          onClick={() => {
+                            setLeader(wl);
+                            setIsCustomLeader(false);
+                          }}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            background: isSelected ? 'rgba(78, 177, 203, 0.25)' : '#131c2e',
+                            border: `1.5px solid ${isSelected ? '#4EB1CB' : '#2d3f5e'}`,
+                            color: isSelected ? '#fff' : '#cbd5e1',
+                            fontSize: '12px',
+                            fontWeight: isSelected ? 800 : 600,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          <span>🎙️</span>
+                          <span>{wl}</span>
+                        </button>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCustomLeader(true);
+                        if (WORSHIP_LEADERS.some((wl) => wl.toLowerCase() === leader.toLowerCase())) {
+                          setLeader('');
+                        }
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '8px',
+                        background: isCustomLeader ? 'rgba(245, 158, 11, 0.2)' : '#131c2e',
+                        border: `1.5px solid ${isCustomLeader ? '#f59e0b' : '#2d3f5e'}`,
+                        color: isCustomLeader ? '#fbbf24' : '#94a3b8',
+                        fontSize: '12px',
+                        fontWeight: isCustomLeader ? 800 : 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      ✍️ + Custom / Guest
+                    </button>
+                  </div>
+
+                  {/* Dropdown Selector */}
+                  <select
+                    value={
+                      isCustomLeader
+                        ? '__custom__'
+                        : WORSHIP_LEADERS.find((wl) => wl.toLowerCase() === leader.toLowerCase()) || ''
+                    }
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '__custom__') {
+                        setIsCustomLeader(true);
+                        setLeader('');
+                      } else {
+                        setIsCustomLeader(false);
+                        setLeader(val);
+                      }
+                    }}
                     style={{
                       width: '100%',
-                      height: '36px',
-                      borderRadius: '8px',
+                      height: '42px',
+                      borderRadius: '10px',
                       background: '#131c2e',
-                      border: '1px solid #2d3f5e',
+                      border: '1.5px solid #2d3f5e',
                       color: '#fff',
-                      padding: '0 10px',
-                      fontSize: '13px',
+                      padding: '0 12px',
+                      fontSize: '14px',
                       boxSizing: 'border-box',
+                      outline: 'none',
+                      cursor: 'pointer',
                     }}
-                  />
+                  >
+                    <option value="">-- Choose Worship Leader --</option>
+                    <option value="Ryan">Ryan (Admin / Worship Leader)</option>
+                    <option value="Karen">Karen</option>
+                    <option value="Vanneza">Vanneza</option>
+                    <option value="Darlene">Darlene</option>
+                    <option value="Tanna">Tanna</option>
+                    <option value="__custom__">✍️ + Other / Guest Worship Leader...</option>
+                  </select>
+
+                  {/* Custom / Guest Name Input */}
+                  {isCustomLeader && (
+                    <div style={{ marginTop: '8px' }}>
+                      <input
+                        type="text"
+                        autoFocus
+                        value={leader}
+                        onChange={(e) => setLeader(e.target.value)}
+                        placeholder="Enter guest or new worship leader name..."
+                        style={{
+                          width: '100%',
+                          height: '40px',
+                          borderRadius: '8px',
+                          background: 'rgba(245, 158, 11, 0.08)',
+                          border: '1.5px solid #f59e0b',
+                          color: '#fff',
+                          padding: '0 12px',
+                          fontSize: '13px',
+                          fontWeight: 600,
+                          boxSizing: 'border-box',
+                          outline: 'none',
+                        }}
+                      />
+                      <span style={{ fontSize: '11px', color: '#fbbf24', marginTop: '4px', display: 'block' }}>
+                        💡 Custom or guest worship leader name will be saved with this setlist
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 

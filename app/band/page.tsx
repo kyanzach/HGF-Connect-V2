@@ -552,6 +552,50 @@ export default function BandStagePage() {
   const [liveInterpolatedTime, setLiveInterpolatedTime] = useState<number>(0);
   const liveSyncClockRef = useRef<{ baseTime: number; basePerf: number; duration: number } | null>(null);
 
+  // Lyrics-Only Mode state for singers / vocalists
+  const [isLyricsOnly, setIsLyricsOnly] = useState<boolean>(false);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('hgf_band_lyrics_only');
+      if (stored === 'true') {
+        setIsLyricsOnly(true);
+      }
+    } catch (_) {}
+  }, []);
+
+  const handleToggleLyricsOnly = useCallback(() => {
+    setIsLyricsOnly((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('hgf_band_lyrics_only', String(next));
+      } catch (_) {}
+      return next;
+    });
+  }, []);
+
+  const handleSaveSongNotes = useCallback(async (notesText: string) => {
+    if (!currentSong) return;
+    try {
+      const res = await fetch('/api/worship', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: currentSong.id,
+          exhortation: notesText,
+          notes: notesText,
+        }),
+      });
+      if (res.ok) {
+        currentSong.exhortation = notesText;
+        currentSong.notes = notesText;
+        refreshData();
+      }
+    } catch (err) {
+      console.error('Failed to update song notes:', err);
+    }
+  }, [currentSong, refreshData]);
+
   const backtrackCurrentTimeRef = useRef(backtrackCurrentTime);
   backtrackCurrentTimeRef.current = backtrackCurrentTime;
   const backtrackDurationRef = useRef(backtrackDuration);
@@ -779,23 +823,16 @@ export default function BandStagePage() {
     return () => cancelAnimationFrame(animId);
   }, [liveSyncState?.isPlaying]);
 
-  const isLiveSyncFollower = Boolean(
-    effectiveSetlistId &&
-    !isBacktrackPlaying &&
-    liveSyncState?.isPlaying
-  );
+  // MD playback forced auto-scroll for followers removed per user feedback.
+  // Followers under the same setlist will NO LONGER mimic or follow scroll when MD plays tracks.
+  // Playback auto-scroll is strictly local when the user plays their own audio.
+  const isLiveSyncFollower = false;
 
-  const effectivePlaybackState = isLiveSyncFollower && liveSyncState
-    ? {
-        isPlaying: true,
-        currentTime: liveInterpolatedTime,
-        duration: liveSyncState.duration,
-      }
-    : {
-        isPlaying: isBacktrackPlaying,
-        currentTime: backtrackCurrentTime,
-        duration: backtrackDuration,
-      };
+  const effectivePlaybackState = {
+    isPlaying: isBacktrackPlaying,
+    currentTime: backtrackCurrentTime,
+    duration: backtrackDuration,
+  };
 
   const handleSeekBacktrack = useCallback((time: number) => {
     seekBacktrack(time);
@@ -1388,6 +1425,10 @@ export default function BandStagePage() {
         isDrawingActive={isDrawingActive}
         onDoubleTap={handleToggleImmersionMode}
         isImmersionMode={isImmersionMode}
+        isLyricsOnly={isLyricsOnly}
+        onToggleLyricsOnly={handleToggleLyricsOnly}
+        currentUser={currentUser}
+        onUpdateSongNotes={handleSaveSongNotes}
         drawingCanvasElement={
           <DrawingCanvas
             key={`drawing_${currentSong?.id}_${currentUser?.id || 'guest'}`}
@@ -1422,6 +1463,8 @@ export default function BandStagePage() {
           onOpenDurationPicker={() => setIsDurationModalOpen(true)}
           onForceRefresh={handleForceRefreshApp}
           isForceRefreshing={isForceRefreshing}
+          isLyricsOnly={isLyricsOnly}
+          onToggleLyricsOnly={handleToggleLyricsOnly}
         />
       )}
 

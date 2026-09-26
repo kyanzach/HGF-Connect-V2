@@ -283,6 +283,8 @@ export const BandAdminModal: React.FC<BandAdminModalProps> = ({
                   style={{ width: '100%', height: '34px', borderRadius: '6px', background: '#0a0d14', border: '1px solid #334155', color: '#fff', padding: '0 10px', fontSize: '13px', boxSizing: 'border-box' }}
                 >
                   <option value="MD">👑 Musical Director (MD)</option>
+                  <option value="leader">🎙️ Worship Leader</option>
+                  <option value="backup_singer">🎤 Backup Singer</option>
                   <option value="admin">⭐ Administrator</option>
                   <option value="guitarist">🎸 Guitarist (Lead / Acoustic)</option>
                   <option value="bassist">🎸 Bassist</option>
@@ -361,12 +363,15 @@ export const BandAdminModal: React.FC<BandAdminModalProps> = ({
                             style={{ height: '32px', borderRadius: '6px', background: '#0a0d14', border: '1px solid #334155', color: '#fff', padding: '0 8px', fontSize: '12px' }}
                           >
                             <option value="MD">👑 MD</option>
+                            <option value="leader">🎙️ Worship Leader</option>
+                            <option value="backup_singer">🎤 Backup Singer</option>
                             <option value="admin">⭐ Admin</option>
                             <option value="guitarist">🎸 Guitarist</option>
                             <option value="bassist">🎸 Bassist</option>
                             <option value="drummer">🥁 Drummer</option>
                             <option value="keyboardist">🎹 Keyboardist</option>
                             <option value="vocalist">🎤 Vocalist</option>
+                            <option value="sound">🎛️ Sound / AV</option>
                           </select>
                         </div>
                         <input
@@ -408,12 +413,12 @@ export const BandAdminModal: React.FC<BandAdminModalProps> = ({
                                 textTransform: 'uppercase',
                                 padding: '2px 6px',
                                 borderRadius: '4px',
-                                background: u.role === 'admin' ? 'rgba(245, 158, 11, 0.15)' : u.role === 'MD' ? 'rgba(78, 177, 203, 0.15)' : 'rgba(51, 65, 85, 0.4)',
-                                color: u.role === 'admin' ? '#f59e0b' : u.role === 'MD' ? '#4EB1CB' : '#94a3b8',
-                                border: `1px solid ${u.role === 'admin' ? '#f59e0b33' : u.role === 'MD' ? '#4EB1CB33' : '#334155'}`,
+                                background: u.role === 'admin' ? 'rgba(245, 158, 11, 0.15)' : u.role === 'MD' ? 'rgba(78, 177, 203, 0.15)' : u.role === 'leader' ? 'rgba(168, 85, 247, 0.15)' : u.role === 'backup_singer' ? 'rgba(236, 72, 153, 0.15)' : 'rgba(51, 65, 85, 0.4)',
+                                color: u.role === 'admin' ? '#f59e0b' : u.role === 'MD' ? '#4EB1CB' : u.role === 'leader' ? '#c084fc' : u.role === 'backup_singer' ? '#f472b6' : '#94a3b8',
+                                border: `1px solid ${u.role === 'admin' ? '#f59e0b33' : u.role === 'MD' ? '#4EB1CB33' : u.role === 'leader' ? '#a855f733' : u.role === 'backup_singer' ? '#ec489933' : '#334155'}`,
                               }}
                             >
-                              {u.role}
+                              {u.role === 'leader' ? 'Worship Leader' : u.role === 'backup_singer' ? 'Backup Singer' : u.role}
                             </span>
                           </div>
                         </div>

@@ -1,8 +1,8 @@
 // app/band/components/SongSheet.tsx
 'use client';
 
-import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { Song } from '../types/band';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
+import { Song, BandUser } from '../types/band';
 import { SheetLine } from '../lib/musicTheory';
 
 interface SongSheetProps {
@@ -41,6 +41,10 @@ interface SongSheetProps {
   mdLeaderName?: string;
   onDoubleTap?: () => void;
   isImmersionMode?: boolean;
+  isLyricsOnly?: boolean;
+  onToggleLyricsOnly?: () => void;
+  currentUser?: BandUser | null;
+  onUpdateSongNotes?: (notes: string) => Promise<void>;
 }
 
 export const SongSheet: React.FC<SongSheetProps> = ({
@@ -72,6 +76,10 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   mdLeaderName = 'MD',
   onDoubleTap,
   isImmersionMode = false,
+  isLyricsOnly = false,
+  onToggleLyricsOnly,
+  currentUser,
+  onUpdateSongNotes,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number | null>(null);
@@ -97,6 +105,55 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   effectiveTargetSecRef.current = targetDurationSec > 0 ? targetDurationSec : 240;
   onUpdateElapsedRef.current = onUpdateElapsed;
   onAutoScrollCompleteRef.current = onAutoScrollComplete;
+
+  // Worship Leader Space & Notes State
+  const [isEditingLeaderNotes, setIsEditingLeaderNotes] = useState<boolean>(false);
+  const [leaderNotesDraft, setLeaderNotesDraft] = useState<string>('');
+  const [isSavingNotes, setIsSavingNotes] = useState<boolean>(false);
+
+  useEffect(() => {
+    setLeaderNotesDraft(song?.exhortation || song?.notes || '');
+    setIsEditingLeaderNotes(false);
+  }, [song?.id, song?.exhortation, song?.notes]);
+
+  const isLeaderOrAdmin = useMemo(() => {
+    if (!currentUser) return false;
+    const role = (currentUser.role || '').toLowerCase();
+    const uname = (currentUser.username || '').toLowerCase();
+    return (
+      role === 'leader' ||
+      role === 'admin' ||
+      role === 'md' ||
+      ['ryan', 'karen', 'vanneza', 'darlene', 'tanna'].includes(uname)
+    );
+  }, [currentUser]);
+
+  const handleSaveLeaderNotes = async () => {
+    if (!song) return;
+    setIsSavingNotes(true);
+    try {
+      if (onUpdateSongNotes) {
+        await onUpdateSongNotes(leaderNotesDraft.trim());
+      } else {
+        await fetch('/api/worship', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: song.id,
+            exhortation: leaderNotesDraft.trim(),
+            notes: leaderNotesDraft.trim(),
+          }),
+        });
+        song.exhortation = leaderNotesDraft.trim();
+        song.notes = leaderNotesDraft.trim();
+      }
+      setIsEditingLeaderNotes(false);
+    } catch (err) {
+      console.error('Error saving leader notes:', err);
+    } finally {
+      setIsSavingNotes(false);
+    }
+  };
 
   // Calibrated gradual musical scroll speeds (px/sec)
   const SPEED_MAP: Record<number, number> = {
@@ -536,6 +593,30 @@ export const SongSheet: React.FC<SongSheetProps> = ({
                   {song.artist}
                 </span>
               )}
+              {/* Lyrics-Only Mode Pill */}
+              {isLyricsOnly && (
+                <span
+                  onClick={onToggleLyricsOnly}
+                  title="Lyrics-Only Mode Active (Chords Hidden) • Tap to show chords"
+                  style={{
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    background: 'rgba(168, 85, 247, 0.25)',
+                    border: '1px solid #a855f7',
+                    color: '#d8b4fe',
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    boxShadow: '0 0 10px rgba(168, 85, 247, 0.35)',
+                  }}
+                >
+                  <span>🎤</span>
+                  <span>LYRICS ONLY</span>
+                </span>
+              )}
               <span
                 style={{
                   padding: '2px 8px',
@@ -550,7 +631,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
                 Key: {displayKey}
                 {isSessionOverridden && worshipLeaderKey ? ` (WL: ${worshipLeaderKey})` : ''}
               </span>
-              {song.capo !== undefined && song.capo !== '0' && song.capo !== 0 && (
+              {!isLyricsOnly && song.capo !== undefined && song.capo !== '0' && song.capo !== 0 && (
                 <span
                   style={{
                     padding: '2px 8px',
@@ -684,6 +765,188 @@ export const SongSheet: React.FC<SongSheetProps> = ({
         )}
       </div>
 
+      {/* WORSHIP LEADER PERSONAL SPACE: INTRO, SCRIPTURE VERSE & EXHORTATION */}
+      {song && (song.exhortation || song.notes || isLeaderOrAdmin) && (
+        <div
+          style={{
+            marginBottom: '20px',
+            padding: '14px 16px',
+            borderRadius: '14px',
+            background: 'linear-gradient(135deg, rgba(78, 177, 203, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%)',
+            border: '1.5px solid rgba(78, 177, 203, 0.35)',
+            boxShadow: '0 6px 20px rgba(0, 0, 0, 0.35)',
+            position: 'relative',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '18px' }}>🎙️</span>
+              <div>
+                <div style={{ fontSize: '12px', fontWeight: 800, color: '#4EB1CB', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
+                  Worship Leader Space
+                </div>
+                <div style={{ fontSize: '10.5px', color: '#94a3b8', fontWeight: 600 }}>
+                  Intro cues, scripture reading & exhortation message
+                </div>
+              </div>
+            </div>
+            {isLeaderOrAdmin && !isEditingLeaderNotes && (
+              <button
+                type="button"
+                onClick={() => setIsEditingLeaderNotes(true)}
+                style={{
+                  padding: '4px 12px',
+                  borderRadius: '8px',
+                  background: 'rgba(78, 177, 203, 0.2)',
+                  border: '1px solid #4EB1CB',
+                  color: '#fff',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <span>✏️</span>
+                <span>{song.exhortation || song.notes ? 'Edit Cues' : '+ Add Leader Notes'}</span>
+              </button>
+            )}
+          </div>
+
+          {/* Edit Mode */}
+          {isEditingLeaderNotes ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
+              {/* Quick Template Cue Pills */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {[
+                  'Scripture Verse: ',
+                  'Intro Cues: ',
+                  'Exhortation: ',
+                  'Prayer Focus: ',
+                  'Call to Worship: ',
+                ].map((tpl) => (
+                  <button
+                    key={tpl}
+                    type="button"
+                    onClick={() => setLeaderNotesDraft((prev) => (prev ? `${prev}\n${tpl}` : tpl))}
+                    style={{
+                      padding: '3px 8px',
+                      borderRadius: '6px',
+                      background: 'rgba(168, 85, 247, 0.15)',
+                      border: '1px solid rgba(168, 85, 247, 0.35)',
+                      color: '#d8b4fe',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    +{tpl.trim()}
+                  </button>
+                ))}
+              </div>
+
+              <textarea
+                value={leaderNotesDraft}
+                onChange={(e) => setLeaderNotesDraft(e.target.value)}
+                placeholder="Write your intro notes, scripture verse to read, exhortation, or prayer direction before the lyrics begin..."
+                rows={4}
+                style={{
+                  width: '100%',
+                  borderRadius: '8px',
+                  background: '#0c1017',
+                  border: '1.5px solid #4EB1CB',
+                  color: '#fff',
+                  padding: '10px 12px',
+                  fontSize: '13px',
+                  lineHeight: '1.5',
+                  boxSizing: 'border-box',
+                  outline: 'none',
+                  fontFamily: 'inherit',
+                }}
+              />
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLeaderNotesDraft(song.exhortation || song.notes || '');
+                    setIsEditingLeaderNotes(false);
+                  }}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '6px',
+                    background: '#1e293b',
+                    border: '1px solid #334155',
+                    color: '#94a3b8',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveLeaderNotes}
+                  disabled={isSavingNotes}
+                  style={{
+                    padding: '6px 16px',
+                    borderRadius: '6px',
+                    background: '#4EB1CB',
+                    border: 'none',
+                    color: '#000',
+                    fontSize: '12px',
+                    fontWeight: 800,
+                    cursor: isSavingNotes ? 'wait' : 'pointer',
+                  }}
+                >
+                  {isSavingNotes ? 'Saving...' : 'Save Notes'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* Display Mode */
+            song.exhortation || song.notes ? (
+              <div
+                style={{
+                  fontSize: '13.5px',
+                  lineHeight: '1.6',
+                  color: '#f1f5f9',
+                  whiteSpace: 'pre-wrap',
+                  background: 'rgba(12, 16, 23, 0.7)',
+                  padding: '12px 14px',
+                  borderRadius: '10px',
+                  borderLeft: '4px solid #4EB1CB',
+                  letterSpacing: '0.2px',
+                }}
+              >
+                {song.exhortation || song.notes}
+              </div>
+            ) : (
+              isLeaderOrAdmin && (
+                <div
+                  onClick={() => setIsEditingLeaderNotes(true)}
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: '8px',
+                    border: '1.5px dashed rgba(78, 177, 203, 0.4)',
+                    color: '#94a3b8',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    background: 'rgba(12, 16, 23, 0.4)',
+                  }}
+                >
+                  ✨ Tap to add your intro instructions, scripture verse reading, or exhortation for this song
+                </div>
+              )
+            )
+          )}
+        </div>
+      )}
+
       {/* CHORD & LYRIC BODY */}
       <div
         id="sheetScrollBody"
@@ -721,7 +984,72 @@ export const SongSheet: React.FC<SongSheetProps> = ({
             );
           }
 
+          // Atomic interlocked chord-lyric pairs: Chords locked above words, wrapping together seamlessly
+          if (line.pairs && line.pairs.length > 0) {
+            const isPureInstrumental = line.pairs.every((p) => !p.lyric.trim());
+            if (isLyricsOnly && isPureInstrumental) {
+              return null;
+            }
+
+            return (
+              <div
+                key={lIdx}
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  alignItems: 'flex-end',
+                  rowGap: isLyricsOnly ? '4px' : '10px',
+                  columnGap: '0px',
+                  minHeight: '1.4em',
+                  marginBottom: isLyricsOnly ? '4px' : '6px',
+                }}
+              >
+                {line.pairs.map((pair, pIdx) => (
+                  <span
+                    key={pIdx}
+                    style={{
+                      display: 'inline-flex',
+                      flexDirection: 'column',
+                      alignItems: 'flex-start',
+                      verticalAlign: 'bottom',
+                    }}
+                  >
+                    {!isLyricsOnly && (
+                      <span
+                        onClick={() => pair.chord && onOpenChordDiagram && onOpenChordDiagram(pair.chord)}
+                        style={{
+                          fontSize: '0.82em',
+                          fontWeight: 800,
+                          color: '#f59e0b',
+                          cursor: pair.chord ? 'pointer' : 'default',
+                          minHeight: '1.2em',
+                          lineHeight: 1.2,
+                          whiteSpace: 'pre',
+                          paddingRight: pair.chord ? '4px' : '0px',
+                          userSelect: pair.chord ? 'none' : 'text',
+                        }}
+                      >
+                        {pair.chord || ''}
+                      </span>
+                    )}
+                    <span
+                      style={{
+                        color: '#f1f5f9',
+                        whiteSpace: 'pre',
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      {pair.lyric}
+                    </span>
+                  </span>
+                ))}
+              </div>
+            );
+          }
+
+          // Fallback chord line rendering
           if (line.type === 'chord_line' || line.type === 'chordpro') {
+            if (isLyricsOnly) return null;
             return (
               <div key={lIdx} style={{ minHeight: '1.5em' }}>
                 {line.items?.map((item, iIdx) =>

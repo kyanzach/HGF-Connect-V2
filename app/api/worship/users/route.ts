@@ -12,7 +12,7 @@ export interface BandUser {
   username: string;
   password: string; // Stored for band portal management
   displayName: string;
-  role: 'MD' | 'guitarist' | 'bassist' | 'keyboardist' | 'drummer' | 'vocalist' | 'sound' | 'admin';
+  role: 'MD' | 'guitarist' | 'bassist' | 'keyboardist' | 'drummer' | 'vocalist' | 'sound' | 'admin' | 'leader' | 'backup_singer' | string;
   createdAt: number;
   updatedAt?: number;
 }
@@ -22,8 +22,64 @@ const DEFAULT_USERS: BandUser[] = [
     id: 'user-ryan',
     username: 'ryan',
     password: 'Godisgood',
-    displayName: 'Ryan (Admin)',
+    displayName: 'Ryan (Worship Leader / Admin)',
     role: 'admin',
+    createdAt: Date.now(),
+  },
+  {
+    id: 'user-karen',
+    username: 'karen',
+    password: 'Godisgood',
+    displayName: 'Karen (Worship Leader)',
+    role: 'leader',
+    createdAt: Date.now(),
+  },
+  {
+    id: 'user-vanneza',
+    username: 'vanneza',
+    password: 'Godisgood',
+    displayName: 'Vanneza (Worship Leader)',
+    role: 'leader',
+    createdAt: Date.now(),
+  },
+  {
+    id: 'user-darlene',
+    username: 'darlene',
+    password: 'Godisgood',
+    displayName: 'Darlene (Worship Leader)',
+    role: 'leader',
+    createdAt: Date.now(),
+  },
+  {
+    id: 'user-tanna',
+    username: 'tanna',
+    password: 'Godisgood',
+    displayName: 'Tanna (Worship Leader)',
+    role: 'leader',
+    createdAt: Date.now(),
+  },
+  {
+    id: 'user-andrea',
+    username: 'andrea',
+    password: 'Godisgood',
+    displayName: 'Andrea (Backup Singer)',
+    role: 'backup_singer',
+    createdAt: Date.now(),
+  },
+  {
+    id: 'user-debbie',
+    username: 'debbie',
+    password: 'Godisgood',
+    displayName: 'Debbie (Backup Singer)',
+    role: 'backup_singer',
+    createdAt: Date.now(),
+  },
+  {
+    id: 'user-hanna',
+    username: 'hanna',
+    password: 'Godisgood',
+    displayName: 'Hanna (Backup Singer)',
+    role: 'backup_singer',
     createdAt: Date.now(),
   },
   {

@@ -5,6 +5,29 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.70.0] — 2026-09-26
+### Added / Changed — Lyrics-Only Mode, Worship Leader Space, Interlocked Chords & Band Member Accounts
+- **Interlocked Chord-to-Word Alignment & Responsive Wrapping (`app/band/lib/musicTheory.ts`, `SongSheet.tsx`)**:
+  - Implemented atomic `ChordLyricPair` token architecture. Chords are now vertically locked to their corresponding word/syllable using inline-flex columns.
+  - Chords and lyric words stay bonded together at any font size (12px to 32px) and screen width; when a line wraps, the chord and word wrap together as one unit without drifting or splitting onto separate lines.
+- **Lyrics-Only Mode for Singers (`NavigationDock.tsx`, `SongSheet.tsx`, `app/band/page.tsx`)**:
+  - Added a floating `🎤 LYRICS` toggle FAB in the navigation dock that allows vocalists and backup singers to toggle chords off with one tap.
+  - When active, all chords and instrumental spacers are hidden, displaying clean, distraction-free, continuously wrapped lyrics.
+- **Worship Leader Personal Space & Exhortation Card (`SongSheet.tsx`, `SongEditorModal.tsx`, `app/band/page.tsx`)**:
+  - Added a dedicated "Worship Leader Space" card positioned directly before the lyrics/chords on stage.
+  - Displays intro cues, scripture readings (e.g. Psalms), exhortation messages, and prayer direction before the song starts.
+  - Worship leaders and admins can tap `✏️ Edit Cues` to write or update cues with quick template presets (`+ Scripture Verse:`, `+ Intro Cues:`, `+ Exhortation:`, `+ Prayer Focus:`).
+- **Decoupled Follower Scroll from MD Audio Playback (`app/band/page.tsx`)**:
+  - Removed forced auto-scroll mirroring for setlist followers when the MD plays backtracks. Band members under the same setlist retain complete independent scroll control.
+- **Setlist Creation UI Overhaul & Worship Leader Selection (`SetlistAdminModal.tsx`)**:
+  - Overhauled setlist creation modal layout with comfortable 42px touch targets and non-overlapping responsive flow.
+  - Added dedicated Worship Leader selector with preset quick-tap pills and dropdown for official leaders (`Ryan`, `Karen`, `Vanneza`, `Darlene`, `Tanna`) plus an expandable `✍️ + Custom / Guest` write-in field.
+- **Band Accounts for Worship Leaders & Backup Singers (`data/worship/users.json`, `app/api/worship/users/route.ts`, `BandAdminModal.tsx`)**:
+  - Added accounts with default password `Godisgood`:
+    - Worship Leaders: `ryan` (Admin / Worship Leader), `karen`, `vanneza`, `darlene`, `tanna`.
+    - Backup Singers: `andrea`, `debbie`, `hanna`.
+  - Added explicit `'leader'` and `'backup_singer'` role options and distinct color badges in Band Admin Modal.
+
 ## [v2.69.0] — 2026-09-25
 ### Changed / Optimized — SMS Credit Conservation & 1-Credit (160 Character) Overhaul
 - **Strict 1-Credit (< 160 Chars) Event Reminder Templates & Short Verses (`lib/smsTemplates.ts`)**:

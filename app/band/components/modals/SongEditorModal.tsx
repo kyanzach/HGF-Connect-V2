@@ -39,6 +39,7 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
   const [sectionOrder, setSectionOrder] = useState<string>('');
   const [duration, setDuration] = useState<string>('');
   const [chords, setChords] = useState<string>('');
+  const [notes, setNotes] = useState<string>('');
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
@@ -59,6 +60,7 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
       setDuration(song.duration || '');
       setSectionOrder(song.sectionOrder || '');
       setChords(song.chords || song.lyrics || '');
+      setNotes(song.exhortation || song.notes || '');
     } else {
       setTitle('');
       setArtist('');
@@ -69,6 +71,7 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
       setDuration('');
       setSectionOrder('');
       setChords('');
+      setNotes('');
     }
   }, [song]);
 
@@ -95,6 +98,8 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
         duration: duration.trim(),
         sectionOrder: sectionOrder.trim(),
         chords: chords.trim(),
+        notes: notes.trim(),
+        exhortation: notes.trim(),
         updatedAt: Date.now(),
       };
       await onSaveSong(updated);
@@ -440,6 +445,38 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
                 fontSize: '13px',
                 fontWeight: 600,
                 boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
+          {/* Worship Leader Cues / Intro / Exhortation */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 800, color: '#4EB1CB', letterSpacing: '0.3px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>🎙️</span>
+                <span>WORSHIP LEADER SPACE (Intro, Verse Reading & Exhortation)</span>
+              </label>
+              <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                Displayed above lyrics on stage
+              </span>
+            </div>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="e.g. Intro cues, scripture verse reading (e.g. Psalm 103:1-2), exhortation message, or prayer direction before the lyrics begin..."
+              rows={3}
+              style={{
+                width: '100%',
+                borderRadius: '8px',
+                background: '#131c2e',
+                border: '1px solid #2d3f5e',
+                color: '#fff',
+                padding: '8px 10px',
+                fontSize: '13px',
+                lineHeight: '1.5',
+                boxSizing: 'border-box',
+                outline: 'none',
+                fontFamily: 'inherit',
               }}
             />
           </div>

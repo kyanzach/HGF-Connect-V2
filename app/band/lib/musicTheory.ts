@@ -117,11 +117,18 @@ export function calculateSemitoneDistance(fromKey: string, toKey: string): numbe
   return diff;
 }
 
+export interface ChordLyricPair {
+  chord?: string;
+  lyric: string;
+}
+
 export interface SheetLine {
   type: 'section' | 'chord_line' | 'chordpro' | 'lyrics' | 'empty';
   raw: string;
   sectionName?: string;
   items?: { text: string; isChord: boolean }[];
+  pairs?: ChordLyricPair[];
+  pairedLyric?: string;
 }
 
 const SECTION_KEYWORDS = [
@@ -138,6 +145,151 @@ const SECTION_REGEX = new RegExp(
 
 const STANDALONE_CUE_REGEX = /^\s*([A-Za-z0-9\s/–-]+:)\s*$/;
 const CHORD_TOKEN_REGEX = /\b([A-G][b#]?(?:m|maj|min|sus|add|dim|aug|2|4|5|6|7|9|11|13)*(?:\/[A-G][b#]?)?)\b/g;
+
+/**
+ * Pairs chords on a chord line with syllables/words on the lyric line below it.
+ * This guarantees the chord and word are locked together as an atomic flex item,
+ * preventing drift or misalignment regardless of font resizing, zoom, or wrapping.
+ */
+function pairChordsWithLyrics(
+  chordLine: string,
+  lyricLine: string,
+  semitones: number,
+  preferFlats: boolean
+): { pairs: ChordLyricPair[]; items: { text: string; isChord: boolean }[]; transposedChordLine: string } {
+  const CHORD_OR_BRACKETED_REGEX = /\[?([A-G][b#]?(?:m|maj|min|sus|add|dim|aug|2|4|5|6|7|9|11|13)*(?:\/[A-G][b#]?)?)\]?/g;
+  const chordMatches: { chord: string; index: number; length: number }[] = [];
+  const items: { text: string; isChord: boolean }[] = [];
+  let transposedChordLine = '';
+  let lastIdx = 0;
+  let m: RegExpExecArray | null;
+
+  while ((m = CHORD_OR_BRACKETED_REGEX.exec(chordLine)) !== null) {
+    if (m.index > lastIdx) {
+      const sp = chordLine.substring(lastIdx, m.index);
+      items.push({ text: sp, isChord: false });
+      transposedChordLine += sp;
+    }
+    const trans = transposeChord(m[1], semitones, preferFlats);
+    const isBracketed = m[0].startsWith('[');
+    items.push({ text: trans, isChord: true });
+    transposedChordLine += isBracketed ? `[${trans}]` : trans;
+
+    chordMatches.push({
+      chord: trans,
+      index: m.index,
+      length: m[0].length,
+    });
+    lastIdx = m.index + m[0].length;
+  }
+  if (lastIdx < chordLine.length) {
+    const trailingSp = chordLine.substring(lastIdx);
+    items.push({ text: trailingSp, isChord: false });
+    transposedChordLine += trailingSp;
+  }
+
+  if (chordMatches.length === 0) {
+    return {
+      pairs: [{ lyric: lyricLine }],
+      items,
+      transposedChordLine,
+    };
+  }
+
+  const pairs: ChordLyricPair[] = [];
+  // 1. Text before first chord
+  if (chordMatches[0].index > 0) {
+    const pre = lyricLine.substring(0, chordMatches[0].index);
+    if (pre) {
+      pairs.push({ lyric: pre });
+    }
+  }
+
+  // 2. Pair each chord with its matching segment of lyrics
+  for (let c = 0; c < chordMatches.length; c++) {
+    const current = chordMatches[c];
+    const nextStart = c + 1 < chordMatches.length
+      ? chordMatches[c + 1].index
+      : Math.max(lyricLine.length, current.index + current.length);
+    const slice = lyricLine.substring(current.index, nextStart);
+    pairs.push({
+      chord: current.chord,
+      lyric: slice !== '' ? slice : ' ',
+    });
+  }
+
+  return { pairs, items, transposedChordLine };
+}
+
+/**
+ * Parses ChordPro inline bracket chords ([C]Amazing [G]Grace) into atomic pairs.
+ */
+function parseChordProPairs(
+  line: string,
+  semitones: number,
+  preferFlats: boolean
+): { pairs: ChordLyricPair[]; items: { text: string; isChord: boolean }[]; transposedLine: string } {
+  const bracketRegex = /\[([A-G][b#]?[^\]]*)\]/g;
+  const pairs: ChordLyricPair[] = [];
+  const items: { text: string; isChord: boolean }[] = [];
+  let transposedLine = '';
+  let lastIdx = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = bracketRegex.exec(line)) !== null) {
+    if (match.index > lastIdx) {
+      const textBefore = line.substring(lastIdx, match.index);
+      items.push({ text: textBefore, isChord: false });
+      transposedLine += textBefore;
+      if (pairs.length === 0) {
+        pairs.push({ lyric: textBefore });
+      } else {
+        pairs[pairs.length - 1].lyric += textBefore;
+      }
+    }
+
+    const transChord = transposeChord(match[1], semitones, preferFlats);
+    items.push({ text: transChord, isChord: true });
+    transposedLine += `[${transChord}]`;
+    lastIdx = match.index + match[0].length;
+
+    // Find following lyric slice up to next bracket
+    const nextBracketIdx = line.indexOf('[', lastIdx);
+    const followingLyric = nextBracketIdx !== -1 ? line.substring(lastIdx, nextBracketIdx) : line.substring(lastIdx);
+
+    pairs.push({
+      chord: transChord,
+      lyric: followingLyric,
+    });
+
+    if (nextBracketIdx !== -1) {
+      items.push({ text: followingLyric, isChord: false });
+      transposedLine += followingLyric;
+      lastIdx = nextBracketIdx;
+      bracketRegex.lastIndex = nextBracketIdx;
+    } else {
+      if (followingLyric) {
+        items.push({ text: followingLyric, isChord: false });
+        transposedLine += followingLyric;
+      }
+      lastIdx = line.length;
+      break;
+    }
+  }
+
+  if (lastIdx < line.length) {
+    const trailing = line.substring(lastIdx);
+    items.push({ text: trailing, isChord: false });
+    transposedLine += trailing;
+    if (pairs.length > 0) {
+      pairs[pairs.length - 1].lyric += trailing;
+    } else {
+      pairs.push({ lyric: trailing });
+    }
+  }
+
+  return { pairs, items, transposedLine };
+}
 
 export function parseAndTransposeSheetLines(
   text: string,
@@ -168,7 +320,7 @@ export function parseAndTransposeSheetLines(
       result.push({
         type: 'section',
         raw: trimmed,
-        sectionName: cleanTitle
+        sectionName: cleanTitle,
       });
       continue;
     }
@@ -183,53 +335,74 @@ export function parseAndTransposeSheetLines(
     );
 
     if (isPureChordLine) {
-      // Split preserving spaces and replace chord tokens (whether in brackets [Bm] or plain Bm)
+      // Check if next line is a lyric line to pair with
+      const nextRaw = i + 1 < lines.length ? lines[i + 1] : null;
+      const nextTrimmed = nextRaw ? nextRaw.trim() : '';
+      const nextIsSection = nextTrimmed && (
+        SECTION_REGEX.test(nextTrimmed) ||
+        (STANDALONE_CUE_REGEX.test(nextTrimmed) && nextTrimmed.length <= 35 && !CHORD_TOKEN_REGEX.test(nextTrimmed)) ||
+        /^\[[^\]]+\]:?$/.test(nextTrimmed)
+      );
+      const nextUnbracketed = nextTrimmed.replace(/\[([A-G][b#]?[^\]]*)\]/g, '$1');
+      const nextWords = nextUnbracketed.split(/\s+/);
+      const nextIsPureChordLine = nextWords.length > 0 && nextWords.every(w =>
+        /^[A-G][b#]?(?:m|maj|min|sus|add|dim|aug|2|4|5|6|7|9|11|13)*(?:\/[A-G][b#]?)?$/.test(w) ||
+        /^[-–—()|/]+$/.test(w)
+      );
+      const nextIsLyrics = Boolean(nextTrimmed && !nextIsSection && !nextIsPureChordLine && !/\[[A-G][b#]?.*?\]/.test(nextRaw!));
+
+      if (nextIsLyrics && nextRaw !== null) {
+        // Interlock chords on line i with lyrics on line i+1
+        const { pairs, items, transposedChordLine } = pairChordsWithLyrics(rawLine, nextRaw, semitones, preferFlats);
+        result.push({
+          type: 'chord_line',
+          raw: transposedChordLine,
+          items,
+          pairs,
+          pairedLyric: nextRaw,
+        });
+        i++; // Consume the lyric line so it is not duplicated
+        continue;
+      }
+
+      // Instrumental chord line (Intro, Solo, etc. without words underneath)
       const items: { text: string; isChord: boolean }[] = [];
+      const pairs: ChordLyricPair[] = [];
       let lastIdx = 0;
       const CHORD_OR_BRACKETED_REGEX = /\[?([A-G][b#]?(?:m|maj|min|sus|add|dim|aug|2|4|5|6|7|9|11|13)*(?:\/[A-G][b#]?)?)\]?/g;
       let tokenMatch: RegExpExecArray | null;
 
       while ((tokenMatch = CHORD_OR_BRACKETED_REGEX.exec(rawLine)) !== null) {
         if (tokenMatch.index > lastIdx) {
-          items.push({ text: rawLine.substring(lastIdx, tokenMatch.index), isChord: false });
+          const sp = rawLine.substring(lastIdx, tokenMatch.index);
+          items.push({ text: sp, isChord: false });
         }
         const trans = transposeChord(tokenMatch[1], semitones, preferFlats);
         items.push({ text: trans, isChord: true });
+        pairs.push({ chord: trans, lyric: '   ' });
         lastIdx = tokenMatch.index + tokenMatch[0].length;
       }
       if (lastIdx < rawLine.length) {
         items.push({ text: rawLine.substring(lastIdx), isChord: false });
       }
 
-      result.push({ type: 'chord_line', raw: rawLine, items });
+      result.push({ type: 'chord_line', raw: rawLine, items, pairs });
       continue;
     }
 
     // ChordPro bracket format inside lyrics: e.g. "[C]Bless the [G]Lord"
     if (/\[[A-G][b#]?.*?\]/.test(rawLine)) {
-      const items: { text: string; isChord: boolean }[] = [];
-      let lastIdx = 0;
-      const bracketRegex = /\[([A-G][b#]?[^\]]*)\]/g;
-      let match: RegExpExecArray | null;
-
-      while ((match = bracketRegex.exec(rawLine)) !== null) {
-        if (match.index > lastIdx) {
-          items.push({ text: rawLine.substring(lastIdx, match.index), isChord: false });
-        }
-        const transChord = transposeChord(match[1], semitones, preferFlats);
-        items.push({ text: transChord, isChord: true });
-        lastIdx = match.index + match[0].length;
-      }
-
-      if (lastIdx < rawLine.length) {
-        items.push({ text: rawLine.substring(lastIdx), isChord: false });
-      }
-
-      result.push({ type: 'chordpro', raw: rawLine, items });
+      const { pairs, items, transposedLine } = parseChordProPairs(rawLine, semitones, preferFlats);
+      result.push({ type: 'chordpro', raw: transposedLine, items, pairs });
       continue;
     }
 
-    result.push({ type: 'lyrics', raw: rawLine });
+    // Pure Lyric line
+    result.push({
+      type: 'lyrics',
+      raw: rawLine,
+      pairs: [{ lyric: rawLine }],
+    });
   }
 
   return result;
@@ -246,9 +419,15 @@ export function transposeChordSheetText(
     .map((line) => {
       if (line.type === 'section') return line.raw;
       if (line.type === 'empty') return '';
-      if (line.type === 'lyrics') return line.raw;
-      if (line.type === 'chord_line' || line.type === 'chordpro') {
-        return (line.items || []).map((it) => it.text).join('');
+      if (line.type === 'chordpro') {
+        return (line.items || []).map((it) => it.isChord ? `[${it.text}]` : it.text).join('');
+      }
+      if (line.type === 'chord_line') {
+        const chordText = (line.items || []).map((it) => it.text).join('');
+        if (line.pairedLyric !== undefined) {
+          return `${chordText}\n${line.pairedLyric}`;
+        }
+        return chordText;
       }
       return line.raw;
     })

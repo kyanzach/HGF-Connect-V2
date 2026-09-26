@@ -96,7 +96,7 @@ export interface BandUser {
   id: string;
   username: string;
   displayName: string;
-  role: 'MD' | 'guitarist' | 'bassist' | 'keyboardist' | 'drummer' | 'vocalist' | 'sound' | 'admin' | string;
+  role: 'MD' | 'guitarist' | 'bassist' | 'keyboardist' | 'drummer' | 'vocalist' | 'sound' | 'admin' | 'leader' | 'backup_singer' | string;
   password?: string;
   createdAt?: number;
   updatedAt?: number;

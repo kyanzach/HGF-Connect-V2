@@ -23,6 +23,8 @@ interface NavigationDockProps {
   onOpenDurationPicker?: () => void;
   onForceRefresh?: () => void;
   isForceRefreshing?: boolean;
+  isLyricsOnly?: boolean;
+  onToggleLyricsOnly?: () => void;
 }
 
 export const NavigationDock: React.FC<NavigationDockProps> = ({
@@ -44,6 +46,8 @@ export const NavigationDock: React.FC<NavigationDockProps> = ({
   onOpenDurationPicker,
   onForceRefresh,
   isForceRefreshing = false,
+  isLyricsOnly = false,
+  onToggleLyricsOnly,
 }) => {
   return (
     <div
@@ -225,6 +229,51 @@ export const NavigationDock: React.FC<NavigationDockProps> = ({
           </div>
         )}
       </div>
+
+      {/* Lyrics-Only Mode Toggle (Singers / Vocalists Tool) */}
+      {onToggleLyricsOnly && (
+        <button
+          onClick={onToggleLyricsOnly}
+          title={
+            isLyricsOnly
+              ? 'Lyrics-Only Mode Active (Chords Hidden) • Tap to show chords'
+              : 'Lyrics-Only Mode (Hide Chords for Singers) • Tap for clean lyrics'
+          }
+          style={{
+            width: '44px',
+            height: '44px',
+            borderRadius: '50%',
+            backgroundColor: isLyricsOnly ? '#9333ea' : 'rgba(22, 28, 38, 0.85)',
+            backdropFilter: 'blur(10px)',
+            border: `1.5px solid ${isLyricsOnly ? '#c084fc' : '#334155'}`,
+            color: isLyricsOnly ? '#fff' : '#cbd5e1',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            boxShadow: isLyricsOnly
+              ? '0 0 16px rgba(168, 85, 247, 0.65), 0 6px 16px rgba(0,0,0,0.5)'
+              : '0 6px 16px rgba(0,0,0,0.5)',
+            transition: 'all 0.18s ease',
+          }}
+        >
+          <span style={{ fontSize: '15px', lineHeight: 1 }}>🎤</span>
+          <span
+            style={{
+              fontSize: '7.5px',
+              fontWeight: 900,
+              textTransform: 'uppercase',
+              marginTop: '2px',
+              letterSpacing: '0.2px',
+              color: isLyricsOnly ? '#fff' : '#94a3b8',
+              lineHeight: 1,
+            }}
+          >
+            {isLyricsOnly ? 'LYRICS' : 'CHORDS'}
+          </span>
+        </button>
+      )}
 
       {/* Font Size Zoom Stepper */}
       <div
