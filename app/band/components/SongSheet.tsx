@@ -45,6 +45,7 @@ interface SongSheetProps {
   onToggleLyricsOnly?: () => void;
   currentUser?: BandUser | null;
   onUpdateSongNotes?: (notes: string) => Promise<void>;
+  onRevertToMasterLyrics?: () => void;
 }
 
 export const SongSheet: React.FC<SongSheetProps> = ({
@@ -80,6 +81,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   onToggleLyricsOnly,
   currentUser,
   onUpdateSongNotes,
+  onRevertToMasterLyrics,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number | null>(null);
@@ -735,6 +737,45 @@ export const SongSheet: React.FC<SongSheetProps> = ({
                   <span>⏱️</span>
                   <span>Duration</span>
                 </button>
+              )}
+
+              {/* Personal / Device-Scoped Custom Lyrics Badge */}
+              {song?.hasCustomLyrics && onRevertToMasterLyrics && (
+                <span
+                  title="Viewing customized lyrics. Tap ↺ to restore church master."
+                  style={{
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    background: 'rgba(192, 132, 252, 0.15)',
+                    border: '1px solid rgba(192, 132, 252, 0.4)',
+                    color: '#c084fc',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                >
+                  <span>{currentUser ? '👤 My Sheet' : '📱 Device Sheet'}</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRevertToMasterLyrics();
+                    }}
+                    title="Revert to Church Master Lyrics"
+                    style={{
+                      border: 'none',
+                      background: 'none',
+                      color: '#c084fc',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      padding: 0,
+                      fontWeight: 900,
+                    }}
+                  >
+                    ↺
+                  </button>
+                </span>
               )}
             </div>
           </div>

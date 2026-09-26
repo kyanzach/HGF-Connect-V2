@@ -3,7 +3,7 @@
 
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import ConfirmModal from '@/components/ConfirmModal';
-import { Song, Setlist } from '../types/band';
+import { Song, Setlist, BandUser } from '../types/band';
 import { sortSetlistsUpcomingFirst, formatServiceDate, getTodayDateString } from '../lib/sortSetlists';
 
 type SortOption = 'order' | 'title' | 'key' | 'artist' | 'recent';
@@ -80,6 +80,7 @@ interface SetlistSidebarProps {
   onRemoveSongFromSetlist?: (songId: string, setlistId: string) => void;
   onReorderSongInSetlist?: (fromIndex: number, toIndex: number) => Promise<void> | void;
   onDeleteSong?: (id: string) => Promise<void> | void;
+  currentUser?: BandUser | null;
 }
 
 export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
@@ -99,6 +100,7 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
   onRemoveSongFromSetlist,
   onReorderSongInSetlist,
   onDeleteSong,
+  currentUser,
 }) => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [sortBy, setSortBy] = useState<SortOption>('order');
@@ -1012,29 +1014,31 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
                       </div>
                     )}
 
-                    {/* Quick Delete Song Action with Confirmation */}
-                    <button
-                      title="Delete song from songbook"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSongToDelete(song);
-                      }}
-                      style={{
-                        width: '22px',
-                        height: '22px',
-                        borderRadius: '5px',
-                        border: '1px solid rgba(239, 68, 68, 0.25)',
-                        background: 'rgba(239, 68, 68, 0.08)',
-                        color: '#f87171',
-                        fontSize: '11px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      🗑️
-                    </button>
+                    {/* Quick Delete Song Action (Admin / MD Only) */}
+                    {(currentUser?.role === 'admin' || currentUser?.role === 'MD') && (
+                      <button
+                        title="Delete song from songbook (Admin/MD)"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSongToDelete(song);
+                        }}
+                        style={{
+                          width: '22px',
+                          height: '22px',
+                          borderRadius: '5px',
+                          border: '1px solid rgba(239, 68, 68, 0.25)',
+                          background: 'rgba(239, 68, 68, 0.08)',
+                          color: '#f87171',
+                          fontSize: '11px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        🗑️
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -1054,28 +1058,30 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
         >
           <button
             onClick={() => {
-              onClose();
+              if (currentUser) onClose();
               onOpenNewSongModal();
             }}
+            title={currentUser ? "Add a new song to the church library" : "Login required to add songs (View-Only Mode)"}
             style={{
               flex: 1,
               height: '36px',
               borderRadius: '8px',
-              background: '#4EB1CB',
-              border: 'none',
-              color: '#000',
+              background: currentUser ? '#4EB1CB' : 'rgba(78, 177, 203, 0.15)',
+              border: currentUser ? 'none' : '1px dashed rgba(78, 177, 203, 0.4)',
+              color: currentUser ? '#000' : '#4EB1CB',
               fontWeight: 800,
               fontSize: '11px',
               cursor: 'pointer',
             }}
           >
-            + Add Song
+            {currentUser ? '+ Add Song' : '🔒 + Add Song'}
           </button>
           <button
             onClick={() => {
-              onClose();
+              if (currentUser) onClose();
               onOpenScraper('');
             }}
+            title={currentUser ? "Search & scrape chord charts" : "Login required to scrape chords"}
             style={{
               flex: 1,
               height: '36px',
@@ -1088,13 +1094,14 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
               cursor: 'pointer',
             }}
           >
-            🔍 Search Chords
+            {currentUser ? '🔍 Search' : '🔒 Search'}
           </button>
           <button
             onClick={() => {
-              onClose();
+              if (currentUser) onClose();
               onOpenSetlistAdmin();
             }}
+            title={currentUser ? "Manage & create setlists" : "Login required to manage setlists"}
             style={{
               flex: 1,
               height: '36px',
@@ -1107,7 +1114,7 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
               cursor: 'pointer',
             }}
           >
-            Setlists
+            {currentUser ? 'Setlists' : '🔒 Setlists'}
           </button>
         </div>
       </aside>

@@ -5,6 +5,24 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.70.2] — 2026-09-26
+### Added / Changed — URL Copy & App Reload on Logo, Device vs Personal Sheet Lyrics Storage, Non-Login View-Only Access & MD Worship Leader Key Integrity
+- **Top Header Logo App Reload & URL Copy (`StageTopBar.tsx`, `NavigationDock.tsx`)**:
+  - Removed redundant floating refresh FAB (`🔄`) from the bottom navigation dock.
+  - Upgraded the top header logo button (`🎼` / `🔗` shortlink `https://hgfapp.link/chords`) to perform a simultaneous URL copy, client cache purge (`caches.keys()`), service worker update/unregistration, and full application reload to guarantee instantaneous client updates.
+- **Device-Stored (Guests) vs. Personal Database (Logged-In Members) Sheet Customization (`SongEditorModal.tsx`, `SongSheet.tsx`, `app/band/page.tsx`, `/api/worship/scratch`)**:
+  - Non-logged-in users editing song lyrics/chords save customizations strictly to device memory (`localStorage`), leaving the church library untouched.
+  - Logged-in band members save personal customized song charts to their user account database (`/api/worship/scratch`), automatically syncing across all their personal devices.
+  - Admins and Musical Directors (MD) have dual-mode options: publish changes to the Church Master Library or save to their personal sheet.
+  - Added a `👤 My Sheet ↺` / `📱 Device Sheet ↺` badge with one-tap revert to restore the Church Master chord chart at any time.
+- **Access Control & View-Only Mode for Non-Login Users (`SetlistSidebar.tsx`, `app/band/page.tsx`)**:
+  - Gated song additions, scraper imports, and setlist management behind a login check modal (`ConfirmModal`).
+  - Restricted song deletion in library to Admin and MD roles only.
+- **Preserved Official MD Key Chords Role & Worship Leader Key Reference (`app/band/page.tsx`, `StageTopBar.tsx`, `KeyPickerModal.tsx`)**:
+  - Maintained the MD role authority where the MD's setlist key (or master song key) remains the official worship leader key.
+  - Any band member or viewer can freely transpose on their device without mutating the church setlist key for others.
+  - The `WL: [Key] ↺` button remains active in `StageTopBar` to instantly reset back to the official key set by the MD.
+
 ## [v2.70.1] — 2026-09-26
 ### Changed / Fixed — Auto-Scroll Speed Default, Floating Badge Removal & Immersion Toast Silencing
 - **Default Auto-Scroll to Speed Mode (`app/band/page.tsx`, `AutoScrollBar.tsx`)**:

@@ -66,6 +66,8 @@ export interface Song {
   useBacktrack?: boolean;
   drawingStrokes?: DrawingStroke[];
   updatedAt?: number;
+  saveAsMaster?: boolean;
+  hasCustomLyrics?: boolean;
 }
 
 export interface SetlistSongItem {

@@ -57,17 +57,42 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
   onOpenInstallModal,
 }) => {
   const [copiedLink, setCopiedLink] = React.useState(false);
+  const [isUpdatingApp, setIsUpdatingApp] = React.useState(false);
   const sortedSetlists = useMemo(() => sortSetlistsUpcomingFirst(setlists), [setlists]);
   const todayStr = useMemo(() => getTodayDateString(), []);
 
-  const handleCopyShortlink = () => {
+  const handleCopyAndRefresh = async () => {
     const url = 'https://hgfapp.link/chords';
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(url).then(() => {
-        setCopiedLink(true);
-        setTimeout(() => setCopiedLink(false), 2000);
-      }).catch(() => {});
-    }
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(url);
+      }
+    } catch (_) {}
+    setCopiedLink(true);
+    setIsUpdatingApp(true);
+
+    try {
+      if (typeof window !== 'undefined') {
+        if ('serviceWorker' in navigator) {
+          try {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map((r) => r.update().catch(() => {})));
+          } catch (_) {}
+        }
+        if ('caches' in window) {
+          try {
+            const keys = await caches.keys();
+            await Promise.all(keys.map((k) => caches.delete(k)));
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+
+    setTimeout(() => {
+      if (typeof window !== 'undefined') {
+        window.location.reload();
+      }
+    }, 450);
   };
 
   return (
@@ -88,6 +113,12 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
         userSelect: 'none',
       }}
     >
+      <style>{`
+        @keyframes spinRefresh {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
       {/* ROW 1: BRAND, SETLIST SELECTOR, PROFILE */}
       <div
         style={{
@@ -122,8 +153,14 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
             ☰
           </button>
           <button
-            onClick={handleCopyShortlink}
-            title={copiedLink ? 'Copied shortlink (hgfapp.link/chords)!' : 'HGF Band (Tap to copy hgfapp.link/chords)'}
+            onClick={handleCopyAndRefresh}
+            title={
+              isUpdatingApp
+                ? 'Updating to latest app version...'
+                : copiedLink
+                ? 'Link copied! Updating app to latest version...'
+                : 'HGF Band (Tap to copy hgfapp.link/chords & reload/update app)'
+            }
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -131,15 +168,21 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
               width: '34px',
               height: '34px',
               borderRadius: '8px',
-              border: `1px solid ${copiedLink ? '#10b981' : '#2d3f5e'}`,
-              background: copiedLink ? 'rgba(16, 185, 129, 0.2)' : 'rgba(78, 177, 203, 0.12)',
+              border: `1px solid ${copiedLink || isUpdatingApp ? '#10b981' : '#2d3f5e'}`,
+              background: copiedLink || isUpdatingApp ? 'rgba(16, 185, 129, 0.2)' : 'rgba(78, 177, 203, 0.12)',
               fontSize: '17px',
-              cursor: 'pointer',
+              cursor: isUpdatingApp ? 'wait' : 'pointer',
               flexShrink: 0,
               transition: 'all 0.2s ease',
             }}
           >
-            {copiedLink ? '🔗' : '🎼'}
+            {isUpdatingApp ? (
+              <span style={{ display: 'inline-block', animation: 'spinRefresh 0.75s linear infinite' }}>🔄</span>
+            ) : copiedLink ? (
+              '🔗'
+            ) : (
+              '🎼'
+            )}
           </button>
         </div>
 

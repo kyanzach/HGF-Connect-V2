@@ -82,6 +82,23 @@ export default function BandStagePage() {
     refreshData,
   } = useSetlist();
 
+  // Personal and device custom lyrics map: songId -> custom chords
+  const [personalLyricsMap, setPersonalLyricsMap] = useState<Record<string, string>>({});
+
+  // Compute effective song by applying personal/device custom lyrics overrides
+  const effectiveSong = useMemo(() => {
+    if (!currentSong) return null;
+    const customChords = personalLyricsMap[currentSong.id];
+    if (customChords !== undefined) {
+      return {
+        ...currentSong,
+        chords: customChords,
+        hasCustomLyrics: true,
+      };
+    }
+    return currentSong;
+  }, [currentSong, personalLyricsMap]);
+
   const {
     transposeOffset,
     capo,
@@ -93,7 +110,7 @@ export default function BandStagePage() {
     setTargetKey,
     resetTranspose,
     parsedLines,
-  } = useMusicTheory(currentSong, activeSetlistId);
+  } = useMusicTheory(effectiveSong, activeSetlistId);
 
   const {
     tempo,
@@ -410,7 +427,7 @@ export default function BandStagePage() {
   // Login Gate Modal
   const [loginPrompt, setLoginPrompt] = useState<{
     open: boolean;
-    feature: 'draw' | 'notes' | null;
+    feature: 'draw' | 'notes' | 'add_song' | 'setlist' | null;
   }>({ open: false, feature: null });
 
   const [drawingSyncTick, setDrawingSyncTick] = useState<number>(0);
@@ -501,38 +518,80 @@ export default function BandStagePage() {
     });
   }, []);
 
-  // Floating Force Clear Cache & Refresh Sheets
-  const [isForceRefreshing, setIsForceRefreshing] = useState<boolean>(false);
   const [refreshToast, setRefreshToast] = useState<string | null>(null);
 
-  const handleForceRefreshApp = useCallback(async () => {
-    setIsForceRefreshing(true);
+  // Hydrate custom lyrics (from device localStorage and user personal database)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const loadedMap: Record<string, string> = {};
+
+    // 1. Load device-stored lyrics (guest or offline)
     try {
-      if (typeof window !== 'undefined') {
-        if ('serviceWorker' in navigator) {
-          try {
-            const regs = await navigator.serviceWorker.getRegistrations();
-            await Promise.all(regs.map((r) => r.update().catch(() => {})));
-          } catch (_) {}
-        }
-        if ('caches' in window) {
-          try {
-            const keys = await caches.keys();
-            await Promise.all(keys.filter((k) => k.includes('hgf-connect') || k.includes('band')).map((k) => caches.delete(k)));
-          } catch (_) {}
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('hgf_device_lyrics_')) {
+          const sId = k.replace('hgf_device_lyrics_', '');
+          const val = localStorage.getItem(k);
+          if (val) loadedMap[sId] = val;
         }
       }
-      await refreshData();
-      setRefreshToast('✅ Sheet lyrics & app updated!');
-      setTimeout(() => setRefreshToast(null), 2500);
-    } catch (err) {
-      console.error('Refresh error:', err);
-      setRefreshToast('⚠️ Update failed, retrying...');
-      setTimeout(() => setRefreshToast(null), 2000);
-    } finally {
-      setIsForceRefreshing(false);
+    } catch (_) {}
+
+    // 2. Load personal user lyrics from database if logged in
+    if (currentUser?.id) {
+      try {
+        const uId = currentUser.id;
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith(`hgf_personal_lyrics_${uId}_`)) {
+            const sId = k.replace(`hgf_personal_lyrics_${uId}_`, '');
+            const val = localStorage.getItem(k);
+            if (val) loadedMap[sId] = val;
+          }
+        }
+      } catch (_) {}
+
+      fetch(`/api/worship/scratch?userId=${encodeURIComponent(currentUser.id)}`, { cache: 'no-store' })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.lyricsMap && typeof data.lyricsMap === 'object') {
+            setPersonalLyricsMap((prev) => ({ ...prev, ...data.lyricsMap }));
+            try {
+              Object.entries(data.lyricsMap).forEach(([sid, chords]) => {
+                if (typeof chords === 'string') {
+                  localStorage.setItem(`hgf_personal_lyrics_${currentUser.id}_${sid}`, chords);
+                }
+              });
+            } catch (_) {}
+          }
+        })
+        .catch(() => {});
     }
-  }, [refreshData]);
+
+    setPersonalLyricsMap(loadedMap);
+  }, [currentUser?.id]);
+
+  const handleRevertToMasterLyrics = useCallback(async (songId?: string) => {
+    if (!songId) return;
+    try {
+      localStorage.removeItem(`hgf_device_lyrics_${songId}`);
+      if (currentUser?.id) {
+        localStorage.removeItem(`hgf_personal_lyrics_${currentUser.id}_${songId}`);
+        await fetch(`/api/worship/scratch?userId=${encodeURIComponent(currentUser.id)}&songId=${encodeURIComponent(songId)}&clearLyricsOnly=true`, {
+          method: 'DELETE',
+        }).catch(() => {});
+      }
+      setPersonalLyricsMap((prev) => {
+        const next = { ...prev };
+        delete next[songId];
+        return next;
+      });
+      setRefreshToast('↺ Reverted to Church Master Sheet');
+      setTimeout(() => setRefreshToast(null), 2500);
+    } catch (e) {
+      console.error('Error reverting custom lyrics:', e);
+    }
+  }, [currentUser?.id]);
 
   // MD Live Stage Sync state for church WiFi stage harmony
   interface LiveSyncState {
@@ -851,6 +910,24 @@ export default function BandStagePage() {
     }
   }, [currentSong?.id, currentSong?.tempo, currentSong?.timeSignature, setTempo, setMetronomeSignature]);
 
+  // Official MD / Worship Leader key reference:
+  // When inside a setlist, the MD setlist key is the official worship leader key.
+  // When in All Songs, the master song key is the reference.
+  const officialWorshipLeaderKey = useMemo(() => {
+    return activeSongMdDefaults?.key || currentSong?.originalKey || currentSong?.key || null;
+  }, [activeSongMdDefaults?.key, currentSong?.originalKey, currentSong?.key]);
+
+  const isKeySessionOverridden = useMemo(() => {
+    if (activeSetlistId && activeSongMdDefaults) {
+      return isCurrentSongSessionOverridden || (effectiveKey !== activeSongMdDefaults.key);
+    }
+    if (currentSong) {
+      const baseKey = currentSong.originalKey || currentSong.key;
+      return Boolean(baseKey && effectiveKey !== baseKey);
+    }
+    return false;
+  }, [activeSetlistId, activeSongMdDefaults, isCurrentSongSessionOverridden, effectiveKey, currentSong]);
+
   // Unified Key Change with Worship Leader Setlist Gate
   const handleKeyChangeRequest = (newKey: string) => {
     if (!currentSong) return;
@@ -863,6 +940,10 @@ export default function BandStagePage() {
       } else {
         setSongSessionOverride(currentSong.id, { key: newKey });
       }
+    } else {
+      try {
+        localStorage.setItem(`hgf_device_key_${currentSong.id}`, newKey);
+      } catch (_) {}
     }
 
     setTargetKey(newKey);
@@ -882,10 +963,18 @@ export default function BandStagePage() {
     handleKeyChangeRequest(nextKey);
   };
 
-  const handleRevertToMdKey = () => {
-    if (!currentSong || !activeSongMdDefaults) return;
-    revertToMdDefault(currentSong.id);
-    setTargetKey(activeSongMdDefaults.key);
+  const handleUnifiedRevertKey = () => {
+    if (!currentSong) return;
+    if (activeSetlistId && activeSongMdDefaults) {
+      revertToMdDefault(currentSong.id);
+      setTargetKey(activeSongMdDefaults.key);
+    } else {
+      const origKey = currentSong.originalKey || currentSong.key || 'C';
+      setTargetKey(origKey);
+      try {
+        localStorage.removeItem(`hgf_device_key_${currentSong.id}`);
+      } catch (_) {}
+    }
   };
 
   // Hydrate user-level personal strokes from server when song/user changes
@@ -936,40 +1025,93 @@ export default function BandStagePage() {
   });
 
   // Handlers for Song actions
-  const handleSaveSong = async (updatedSong: Song) => {
-    if (activeSetlist) {
-      // In active setlist mode, update the setlist's song item (preserving MD setlist isolation)
-      const updatedSongs = (activeSetlist.songs || []).map((s) => {
-        const id = typeof s === 'string' ? s : s.id;
-        if (id === updatedSong.id) {
-          return {
-            ...(typeof s === 'object' ? s : { id }),
-            title: updatedSong.title,
-            artist: updatedSong.artist,
-            key: updatedSong.key,
-            capo: updatedSong.capo,
-            tempo: typeof updatedSong.tempo === 'number' ? updatedSong.tempo : undefined,
-            timeSignature: updatedSong.timeSignature,
-            duration: updatedSong.duration,
-            chords: updatedSong.chords,
-            audioTrack: updatedSong.audioTrack,
-          };
-        }
-        return s;
+  const handleSaveSong = async (updatedSong: Song & { saveAsMaster?: boolean }) => {
+    // 1. Non-logged-in guest: Save strictly to this device's memory
+    if (!currentUser) {
+      try {
+        localStorage.setItem(`hgf_device_lyrics_${updatedSong.id}`, updatedSong.chords);
+      } catch (_) {}
+      setPersonalLyricsMap((prev) => ({ ...prev, [updatedSong.id]: updatedSong.chords }));
+      setRefreshToast('📱 Saved to device memory');
+      setTimeout(() => setRefreshToast(null), 2500);
+      return;
+    }
+
+    const canPublishMaster = isUserMD || currentUser.role === 'admin';
+
+    // 2. MD or Admin choosing to publish to the Church Master Library
+    if (canPublishMaster && updatedSong.saveAsMaster) {
+      if (activeSetlist) {
+        // In active setlist mode, update the setlist's song item (preserving MD setlist isolation)
+        const updatedSongs = (activeSetlist.songs || []).map((s) => {
+          const id = typeof s === 'string' ? s : s.id;
+          if (id === updatedSong.id) {
+            return {
+              ...(typeof s === 'object' ? s : { id }),
+              title: updatedSong.title,
+              artist: updatedSong.artist,
+              key: updatedSong.key,
+              capo: updatedSong.capo,
+              tempo: typeof updatedSong.tempo === 'number' ? updatedSong.tempo : undefined,
+              timeSignature: updatedSong.timeSignature,
+              duration: updatedSong.duration,
+              chords: updatedSong.chords,
+              audioTrack: updatedSong.audioTrack,
+            };
+          }
+          return s;
+        });
+        await handleSaveSetlist({ ...activeSetlist, songs: updatedSongs });
+      } else {
+        // Under All Songs: update library master without mutating isolated setlist snapshots
+        await fetch('/api/worship', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedSong),
+        });
+        await refreshData();
+      }
+
+      // Clear any personal override for this song so master is shown
+      try {
+        localStorage.removeItem(`hgf_device_lyrics_${updatedSong.id}`);
+        localStorage.removeItem(`hgf_personal_lyrics_${currentUser.id}_${updatedSong.id}`);
+        await fetch(`/api/worship/scratch?userId=${encodeURIComponent(currentUser.id)}&songId=${encodeURIComponent(updatedSong.id)}&clearLyricsOnly=true`, { method: 'DELETE' }).catch(() => {});
+      } catch (_) {}
+      setPersonalLyricsMap((prev) => {
+        const next = { ...prev };
+        delete next[updatedSong.id];
+        return next;
       });
-      await handleSaveSetlist({ ...activeSetlist, songs: updatedSongs });
-    } else {
-      // Under All Songs: update library master without mutating isolated setlist snapshots
-      await fetch('/api/worship', {
+      setRefreshToast('🌐 Saved as Church Master Sheet');
+      setTimeout(() => setRefreshToast(null), 2500);
+      return;
+    }
+
+    // 3. Regular band member (or MD saving to personal sheet): save to personal user database
+    try {
+      await fetch('/api/worship/scratch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedSong),
+        body: JSON.stringify({
+          userId: currentUser.id,
+          songId: updatedSong.id,
+          customChords: updatedSong.chords,
+        }),
       });
-      await refreshData();
-    }
+      localStorage.setItem(`hgf_personal_lyrics_${currentUser.id}_${updatedSong.id}`, updatedSong.chords);
+    } catch (_) {}
+    setPersonalLyricsMap((prev) => ({ ...prev, [updatedSong.id]: updatedSong.chords }));
+    setRefreshToast('👤 Saved to your personal sheet');
+    setTimeout(() => setRefreshToast(null), 2500);
   };
 
   const handleDeleteSong = async (songId: string) => {
+    if (!currentUser || (currentUser.role !== 'admin' && !isUserMD)) {
+      setRefreshToast('⚠️ Admin or MD access required to delete songs');
+      setTimeout(() => setRefreshToast(null), 2500);
+      return;
+    }
     await fetch(`/api/worship?id=${encodeURIComponent(songId)}`, {
       method: 'DELETE',
     });
@@ -1257,7 +1399,7 @@ export default function BandStagePage() {
   }, [currentSong?.id, isUserMD]);
 
   const handleSaveAsMdKey = async (newKey: string) => {
-    if (!currentSong || currentUser?.role !== 'MD') return;
+    if (!currentSong || (!isUserMD && currentUser?.role !== 'admin')) return;
 
     if (activeSetlist) {
       const updatedSongs = (activeSetlist.songs || []).map((s) => {
@@ -1272,9 +1414,13 @@ export default function BandStagePage() {
       });
       const updated = { ...activeSetlist, songs: updatedSongs };
       await handleSaveSetlist(updated);
+      setRefreshToast(`⭐ Saved ${newKey} as official Worship Leader key!`);
+      setTimeout(() => setRefreshToast(null), 2500);
     } else {
       const updated = { ...currentSong, originalKey: newKey, key: newKey };
-      await handleSaveSong(updated);
+      await handleSaveSong({ ...updated, saveAsMaster: true });
+      setRefreshToast(`⭐ Saved ${newKey} as song original key!`);
+      setTimeout(() => setRefreshToast(null), 2500);
     }
   };
 
@@ -1383,16 +1529,16 @@ export default function BandStagePage() {
           }}
           onOpenAmbientPad={() => setIsAmbientPadOpen(true)}
           onToggleSidebar={() => setIsSidebarOpen(true)}
-          isSessionOverridden={isCurrentSongSessionOverridden}
-          worshipLeaderKey={activeSongMdDefaults?.key}
-          onRevertKey={handleRevertToMdKey}
+          isSessionOverridden={isKeySessionOverridden}
+          worshipLeaderKey={officialWorshipLeaderKey || undefined}
+          onRevertKey={handleUnifiedRevertKey}
           onOpenInstallModal={() => setIsInstallModalOpen(true)}
         />
       )}
 
       {/* STAGE SONG SHEET (Embeds persistent drawing canvas over sheet content) */}
       <SongSheet
-        song={currentSong}
+        song={effectiveSong}
         displayKey={displayKey}
         parsedLines={parsedLines}
         fontSizePx={fontSizePx}
@@ -1401,8 +1547,9 @@ export default function BandStagePage() {
         onToggleAutoScroll={handleToggleAutoScroll}
         onSwipeLeft={nextSong}
         onSwipeRight={prevSong}
-        isSessionOverridden={isCurrentSongSessionOverridden}
-        worshipLeaderKey={activeSongMdDefaults?.key}
+        isSessionOverridden={isKeySessionOverridden}
+        worshipLeaderKey={officialWorshipLeaderKey || undefined}
+        onRevertToMasterLyrics={() => handleRevertToMasterLyrics(currentSong?.id)}
         plannedDuration={currentSongDuration}
         onOpenDurationPicker={() => setIsDurationModalOpen(true)}
         scrollMode={scrollMode}
@@ -1456,8 +1603,6 @@ export default function BandStagePage() {
           hasPlaybackDock={isPlaybackDockVisible}
           duration={currentSongDuration}
           onOpenDurationPicker={() => setIsDurationModalOpen(true)}
-          onForceRefresh={handleForceRefreshApp}
-          isForceRefreshing={isForceRefreshing}
           isLyricsOnly={isLyricsOnly}
           onToggleLyricsOnly={handleToggleLyricsOnly}
         />
@@ -1653,11 +1798,25 @@ export default function BandStagePage() {
         onSelectSong={selectSong}
         onSelectSetlist={handleSelectSetlist}
         onOpenNewSongModal={() => {
+          if (!currentUser) {
+            setLoginPrompt({ open: true, feature: 'add_song' });
+            return;
+          }
           setEditingSong(null);
           setIsEditModalOpen(true);
         }}
-        onOpenSetlistAdmin={() => setIsSetlistAdminOpen(true)}
+        onOpenSetlistAdmin={() => {
+          if (!currentUser) {
+            setLoginPrompt({ open: true, feature: 'setlist' });
+            return;
+          }
+          setIsSetlistAdminOpen(true);
+        }}
         onOpenScraper={(initialQ) => {
+          if (!currentUser) {
+            setLoginPrompt({ open: true, feature: 'add_song' });
+            return;
+          }
           setScraperQuery(initialQ || '');
           setIsScraperOpen(true);
         }}
@@ -1665,22 +1824,31 @@ export default function BandStagePage() {
         onRemoveSongFromSetlist={removeSongFromSetlist}
         onReorderSongInSetlist={reorderSongInSetlist}
         onDeleteSong={handleDeleteSong}
+        currentUser={currentUser}
       />
 
       {/* MODALS */}
       <SongEditorModal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
-        song={editingSong}
+        song={editingSong || effectiveSong}
         onSaveSong={async (saved) => {
           await handleSaveSong(saved);
           selectSong(saved.id);
         }}
         onDeleteSong={handleDeleteSong}
         onOpenScraper={(q) => {
+          if (!currentUser) {
+            setLoginPrompt({ open: true, feature: 'add_song' });
+            return;
+          }
           setScraperQuery(q || '');
           setIsScraperOpen(true);
         }}
+        currentUser={currentUser}
+        isUserMD={Boolean(isUserMD || currentUser?.role === 'admin')}
+        hasCustomLyrics={Boolean(effectiveSong?.hasCustomLyrics)}
+        onRevertToMasterLyrics={() => handleRevertToMasterLyrics(editingSong?.id || currentSong?.id)}
       />
 
       <KeyPickerModal
@@ -1690,7 +1858,7 @@ export default function BandStagePage() {
         capo={capo}
         onSelectKey={(newKey) => handleKeyChangeRequest(newKey)}
         onSelectCapo={setCapo}
-        isBandAdmin={isUserMD}
+        isBandAdmin={Boolean(isUserMD || currentUser?.role === 'admin')}
         onSaveAsMdKey={() => handleSaveAsMdKey(effectiveKey)}
       />
 
@@ -1788,14 +1956,18 @@ export default function BandStagePage() {
         }}
       />
 
-      {/* Login Prompt Modal for Draw & Notes */}
+      {/* Login Prompt Modal for Draw, Notes, Adding Songs & Setlists */}
       <ConfirmModal
         open={loginPrompt.open}
         title="Band Login Required"
         message={
           loginPrompt.feature === 'draw'
             ? 'You must be logged in to draw live stage annotations and synchronize them with your band.'
-            : 'You must be logged in to access and add private musician notes.'
+            : loginPrompt.feature === 'notes'
+            ? 'You must be logged in to access and add private musician notes.'
+            : loginPrompt.feature === 'add_song'
+            ? 'You must be logged in with a band account to add songs to the church music library.'
+            : 'You must be logged in with a band account to create or manage setlists.'
         }
         confirmLabel="Log In Now"
         confirmColor="#4EB1CB"

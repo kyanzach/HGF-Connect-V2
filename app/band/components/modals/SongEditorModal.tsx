@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import ConfirmModal from '@/components/ConfirmModal';
-import { Song } from '../../types/band';
+import { Song, BandUser } from '../../types/band';
 import {
   getDiatonicChordsForKey,
   getRootNote,
@@ -17,9 +17,13 @@ interface SongEditorModalProps {
   isOpen: boolean;
   onClose: () => void;
   song: Song | null;
-  onSaveSong: (song: Song) => Promise<void>;
+  onSaveSong: (song: Song & { saveAsMaster?: boolean }) => Promise<void>;
   onDeleteSong?: (id: string) => Promise<void>;
   onOpenScraper?: (initialQuery?: string) => void;
+  currentUser?: BandUser | null;
+  isUserMD?: boolean;
+  hasCustomLyrics?: boolean;
+  onRevertToMasterLyrics?: () => void;
 }
 
 export const SongEditorModal: React.FC<SongEditorModalProps> = ({
@@ -29,6 +33,10 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
   onSaveSong,
   onDeleteSong,
   onOpenScraper,
+  currentUser,
+  isUserMD,
+  hasCustomLyrics,
+  onRevertToMasterLyrics,
 }) => {
   const [title, setTitle] = useState<string>('');
   const [artist, setArtist] = useState<string>('');
@@ -77,7 +85,9 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSave = async () => {
+  const isMasterAdmin = currentUser?.role === 'admin' || isUserMD;
+
+  const handleSave = async (saveAsMaster: boolean = false) => {
     if (!title.trim()) {
       setErrorMessage('Song title is required.');
       return;
@@ -101,6 +111,7 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
         notes: notes.trim(),
         exhortation: notes.trim(),
         updatedAt: Date.now(),
+        saveAsMaster: saveAsMaster && isMasterAdmin,
       };
       await onSaveSong(updated);
       onClose();
@@ -237,6 +248,66 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
             </button>
           </div>
         </div>
+
+        {/* ACCESS / STORAGE SCOPE BANNER */}
+        {!currentUser ? (
+          <div
+            style={{
+              padding: '8px 16px',
+              backgroundColor: 'rgba(56, 189, 248, 0.1)',
+              borderBottom: '1px solid rgba(56, 189, 248, 0.25)',
+              color: '#38bdf8',
+              fontSize: '11.5px',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <span>📱</span>
+            <span>
+              <strong>Device Memory Mode:</strong> Lyrics and chord edits will be saved locally on this device only. The church library master will remain untouched.
+            </span>
+          </div>
+        ) : !isMasterAdmin ? (
+          <div
+            style={{
+              padding: '8px 16px',
+              backgroundColor: 'rgba(192, 132, 252, 0.1)',
+              borderBottom: '1px solid rgba(192, 132, 252, 0.25)',
+              color: '#c084fc',
+              fontSize: '11.5px',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <span>👤</span>
+            <span>
+              <strong>Personal Sheet Database:</strong> Saved to your account ({currentUser.displayName || currentUser.username}) for your rehearsals and stage use. Leaves the church master sheet untouched.
+            </span>
+          </div>
+        ) : (
+          <div
+            style={{
+              padding: '8px 16px',
+              backgroundColor: 'rgba(78, 177, 203, 0.1)',
+              borderBottom: '1px solid rgba(78, 177, 203, 0.25)',
+              color: '#4EB1CB',
+              fontSize: '11.5px',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <span>👑</span>
+            <span>
+              <strong>Admin / MD Access:</strong> You can publish changes directly to the Church Master Library or save to your personal sheet.
+            </span>
+          </div>
+        )}
 
         {/* Form Body */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -606,7 +677,7 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
           </div>
         </div>
 
-        {/* Footer */}
+        {/* Footer Actions */}
         <div
           style={{
             padding: '16px 20px',
@@ -614,29 +685,61 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            gap: '8px',
+            flexWrap: 'wrap',
           }}
         >
-          {song && onDeleteSong ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {hasCustomLyrics && onRevertToMasterLyrics && (
+              <button
+                type="button"
+                onClick={() => {
+                  onRevertToMasterLyrics();
+                  onClose();
+                }}
+                title="Discard your custom lyrics and revert to the church master chord chart"
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  border: '1px solid rgba(239, 68, 68, 0.35)',
+                  color: '#f87171',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                <span>↺</span>
+                <span>Reset to Church Master</span>
+              </button>
+            )}
+
+            {song && onDeleteSong && isMasterAdmin && (
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(true)}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: '8px',
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  border: '1px solid #ef4444',
+                  color: '#f87171',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                🗑️ Delete Song
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <button
               type="button"
-              onClick={() => setShowDeleteConfirm(true)}
-              style={{
-                padding: '8px 14px',
-                borderRadius: '8px',
-                background: 'rgba(239, 68, 68, 0.15)',
-                border: '1px solid #ef4444',
-                color: '#f87171',
-                fontSize: '12px',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              🗑️ Delete Song
-            </button>
-          ) : <div />}
-
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button
               onClick={onClose}
               style={{
                 padding: '8px 16px',
@@ -651,22 +754,85 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
             >
               Cancel
             </button>
-            <button
-              onClick={handleSave}
-              disabled={isSaving}
-              style={{
-                padding: '8px 20px',
-                borderRadius: '8px',
-                background: '#4EB1CB',
-                border: 'none',
-                color: '#000',
-                fontSize: '13px',
-                fontWeight: 800,
-                cursor: 'pointer',
-              }}
-            >
-              {isSaving ? 'Saving...' : 'Save Song'}
-            </button>
+
+            {!currentUser ? (
+              <button
+                type="button"
+                onClick={() => handleSave(false)}
+                disabled={isSaving}
+                title="Save changes on this device only (Won't alter church database)"
+                style={{
+                  padding: '8px 18px',
+                  borderRadius: '8px',
+                  background: '#38bdf8',
+                  border: 'none',
+                  color: '#000',
+                  fontSize: '13px',
+                  fontWeight: 800,
+                  cursor: isSaving ? 'wait' : 'pointer',
+                }}
+              >
+                {isSaving ? 'Saving...' : '💾 Save to Device'}
+              </button>
+            ) : !isMasterAdmin ? (
+              <button
+                type="button"
+                onClick={() => handleSave(false)}
+                disabled={isSaving}
+                title="Save changes to your personal account database"
+                style={{
+                  padding: '8px 18px',
+                  borderRadius: '8px',
+                  background: '#c084fc',
+                  border: 'none',
+                  color: '#000',
+                  fontSize: '13px',
+                  fontWeight: 800,
+                  cursor: isSaving ? 'wait' : 'pointer',
+                }}
+              >
+                {isSaving ? 'Saving...' : '💾 Save to My Account'}
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => handleSave(false)}
+                  disabled={isSaving}
+                  title="Save only to your personal sheet"
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: '8px',
+                    background: '#1e293b',
+                    border: '1px solid #c084fc',
+                    color: '#c084fc',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: isSaving ? 'wait' : 'pointer',
+                  }}
+                >
+                  👤 Personal Sheet
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSave(true)}
+                  disabled={isSaving}
+                  title="Publish update to Church Master Library for everyone"
+                  style={{
+                    padding: '8px 18px',
+                    borderRadius: '8px',
+                    background: '#4EB1CB',
+                    border: 'none',
+                    color: '#000',
+                    fontSize: '13px',
+                    fontWeight: 800,
+                    cursor: isSaving ? 'wait' : 'pointer',
+                  }}
+                >
+                  {isSaving ? 'Saving...' : '🌐 Save Master (Church)'}
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
