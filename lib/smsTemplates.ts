@@ -184,70 +184,83 @@ export const BIBLE_VERSES: Record<string, Record<string, string[]>> = {
 };
 
 // Compact 1-Credit (< 160 Characters) SMS Templates
+// Note: SenderID ("HGF Church" / "HGF Connect") is handled at the SMS gateway level.
+// Do not prepend "HGF:" or append "-HGF" to avoid redundancy and maximize usable message length.
 export const TEMPLATES: Record<string, Record<string, string>> = {
   sunday_service: {
-    oneday: `HGF: Hi {name}! Sunday Service "{event_title}" is tomorrow {date} at {time} ({location}). {verse} See you! -HGF`,
-    same_day: `HGF: Hi {name}! Sunday Service "{event_title}" is TODAY at {time} ({location}). {verse} See you! -HGF`,
-    urgent: `HGF: Hi {name}! Sunday Service "{event_title}" is TODAY at {time} ({location}). See you there! -HGF`,
-    fiveday: `HGF: Hi {name}! Sunday Service "{event_title}" on {date} at {time} ({location}). {verse} -HGF`,
-    threeday: `HGF: Hi {name}! Reminder: Sunday Service "{event_title}" is {date} at {time} ({location}). {verse} -HGF`
+    oneday: `Hi {name}! Sunday Service "{event_title}" is tomorrow {date} at {time} ({location}). {verse} See you there!`,
+    same_day: `Hi {name}! Sunday Service "{event_title}" is TODAY at {time} ({location}). {verse} See you there!`,
+    urgent: `Hi {name}! Sunday Service "{event_title}" is TODAY at {time} ({location}). {verse} See you there!`,
+    fiveday: `Hi {name}! Sunday Service "{event_title}" on {date} at {time} ({location}). {verse} See you there!`,
+    threeday: `Hi {name}! Reminder: Sunday Service "{event_title}" is {date} at {time} ({location}). {verse} See you there!`
   },
   prayer_meeting: {
-    oneday: `HGF: Hi {name}! Prayer Meeting is tomorrow {date} at {time} ({location}). {verse} See you! -HGF`,
-    same_day: `HGF: Hi {name}! Prayer Meeting is TODAY at {time} ({location}). {verse} See you! -HGF`,
-    urgent: `HGF: Hi {name}! Prayer Meeting is TODAY at {time} ({location}). Join us in prayer! -HGF`,
-    fiveday: `HGF: Hi {name}! Prayer Meeting on {date} at {time} ({location}). {verse} -HGF`,
-    threeday: `HGF: Hi {name}! Reminder: Prayer Meeting is {date} at {time} ({location}). {verse} -HGF`
+    oneday: `Hi {name}! Prayer Meeting is tomorrow {date} at {time} ({location}). {verse} Join us in prayer!`,
+    same_day: `Hi {name}! Prayer Meeting is TODAY at {time} ({location}). {verse} Join us in prayer!`,
+    urgent: `Hi {name}! Prayer Meeting is TODAY at {time} ({location}). {verse} Join us in prayer!`,
+    fiveday: `Hi {name}! Prayer Meeting on {date} at {time} ({location}). {verse} Join us in prayer!`,
+    threeday: `Hi {name}! Reminder: Prayer Meeting is {date} at {time} ({location}). {verse} Join us in prayer!`
   },
   bible_study: {
-    oneday: `HGF: Hi {name}! Bible Study is tomorrow {date} at {time} ({location}). {verse} See you! -HGF`,
-    same_day: `HGF: Hi {name}! Bible Study is TODAY at {time} ({location}). {verse} See you! -HGF`,
-    urgent: `HGF: Hi {name}! Bible Study is TODAY at {time} ({location}). Join us! -HGF`,
-    fiveday: `HGF: Hi {name}! Bible Study on {date} at {time} ({location}). {verse} -HGF`,
-    threeday: `HGF: Hi {name}! Reminder: Bible Study is {date} at {time} ({location}). {verse} -HGF`
+    oneday: `Hi {name}! Bible Study is tomorrow {date} at {time} ({location}). {verse} See you there!`,
+    same_day: `Hi {name}! Bible Study is TODAY at {time} ({location}). {verse} See you there!`,
+    urgent: `Hi {name}! Bible Study is TODAY at {time} ({location}). {verse} See you there!`,
+    fiveday: `Hi {name}! Bible Study on {date} at {time} ({location}). {verse} See you there!`,
+    threeday: `Hi {name}! Reminder: Bible Study is {date} at {time} ({location}). {verse} See you there!`
   },
   special_event: {
-    oneday: `HGF: Hi {name}! "{event_title}" is tomorrow {date} at {time} ({location}). {verse} See you! -HGF`,
-    same_day: `HGF: Hi {name}! "{event_title}" is TODAY at {time} ({location}). {verse} See you! -HGF`,
-    urgent: `HGF: Hi {name}! "{event_title}" is TODAY at {time} ({location}). See you! -HGF`,
-    fiveday: `HGF: Hi {name}! "{event_title}" on {date} at {time} ({location}). {verse} -HGF`,
-    threeday: `HGF: Hi {name}! Reminder: "{event_title}" is {date} at {time} ({location}). {verse} -HGF`
+    oneday: `Hi {name}! "{event_title}" is tomorrow {date} at {time} ({location}). {verse} See you there!`,
+    same_day: `Hi {name}! "{event_title}" is TODAY at {time} ({location}). {verse} See you there!`,
+    urgent: `Hi {name}! "{event_title}" is TODAY at {time} ({location}). {verse} See you there!`,
+    fiveday: `Hi {name}! "{event_title}" on {date} at {time} ({location}). {verse} See you there!`,
+    threeday: `Hi {name}! Reminder: "{event_title}" is {date} at {time} ({location}). {verse} See you there!`
   },
   grace_night: {
-    oneday: `HGF: Hi {name}! Grace Night "{event_title}" is tomorrow at {time} ({location}). {verse} -HGF`,
-    same_day: `HGF: Hi {name}! Grace Night "{event_title}" is TONIGHT at {time} ({location}). {verse} -HGF`,
-    urgent: `HGF: Hi {name}! Grace Night is TONIGHT at {time} ({location}). Come worship! -HGF`,
-    fiveday: `HGF: Hi {name}! Grace Night on {date} at {time} ({location}). {verse} -HGF`,
-    threeday: `HGF: Hi {name}! Reminder: Grace Night is {date} at {time} ({location}). {verse} -HGF`
+    oneday: `Hi {name}! Grace Night "{event_title}" is tomorrow at {time} ({location}). {verse} See you there!`,
+    same_day: `Hi {name}! Grace Night is TONIGHT at {time} ({location}). {verse} See you there!`,
+    urgent: `Hi {name}! Grace Night is TONIGHT at {time} ({location}). {verse} See you there!`,
+    fiveday: `Hi {name}! Grace Night on {date} at {time} ({location}). {verse} See you there!`,
+    threeday: `Hi {name}! Reminder: Grace Night is {date} at {time} ({location}). {verse} See you there!`
   },
   other: {
-    oneday: `HGF: Hi {name}! "{event_title}" is tomorrow {date} at {time} ({location}). {verse} See you! -HGF`,
-    same_day: `HGF: Hi {name}! "{event_title}" is TODAY at {time} ({location}). {verse} See you! -HGF`,
-    urgent: `HGF: Hi {name}! "{event_title}" is TODAY at {time} ({location}). See you! -HGF`,
-    fiveday: `HGF: Hi {name}! "{event_title}" on {date} at {time} ({location}). {verse} -HGF`,
-    threeday: `HGF: Hi {name}! Reminder: "{event_title}" is {date} at {time} ({location}). {verse} -HGF`
+    oneday: `Hi {name}! "{event_title}" is tomorrow {date} at {time} ({location}). {verse} See you there!`,
+    same_day: `Hi {name}! "{event_title}" is TODAY at {time} ({location}). {verse} See you there!`,
+    urgent: `Hi {name}! "{event_title}" is TODAY at {time} ({location}). {verse} See you there!`,
+    fiveday: `Hi {name}! "{event_title}" on {date} at {time} ({location}). {verse} See you there!`,
+    threeday: `Hi {name}! Reminder: "{event_title}" is {date} at {time} ({location}). {verse} See you there!`
   }
 };
 
 /**
  * Strict 1-credit GSM-7 safety trimmer.
  * Ensures the rendered SMS message NEVER exceeds 160 characters (1 credit).
- * If over 160 chars, progressively condenses non-essential tokens while keeping core event info.
+ * Strips redundant prefixes/suffixes and progressively condenses non-essential tokens while keeping core event info.
  */
 export function fitToGsmSingleCredit(message: string, maxLen = 160): string {
   if (!message) return "";
 
-  // 1. Collapse duplicate whitespace
-  let clean = message.replace(/\s+/g, " ").trim();
+  // 1. Strip redundant prefix "HGF:" / "HGF -" if present
+  let clean = message
+    .replace(/^HGF:\s*/i, "")
+    .replace(/^HGF\s*-\s*/i, "")
+    .trim();
+
+  // 2. Strip redundant suffix "-HGF" if present
+  clean = clean.replace(/\s*-\s*HGF$/i, "").trim();
+
+  // 3. Collapse duplicate whitespace
+  clean = clean.replace(/\s+/g, " ").trim();
   if (clean.length <= maxLen) return clean;
 
-  // 2. If slightly over, try removing sign-off "-HGF"
-  if (clean.endsWith(" -HGF")) {
-    const withoutSignoff = clean.slice(0, -5).trim();
-    if (withoutSignoff.length <= maxLen) return withoutSignoff;
+  // 4. If slightly over, try removing sign-offs or warm endings
+  const endingMatch = clean.match(/\s*(See you there!|See you!|Join us in prayer!|Join us!)$/i);
+  if (endingMatch) {
+    const withoutEnding = clean.slice(0, -endingMatch[0].length).trim();
+    if (withoutEnding.length <= maxLen) return withoutEnding;
+    clean = withoutEnding;
   }
 
-  // 3. If still over, drop the verse quote if present (e.g. "Come, let us worship" (Ps 95:6))
+  // 5. If still over, drop the verse quote if present (e.g. "Come, let us worship" (Ps 95:6))
   const verseMatch = clean.match(/"[^"]*"\s*\([^)]*\)\.?\s*/);
   if (verseMatch) {
     const withoutVerse = clean.replace(verseMatch[0], "").replace(/\s+/g, " ").trim();
@@ -255,7 +268,7 @@ export function fitToGsmSingleCredit(message: string, maxLen = 160): string {
     clean = withoutVerse;
   }
 
-  // 4. Absolute clamp backstop
+  // 6. Absolute clamp backstop
   if (clean.length > maxLen) {
     return clean.slice(0, maxLen - 3) + "...";
   }

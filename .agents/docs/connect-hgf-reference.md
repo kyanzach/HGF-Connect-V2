@@ -238,3 +238,11 @@ When a page crashes or shows errors:
   - **Issue**: Testing/placeholder accounts (specifically members with first name `"HGF"` or phone number `"09000000000"`) were receiving batched event reminders and SMS campaigns.
   - **Fix**: Added explicit exclusions in the SMS reminder check generation route to omit these system testing entities from campaigns at all times.
 
+### 2026-09-30
+- **SMS Age Baseline (18+), Mobile Deduplication & Clean 1-Credit Templates (v2.71.0)**:
+  - **Age Baseline (18+)**: Minors (17 and below) and members in the "Kids" age group are strictly excluded from SMS reminders, campaigns, and birthday SMS. For youth without birthdate verifying 18+, SMS is omitted to protect credits and avoid sending to minors.
+  - **Single SMS per Mobile Number**: Grouping and deduplicating eligible recipients by normalized mobile number (`formatPhoneNumber`). When multiple household members share a mobile number (e.g. husband and wife), the system prioritizes the male/husband recipient (or older adult), sending exactly 1 SMS to save credits.
+  - **Removed Redundant Sender Tags**: Completely eliminated `HGF:` prefix and `-HGF` suffix across all reminder and birthday templates, as approved telecom SenderID masks ("HGF Church" / "HGF Connect") already display on recipient devices.
+  - **Revitalized Urgent Reminder Templates**: Removed stripped-down placeholder text like "Come worship!?" in favor of rich, inspiring Scripture hooks and warm invites ("See you there!") maximized up to ~150 characters without exceeding the 160-character (1 credit) ceiling.
+
+

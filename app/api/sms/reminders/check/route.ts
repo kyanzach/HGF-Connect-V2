@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { BIBLE_VERSES, TEMPLATES, fitToGsmSingleCredit } from "@/lib/smsTemplates";
+import { formatPhoneNumber } from "@/lib/sms";
 
 // POST /api/sms/reminders/check — Secure cron endpoint to generate and batch SMS reminders
 export async function POST(request: NextRequest) {
@@ -174,10 +175,16 @@ export async function POST(request: NextRequest) {
             ? (TEMPLATES[typeKey]?.urgent || TEMPLATES.other.urgent)
             : (TEMPLATES[typeKey]?.[item.type] || TEMPLATES.other[item.type]);
 
+          // Clean and cap event title to prevent long sermon series names from breaking single-credit budget
+          let cleanTitle = event.title ? event.title.replace(/[ññ]/g, "n").replace(/[ÑÑ]/g, "N").trim() : "";
+          if (cleanTitle.length > 28) {
+            cleanTitle = cleanTitle.substring(0, 27).trim() + "…";
+          }
+
           // Build message text (leave {name} placeholder for per-member customization)
           const message = template
             .replace(/{verse}/g, randomVerse)
-            .replace(/{event_title}/g, event.title)
+            .replace(/{event_title}/g, cleanTitle)
             .replace(/{date}/g, eventDateFormatted)
             .replace(/{time}/g, eventTimeFormatted)
             .replace(/{location}/g, eventLocation);
@@ -217,6 +224,18 @@ export async function POST(request: NextRequest) {
     logs.push(`Found ${dueReminders.length} due reminder(s) to process.`);
 
     if (dueReminders.length > 0) {
+      // Helper to calculate exact age at current Manila date
+      const getMemberAge = (birthdate: Date | null): number | null => {
+        if (!birthdate) return null;
+        const birth = new Date(birthdate);
+        let age = manilaTime.getFullYear() - birth.getFullYear();
+        const m = manilaTime.getMonth() - birth.getMonth();
+        if (m < 0 || (m === 0 && manilaTime.getDate() < birth.getDate())) {
+          age--;
+        }
+        return age;
+      };
+
       // Get all active members with a valid phone number
       // Exclude GUESTS (≤1 attendance record) — they should not receive event SMS campaigns
       const allMembers = await db.member.findMany({
@@ -227,7 +246,12 @@ export async function POST(request: NextRequest) {
         select: {
           id: true,
           firstName: true,
+          lastName: true,
+          gender: true,
+          birthdate: true,
+          ageGroup: true,
           phone: true,
+          phoneInvalid: true,
           sms5dayReminder: true,
           sms3dayReminder: true,
           sms1dayReminder: true,
@@ -237,16 +261,47 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      // Filter out guests (either overridden to guest, or dynamic guests with ≤1 attendance)
-      // Keep active + inactive members (or manual overrides) for re-engagement
+      // Filter members:
+      // 1. Exclude testing/placeholder accounts (first name 'HGF' or phone '09000000000')
+      // 2. Exclude flagged invalid phones (phoneInvalid === true)
+      // 3. Exclude guests (either overridden to guest, or dynamic guests with ≤1 attendance)
+      // 4. Exclude all kids from 17 below (18 above is our baseline for SMS)
+      //    - If birthdate exists: age >= 18 only
+      //    - If ageGroup is Kids: strictly excluded
+      //    - If birthdate is null and ageGroup is Youth: strictly excluded (unverified minor)
       const members = allMembers.filter(m => {
         // Exclude system/testing entries and placeholder accounts
-        if (m.phone === "09000000000" || m.phone?.trim() === "09000000000" || m.firstName?.toUpperCase() === "HGF") {
+        if (m.phone === "09000000000" || m.phone?.trim() === "09000000000" || m.firstName?.toUpperCase().startsWith("HGF")) {
           return false;
         }
+
+        // Exclude invalid phone flag
+        if (m.phoneInvalid) {
+          return false;
+        }
+
+        // Exclude guests
         if (m.status === "guest") return false;
-        if (m.status === "active" || m.status === "inactive") return true;
-        return (m._count?.attendance ?? 0) > 1;
+        if (m.status !== "active" && m.status !== "inactive" && (m._count?.attendance ?? 0) <= 1) {
+          return false;
+        }
+
+        // AGE BASELINE: 18 and above only. Exclude kids and anyone 17 or below.
+        if (m.ageGroup === "Kids") {
+          return false;
+        }
+
+        const age = getMemberAge(m.birthdate);
+        if (age !== null) {
+          if (age < 18) return false;
+        } else {
+          // If birthdate is missing, do not send to Youth (unverified minors)
+          if (m.ageGroup === "Youth") {
+            return false;
+          }
+        }
+
+        return true;
       });
 
       for (const reminder of dueReminders) {
@@ -267,17 +322,66 @@ export async function POST(request: NextRequest) {
             break;
         }
 
-        // Filter active members who opted in for this specific reminder type
-        const eligibleMembers = members.filter(m => m[prefField] === true && m.phone && m.phone.trim() !== "");
+        // Filter active 18+ members who opted in for this specific reminder type
+        const subscribedMembers = members.filter(m => m[prefField] === true && m.phone && m.phone.trim() !== "");
 
-        if (eligibleMembers.length === 0) {
-          logs.push(`Reminder ID ${reminder.id} skipped: No active members subscribed to ${reminder.reminder_type}`);
+        if (subscribedMembers.length === 0) {
+          logs.push(`Reminder ID ${reminder.id} skipped: No eligible 18+ members subscribed to ${reminder.reminder_type}`);
           await db.smsReminder.update({
             where: { id: reminder.id },
             data: { status: "sent", sentAt: new Date() }
           });
           continue;
         }
+
+        // DEDUPLICATION BY MOBILE NUMBER (1 SMS per unique phone number)
+        // If multiple household members share the same mobile number (e.g. husband, wife, adult child),
+        // send ONLY 1 SMS to save credits:
+        // Priority 1: Husband / Male preference (user requested: husband gets SMS if sharing with wife/family)
+        // Priority 2: Older adult (earlier birthdate / higher age)
+        // Priority 3: Lower member ID (earliest registered account)
+        const phoneMap = new Map<string, typeof subscribedMembers[0]>();
+
+        for (const member of subscribedMembers) {
+          const normalizedPhone = formatPhoneNumber(member.phone!);
+          if (!normalizedPhone) continue;
+
+          const existing = phoneMap.get(normalizedPhone);
+          if (!existing) {
+            phoneMap.set(normalizedPhone, member);
+            continue;
+          }
+
+          const memberIsMale = member.gender?.toLowerCase() === "male";
+          const existingIsMale = existing.gender?.toLowerCase() === "male";
+
+          // Priority 1: Husband / Male preference
+          if (memberIsMale && !existingIsMale) {
+            phoneMap.set(normalizedPhone, member);
+            continue;
+          }
+          if (!memberIsMale && existingIsMale) {
+            continue; // Keep existing male recipient
+          }
+
+          // Priority 2: Older member (earlier birthdate)
+          const memberBirth = member.birthdate ? new Date(member.birthdate).getTime() : Infinity;
+          const existingBirth = existing.birthdate ? new Date(existing.birthdate).getTime() : Infinity;
+          if (memberBirth < existingBirth) {
+            phoneMap.set(normalizedPhone, member);
+            continue;
+          }
+          if (memberBirth > existingBirth) {
+            continue;
+          }
+
+          // Priority 3: Lower member ID
+          if (member.id < existing.id) {
+            phoneMap.set(normalizedPhone, member);
+          }
+        }
+
+        const eligibleMembers = Array.from(phoneMap.values());
 
         // Create CustomSmsBatch
         const batch = await db.customSmsBatch.create({
@@ -317,7 +421,7 @@ export async function POST(request: NextRequest) {
           }
         });
 
-        logs.push(`Reminder ID ${reminder.id} batched successfully: Queued ${eligibleMembers.length} messages in Batch ID ${batch.id}.`);
+        logs.push(`Reminder ID ${reminder.id} batched successfully: Queued ${eligibleMembers.length} messages (from ${subscribedMembers.length} subscribed) in Batch ID ${batch.id}.`);
       }
     }
 

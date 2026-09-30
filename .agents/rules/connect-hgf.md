@@ -28,6 +28,9 @@ Next.js 16 (App Router) + TypeScript + Prisma (MySQL) + PM2. Server: DO Droplet 
 14. Never use protocols (http, https, //) or www in URLs inside SMS messages as telcos restrict them. Use clean prefixes starting with connect.houseofgrace.ph/ (e.g. connect.houseofgrace.ph/login).
 15. Always configure absolute paths for Tesseract.js workers (workerPath) and avoid relative or dynamic loader paths, as Webpack/Turbopack bundling in Next.js will break dynamic requires (stuck at 5% / /ROOT/ error).
 16. Exclude testing/placeholder accounts (members with first name 'HGF' or phone '09000000000') from SMS campaign campaigns and reminders at all times.
+17. SMS age baseline is strictly 18 and above. Never send SMS reminders, alerts, or campaigns to kids or minors 17 and below.
+18. Deduplicate SMS recipients by phone number (1 SMS per unique mobile number). When multiple adult family members share a mobile number, prefer the husband/male to conserve credits.
+19. Never include "HGF:" prefix or "-HGF" suffix in SMS message bodies — the SenderID mask ("HGF Church" / "HGF Connect") is already displayed by the mobile OS. Always include Scripture hooks even for urgent alerts, maximizing up to ~150 characters without exceeding 160 characters (1 credit).
 
 
 ## Schema Gotchas

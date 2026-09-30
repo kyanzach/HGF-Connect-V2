@@ -5,6 +5,23 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.71.0] — 2026-09-30
+### Added & Changed — SMS 18+ Age Baseline, Mobile Deduplication (Husband Priority) & Template Revamp
+- **SMS Age Baseline (18+ Only) (`app/api/sms/reminders/check/route.ts`, `app/api/birthdays/check/route.ts`)**:
+  - Enforced a strict 18-and-above baseline for all outbound SMS campaigns, reminders, and birthday alerts.
+  - Automatically excludes all kids and minors 17 and below using exact date-of-birth age calculation.
+  - Excludes the `Kids` age group and unverified `Youth` without birthdates to conserve telecom credits and avoid messaging minors.
+- **Single SMS per Mobile Number Deduplication (`app/api/sms/reminders/check/route.ts`)**:
+  - Grouped and deduplicated eligible recipients by normalized Philippine mobile number (`formatPhoneNumber`).
+  - When multiple family members share the same phone number (e.g., husband and wife), the system deterministically picks the husband/male recipient (or older adult), sending exactly 1 SMS instead of duplicate messages.
+- **Eliminated Redundant Sender Tags (`lib/smsTemplates.ts`, `app/api/admin/sms/settings/route.ts`, `app/api/marketplace/prospects/route.ts`)**:
+  - Removed all redundant `HGF:` prefixes and `-HGF` suffixes across all reminder, birthday, and prospect SMS templates, as telecom SenderID masks (`HGF Church` / `HGF Connect`) already display on mobile devices.
+- **Revitalized Urgent Reminder Templates (`lib/smsTemplates.ts`, `app/api/sms/reminders/check/route.ts`)**:
+  - Replaced stripped-down, awkward text (`Come worship!?`) with rich, uplifting Scripture hooks and warm invites (`See you there!`).
+  - Included Bible verses across all urgent reminder triggers.
+  - Optimized template lengths to maximize up to ~150 characters while strictly remaining within the 160-character (1 credit) GSM-7 limit.
+  - Enhanced `fitToGsmSingleCredit` safety trimmer to strip redundant prefixes/suffixes and gracefully step down sign-offs before trimming verses.
+
 ## [v2.70.6] — 2026-09-26
 ### Added & Changed — HGF Worship Team Setlist & Chords Branding, Full Multi-Platform OG Images & High-Res App Icons
 - **App Rebrand — "HGF Worship Team Setlist & Chords" (`app/band/layout.tsx`, `manifest-band.json`, `strings.xml`, `BandInstallModal.tsx`, `install/page.tsx`)**:

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sendSms } from "@/lib/sms";
+import { fitToGsmSingleCredit } from "@/lib/smsTemplates";
 import { DEFAULT_BIRTHDAY_TEMPLATE, DEFAULT_BIRTHDAY_VERSES } from "@/app/api/admin/sms/settings/route";
 
 export const dynamic = "force-dynamic";
@@ -56,6 +57,8 @@ export async function POST(request: Request) {
         profilePicture: true,
         coverPhoto: true,
         birthdate: true,
+        ageGroup: true,
+        phoneInvalid: true,
       }
     });
 
@@ -199,9 +202,25 @@ export async function POST(request: Request) {
         reports.push(`Daily birthday post published for ${celebrant.firstName} ${celebrant.lastName}`);
 
         // ── 3. Dispatch Birthday SMS if enabled ──
+        // Rule: Baseline is 18 and above only. Do not send SMS to minors 17 and below or kids.
         if (birthdaySmsConfig.enabled && celebrant.phone) {
           const isTestingPhone = celebrant.phone === "09000000000" || celebrant.firstName.toUpperCase().startsWith("HGF");
-          if (!isTestingPhone) {
+          
+          let isEligibleAge = celebrant.ageGroup !== "Kids";
+          if (isEligibleAge && celebrant.birthdate) {
+            const birth = new Date(celebrant.birthdate);
+            let age = manilaDate.getFullYear() - birth.getFullYear();
+            const m = manilaDate.getMonth() - birth.getMonth();
+            if (m < 0 || (m === 0 && manilaDate.getDate() < birth.getDate())) {
+              age--;
+            }
+            if (age < 18) isEligibleAge = false;
+          } else if (celebrant.ageGroup === "Youth") {
+            // Cannot verify 18+ without birthdate, protect minor
+            isEligibleAge = false;
+          }
+
+          if (!isTestingPhone && isEligibleAge && !celebrant.phoneInvalid) {
             try {
               // Prevent duplicate birthday SMS today
               const existingSms = await db.smsLog.findFirst({
@@ -219,6 +238,9 @@ export async function POST(request: Request) {
                   .replace(/{lastName}/g, celebrant.lastName)
                   .replace(/{verseText}/g, verse.text)
                   .replace(/{verseRef}/g, verse.ref);
+
+                // Strip redundant HGF tags and enforce single credit
+                smsMessage = fitToGsmSingleCredit(smsMessage, 160);
 
                 const smsRes = await sendSms(celebrant.phone, smsMessage, celebrant.id);
                 if (smsRes.success) {

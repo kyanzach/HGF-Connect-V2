@@ -190,7 +190,7 @@ export async function POST(req: NextRequest) {
       if (listing.seller.phone) {
         const { sendSms } = await import("@/lib/sms");
         const shortTitle = listing.title.length > 20 ? listing.title.slice(0, 18) + ".." : listing.title;
-        const smsMessage = `HGF: Hi ${listing.seller.firstName}! Buyer inquiry for "${shortTitle}" from ${prospectName.trim()} (${prospectMobile?.trim() || "no phone"}). Check connect.houseofgrace.ph`;
+        const smsMessage = `Hi ${listing.seller.firstName}! Buyer inquiry for "${shortTitle}" from ${prospectName.trim()} (${prospectMobile?.trim() || "no phone"}). Check connect.houseofgrace.ph`;
         
         sendSms(listing.seller.phone, smsMessage, listing.seller.id, undefined, "HGF Connect")
           .catch(err => console.error(`Failed to send prospect SMS to seller ID ${listing.seller.id}:`, err));

@@ -18,7 +18,7 @@ export const DEFAULT_BIRTHDAY_VERSES = [
   { ref: "Zeph 3:17", text: "The LORD your God is with you; He rejoices over you." }
 ];
 
-export const DEFAULT_BIRTHDAY_TEMPLATE = `HGF: Happy Birthday, {firstName}! We celebrate you today! "{verseText}" ({verseRef}) God bless you abundantly! -HGF`;
+export const DEFAULT_BIRTHDAY_TEMPLATE = `Happy Birthday, {firstName}! We celebrate you today! "{verseText}" ({verseRef}) God bless you abundantly!`;
 
 /**
  * GET /api/admin/sms/settings
