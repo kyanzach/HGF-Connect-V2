@@ -96,7 +96,7 @@ export async function POST(
 
     const authorName = `${comment.author.firstName} ${comment.author.lastName}`;
     const preview = content.trim().slice(0, 80);
-    const postLink = `/feed?post=${postId}`;
+    const postLink = `/feed?post=${postId}&comment=${comment.id}`;
 
     // ── Notifications (fire-and-forget, never blocks response) ───────────────
 

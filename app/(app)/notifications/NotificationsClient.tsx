@@ -33,7 +33,17 @@ export default function NotificationsClient({ notifications }: { notifications: 
   const router = useRouter();
 
   function handleClick(n: Notif) {
-    if (n.link) router.push(n.link);
+    if (n.link) {
+      let dest = n.link;
+      if (
+        (n.type === "new_comment" || n.type === "comment_reply" || n.type === "mention") &&
+        dest.startsWith("/feed?post=") &&
+        !dest.includes("comment")
+      ) {
+        dest += "&comments=1";
+      }
+      router.push(dest);
+    }
   }
 
   return (

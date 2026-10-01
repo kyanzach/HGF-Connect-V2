@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import PostCard from "@/components/feed/PostCard";
 import HeroCarousel from "@/components/feed/HeroCarousel";
@@ -42,6 +43,8 @@ const SHORTCUTS = [
 
 export default function FeedClient() {
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
+  const targetPostId = searchParams.get("post");
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -52,6 +55,37 @@ export default function FeedClient() {
   const [scrolledDown, setScrolledDown] = useState(false);
 
   const firstName = session?.user?.firstName ?? session?.user?.name?.split(" ")[0] ?? "Friend";
+
+  // Ensure deep-linked target post is loaded even if it is on an older page
+  useEffect(() => {
+    if (!targetPostId) return;
+    const pid = parseInt(targetPostId, 10);
+    if (isNaN(pid)) return;
+
+    if (posts.some((p) => p.id === pid)) return;
+
+    let cancelled = false;
+    async function fetchDeepLinkedPost() {
+      try {
+        const res = await fetch(`/api/posts?postId=${pid}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.posts && data.posts.length > 0 && !cancelled) {
+          const targetPost = data.posts[0];
+          setPosts((prev) => {
+            if (prev.some((p) => p.id === pid)) return prev;
+            return [targetPost, ...prev];
+          });
+        }
+      } catch (err) {
+        console.error("Failed to load deep-linked post:", err);
+      }
+    }
+    fetchDeepLinkedPost();
+    return () => {
+      cancelled = true;
+    };
+  }, [targetPostId, posts]);
 
   const loadPosts = useCallback(async (p = 1) => {
     try {

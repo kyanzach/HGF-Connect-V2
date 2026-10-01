@@ -239,7 +239,17 @@ export default function NotificationBell() {
                       fetch(`/api/notifications?id=${n.id}`, { method: "PATCH" });
                     }
                     setOpen(false);
-                    if (n.link) router.push(n.link);
+                    if (n.link) {
+                      let dest = n.link;
+                      if (
+                        (n.type === "new_comment" || n.type === "comment_reply" || n.type === "mention") &&
+                        dest.startsWith("/feed?post=") &&
+                        !dest.includes("comment")
+                      ) {
+                        dest += "&comments=1";
+                      }
+                      router.push(dest);
+                    }
                   }}
                 >
                   <span style={{ fontSize: 22, flexShrink: 0, lineHeight: 1.3 }}>{typeIcon(n.type)}</span>

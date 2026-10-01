@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Metadata } from "next";
 import { db } from "@/lib/db";
 import FeedClient from "./FeedClient";
@@ -102,5 +103,9 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 }
 
 export default async function FeedPage() {
-  return <FeedClient />;
+  return (
+    <Suspense fallback={null}>
+      <FeedClient />
+    </Suspense>
+  );
 }

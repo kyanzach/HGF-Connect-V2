@@ -5,6 +5,23 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.71.1] — 2026-10-01
+### Fixed & Enhanced — Deep Linking to Comments & Posts with Pulsation Effect
+- **Deep Linking to Comments (`app/api/posts/[id]/comments/route.ts`)**:
+  - Updated comment and reply notification links from generic `/feed?post=${postId}` to include the comment ID: `/feed?post=${postId}&comment=${comment.id}` across top-level comments, parent replies, and @mentions.
+- **Targeted Single Post Resolution in Community Feed (`app/api/posts/route.ts`, `app/(app)/feed/FeedClient.tsx`)**:
+  - Added support for `postId` query parameter in `/api/posts` to fetch an exact post with full author, photos, reactions, and count formatting.
+  - In `FeedClient.tsx`, added a deep-link hook that checks if a linked `?post=ID` is absent from page 1 results (e.g. posts from weeks ago) and automatically fetches and prepends it to the feed list so that it is guaranteed to render.
+- **PostCard & CommentDrawer Deep Linking with Pulsation Highlight (`components/feed/PostCard.tsx`, `components/feed/CommentDrawer.tsx`)**:
+  - Restored drawer opening when `comment` or `comments=1` parameter is present in the deep-link URL.
+  - Connected the `.hgf-pulse-highlight` teal box-shadow animation from `app/globals.css`:
+    - When deep-linking to an exact comment: opens the drawer, scrolls smoothly to `comment-${id}`, and triggers `.hgf-pulse-highlight` on the comment bubble to guide the user's eye.
+    - When deep-linking to a post without a specific comment: smoothly scrolls the post card into center view and applies `.hgf-pulse-highlight` to the card container.
+  - Preserved backward compatibility for older notifications in `NotificationBell.tsx` and `NotificationsClient.tsx` by directing legacy comment notifications to `/feed?post=ID&comments=1`.
+- **Modals & Accessibility Safety (`components/feed/CommentDrawer.tsx`)**:
+  - Replaced native browser `confirm()` with `ConfirmModal` for comment deletion.
+  - Toggled `hgf-modal-open` class on `document.body` whenever the comment drawer is opened or closed, preventing mobile bottom-dock overlap.
+
 ## [v2.71.0] — 2026-09-30
 ### Added & Changed — SMS 18+ Age Baseline, Mobile Deduplication (Husband Priority) & Template Revamp
 - **SMS Age Baseline (18+ Only) (`app/api/sms/reminders/check/route.ts`, `app/api/birthdays/check/route.ts`)**:

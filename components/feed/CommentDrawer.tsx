@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import ConfirmModal from "@/components/ConfirmModal";
 
 const PRIMARY = "#4EB1CB";
 
@@ -22,6 +23,7 @@ interface Comment {
 interface Props {
   postId: number; postAuthorId: number;
   isOpen: boolean; onClose: () => void;
+  highlightCommentId?: number | null;
   onCommentCountChange?: (delta: number) => void;
 }
 
@@ -121,6 +123,7 @@ function resolveMentions(text: string, authorMap: Record<string, number>): numbe
 function CommentBubble({
   comment, sessionUserId, postAuthorId, authorMap,
   onLike, onPin, onDelete, onReply,
+  isHighlighted,
 }: {
   comment: Comment | Reply;
   sessionUserId: number | null;
@@ -130,6 +133,7 @@ function CommentBubble({
   onPin?: (id: number, currently: boolean) => void;
   onDelete: (id: number) => void;
   onReply?: (author: CommentAuthor) => void;
+  isHighlighted?: boolean;
 }) {
   const router = useRouter();
   const [showMenu, setShowMenu] = useState(false);
@@ -148,13 +152,27 @@ function CommentBubble({
   const isPostOwner = sessionUserId === postAuthorId;
 
   return (
-    <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.875rem", position: "relative" }}>
+    <div
+      id={`comment-${comment.id}`}
+      style={{ display: "flex", gap: "0.5rem", marginBottom: "0.875rem", position: "relative" }}
+    >
       <Avatar author={comment.author} size={32} />
       <div style={{ flex: 1, minWidth: 0 }}>
         {isPinned && (
           <div style={{ fontSize: "0.65rem", color: PRIMARY, fontWeight: 700, marginBottom: "0.25rem" }}>📌 Pinned comment</div>
         )}
-        <div style={{ background: isPinned ? `${PRIMARY}10` : "#f1f5f9", borderRadius: "0 14px 14px 14px", padding: "0.5rem 0.75rem", border: isPinned ? `1px solid ${PRIMARY}30` : "none", display: "inline-block", maxWidth: "100%" }}>
+        <div
+          className={isHighlighted ? "hgf-pulse-highlight" : ""}
+          style={{
+            background: isPinned ? `${PRIMARY}10` : "#f1f5f9",
+            borderRadius: "0 14px 14px 14px",
+            padding: "0.5rem 0.75rem",
+            border: isPinned ? `1px solid ${PRIMARY}30` : isHighlighted ? `1.5px solid ${PRIMARY}` : "none",
+            display: "inline-block",
+            maxWidth: "100%",
+            transition: "all 0.3s ease",
+          }}
+        >
           {/* Clickable author name */}
           <button
             onClick={() => { window.location.href = `/member/${comment.author.id}`; }}
@@ -208,7 +226,7 @@ function CommentBubble({
 }
 
 /* ── Main CommentDrawer ─────────────────────────────────────────────────────── */
-export default function CommentDrawer({ postId, postAuthorId, isOpen, onClose, onCommentCountChange }: Props) {
+export default function CommentDrawer({ postId, postAuthorId, isOpen, highlightCommentId, onClose, onCommentCountChange }: Props) {
   const { data: session } = useSession();
   const sessionUserId = session?.user?.id ? parseInt(session.user.id) : null;
 
@@ -216,6 +234,8 @@ export default function CommentDrawer({ postId, postAuthorId, isOpen, onClose, o
   const [loading, setLoading] = useState(false);
   const [text, setText] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [commentToDelete, setCommentToDelete] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
   /** replyTo: { parentCommentId (top-level!), name to @-mention } */
   const [replyTo, setReplyTo] = useState<{ parentId: number; name: string } | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -240,7 +260,32 @@ export default function CommentDrawer({ postId, postAuthorId, isOpen, onClose, o
   }, [postId]);
 
   useEffect(() => { if (isOpen) load(); }, [isOpen, load]);
-  useEffect(() => { document.body.style.overflow = isOpen ? "hidden" : ""; return () => { document.body.style.overflow = ""; }; }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+      document.body.classList.add("hgf-modal-open");
+    } else {
+      document.body.style.overflow = "";
+      document.body.classList.remove("hgf-modal-open");
+    }
+    return () => {
+      document.body.style.overflow = "";
+      document.body.classList.remove("hgf-modal-open");
+    };
+  }, [isOpen]);
+
+  // Deep-link: scroll target comment into view smoothly within the drawer
+  useEffect(() => {
+    if (!isOpen || !highlightCommentId || loading || comments.length === 0) return;
+    const timer = setTimeout(() => {
+      const el = document.getElementById(`comment-${highlightCommentId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [isOpen, highlightCommentId, loading, comments]);
 
   async function submit() {
     if (!text.trim() || submitting || !session) return;
@@ -288,16 +333,26 @@ export default function CommentDrawer({ postId, postAuthorId, isOpen, onClose, o
     );
   }
 
-  async function handleDelete(id: number) {
-    if (!confirm("Delete this comment?")) return;
-    await fetch(`/api/comments/${id}`, { method: "DELETE" });
-    const isTop = comments.some((c) => c.id === id);
-    if (isTop) {
-      setComments((prev) => prev.filter((c) => c.id !== id));
-    } else {
-      setComments((prev) => prev.map((c) => ({ ...c, replies: (c.replies ?? []).filter((r) => r.id !== id) })));
+  function handleDelete(id: number) {
+    setCommentToDelete(id);
+  }
+
+  async function confirmDelete() {
+    if (!commentToDelete) return;
+    setDeleting(true);
+    try {
+      await fetch(`/api/comments/${commentToDelete}`, { method: "DELETE" });
+      const isTop = comments.some((c) => c.id === commentToDelete);
+      if (isTop) {
+        setComments((prev) => prev.filter((c) => c.id !== commentToDelete));
+      } else {
+        setComments((prev) => prev.map((c) => ({ ...c, replies: (c.replies ?? []).filter((r) => r.id !== commentToDelete) })));
+      }
+      onCommentCountChange?.(-1);
+    } finally {
+      setDeleting(false);
+      setCommentToDelete(null);
     }
-    onCommentCountChange?.(-1);
   }
 
   /** Reply to a comment (top-level) or a reply — both land in the same parent thread */
@@ -354,6 +409,7 @@ export default function CommentDrawer({ postId, postAuthorId, isOpen, onClose, o
                   authorMap={authorMap} onLike={handleLike} onPin={handlePin}
                   onDelete={handleDelete}
                   onReply={(author) => handleReply(author, comment.id)}
+                  isHighlighted={highlightCommentId === comment.id}
                 />
                 {/* Replies — indented, Reply button also present (flat threading) */}
                 {(comment.replies ?? []).length > 0 && (
@@ -364,6 +420,7 @@ export default function CommentDrawer({ postId, postAuthorId, isOpen, onClose, o
                         postAuthorId={postAuthorId} authorMap={authorMap}
                         onLike={handleLike} onDelete={handleDelete}
                         onReply={(author) => handleReply(author, comment.id)}
+                        isHighlighted={highlightCommentId === reply.id}
                       />
                     ))}
                   </div>
@@ -408,6 +465,17 @@ export default function CommentDrawer({ postId, postAuthorId, isOpen, onClose, o
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        open={!!commentToDelete}
+        title="Delete Comment"
+        message="Are you sure you want to delete this comment? This action cannot be undone."
+        confirmLabel="Delete"
+        confirmColor="#ef4444"
+        loading={deleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setCommentToDelete(null)}
+      />
     </>
   );
 }

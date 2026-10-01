@@ -25,8 +25,10 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const page = parseInt(searchParams.get("page") ?? "1");
   const memberId = searchParams.get("member") ? parseInt(searchParams.get("member")!) : null;
-  const limit = 20;
-  const skip = (page - 1) * limit;
+  const postIdParam = searchParams.get("postId") ?? searchParams.get("id");
+  const targetPostId = postIdParam ? parseInt(postIdParam, 10) : null;
+  const limit = targetPostId && !isNaN(targetPostId) ? 1 : 20;
+  const skip = targetPostId && !isNaN(targetPostId) ? 0 : (page - 1) * limit;
 
   const session = await auth();
 
@@ -70,7 +72,9 @@ export async function GET(request: Request) {
 
   const where: any = {
     ...visibilityFilter,
-    ...(isChurch
+    ...(targetPostId && !isNaN(targetPostId)
+      ? { id: targetPostId }
+      : isChurch
       ? { type: { in: [PostType.EVENT, PostType.BIRTHDAY_MONTHLY, PostType.BIRTHDAY_DAILY] } }
       : memberId
       ? { authorId: memberId, type: { notIn: SYSTEM_POST_TYPES } }

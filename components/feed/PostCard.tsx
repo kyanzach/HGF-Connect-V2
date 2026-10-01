@@ -119,6 +119,8 @@ export default function PostCard({ post }: PostCardProps) {
   const [loading, setLoading] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
+  const [isPulsing, setIsPulsing] = useState(false);
+  const [highlightCommentId, setHighlightCommentId] = useState<number | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -305,17 +307,34 @@ export default function PostCard({ post }: PostCardProps) {
     }
   }
 
-  // Deep-link: ?post=ID scrolls this card into view
+  // Deep-link: ?post=ID scrolls this card into view and opens comment drawer if comment specified
   useEffect(() => {
-    const targetId = searchParams.get("post");
-    if (targetId && parseInt(targetId) === post.id) {
+    const targetPostId = searchParams.get("post");
+    if (targetPostId && parseInt(targetPostId, 10) === post.id) {
+      const targetCommentId = searchParams.get("comment");
+      const shouldOpenComments = !!targetCommentId || searchParams.get("comments") === "1";
+
       // Scroll card into view smoothly
       setTimeout(() => {
         cardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-      }, 100);
+      }, 150);
+
+      if (shouldOpenComments) {
+        if (targetCommentId) {
+          setHighlightCommentId(parseInt(targetCommentId, 10));
+        }
+        setCommentsOpen(true);
+      } else {
+        // Guide the eye to the post itself with a 3-cycle pulse
+        setIsPulsing(true);
+        setTimeout(() => setIsPulsing(false), 4200);
+      }
+
       // Clean URL without reload
       const url = new URL(window.location.href);
       url.searchParams.delete("post");
+      url.searchParams.delete("comment");
+      url.searchParams.delete("comments");
       window.history.replaceState({}, "", url.toString());
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -535,7 +554,8 @@ export default function PostCard({ post }: PostCardProps) {
     <>
       <div
         ref={cardRef}
-        style={{ background: "white", borderRadius: "16px", marginBottom: "0.75rem", overflow: "visible", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", position: "relative" }}
+        className={isPulsing ? "hgf-pulse-highlight" : ""}
+        style={{ background: "white", borderRadius: "16px", marginBottom: "0.75rem", overflow: "visible", boxShadow: isPulsing ? undefined : "0 1px 4px rgba(0,0,0,0.08)", position: "relative", transition: "box-shadow 0.3s ease" }}
       >
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", padding: "0.875rem 1rem 0.5rem", gap: "0.625rem" }}>
@@ -1447,7 +1467,11 @@ export default function PostCard({ post }: PostCardProps) {
         postId={post.id}
         postAuthorId={post.author.id}
         isOpen={commentsOpen}
-        onClose={() => setCommentsOpen(false)}
+        highlightCommentId={highlightCommentId}
+        onClose={() => {
+          setCommentsOpen(false);
+          setHighlightCommentId(null);
+        }}
         onCommentCountChange={(delta) => setCommentCount((c) => c + delta)}
       />
 
