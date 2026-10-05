@@ -23,17 +23,32 @@ export function useMusicTheory(song: Song | null, activeSetlistId?: string | nul
   }, [song?.chords]);
 
   // Baseline key that the chord chart is physically written in
-  const chartKey = useMemo(() => {
+  const chartKey: string = useMemo(() => {
     if (!song) return 'C';
-    // If chords detected pitch matches song.key, the chart text is physically in that key
-    if (detectedKey && song.key && getRootNote(detectedKey) === getRootNote(song.key)) {
-      return song.key;
+    const detectedRoot = detectedKey ? getRootNote(detectedKey) : null;
+    const songKeyRoot = song.key ? getRootNote(song.key) : null;
+    const origKeyRoot = song.originalKey ? getRootNote(song.originalKey) : null;
+
+    // 1. If song.key matches detected chord root, use song.key
+    if (detectedRoot && songKeyRoot && detectedRoot === songKeyRoot) {
+      return song.key || 'C';
     }
-    return song.originalKey || detectedKey || song.key || 'C';
+    // 2. If song.originalKey matches detected chord root, use song.originalKey
+    if (detectedRoot && origKeyRoot && detectedRoot === origKeyRoot) {
+      return song.originalKey || 'C';
+    }
+    // 3. If chords were detected and there's a discrepancy with stored metadata,
+    // trust the physical chord tokens on the sheet!
+    if (detectedKey) {
+      return detectedKey;
+    }
+    return song.originalKey || song.key || 'C';
   }, [song, detectedKey]);
 
+  const defaultKey = song?.key || chartKey;
+
   // The active key to render (defaults to active song.key or chartKey)
-  const [activeKey, setActiveKey] = useState<string>(song?.key || chartKey);
+  const [activeKey, setActiveKey] = useState<string>(defaultKey);
   const [capo, setCapo] = useState<number>(Number(song?.capo) || 0);
   const [preferFlats, setPreferFlats] = useState<boolean>(false);
 
@@ -57,13 +72,14 @@ export function useMusicTheory(song: Song | null, activeSetlistId?: string | nul
 
   const effectiveKey = useMemo(() => {
     const root = getRootNote(activeKey);
-    const isMinor = (song?.key || chartKey).endsWith('m') || (song?.key || chartKey).includes('min') || activeKey.endsWith('m');
+    const baseKey = song?.key || chartKey;
+    const isMinor = baseKey.endsWith('m') || baseKey.includes('min') || activeKey.endsWith('m');
     return isMinor ? `${root}m` : root;
   }, [activeKey, song?.key, chartKey]);
 
   const displayKey = useMemo(() => {
-    const root = effectiveKey.replace('m', '');
-    const isMinor = effectiveKey.endsWith('m');
+    const root = getRootNote(effectiveKey);
+    const isMinor = effectiveKey.endsWith('m') || effectiveKey.includes('min');
     const mapped = KEY_DISPLAY_MAP[root] || root;
     return isMinor ? `${mapped}m` : mapped;
   }, [effectiveKey]);

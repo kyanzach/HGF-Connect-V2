@@ -6,16 +6,16 @@ export const CHROMATIC_FLATS  = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab'
 
 export const NOTE_TO_SEMITONE: Record<string, number> = {
   'C': 0, 'B#': 0,
-  'C#': 1, 'Db': 1,
+  'C#': 1, 'Db': 1, 'DB': 1,
   'D': 2,
-  'D#': 3, 'Eb': 3,
+  'D#': 3, 'Eb': 3, 'EB': 3,
   'E': 4, 'Fb': 4,
   'F': 5, 'E#': 5,
-  'F#': 6, 'Gb': 6,
+  'F#': 6, 'Gb': 6, 'GB': 6,
   'G': 7,
-  'G#': 8, 'Ab': 8,
+  'G#': 8, 'Ab': 8, 'AB': 8,
   'A': 9,
-  'A#': 10, 'Bb': 10,
+  'A#': 10, 'Bb': 10, 'BB': 10,
   'B': 11, 'Cb': 11
 };
 
@@ -25,19 +25,24 @@ export const KEY_DISPLAY_MAP: Record<string, string> = {
   'C': 'C',
   'C#': 'C# / Db',
   'Db': 'C# / Db',
+  'DB': 'C# / Db',
   'D': 'D',
   'D#': 'D# / Eb',
   'Eb': 'D# / Eb',
+  'EB': 'D# / Eb',
   'E': 'E',
   'F': 'F',
   'F#': 'F# / Gb',
   'Gb': 'F# / Gb',
+  'GB': 'F# / Gb',
   'G': 'G',
   'G#': 'G# / Ab',
   'Ab': 'G# / Ab',
+  'AB': 'G# / Ab',
   'A': 'A',
   'A#': 'A# / Bb',
   'Bb': 'A# / Bb',
+  'BB': 'A# / Bb',
   'B': 'B'
 };
 
@@ -58,8 +63,11 @@ export const ENHARMONIC_KEYS = [
 
 export function getRootNote(str: string): string {
   if (!str) return 'C';
-  const m = String(str).trim().match(/^([A-G][b#]?)/i);
-  return m ? m[1].toUpperCase() : 'C';
+  const m = String(str).trim().match(/^([A-G])([b#]?)/i);
+  if (!m) return 'C';
+  const note = m[1].toUpperCase();
+  const acc = m[2] ? (m[2] === '#' ? '#' : 'b') : '';
+  return `${note}${acc}`;
 }
 
 export function transposeNote(note: string, semitones: number, preferFlats: boolean): string {
@@ -437,18 +445,31 @@ export function transposeChordSheetText(
 export function detectRootKeyFromChords(chords: string): string | null {
   if (!chords) return null;
   const lines = chords.split('\n');
+
+  let firstChordFound: string | null = null;
+  let verseFirstChord: string | null = null;
+  let chorusFirstChord: string | null = null;
+  let currentSection = '';
+
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed) continue;
-    // Skip common section headers like [Intro], [Chorus], Verse 1:
-    if (/^\[?(intro|verse|chorus|bridge|outro|interlude|tag|hook|pre-chorus|channel)/i.test(trimmed)) {
+
+    // Check for section headers
+    const secMatch = trimmed.match(/^\[?([A-Za-z0-9\s/–-]+)\]?:?\s*$/);
+    if (secMatch && /intro|verse|chorus|bridge|outro|interlude|tag|hook|pre-chorus|channel/i.test(secMatch[1])) {
+      currentSection = secMatch[1].toLowerCase();
       continue;
     }
 
-    // Look for bracketed chord first: e.g. [D], [G#m]
+    // Look for bracketed chord: e.g. [D], [G#m]
     const bracketMatch = trimmed.match(/\[([A-G][b#]?(?:m|maj|min|sus|add|2|4|7|9|11|13)*(?:\/[A-G][b#]?)?)\]/i);
     if (bracketMatch) {
-      return getRootNote(bracketMatch[1]);
+      const root = getRootNote(bracketMatch[1]);
+      if (!firstChordFound) firstChordFound = root;
+      if (currentSection.includes('verse') && !verseFirstChord) verseFirstChord = root;
+      if (currentSection.includes('chorus') && !chorusFirstChord) chorusFirstChord = root;
+      continue;
     }
 
     // Check if line contains chords
@@ -456,9 +477,14 @@ export function detectRootKeyFromChords(chords: string): string | null {
     const chordTokens = words.filter((w) =>
       /^[A-G][b#]?(?:m|maj|min|sus|add|dim|aug|2|4|5|6|7|9|11|13)*(?:\/[A-G][b#]?)?$/i.test(w)
     );
-    if (chordTokens.length > 0 && chordTokens.length >= words.length * 0.6) {
-      return getRootNote(chordTokens[0]);
+    if (chordTokens.length > 0 && chordTokens.length >= words.length * 0.5) {
+      const root = getRootNote(chordTokens[0]);
+      if (!firstChordFound) firstChordFound = root;
+      if (currentSection.includes('verse') && !verseFirstChord) verseFirstChord = root;
+      if (currentSection.includes('chorus') && !chorusFirstChord) chorusFirstChord = root;
     }
   }
-  return null;
+
+  // Verse tonic or Chorus tonic is the most reliable baseline for musical key
+  return verseFirstChord || chorusFirstChord || firstChordFound || null;
 }

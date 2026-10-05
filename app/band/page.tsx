@@ -913,11 +913,11 @@ export default function BandStagePage() {
 
   const isKeySessionOverridden = useMemo(() => {
     if (activeSetlistId && activeSongMdDefaults) {
-      return isCurrentSongSessionOverridden || (effectiveKey !== activeSongMdDefaults.key);
+      return isCurrentSongSessionOverridden || (getRootNote(effectiveKey) !== getRootNote(activeSongMdDefaults.key));
     }
     if (currentSong) {
       const baseKey = currentSong.originalKey || currentSong.key;
-      return Boolean(baseKey && effectiveKey !== baseKey);
+      return Boolean(baseKey && getRootNote(effectiveKey) !== getRootNote(baseKey));
     }
     return false;
   }, [activeSetlistId, activeSongMdDefaults, isCurrentSongSessionOverridden, effectiveKey, currentSong]);
@@ -929,7 +929,7 @@ export default function BandStagePage() {
 
     // Apply key instantly; record session override if inside active setlist
     if (activeSetlistId && activeSongMdDefaults) {
-      if (newKey === activeSongMdDefaults.key) {
+      if (getRootNote(newKey) === getRootNote(activeSongMdDefaults.key)) {
         revertToMdDefault(currentSong.id);
       } else {
         setSongSessionOverride(currentSong.id, { key: newKey });
@@ -959,15 +959,18 @@ export default function BandStagePage() {
 
   const handleUnifiedRevertKey = () => {
     if (!currentSong) return;
+    try {
+      localStorage.removeItem(`hgf_device_key_${currentSong.id}`);
+    } catch (_) {}
+
     if (activeSetlistId && activeSongMdDefaults) {
       revertToMdDefault(currentSong.id);
+      resetTranspose();
       setTargetKey(activeSongMdDefaults.key);
     } else {
       const origKey = currentSong.originalKey || currentSong.key || 'C';
+      resetTranspose();
       setTargetKey(origKey);
-      try {
-        localStorage.removeItem(`hgf_device_key_${currentSong.id}`);
-      } catch (_) {}
     }
   };
 

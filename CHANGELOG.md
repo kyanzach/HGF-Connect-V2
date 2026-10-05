@@ -5,7 +5,15 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v2.71.3] — 2026-10-05
+## [v2.71.4] — 2026-10-05
+### Fixed & Enhanced — Song Key Synchronization, Chord Detection & Device Transposition
+- **Chord Sheet Key Integrity (`musicTheory.ts`, `useMusicTheory.ts`, `data/worship`)**:
+  - Enhanced `getRootNote` and chord parsing in `musicTheory.ts` to preserve flats properly (e.g. `Db`, `Eb`, `Ab`, `Bb`), support uppercase accidental variants, and prioritize verse/chorus first chords when identifying chord charts' native pitch.
+  - Improved `chartKey` deduction in `useMusicTheory.ts` to trust actual chord tokens whenever stored metadata conflicts, preventing semitone jumping on mislabeled songs.
+  - Fixed 21 library songs with mismatching key headers in `data/worship/songs/` (including *Battle Belongs*, *Tribes*, *Forever*, *Because Of Jesus*, *Dalangpanan*, *Sa Gugma Mo*, *Faith*, *Gratitude*, *Goodness Of God*, and *Your Grace Is Enough*) and synchronized active setlists in `data/worship/setlists/`.
+- **Transposition & Worship Leader Key Reset (`page.tsx`)**:
+  - Normalized key comparison in `isKeySessionOverridden` using root pitch extraction (`getRootNote`) to avoid false-positive override indicators caused by minor tags or enharmonic formatting.
+  - Enhanced `handleUnifiedRevertKey` to call `resetTranspose()`, reliably zeroing out any device transposition delta and clearing local storage overrides when reverting to the MD/Worship Leader key.
 ### Fixed & Enhanced — Two-Finger Scrolling Engine in Drawing Mode (iOS & Android)
 - **Native Multi-Touch Two-Finger Scroll Engine (`DrawingCanvas.tsx`)**:
   - Implemented dedicated non-passive `{ passive: false }` native touch event listeners (`touchstart`, `touchmove`, `touchend`, `touchcancel`) on the annotation canvas to reliably intercept two-finger pinch/scroll gestures on iOS Safari and Android Chrome/APK.

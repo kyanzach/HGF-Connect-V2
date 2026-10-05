@@ -21,8 +21,6 @@ interface NavigationDockProps {
   hasPlaybackDock?: boolean;
   duration?: string;
   onOpenDurationPicker?: () => void;
-  onForceRefresh?: () => void;
-  isForceRefreshing?: boolean;
   isLyricsOnly?: boolean;
   onToggleLyricsOnly?: () => void;
 }
@@ -44,8 +42,6 @@ export const NavigationDock: React.FC<NavigationDockProps> = ({
   hasPlaybackDock = false,
   duration,
   onOpenDurationPicker,
-  onForceRefresh,
-  isForceRefreshing = false,
   isLyricsOnly = false,
   onToggleLyricsOnly,
 }) => {
