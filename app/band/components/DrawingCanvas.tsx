@@ -95,12 +95,31 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
 
     const visibleList = getVisibleStrokes();
 
+    // Anchor resolver: translates musical section & line coordinates to live screen pixels
+    const resolvePointCoords = (p: DrawingPoint) => {
+      if (p.lineIdx !== undefined) {
+        const lineEl = document.getElementById(`sheet-line-${p.lineIdx}`);
+        if (lineEl) {
+          const lRect = lineEl.getBoundingClientRect();
+          const liveX = (lRect.left - rect.left) + (p.relX !== undefined ? p.relX * lRect.width : 0);
+          const liveY = (lRect.top - rect.top) + (p.relY !== undefined ? p.relY : 0);
+          return { x: liveX, y: liveY };
+        }
+      }
+
+      if (p.nx !== undefined && p.ny !== undefined) {
+        return { x: p.nx * cssW, y: p.ny * cssH };
+      }
+
+      return { x: p.x || 0, y: p.y || 0 };
+    };
+
     visibleList.forEach((stroke) => {
       if (!stroke.points || stroke.points.length === 0) return;
 
-      const p0 = stroke.points[0];
-      const p0x = p0.x !== undefined ? p0.x : (p0.nx !== undefined ? p0.nx * cssW : 0);
-      const p0y = p0.y !== undefined ? p0.y : (p0.ny !== undefined ? p0.ny * cssH : 0);
+      const p0 = resolvePointCoords(stroke.points[0]);
+      const p0x = p0.x;
+      const p0y = p0.y;
 
       // Handle single-point marks (dots, taps)
       if (stroke.points.length === 1) {
@@ -121,31 +140,21 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       ctx.moveTo(p0x, p0y);
 
       if (stroke.points.length === 2) {
-        const p1 = stroke.points[1];
-        const p1x = p1.x !== undefined ? p1.x : (p1.nx !== undefined ? p1.nx * cssW : 0);
-        const p1y = p1.y !== undefined ? p1.y : (p1.ny !== undefined ? p1.ny * cssH : 0);
-        ctx.lineTo(p1x, p1y);
+        const p1 = resolvePointCoords(stroke.points[1]);
+        ctx.lineTo(p1.x, p1.y);
       } else {
         // Smooth quadratic bezier curves for natural fluid strokes
         for (let i = 1; i < stroke.points.length - 1; i++) {
-          const pt = stroke.points[i];
-          const next = stroke.points[i + 1];
+          const pt = resolvePointCoords(stroke.points[i]);
+          const next = resolvePointCoords(stroke.points[i + 1]);
 
-          const ptx = pt.x !== undefined ? pt.x : (pt.nx !== undefined ? pt.nx * cssW : 0);
-          const pty = pt.y !== undefined ? pt.y : (pt.ny !== undefined ? pt.ny * cssH : 0);
+          const midX = (pt.x + next.x) / 2;
+          const midY = (pt.y + next.y) / 2;
 
-          const nxtx = next.x !== undefined ? next.x : (next.nx !== undefined ? next.nx * cssW : 0);
-          const nxty = next.y !== undefined ? next.y : (next.ny !== undefined ? next.ny * cssH : 0);
-
-          const midX = (ptx + nxtx) / 2;
-          const midY = (pty + nxty) / 2;
-
-          ctx.quadraticCurveTo(ptx, pty, midX, midY);
+          ctx.quadraticCurveTo(pt.x, pt.y, midX, midY);
         }
-        const last = stroke.points[stroke.points.length - 1];
-        const lastX = last.x !== undefined ? last.x : (last.nx !== undefined ? last.nx * cssW : 0);
-        const lastY = last.y !== undefined ? last.y : (last.ny !== undefined ? last.ny * cssH : 0);
-        ctx.lineTo(lastX, lastY);
+        const last = resolvePointCoords(stroke.points[stroke.points.length - 1]);
+        ctx.lineTo(last.x, last.y);
       }
 
       ctx.stroke();
@@ -239,7 +248,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     }
   }, [isActive, updateCanvasSize, redraw]);
 
-  // Precise coordinate mapping in CSS pixels
+  // Precise coordinate mapping in CSS pixels with musical section & line anchoring
   const getCanvasCoords = useCallback((clientX: number, clientY: number): DrawingPoint => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0, nx: 0, ny: 0 };
@@ -254,11 +263,37 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     const clampedNx = Math.max(0, Math.min(1, cssX / cssW));
     const clampedNy = Math.max(0, Math.min(1, cssY / cssH));
 
+    // Find the sheet line (.hgf-sheet-line) under or closest to this point
+    let lineIdx: number | undefined = undefined;
+    let sectionName: string | undefined = undefined;
+    let relX: number | undefined = undefined;
+    let relY: number | undefined = undefined;
+
+    const lineElements = document.querySelectorAll<HTMLElement>('.hgf-sheet-line');
+    for (let i = 0; i < lineElements.length; i++) {
+      const el = lineElements[i];
+      const lRect = el.getBoundingClientRect();
+      if (clientY >= lRect.top - 6 && clientY <= lRect.bottom + 6) {
+        const parsedIdx = el.dataset.sheetLineIndex ? parseInt(el.dataset.sheetLineIndex, 10) : undefined;
+        if (parsedIdx !== undefined && !isNaN(parsedIdx)) {
+          lineIdx = parsedIdx;
+          sectionName = el.dataset.sectionName || undefined;
+          relX = Math.max(0, Math.min(1, (clientX - lRect.left) / Math.max(lRect.width, 1)));
+          relY = clientY - lRect.top;
+          break;
+        }
+      }
+    }
+
     return {
       x: Math.round(cssX),
       y: Math.round(cssY),
       nx: clampedNx,
       ny: clampedNy,
+      lineIdx,
+      sectionName,
+      relX,
+      relY,
     };
   }, []);
 
@@ -279,9 +314,20 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
           if (!isMd && s.userId !== currentUser?.id && s.userId !== 'guest') return true;
 
           const hit = s.points.some((p) => {
-            const px = p.x !== undefined ? p.x : (p.nx !== undefined ? p.nx * cssW : 0);
-            const py = p.y !== undefined ? p.y : (p.ny !== undefined ? p.ny * cssH : 0);
-            return Math.hypot(px - pos.x, py - pos.y) < thresholdCss;
+            let px = p.x;
+            let py = p.y;
+            if (p.lineIdx !== undefined) {
+              const lineEl = document.getElementById(`sheet-line-${p.lineIdx}`);
+              if (lineEl) {
+                const lRect = lineEl.getBoundingClientRect();
+                px = (lRect.left - rect.left) + (p.relX !== undefined ? p.relX * lRect.width : 0);
+                py = (lRect.top - rect.top) + (p.relY !== undefined ? p.relY : 0);
+              }
+            } else if (p.nx !== undefined && p.ny !== undefined) {
+              px = p.nx * cssW;
+              py = p.ny * cssH;
+            }
+            return Math.hypot((px ?? 0) - pos.x, (py ?? 0) - pos.y) < thresholdCss;
           });
           return !hit;
         });

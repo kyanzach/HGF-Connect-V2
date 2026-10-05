@@ -9,6 +9,7 @@ import {
   getRootNote,
   calculateSemitoneDistance,
   transposeChordSheetText,
+  detectRootKeyFromChords,
   FLAT_KEYS,
   ENHARMONIC_KEYS,
 } from '../../lib/musicTheory';
@@ -121,7 +122,8 @@ export const SongEditorModal: React.FC<SongEditorModalProps> = ({
   };
 
   const handleKeyChange = (newKey: string) => {
-    const oldRoot = getRootNote(key);
+    const detected = chords.trim() ? detectRootKeyFromChords(chords) : null;
+    const oldRoot = detected || getRootNote(key);
     const newRoot = getRootNote(newKey);
     if (oldRoot && newRoot && oldRoot !== newRoot && chords.trim()) {
       const diff = calculateSemitoneDistance(oldRoot, newRoot);

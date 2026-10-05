@@ -217,11 +217,11 @@ export default function BandStagePage() {
     ((session?.user as any)?.role || '').toUpperCase() === 'MD'
   );
 
-  // Scope backtrack playback dock: strictly visible to MDs (Musical Directors) only
+  // Scope backtrack playback dock: visible to all band instrument players / members or MD when audio track is present
   const isPlaybackDockVisible = useMemo(() => {
     if (!hasAudio || !currentSong?.audioTrack) return false;
-    return isUserMD;
-  }, [hasAudio, currentSong?.audioTrack, isUserMD]);
+    return Boolean(currentUser || isUserMD);
+  }, [hasAudio, currentSong?.audioTrack, currentUser, isUserMD]);
 
   // Permanently disable native Android SwipeRefreshLayout in HGFBandApp APK bridge
   useEffect(() => {
@@ -427,7 +427,7 @@ export default function BandStagePage() {
   // Login Gate Modal
   const [loginPrompt, setLoginPrompt] = useState<{
     open: boolean;
-    feature: 'draw' | 'notes' | 'add_song' | 'setlist' | null;
+    feature: 'draw' | 'notes' | 'add_song' | 'setlist' | 'audio' | null;
   }>({ open: false, feature: null });
 
   const [drawingSyncTick, setDrawingSyncTick] = useState<number>(0);
@@ -1513,7 +1513,13 @@ export default function BandStagePage() {
             }
             setIsDrawingActive(!isDrawingActive);
           }}
-          onOpenAudioManager={() => setIsAudioStorageOpen(true)}
+          onOpenAudioManager={() => {
+            if (!currentUser) {
+              setLoginPrompt({ open: true, feature: 'audio' });
+              return;
+            }
+            setIsAudioStorageOpen(true);
+          }}
           onOpenScratchpad={() => {
             if (!currentUser) {
               setLoginPrompt({ open: true, feature: 'notes' });
@@ -1871,7 +1877,7 @@ export default function BandStagePage() {
       />
 
       <AudioStorageModal
-        isOpen={isAudioStorageOpen && isUserMD}
+        isOpen={isAudioStorageOpen}
         onClose={() => setIsAudioStorageOpen(false)}
         currentSong={currentSong}
         currentUser={currentUser}
@@ -1961,6 +1967,8 @@ export default function BandStagePage() {
             ? 'You must be logged in to access and add private musician notes.'
             : loginPrompt.feature === 'add_song'
             ? 'You must be logged in with a band account to add songs to the church music library.'
+            : loginPrompt.feature === 'audio'
+            ? 'You must be logged in with a band account to access the Band Cloud Server, manage backing tracks, or link tracks to this song.'
             : 'You must be logged in with a band account to create or manage setlists.'
         }
         confirmLabel="Log In Now"

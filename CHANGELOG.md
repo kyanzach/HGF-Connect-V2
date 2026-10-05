@@ -5,6 +5,22 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.71.2] — 2026-10-05
+### Fixed & Enhanced — Chords Key Integrity, Band Audio Cloud for All Musicians & Responsive Drawing Anchors
+- **Accurate Key & Chords Alignment (`useSetlist.ts`, `useMusicTheory.ts`, `SongEditorModal.tsx`)**:
+  - Fixed an issue where songs in setlists with customized or pre-transposed chord charts erroneously retained the master catalog's written key as `originalKey`.
+  - In `useSetlist.ts`, dynamically resolved `originalKey` from the setlist item (`item.originalKey || (item.chords ? item.key : found.originalKey)`).
+  - In `useMusicTheory.ts`, harmonized `chartKey` with `song.key` when detected chord root matches `song.key`, ensuring semitone distance calculations are zero for unchanged charts and strictly accurate when transposing.
+  - In `SongEditorModal.tsx`, enhanced `handleKeyChange` to detect actual chords pitch before calculating transposition deltas, preventing unintended +4 or -4 semitone leaps.
+- **Band Cloud Server & Audio Track Manager for All Instrument Players (`StageTopBar.tsx`, `app/band/page.tsx`)**:
+  - Made the `🎧 Track` button visible to all band instrument players (not just MDs) so musicians can practice, attach, listen to, and calibrate backing tracks, click tracks, and vocal stems.
+  - Added guest login prompt (`ConfirmModal`) when non-authenticated users tap Track / Audio Manager.
+  - Extended the backtrack audio playback dock to be visible to all logged-in band members when audio stems/tracks are present.
+- **Responsive Line & Section Anchoring for Stage Drawings (`SongSheet.tsx`, `DrawingCanvas.tsx`, `types/band.ts`)**:
+  - Implemented dynamic DOM musical section and line anchoring (`data-sheet-line-index`, `data-section-name`, `id="sheet-line-${lIdx}"`).
+  - Extended `DrawingPoint` with `lineIdx`, `sectionName`, `relX` (fractional line width), and `relY` (vertical offset from line top).
+  - Updated `DrawingCanvas.tsx`'s `redraw` and `eraseStrokesAt` with a responsive anchor resolver so annotations stay pinned to the exact musical bars, lyrics, and chords across phones, tablets, and screen sizes, even when text reflows or font size scales.
+
 ## [v2.71.1] — 2026-10-01
 ### Fixed & Enhanced — Deep Linking to Comments & Posts with Pulsation Effect
 - **Deep Linking to Comments (`app/api/posts/[id]/comments/route.ts`)**:

@@ -181,21 +181,23 @@ export function useSetlist() {
       const found = songs.find((s) => s.id === sId);
       if (found) {
         // Apply MD setlist key, bpm, and timeSignature preferences
-        const mdKey = typeof item === 'object' && item.key ? item.key : found.key;
-        const mdCapo = typeof item === 'object' && item.capo !== undefined ? item.capo : found.capo;
-        const mdTempo = typeof item === 'object' && item.tempo !== undefined ? item.tempo : found.tempo;
-        const mdTimeSig = typeof item === 'object' && item.timeSignature ? item.timeSignature : found.timeSignature;
-        const mdChords = typeof item === 'object' && item.chords ? item.chords : found.chords;
-        const mdDuration = typeof item === 'object' && item.duration ? item.duration : found.duration;
-        const mdAudioTrack = typeof item === 'object' && item.audioTrack ? item.audioTrack : found.audioTrack;
+        const itemObj = typeof item === 'object' ? item : null;
+        const mdKey = itemObj?.key ? itemObj.key : found.key;
+        const mdCapo = itemObj?.capo !== undefined ? itemObj.capo : found.capo;
+        const mdTempo = itemObj?.tempo !== undefined ? itemObj.tempo : found.tempo;
+        const mdTimeSig = itemObj?.timeSignature ? itemObj.timeSignature : found.timeSignature;
+        const mdChords = itemObj?.chords ? itemObj.chords : found.chords;
+        const mdDuration = itemObj?.duration ? itemObj.duration : found.duration;
+        const mdAudioTrack = itemObj?.audioTrack ? itemObj.audioTrack : found.audioTrack;
 
         // Check if there is an active session override for this setlist
         const override = setlistSessionOverrides[`${activeSetlist.id}_${found.id}`];
+        const resolvedOriginalKey = itemObj?.originalKey || (itemObj?.chords ? itemObj.key : (found.originalKey || found.key || 'C'));
         lineup.push({
           ...found,
           chords: mdChords,
           key: override?.key || mdKey,
-          originalKey: found.originalKey || found.key || 'C',
+          originalKey: resolvedOriginalKey,
           capo: override?.capo !== undefined ? override.capo : mdCapo,
           tempo: override?.tempo !== undefined ? override.tempo : mdTempo,
           timeSignature: override?.timeSignature || mdTimeSig,

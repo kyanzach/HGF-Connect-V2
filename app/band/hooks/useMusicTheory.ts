@@ -23,7 +23,14 @@ export function useMusicTheory(song: Song | null, activeSetlistId?: string | nul
   }, [song?.chords]);
 
   // Baseline key that the chord chart is physically written in
-  const chartKey = song?.originalKey || detectedKey || song?.key || 'C';
+  const chartKey = useMemo(() => {
+    if (!song) return 'C';
+    // If chords detected pitch matches song.key, the chart text is physically in that key
+    if (detectedKey && song.key && getRootNote(detectedKey) === getRootNote(song.key)) {
+      return song.key;
+    }
+    return song.originalKey || detectedKey || song.key || 'C';
+  }, [song, detectedKey]);
 
   // The active key to render (defaults to active song.key or chartKey)
   const [activeKey, setActiveKey] = useState<string>(song?.key || chartKey);

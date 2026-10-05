@@ -916,135 +916,170 @@ export const SongSheet: React.FC<SongSheetProps> = ({
           position: 'relative',
         }}
       >
-        {parsedLines.map((line, lIdx) => {
-          if (line.type === 'empty') {
-            return <div key={lIdx} style={{ height: '14px' }} />;
-          }
-
-          if (line.type === 'section') {
-            return (
-              <div
-                key={lIdx}
-                data-section-title={line.sectionName}
-                style={{
-                  fontSize: '14px',
-                  fontWeight: 800,
-                  color: '#38bdf8',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.8px',
-                  marginTop: '16px',
-                  marginBottom: '6px',
-                  borderLeft: '3px solid #38bdf8',
-                  paddingLeft: '8px',
-                }}
-              >
-                {line.sectionName || line.raw}
-              </div>
-            );
-          }
-
-          // Atomic interlocked chord-lyric pairs: Chords locked above words, wrapping together seamlessly
-          if (line.pairs && line.pairs.length > 0) {
-            const isPureInstrumental = line.pairs.every((p) => !p.lyric.trim());
-            if (isLyricsOnly && isPureInstrumental) {
-              return null;
+        {(() => {
+          let currentSectionTitle = '';
+          return parsedLines.map((line, lIdx) => {
+            if (line.type === 'empty') {
+              return (
+                <div
+                  key={lIdx}
+                  id={`sheet-line-${lIdx}`}
+                  className="hgf-sheet-line"
+                  data-sheet-line-index={lIdx}
+                  data-section-name={currentSectionTitle}
+                  style={{ height: '14px' }}
+                />
+              );
             }
 
+            if (line.type === 'section') {
+              currentSectionTitle = line.sectionName || line.raw || '';
+              return (
+                <div
+                  key={lIdx}
+                  id={`sheet-line-${lIdx}`}
+                  className="hgf-sheet-line"
+                  data-sheet-line-index={lIdx}
+                  data-section-name={currentSectionTitle}
+                  data-section-title={line.sectionName}
+                  style={{
+                    fontSize: '14px',
+                    fontWeight: 800,
+                    color: '#38bdf8',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.8px',
+                    marginTop: '16px',
+                    marginBottom: '6px',
+                    borderLeft: '3px solid #38bdf8',
+                    paddingLeft: '8px',
+                  }}
+                >
+                  {line.sectionName || line.raw}
+                </div>
+              );
+            }
+
+            // Atomic interlocked chord-lyric pairs: Chords locked above words, wrapping together seamlessly
+            if (line.pairs && line.pairs.length > 0) {
+              const isPureInstrumental = line.pairs.every((p) => !p.lyric.trim());
+              if (isLyricsOnly && isPureInstrumental) {
+                return null;
+              }
+
+              return (
+                <div
+                  key={lIdx}
+                  id={`sheet-line-${lIdx}`}
+                  className="hgf-sheet-line"
+                  data-sheet-line-index={lIdx}
+                  data-section-name={currentSectionTitle}
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    alignItems: 'flex-end',
+                    rowGap: isLyricsOnly ? '4px' : '10px',
+                    columnGap: '0px',
+                    minHeight: '1.4em',
+                    marginBottom: isLyricsOnly ? '4px' : '6px',
+                  }}
+                >
+                  {line.pairs.map((pair, pIdx) => (
+                    <span
+                      key={pIdx}
+                      style={{
+                        display: 'inline-flex',
+                        flexDirection: 'column',
+                        alignItems: 'flex-start',
+                        verticalAlign: 'bottom',
+                      }}
+                    >
+                      {!isLyricsOnly && (
+                        <span
+                          onClick={() => pair.chord && onOpenChordDiagram && onOpenChordDiagram(pair.chord)}
+                          style={{
+                            fontSize: '0.82em',
+                            fontWeight: 800,
+                            color: '#f59e0b',
+                            cursor: pair.chord ? 'pointer' : 'default',
+                            minHeight: '1.2em',
+                            lineHeight: 1.2,
+                            whiteSpace: 'pre',
+                            paddingRight: pair.chord ? '4px' : '0px',
+                            userSelect: pair.chord ? 'none' : 'text',
+                          }}
+                        >
+                          {pair.chord || ''}
+                        </span>
+                      )}
+                      <span
+                        style={{
+                          color: '#f1f5f9',
+                          whiteSpace: 'pre',
+                          lineHeight: 1.4,
+                        }}
+                      >
+                        {pair.lyric}
+                      </span>
+                    </span>
+                  ))}
+                </div>
+              );
+            }
+
+            // Fallback chord line rendering
+            if (line.type === 'chord_line' || line.type === 'chordpro') {
+              if (isLyricsOnly) return null;
+              return (
+                <div
+                  key={lIdx}
+                  id={`sheet-line-${lIdx}`}
+                  className="hgf-sheet-line"
+                  data-sheet-line-index={lIdx}
+                  data-section-name={currentSectionTitle}
+                  style={{ minHeight: '1.5em' }}
+                >
+                  {line.items?.map((item, iIdx) =>
+                    item.isChord ? (
+                      <span
+                        key={iIdx}
+                        onClick={() => onOpenChordDiagram && onOpenChordDiagram(item.text)}
+                        style={{
+                          fontWeight: 800,
+                          color: '#f59e0b',
+                          backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                          padding: '1px 4px',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          display: 'inline-block',
+                        }}
+                      >
+                        {item.text}
+                      </span>
+                    ) : (
+                      <span key={iIdx} style={{ color: '#e2e8f0' }}>
+                        {item.text}
+                      </span>
+                    )
+                  )}
+                </div>
+              );
+            }
+
+            // Lyric line
             return (
               <div
                 key={lIdx}
-                style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  alignItems: 'flex-end',
-                  rowGap: isLyricsOnly ? '4px' : '10px',
-                  columnGap: '0px',
-                  minHeight: '1.4em',
-                  marginBottom: isLyricsOnly ? '4px' : '6px',
-                }}
+                id={`sheet-line-${lIdx}`}
+                className="hgf-sheet-line"
+                data-sheet-line-index={lIdx}
+                data-section-name={currentSectionTitle}
+                style={{ color: '#f1f5f9', minHeight: '1.4em' }}
               >
-                {line.pairs.map((pair, pIdx) => (
-                  <span
-                    key={pIdx}
-                    style={{
-                      display: 'inline-flex',
-                      flexDirection: 'column',
-                      alignItems: 'flex-start',
-                      verticalAlign: 'bottom',
-                    }}
-                  >
-                    {!isLyricsOnly && (
-                      <span
-                        onClick={() => pair.chord && onOpenChordDiagram && onOpenChordDiagram(pair.chord)}
-                        style={{
-                          fontSize: '0.82em',
-                          fontWeight: 800,
-                          color: '#f59e0b',
-                          cursor: pair.chord ? 'pointer' : 'default',
-                          minHeight: '1.2em',
-                          lineHeight: 1.2,
-                          whiteSpace: 'pre',
-                          paddingRight: pair.chord ? '4px' : '0px',
-                          userSelect: pair.chord ? 'none' : 'text',
-                        }}
-                      >
-                        {pair.chord || ''}
-                      </span>
-                    )}
-                    <span
-                      style={{
-                        color: '#f1f5f9',
-                        whiteSpace: 'pre',
-                        lineHeight: 1.4,
-                      }}
-                    >
-                      {pair.lyric}
-                    </span>
-                  </span>
-                ))}
+                {line.raw}
               </div>
             );
-          }
-
-          // Fallback chord line rendering
-          if (line.type === 'chord_line' || line.type === 'chordpro') {
-            if (isLyricsOnly) return null;
-            return (
-              <div key={lIdx} style={{ minHeight: '1.5em' }}>
-                {line.items?.map((item, iIdx) =>
-                  item.isChord ? (
-                    <span
-                      key={iIdx}
-                      onClick={() => onOpenChordDiagram && onOpenChordDiagram(item.text)}
-                      style={{
-                        fontWeight: 800,
-                        color: '#f59e0b',
-                        backgroundColor: 'rgba(245, 158, 11, 0.12)',
-                        padding: '1px 4px',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        display: 'inline-block',
-                      }}
-                    >
-                      {item.text}
-                    </span>
-                  ) : (
-                    <span key={iIdx} style={{ color: '#e2e8f0' }}>
-                      {item.text}
-                    </span>
-                  )
-                )}
-              </div>
-            );
-          }
-
-          // Lyric line
-          return (
-            <div key={lIdx} style={{ color: '#f1f5f9', minHeight: '1.4em' }}>
-              {line.raw}
-            </div>
-          );
-        })}
+          });
+        })()}
       </div>
     </div>
   );

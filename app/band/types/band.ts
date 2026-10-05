@@ -28,6 +28,10 @@ export interface DrawingPoint {
   y: number;
   nx: number; // Normalized 0..1 for responsive cross-device redraw
   ny: number;
+  lineIdx?: number; // Musical line index in sheet
+  sectionName?: string; // Section name (e.g. Intro, Verse 1, Chorus)
+  relX?: number; // Fractional offset across line width (0..1)
+  relY?: number; // Vertical pixel offset from line top
 }
 
 export interface DrawingStroke {
@@ -74,6 +78,7 @@ export interface SetlistSongItem {
   id: string;
   title?: string;
   key?: string;
+  originalKey?: string;
   capo?: string | number;
   tempo?: number;
   timeSignature?: string;
