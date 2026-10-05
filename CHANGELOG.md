@@ -5,6 +5,16 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.71.3] — 2026-10-05
+### Fixed & Enhanced — Two-Finger Scrolling Engine in Drawing Mode (iOS & Android)
+- **Native Multi-Touch Two-Finger Scroll Engine (`DrawingCanvas.tsx`)**:
+  - Implemented dedicated non-passive `{ passive: false }` native touch event listeners (`touchstart`, `touchmove`, `touchend`, `touchcancel`) on the annotation canvas to reliably intercept two-finger pinch/scroll gestures on iOS Safari and Android Chrome/APK.
+  - Automatically aborts, clears, and redraws any transient dot caused by human finger stagger when Finger 1 hits the glass milliseconds before Finger 2 lands.
+  - Dynamically calculates midpoint coordinates (`midY`, `midX`) and synchronously pans `#sheetWrapper` vertically and horizontally.
+  - Releases pointer capture and locks out accidental single-finger strokes during two-finger dragging and for 200ms after fingers lift (`panCooldownUntilRef`).
+  - Added smooth deceleration inertia momentum so two-finger flicking feels completely natural and native.
+  - Integrated multi-pointer fallback tracking for desktop touchscreens and browser emulators.
+
 ## [v2.71.2] — 2026-10-05
 ### Fixed & Enhanced — Chords Key Integrity, Band Audio Cloud for All Musicians & Responsive Drawing Anchors
 - **Accurate Key & Chords Alignment (`useSetlist.ts`, `useMusicTheory.ts`, `SongEditorModal.tsx`)**:

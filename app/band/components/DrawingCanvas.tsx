@@ -35,11 +35,23 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   const isPanning = useRef<boolean>(false);
   const currentPoints = useRef<DrawingPoint[]>([]);
 
-  // Two-finger panning state
+  // Two-finger panning state & gesture cooldown
   const panStartYRef = useRef<number>(0);
   const panStartXRef = useRef<number>(0);
   const lastMidYRef = useRef<number>(0);
   const lastMidXRef = useRef<number>(0);
+  const panCooldownUntilRef = useRef<number>(0);
+  const lastScrollTimeRef = useRef<number>(0);
+  const scrollVelocityYRef = useRef<number>(0);
+  const momentumRafRef = useRef<number | null>(null);
+  const activePointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
+
+  const stopMomentum = useCallback(() => {
+    if (momentumRafRef.current) {
+      cancelAnimationFrame(momentumRafRef.current);
+      momentumRafRef.current = null;
+    }
+  }, []);
 
   const isMd = Boolean(
     (currentUser?.role || '').toUpperCase() === 'MD' ||
@@ -419,14 +431,210 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     currentPoints.current = [];
   }, [color, lineWidth, isMd, currentUser, onSaveStrokes]);
 
-  // ── High-Performance Pointer Events (Pen, Touch, Stylus, Mouse) ─────────
-  // Using Pointer Events with setPointerCapture guarantees that rapid circles, loops,
-  // and fast horizontal strokes NEVER cut off, and secondary palm touches are ignored.
+  // ── Native Two-Finger Scroll & Multi-Touch Gesture Engine (iOS & Android) ─
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !isActive) return;
+
+    const onNativeTouchStart = (e: TouchEvent) => {
+      stopMomentum();
+
+      try {
+        if (typeof window !== 'undefined' && (window as any).AndroidBand?.setSwipeRefreshEnabled) {
+          (window as any).AndroidBand.setSwipeRefreshEnabled(false);
+        }
+      } catch (_) {}
+
+      const touches = e.touches;
+      if (touches.length >= 2) {
+        // TWO OR MORE FINGERS: Enter 2-Finger Scroll / Pan Mode immediately!
+        e.preventDefault();
+        e.stopPropagation();
+
+        isPanning.current = true;
+
+        // If Finger 1 started drawing in the milliseconds before Finger 2 landed,
+        // instantly abort the stroke, discard temporary points, and clean the canvas!
+        if (isDrawing.current) {
+          isDrawing.current = false;
+          currentPoints.current = [];
+          redraw();
+        }
+
+        // Release any pointer capture held by the single finger
+        if (activePointerIdRef.current !== null) {
+          try {
+            canvas.releasePointerCapture(activePointerIdRef.current);
+          } catch (_) {}
+          activePointerIdRef.current = null;
+        }
+
+        const midY = (touches[0].clientY + touches[1].clientY) / 2;
+        const midX = (touches[0].clientX + touches[1].clientX) / 2;
+        panStartYRef.current = midY;
+        panStartXRef.current = midX;
+        lastMidYRef.current = midY;
+        lastMidXRef.current = midX;
+        lastScrollTimeRef.current = performance.now();
+        scrollVelocityYRef.current = 0;
+        return;
+      }
+
+      if (isPanning.current || Date.now() < panCooldownUntilRef.current) {
+        // Still cooling down from a two-finger scroll gesture
+        e.preventDefault();
+      }
+    };
+
+    const onNativeTouchMove = (e: TouchEvent) => {
+      const touches = e.touches;
+
+      if (touches.length >= 2) {
+        // Two-finger scroll in progress
+        e.preventDefault();
+        e.stopPropagation();
+
+        isPanning.current = true;
+        if (isDrawing.current) {
+          isDrawing.current = false;
+          currentPoints.current = [];
+          redraw();
+        }
+
+        const midY = (touches[0].clientY + touches[1].clientY) / 2;
+        const midX = (touches[0].clientX + touches[1].clientX) / 2;
+
+        if (!lastMidYRef.current) lastMidYRef.current = midY;
+        if (!lastMidXRef.current) lastMidXRef.current = midX;
+
+        const deltaY = midY - lastMidYRef.current;
+        const deltaX = midX - lastMidXRef.current;
+
+        const now = performance.now();
+        const dt = Math.max(1, now - (lastScrollTimeRef.current || now));
+        scrollVelocityYRef.current = deltaY / dt;
+        lastScrollTimeRef.current = now;
+
+        lastMidYRef.current = midY;
+        lastMidXRef.current = midX;
+
+        const wrapper = containerRef?.current || document.getElementById('sheetWrapper');
+        if (wrapper && !isNaN(deltaY)) {
+          const maxScroll = Math.max(0, wrapper.scrollHeight - wrapper.clientHeight);
+          wrapper.scrollTop = Math.max(0, Math.min(maxScroll, wrapper.scrollTop - deltaY));
+
+          if (!isNaN(deltaX)) {
+            const maxScrollX = Math.max(0, wrapper.scrollWidth - wrapper.clientWidth);
+            wrapper.scrollLeft = Math.max(0, Math.min(maxScrollX, wrapper.scrollLeft - deltaX));
+          }
+        }
+        return;
+      }
+
+      // If user was panning with 2 fingers, and 1 finger lifts before the other,
+      // prevent the remaining moving finger from drawing!
+      if (isPanning.current) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    const onNativeTouchEnd = (e: TouchEvent) => {
+      const touches = e.touches;
+
+      if (isPanning.current) {
+        if (touches.length === 0) {
+          // Both fingers lifted - finish panning gesture
+          isPanning.current = false;
+          lastMidYRef.current = 0;
+          lastMidXRef.current = 0;
+          panCooldownUntilRef.current = Date.now() + 200; // 200ms cooldown to reject lingering finger lifts
+
+          // Smooth inertia glide
+          const initialVelocity = scrollVelocityYRef.current;
+          if (Math.abs(initialVelocity) > 0.12) {
+            let vel = initialVelocity * 13;
+            const applyMomentum = () => {
+              if (Math.abs(vel) < 0.5 || isDrawing.current || isPanning.current) return;
+              const wrapper = containerRef?.current || document.getElementById('sheetWrapper');
+              if (wrapper) {
+                const maxScroll = Math.max(0, wrapper.scrollHeight - wrapper.clientHeight);
+                wrapper.scrollTop = Math.max(0, Math.min(maxScroll, wrapper.scrollTop - vel));
+              }
+              vel *= 0.92;
+              momentumRafRef.current = requestAnimationFrame(applyMomentum);
+            };
+            momentumRafRef.current = requestAnimationFrame(applyMomentum);
+          }
+
+          // Ensure canvas spans any newly scrolled sections
+          updateCanvasSize();
+        } else {
+          // 1 finger still on glass during 2-finger release: keep panning flag true
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }
+    };
+
+    const onNativeTouchCancel = () => {
+      isPanning.current = false;
+      lastMidYRef.current = 0;
+      lastMidXRef.current = 0;
+      panCooldownUntilRef.current = Date.now() + 200;
+    };
+
+    canvas.addEventListener('touchstart', onNativeTouchStart, { passive: false });
+    canvas.addEventListener('touchmove', onNativeTouchMove, { passive: false });
+    canvas.addEventListener('touchend', onNativeTouchEnd, { passive: false });
+    canvas.addEventListener('touchcancel', onNativeTouchCancel, { passive: false });
+
+    return () => {
+      stopMomentum();
+      canvas.removeEventListener('touchstart', onNativeTouchStart);
+      canvas.removeEventListener('touchmove', onNativeTouchMove);
+      canvas.removeEventListener('touchend', onNativeTouchEnd);
+      canvas.removeEventListener('touchcancel', onNativeTouchCancel);
+    };
+  }, [isActive, containerRef, redraw, stopMomentum, updateCanvasSize]);
+
+  // ── High-Performance Pointer Events (Pen, Stylus, Mouse, Desktop Touch) ─
   const activePointerIdRef = useRef<number | null>(null);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!isActive) return;
     if (e.button !== 0 && e.pointerType === 'mouse') return;
+
+    // Check if currently panning or cooling down from a 2-finger scroll
+    if (isPanning.current || Date.now() < panCooldownUntilRef.current) {
+      return;
+    }
+
+    // Stop any coasting inertia
+    stopMomentum();
+
+    // Track pointer in multi-touch registry
+    activePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    // Multi-pointer fallback (for desktop touchscreens / Chrome emulation)
+    if (activePointersRef.current.size >= 2) {
+      isPanning.current = true;
+      if (isDrawing.current) {
+        isDrawing.current = false;
+        currentPoints.current = [];
+        redraw();
+      }
+      if (activePointerIdRef.current !== null) {
+        try {
+          e.currentTarget.releasePointerCapture(activePointerIdRef.current);
+        } catch (_) {}
+        activePointerIdRef.current = null;
+      }
+      const pts = Array.from(activePointersRef.current.values());
+      lastMidYRef.current = (pts[0].y + pts[1].y) / 2;
+      lastMidXRef.current = (pts[0].x + pts[1].x) / 2;
+      return;
+    }
 
     // Palm / Secondary touch rejection: if already drawing, ignore additional touches
     if (activePointerIdRef.current !== null) {
@@ -460,7 +668,41 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!isActive || !isDrawing.current) return;
+    if (!isActive) return;
+
+    if (activePointersRef.current.has(e.pointerId)) {
+      activePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
+
+    if (isPanning.current || activePointersRef.current.size >= 2) {
+      if (activePointersRef.current.size >= 2) {
+        const pts = Array.from(activePointersRef.current.values());
+        const midY = (pts[0].y + pts[1].y) / 2;
+        const midX = (pts[0].x + pts[1].x) / 2;
+
+        if (!lastMidYRef.current) lastMidYRef.current = midY;
+        if (!lastMidXRef.current) lastMidXRef.current = midX;
+
+        const deltaY = midY - lastMidYRef.current;
+        const deltaX = midX - lastMidXRef.current;
+
+        lastMidYRef.current = midY;
+        lastMidXRef.current = midX;
+
+        const wrapper = containerRef?.current || document.getElementById('sheetWrapper');
+        if (wrapper && !isNaN(deltaY)) {
+          const maxScroll = Math.max(0, wrapper.scrollHeight - wrapper.clientHeight);
+          wrapper.scrollTop = Math.max(0, Math.min(maxScroll, wrapper.scrollTop - deltaY));
+          if (!isNaN(deltaX)) {
+            const maxScrollX = Math.max(0, wrapper.scrollWidth - wrapper.clientWidth);
+            wrapper.scrollLeft = Math.max(0, Math.min(maxScrollX, wrapper.scrollLeft - deltaX));
+          }
+        }
+      }
+      return;
+    }
+
+    if (!isDrawing.current) return;
     if (e.pointerId !== activePointerIdRef.current) return;
 
     const pos = getCanvasCoords(e.clientX, e.clientY);
@@ -475,14 +717,29 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!isActive || !isDrawing.current) return;
-    if (e.pointerId !== activePointerIdRef.current) return;
+    if (!isActive) return;
 
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    } catch (_) {}
+    activePointersRef.current.delete(e.pointerId);
 
-    activePointerIdRef.current = null;
+    if (e.pointerId === activePointerIdRef.current) {
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      } catch (_) {}
+      activePointerIdRef.current = null;
+    }
+
+    if (activePointersRef.current.size === 0 && isPanning.current) {
+      isPanning.current = false;
+      lastMidYRef.current = 0;
+      lastMidXRef.current = 0;
+      panCooldownUntilRef.current = Date.now() + 200;
+      updateCanvasSize();
+      return;
+    }
+
+    if (isPanning.current) return;
+    if (!isDrawing.current) return;
+
     isDrawing.current = false;
 
     if (!isEraser && currentPoints.current.length > 0) {
@@ -492,17 +749,27 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   };
 
   const handlePointerCancel = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!isActive || !isDrawing.current) return;
-    if (e.pointerId !== activePointerIdRef.current) return;
+    if (!isActive) return;
 
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    } catch (_) {}
+    activePointersRef.current.delete(e.pointerId);
 
-    activePointerIdRef.current = null;
+    if (e.pointerId === activePointerIdRef.current) {
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      } catch (_) {}
+      activePointerIdRef.current = null;
+    }
+
+    if (isPanning.current) {
+      isDrawing.current = false;
+      currentPoints.current = [];
+      return;
+    }
+
+    if (!isDrawing.current) return;
     isDrawing.current = false;
 
-    // Retain drawn points even if Android/OS issues pointercancel
+    // Retain drawn points even if Android/OS issues pointercancel (e.g. edge swipe)
     if (!isEraser && currentPoints.current.length > 0) {
       commitCurrentStroke();
     }
@@ -521,6 +788,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
 
   // ── Quick Scroll Buttons for Floating Toolbar ────────────────────────────
   const scrollSheet = (offset: number) => {
+    stopMomentum();
     const wrapper = containerRef?.current || document.getElementById('sheetWrapper');
     if (!wrapper) return;
 
