@@ -35,6 +35,15 @@ export async function GET() {
             isCorrect: true,
           },
         },
+        catchupSessions: {
+          where: { memberId },
+          select: {
+            id: true,
+            startedAt: true,
+            expiresAt: true,
+            isCompleted: true,
+          },
+        },
       },
     });
 
@@ -44,6 +53,19 @@ export async function GET() {
       const submissionsCount = q.submissions.length;
       const isExpired = isQuizWeekExpired(q.sermonDate);
       
+      // Catch-up status calculation
+      const catchup = q.catchupSessions[0] || null;
+      let catchupStatus: "none" | "active" | "completed" | "expired" = "none";
+      if (catchup) {
+        if (catchup.isCompleted || submissionsCount >= 7) {
+          catchupStatus = "completed";
+        } else if (new Date() < catchup.expiresAt) {
+          catchupStatus = "active";
+        } else {
+          catchupStatus = "expired";
+        }
+      }
+
       // Compute score: count how many of the user's submissions are correct
       const score = reward ? reward.totalScore : q.submissions.filter((s) => s.isCorrect).length;
       
@@ -66,6 +88,8 @@ export async function GET() {
         tier,
         submissionsCount,
         isExpired,
+        catchupStatus,
+        catchupExpiresAt: catchup ? catchup.expiresAt.toISOString() : null,
       };
     });
 

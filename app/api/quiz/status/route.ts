@@ -105,6 +105,16 @@ export async function GET(request: Request) {
     const currentDay = Math.min(Math.max(quizRelativeDay, 0), 7);
     const isExpired = isQuizWeekExpired(quiz.sermonDate);
 
+    // Check if user has an active catch-up session for this quiz
+    const catchupSession = await db.quizCatchupSession.findUnique({
+      where: { quizId_memberId: { quizId: quiz.id, memberId } },
+    });
+    const isCatchupActive = Boolean(
+      catchupSession &&
+      !catchupSession.isCompleted &&
+      new Date() < catchupSession.expiresAt
+    );
+
     // Build day status
     const days = quiz.questions.map((q) => {
       const sub = submissionMap.get(q.id);
@@ -114,13 +124,16 @@ export async function GET(request: Request) {
       let status: "completed" | "available" | "locked" | "today" | "expired";
       if (sub) {
         status = "completed";
+      } else if (isCatchupActive) {
+        // Active catch-up session: drip gating removed, all unplayed challenges are available!
+        status = "available";
       } else if (isExpired) {
         // Week is over — unplayed days are permanently expired
         status = "expired";
       } else if (q.dayNumber === currentDay) {
         status = "today";
       } else if (currentDay > 0 && q.dayNumber <= currentDay) {
-        status = "available"; // catch-up
+        status = "available"; // catch-up within active week
       } else {
         status = "locked";
       }
@@ -193,6 +206,9 @@ export async function GET(request: Request) {
       attended,
       isActiveQuiz,
       isExpired,
+      isCatchup: isCatchupActive,
+      catchupExpiresAt: catchupSession?.expiresAt ? catchupSession.expiresAt.toISOString() : null,
+      catchupCompleted: catchupSession?.isCompleted || false,
       quizWeekStatus,
       quiz: {
         id: quiz.id,

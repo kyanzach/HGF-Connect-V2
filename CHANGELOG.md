@@ -5,6 +5,24 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.72.0] — 2026-10-06
+### Added & Enhanced — Missed Sunday Quiz Catch-Up Engine & Active Quiz Gating
+- **7-Day Personal Catch-Up Window**:
+  - Members can now catch up on any past sermon quiz they missed or did not complete from the app's history archive.
+  - Starting a catch-up unlocks a personal **7-day countdown window** (`quiz_catchup_sessions` database table created on production droplet with cascading integrity).
+  - In catch-up mode, the weekday drip lock is lifted: all 7 questions are immediately open and available, allowing members to study and answer at their own pace all at once or across 7 days.
+- **Single Active Quiz Gating & Polite Encouragement**:
+  - Enforced a strict single-active-quiz rule across both active current-week Sunday quizzes and past Sunday catch-ups.
+  - If a member attempts to start another catch-up while currently having an active quiz (either this week's live Sunday quiz or another past catch-up), a gentle, polite modal appears:
+    *"You have the chance to answer previous Sunday quiz after you finish this one, and you have 7 days to finish this one."*
+  - Includes a direct "Go to Active Quiz" action button to smoothly guide the member back to finishing their in-progress challenge.
+- **Dynamic Quiz Status, Submission & Hub Archive Integration**:
+  - Updated `/api/quiz/status` to detect active catch-up sessions, unblock expired days, and return active countdown expiration.
+  - Updated `/api/quiz/submit` to authorize past quiz submissions under valid catch-up windows and auto-mark `isCompleted: true` upon submitting the 7th challenge.
+  - Updated `/api/quiz/history` to provide `catchupStatus` (`none`, `active`, `completed`, `expired`) and expiration timestamps.
+  - Enhanced `/quiz/hub` Archive tab with clear status badges, a pre-flight catch-up briefing modal, and resume buttons.
+  - Enhanced `/quiz` player with a dedicated 7-day catch-up banner and timer.
+
 ## [v2.71.6] — 2026-10-06
 ### Security & Access Control — Gated Sermon Resources & Downloads
 - **Authentication & Membership Enforcement (`/resources`)**:

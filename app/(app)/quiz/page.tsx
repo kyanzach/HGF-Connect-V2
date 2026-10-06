@@ -41,6 +41,9 @@ interface QuizStatus {
   attended?: boolean;
   message?: string;
   isActiveQuiz?: boolean;
+  isCatchup?: boolean;
+  catchupExpiresAt?: string | null;
+  catchupCompleted?: boolean;
   quiz?: {
     id: number;
     title: string;
@@ -424,9 +427,44 @@ export default function MemberQuizPage() {
       </div>
 
       {/* Week Title Card */}
-      <div style={{ background: quizStatus?.isExpired ? "linear-gradient(135deg, #374151 0%, #4b5563 100%)" : "linear-gradient(135deg, #0f2d3d 0%, #1a5276 100%)", borderRadius: "20px", padding: "20px", color: "white", boxShadow: "0 4px 20px rgba(0,0,0,0.12)", marginBottom: "20px" }}>
-        <span style={{ background: quizStatus?.isExpired ? "rgba(255,255,255,0.15)" : `${PRIMARY}30`, color: quizStatus?.isExpired ? "#d1d5db" : PRIMARY, fontSize: "0.7rem", fontWeight: 700, padding: "4px 10px", borderRadius: "20px", border: quizStatus?.isExpired ? "1px solid rgba(255,255,255,0.2)" : `1px solid ${PRIMARY}40` }}>
-          {quizStatus?.isExpired ? "COMPLETED WEEK" : "ACTIVE QUIZ WEEK"}
+      <div style={{
+        background: quizStatus?.isCatchup
+          ? "linear-gradient(135deg, #0e7490 0%, #0284c7 100%)"
+          : quizStatus?.isExpired
+            ? "linear-gradient(135deg, #374151 0%, #4b5563 100%)"
+            : "linear-gradient(135deg, #0f2d3d 0%, #1a5276 100%)",
+        borderRadius: "20px",
+        padding: "20px",
+        color: "white",
+        boxShadow: "0 4px 20px rgba(0,0,0,0.12)",
+        marginBottom: "20px"
+      }}>
+        <span style={{
+          background: quizStatus?.isCatchup
+            ? "rgba(255,255,255,0.25)"
+            : quizStatus?.isExpired
+              ? "rgba(255,255,255,0.15)"
+              : `${PRIMARY}30`,
+          color: quizStatus?.isCatchup
+            ? "#ffffff"
+            : quizStatus?.isExpired
+              ? "#d1d5db"
+              : PRIMARY,
+          fontSize: "0.7rem",
+          fontWeight: 700,
+          padding: "4px 10px",
+          borderRadius: "20px",
+          border: quizStatus?.isCatchup
+            ? "1px solid rgba(255,255,255,0.4)"
+            : quizStatus?.isExpired
+              ? "1px solid rgba(255,255,255,0.2)"
+              : `1px solid ${PRIMARY}40`
+        }}>
+          {quizStatus?.isCatchup
+            ? "🎯 7-DAY CATCH-UP WINDOW"
+            : quizStatus?.isExpired
+              ? "COMPLETED WEEK"
+              : "ACTIVE QUIZ WEEK"}
         </span>
         <h2 style={{ fontSize: "1.2rem", fontWeight: 800, marginTop: "8px", marginBottom: "6px", lineHeight: 1.4 }}>
           {quiz?.title ? quiz.title.split(/ — | - /)[0] : ""}
@@ -436,10 +474,38 @@ export default function MemberQuizPage() {
         </p>
       </div>
 
-      {/* YouTube Sermon Embed (if available) */}
+      {/* Catch-Up Active Banner */}
+      {quizStatus?.isCatchup && (
+        <div style={{
+          background: "linear-gradient(135deg, #ecfeff 0%, #e0f2fe 100%)",
+          border: "1px solid #7dd3fc",
+          borderRadius: "16px",
+          padding: "16px",
+          marginBottom: "20px",
+          display: "flex",
+          alignItems: "flex-start",
+          gap: "12px",
+          boxShadow: "0 2px 8px rgba(14, 116, 144, 0.08)",
+        }}>
+          <span style={{ fontSize: "1.6rem", lineHeight: 1 }}>⏳</span>
+          <div style={{ flex: 1 }}>
+            <strong style={{ fontSize: "0.9rem", color: "#0369a1", display: "block", marginBottom: "4px" }}>
+              7-Day Catch-Up Window Active
+            </strong>
+            <p style={{ fontSize: "0.82rem", color: "#0c4a6e", margin: "0 0 6px", lineHeight: 1.45 }}>
+              All 7 challenges for this Sunday sermon are unlocked! Take your time to study the Word and answer at your own pace — all at once or across the 7 days.
+            </p>
+            {quizStatus?.catchupExpiresAt && (
+              <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#0284c7", background: "white", padding: "3px 8px", borderRadius: "8px", border: "1px solid #bae6fd", display: "inline-block" }}>
+                ⏰ Window expires: {new Date(quizStatus.catchupExpiresAt).toLocaleDateString("en-PH", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Expired Week Banner */}
-      {quizStatus?.isExpired && (
+      {quizStatus?.isExpired && !quizStatus?.isCatchup && (
         <div style={{
           background: "#fef3c7",
           border: "1px solid #fbbf24",

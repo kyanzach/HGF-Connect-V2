@@ -32,19 +32,32 @@ export async function POST(request: Request) {
       include: { quiz: true },
     });
     if (!question) return NextResponse.json({ error: "Question not found" }, { status: 404 });
-    if (question.quiz.status !== "published") {
+    if (!["published", "completed"].includes(question.quiz.status)) {
       return NextResponse.json({ error: "Quiz not active" }, { status: 400 });
     }
 
-    // Check day access
+    // Check day access & catch-up session
+    let isCatchup = false;
+    let catchupSession = null;
+
     if (isQuizWeekExpired(question.quiz.sermonDate)) {
-      return NextResponse.json({ error: "This quiz week has ended" }, { status: 403 });
+      catchupSession = await db.quizCatchupSession.findUnique({
+        where: { quizId_memberId: { quizId: question.quiz.id, memberId } },
+      });
+
+      if (catchupSession && !catchupSession.isCompleted && new Date() < catchupSession.expiresAt) {
+        isCatchup = true;
+      } else {
+        return NextResponse.json({ error: "This quiz week has ended" }, { status: 403 });
+      }
     }
 
-    const quizRelativeDay = getQuizDayForDate(question.quiz.sermonDate);
-    const currentDay = Math.min(Math.max(quizRelativeDay, 0), 7);
-    if (!canAccessDay(question.dayNumber, currentDay)) {
-      return NextResponse.json({ error: "This day's quiz is not available yet" }, { status: 403 });
+    if (!isCatchup) {
+      const quizRelativeDay = getQuizDayForDate(question.quiz.sermonDate);
+      const currentDay = Math.min(Math.max(quizRelativeDay, 0), 7);
+      if (!canAccessDay(question.dayNumber, currentDay)) {
+        return NextResponse.json({ error: "This day's quiz is not available yet" }, { status: 403 });
+      }
     }
 
     // Check duplicate submission
@@ -180,6 +193,13 @@ export async function POST(request: Request) {
     const totalSubmissions = await db.quizSubmission.count({
       where: { quizId: question.quiz.id, memberId },
     });
+
+    if (catchupSession && totalSubmissions >= 7) {
+      await db.quizCatchupSession.update({
+        where: { id: catchupSession.id },
+        data: { isCompleted: true },
+      });
+    }
 
     let reward = null;
     if (totalSubmissions === 7) {

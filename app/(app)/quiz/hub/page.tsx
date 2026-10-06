@@ -14,6 +14,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import ImageLightbox from "@/components/ImageLightbox";
+import ConfirmModal from "@/components/ConfirmModal";
 import HubLoading from "./loading";
 
 const PRIMARY = "#4EB1CB";
@@ -38,6 +39,8 @@ interface QuizHistoryEntry {
   tier: string | null;
   submissionsCount: number;
   isExpired: boolean;
+  catchupStatus?: "none" | "active" | "completed" | "expired";
+  catchupExpiresAt?: string | null;
 }
 
 export default function QuizHubPage() {
@@ -54,6 +57,20 @@ export default function QuizHubPage() {
 
   // History data
   const [quizHistory, setQuizHistory] = useState<QuizHistoryEntry[]>([]);
+
+  // Catch-up briefing modal state
+  const [catchupModal, setCatchupModal] = useState<{
+    open: boolean;
+    quiz: QuizHistoryEntry | null;
+    loading: boolean;
+  }>({ open: false, quiz: null, loading: false });
+
+  // Polite conflict modal state
+  const [conflictModal, setConflictModal] = useState<{
+    open: boolean;
+    message: string;
+    activeQuizId?: number;
+  }>({ open: false, message: "", activeQuizId: undefined });
 
   useEffect(() => {
     if (authStatus === "authenticated") {
@@ -82,6 +99,57 @@ export default function QuizHubPage() {
 
   function getInitials(fn: string, ln: string) {
     return `${fn[0] || ""}${ln[0] || ""}`.toUpperCase();
+  }
+
+  function openCatchupBriefing(week: QuizHistoryEntry) {
+    setCatchupModal({
+      open: true,
+      quiz: week,
+      loading: false,
+    });
+  }
+
+  async function handleConfirmCatchup() {
+    if (!catchupModal.quiz) return;
+    setCatchupModal((prev) => ({ ...prev, loading: true }));
+    try {
+      const res = await fetch("/api/quiz/catchup/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quizId: catchupModal.quiz.id }),
+      });
+      const data = await res.json();
+
+      if (res.status === 409) {
+        // Active quiz conflict — display the polite prompt requested by the user
+        const activeId = data.activeQuizId;
+        const msg = data.message || "You have the chance to answer previous Sunday quiz after you finish this one, and you have 7 days to finish this one.";
+        setCatchupModal({ open: false, quiz: null, loading: false });
+        setConflictModal({
+          open: true,
+          message: msg,
+          activeQuizId: activeId,
+        });
+        return;
+      }
+
+      if (!res.ok) {
+        setCatchupModal({ open: false, quiz: null, loading: false });
+        setConflictModal({
+          open: true,
+          message: data.error || "Unable to start catch-up session.",
+        });
+        return;
+      }
+
+      // Success — route directly to the quiz!
+      const targetQuizId = catchupModal.quiz.id;
+      setCatchupModal({ open: false, quiz: null, loading: false });
+      router.push(`/quiz?quizId=${targetQuizId}`);
+    } catch (err) {
+      console.error("Failed to start catchup:", err);
+      setCatchupModal({ open: false, quiz: null, loading: false });
+    }
   }
 
   return (
@@ -434,7 +502,7 @@ export default function QuizHubPage() {
             </div>
           </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
             {quizHistory.length === 0 ? (
               <p style={{ color: "#94a3b8", fontSize: "0.82rem", textAlign: "center", padding: "20px" }}>
                 No past quiz weeks archive available.
@@ -444,6 +512,9 @@ export default function QuizHubPage() {
                 const played = week.played;
                 const score = week.score;
                 const tier = week.tier;
+                const isCompleted = (week.submissionsCount ?? 0) >= 7;
+                const isCatchupActive = week.catchupStatus === "active";
+                const isCatchupExpired = week.catchupStatus === "expired";
 
                 const TIER_LABELS: Record<string, string> = {
                   PERFECT: "🏆 Perfect",
@@ -452,67 +523,241 @@ export default function QuizHubPage() {
                   PARTICIPANT: "🙏 Participant",
                 };
 
+                let remainingDaysStr = "";
+                if (isCatchupActive && week.catchupExpiresAt) {
+                  const ms = new Date(week.catchupExpiresAt).getTime() - Date.now();
+                  const days = Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)));
+                  remainingDaysStr = `${days}d left`;
+                }
+
                 return (
-                  <button
+                  <div
                     key={week.id}
-                    onClick={() => router.push(`/quiz?quizId=${week.id}`)}
                     style={{
                       background: "white",
-                      borderRadius: "16px",
+                      borderRadius: "18px",
                       padding: "16px",
-                      boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+                      boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+                      border: isCatchupActive ? "1.5px solid #7dd3fc" : "1px solid #f1f5f9",
                       display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      border: "none",
-                      width: "100%",
-                      textAlign: "left",
-                      cursor: "pointer",
-                      transition: "transform 0.15s, box-shadow 0.15s",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = "translateY(-2px)";
-                      e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.08)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = "translateY(0)";
-                      e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.05)";
+                      flexDirection: "column",
+                      gap: "12px",
                     }}
                   >
-                    <div>
-                      <strong style={{ fontSize: "0.9rem", color: "#0f172a", display: "block" }}>
-                        {week.title}
-                      </strong>
-                      <span style={{ fontSize: "0.78rem", color: "#94a3b8", display: "block", marginTop: "2px" }}>
-                        {new Date(week.sermonDate).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
-                      </span>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "8px" }}>
+                      <div>
+                        <strong style={{ fontSize: "0.92rem", color: "#0f172a", display: "block", lineHeight: 1.35 }}>
+                          {week.title}
+                        </strong>
+                        <span style={{ fontSize: "0.78rem", color: "#94a3b8", display: "block", marginTop: "3px" }}>
+                          Sermon Date: {new Date(week.sermonDate).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
+                        </span>
+                      </div>
+
+                      {/* Status Badges */}
+                      <div style={{ textAlign: "right", flexShrink: 0 }}>
+                        {isCompleted ? (
+                          <span style={{
+                            background: "#f0fdf4",
+                            color: "#16a34a",
+                            border: "1px solid #bbf7d0",
+                            borderRadius: "10px",
+                            padding: "4px 8px",
+                            fontSize: "0.75rem",
+                            fontWeight: 700,
+                            display: "inline-block",
+                          }}>
+                            Score: {score}/7 {tier && `• ${TIER_LABELS[tier] || tier}`}
+                          </span>
+                        ) : isCatchupActive ? (
+                          <span style={{
+                            background: "#ecfeff",
+                            color: "#0284c7",
+                            border: "1px solid #7dd3fc",
+                            borderRadius: "10px",
+                            padding: "4px 8px",
+                            fontSize: "0.75rem",
+                            fontWeight: 700,
+                            display: "inline-block",
+                          }}>
+                            ⏳ Catch-Up Active ({remainingDaysStr})
+                          </span>
+                        ) : isCatchupExpired ? (
+                          <span style={{
+                            background: "#f1f5f9",
+                            color: "#64748b",
+                            border: "1px solid #cbd5e1",
+                            borderRadius: "10px",
+                            padding: "4px 8px",
+                            fontSize: "0.75rem",
+                            fontWeight: 600,
+                            display: "inline-block",
+                          }}>
+                            🔒 Window Ended
+                          </span>
+                        ) : (
+                          <span style={{
+                            background: "#fef9c3",
+                            color: "#854d0e",
+                            border: "1px solid #fde047",
+                            borderRadius: "10px",
+                            padding: "4px 8px",
+                            fontSize: "0.75rem",
+                            fontWeight: 600,
+                            display: "inline-block",
+                          }}>
+                            🎯 Missed Quiz ({week.submissionsCount || 0}/7)
+                          </span>
+                        )}
+                      </div>
                     </div>
 
-                    <div style={{ textAlign: "right" }}>
-                      {played ? (
-                        <div>
-                          <span style={{ fontSize: "0.88rem", fontWeight: 700, color: PRIMARY }}>
-                            Score: {score}/7
-                          </span>
-                          {tier && (
-                            <span style={{ display: "block", fontSize: "0.68rem", color: "#64748b", fontWeight: 600, marginTop: "2px" }}>
-                              {TIER_LABELS[tier] || tier}
-                            </span>
-                          )}
-                        </div>
+                    {/* Actions */}
+                    <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", paddingTop: "4px", borderTop: "1px solid #f8fafc" }}>
+                      {isCatchupActive ? (
+                        <button
+                          onClick={() => router.push(`/quiz?quizId=${week.id}`)}
+                          style={{
+                            background: PRIMARY,
+                            color: "white",
+                            border: "none",
+                            borderRadius: "10px",
+                            padding: "8px 14px",
+                            fontSize: "0.85rem",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            boxShadow: `0 2px 6px ${PRIMARY}40`,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "6px",
+                          }}
+                        >
+                          📝 Resume Catch-Up →
+                        </button>
+                      ) : isCompleted ? (
+                        <button
+                          onClick={() => router.push(`/quiz?quizId=${week.id}`)}
+                          style={{
+                            background: "#f1f5f9",
+                            color: "#334155",
+                            border: "1px solid #e2e8f0",
+                            borderRadius: "10px",
+                            padding: "8px 14px",
+                            fontSize: "0.85rem",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "6px",
+                          }}
+                        >
+                          👁️ Review Answers
+                        </button>
+                      ) : isCatchupExpired ? (
+                        <button
+                          onClick={() => router.push(`/quiz?quizId=${week.id}`)}
+                          style={{
+                            background: "#f1f5f9",
+                            color: "#64748b",
+                            border: "1px solid #e2e8f0",
+                            borderRadius: "10px",
+                            padding: "8px 14px",
+                            fontSize: "0.85rem",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "6px",
+                          }}
+                        >
+                          👁️ View Recap
+                        </button>
                       ) : (
-                        <span style={{ fontSize: "0.8rem", color: "#94a3b8", fontStyle: "italic" }}>
-                          Not played
-                        </span>
+                        <button
+                          onClick={() => openCatchupBriefing(week)}
+                          style={{
+                            background: "linear-gradient(135deg, #0e7490 0%, #0284c7 100%)",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "10px",
+                            padding: "8px 16px",
+                            fontSize: "0.85rem",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            boxShadow: "0 2px 8px rgba(14, 116, 144, 0.25)",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "6px",
+                          }}
+                        >
+                          🎯 Catch Up (7-Day Pass)
+                        </button>
                       )}
                     </div>
-                  </button>
+                  </div>
                 );
               })
             )}
           </div>
         )}
       </div>
+
+      {/* Catch-up Briefing Modal */}
+      <ConfirmModal
+        open={catchupModal.open}
+        title={catchupModal.quiz ? `🎯 Catch Up: ${catchupModal.quiz.title.split(/ — | - /)[0]}` : "Catch Up"}
+        message={
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px", textAlign: "left" }}>
+            <p style={{ margin: 0, color: "#334155", fontSize: "0.92rem", lineHeight: 1.5 }}>
+              Ready to catch up on this missed Sunday sermon quiz?
+            </p>
+            <div style={{ background: "#f0fdfa", border: "1px solid #ccfbf1", borderRadius: "10px", padding: "10px 12px", display: "flex", flexDirection: "column", gap: "6px" }}>
+              <div style={{ fontSize: "0.85rem", color: "#0f766e" }}>
+                ⏳ <strong>7-Day Window:</strong> You have a full 7 days to finish all 7 challenges.
+              </div>
+              <div style={{ fontSize: "0.85rem", color: "#0f766e" }}>
+                🔓 <strong>All Days Unlocked:</strong> Answer at your own pace — all at once or across the week.
+              </div>
+              <div style={{ fontSize: "0.85rem", color: "#0f766e" }}>
+                🏆 <strong>Points Count:</strong> Correct answers directly boost your All-Time standings!
+              </div>
+            </div>
+            <p style={{ margin: 0, fontSize: "0.8rem", color: "#64748b", fontStyle: "italic" }}>
+              * You can only have one active quiz at a time (this week&apos;s Sunday quiz or one past catch-up).
+            </p>
+          </div>
+        }
+        confirmLabel="Start 7-Day Catch-Up"
+        cancelLabel="Cancel"
+        confirmColor={PRIMARY}
+        loading={catchupModal.loading}
+        onConfirm={handleConfirmCatchup}
+        onCancel={() => setCatchupModal({ open: false, quiz: null, loading: false })}
+      />
+
+      {/* Polite Conflict Modal */}
+      <ConfirmModal
+        open={conflictModal.open}
+        title="🕊️ One Quiz at a Time"
+        message={
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px", textAlign: "left" }}>
+            <p style={{ margin: 0, color: "#1e293b", fontSize: "0.92rem", lineHeight: 1.55 }}>
+              {conflictModal.message}
+            </p>
+          </div>
+        }
+        confirmLabel={conflictModal.activeQuizId ? "Go to Active Quiz" : "Understood"}
+        cancelLabel={conflictModal.activeQuizId ? "Close" : null}
+        confirmColor={PRIMARY}
+        onConfirm={() => {
+          const activeId = conflictModal.activeQuizId;
+          setConflictModal({ open: false, message: "", activeQuizId: undefined });
+          if (activeId) {
+            router.push(`/quiz?quizId=${activeId}`);
+          }
+        }}
+        onCancel={() => setConflictModal({ open: false, message: "", activeQuizId: undefined })}
+      />
 
       {activeLightboxImg && (
         <ImageLightbox
