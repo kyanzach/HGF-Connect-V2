@@ -5,6 +5,18 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.71.5] — 2026-10-06
+### Fixed & Enhanced — Sermon Presentation & Slide Deck Download Naming
+- **Clean & Engaging Slide Deck File Names (`lib/presentationUtils.ts`)**:
+  - Implemented `getPresentationDownloadFilename()` utility to dynamically generate meaningful, human-readable file titles for sermon slide downloads (`.pptx` and `.pdf`).
+  - Prioritizes the sermon commentary H1 title (e.g. `Kingdom Living Begins with a Kingdom Heart.pptx`), falling back to event title or original upload name instead of saving raw internal UUIDs (`4e409bf6-...pptx`).
+  - Automatically sanitizes characters across OS filesystems (`Windows`, `macOS`, `Linux`) to ensure zero download or filename errors.
+- **Dedicated Presentation Download API Route (`app/api/events/[id]/presentation/download/route.ts`)**:
+  - Added streaming download endpoint providing RFC 5987 / RFC 6266 compliant `Content-Disposition: attachment; filename="..."; filename*=UTF-8''...` headers.
+  - Ensures iOS Safari, Android WebViews, and desktop browsers reliably present the beautiful sermon title even when native anchor download attributes are ignored.
+- **Resources, Sunday Quiz & Multimedia Integration**:
+  - Updated `ResourcesClient.tsx`, `quiz/page.tsx`, and `MultimediaDashboardClient.tsx` to use the new download endpoint and explicit clean `download` attribute values.
+
 ## [v2.71.4] — 2026-10-05
 ### Fixed & Enhanced — Song Key Synchronization, Chord Detection & Device Transposition
 - **Chord Sheet Key Integrity (`musicTheory.ts`, `useMusicTheory.ts`, `data/worship`)**:

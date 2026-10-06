@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import axios from "axios";
 import ConfirmModal from "@/components/ConfirmModal";
+import { getPresentationDownloadFilename } from "@/lib/presentationUtils";
 
 const P = "#4EB1CB"; // HGF Teal
 
@@ -35,6 +36,7 @@ interface EventRow {
   presentationFile: string | null;
   presentationOriginalName: string | null;
   presentationSlides: string[] | any;
+  commentary?: string | null;
   sopTasks: SopTask[];
   creator: { firstName: string; lastName: string } | null;
 }
@@ -860,27 +862,35 @@ export default function MultimediaDashboardClient({
                   </p>
                 </div>
 
-                {event.presentationFile && (
-                  <a
-                    href={event.presentationFile}
-                    download={event.presentationOriginalName || "presentation.pptx"}
-                    style={{
-                      background: P,
-                      color: "white",
-                      padding: "0.5rem 1rem",
-                      borderRadius: "8px",
-                      textDecoration: "none",
-                      fontSize: "0.8125rem",
-                      fontWeight: 700,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "0.375rem",
-                      boxShadow: "0 4px 12px rgba(78, 177, 203, 0.2)",
-                    }}
-                  >
-                    📥 Download Presentation (PPTX)
-                  </a>
-                )}
+                {event.presentationFile && (() => {
+                  const downloadFilename = getPresentationDownloadFilename({
+                    title: event.title,
+                    commentary: event.commentary,
+                    presentationFile: event.presentationFile,
+                    presentationOriginalName: event.presentationOriginalName,
+                  });
+                  return (
+                    <a
+                      href={`/api/events/${event.id}/presentation/download`}
+                      download={downloadFilename}
+                      style={{
+                        background: P,
+                        color: "white",
+                        padding: "0.5rem 1rem",
+                        borderRadius: "8px",
+                        textDecoration: "none",
+                        fontSize: "0.8125rem",
+                        fontWeight: 700,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "0.375rem",
+                        boxShadow: "0 4px 12px rgba(78, 177, 203, 0.2)",
+                      }}
+                    >
+                      📥 Download Presentation (PPTX)
+                    </a>
+                  );
+                })()}
               </div>
 
               {slides.length === 0 ? (

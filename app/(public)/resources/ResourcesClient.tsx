@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import ImageLightbox from "@/components/ImageLightbox";
+import { getPresentationDownloadFilename } from "@/lib/presentationUtils";
 
 interface SlideItem {
   image: string;
@@ -435,35 +436,38 @@ export default function ResourcesClient({ events }: Props) {
                 )}
 
                 {/* Action download buttons */}
-                {ev.presentationFile && (
-                  <a
-                    id={`resource-${ev.id}-download`}
-                    href={ev.presentationFile}
-                    download
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "8px",
-                      background: PRIMARY,
-                      color: "white",
-                      padding: "12px 20px",
-                      borderRadius: "10px",
-                      textDecoration: "none",
-                      fontWeight: 700,
-                      fontSize: "0.88rem",
-                      boxShadow: `0 4px 10px ${PRIMARY}30`,
-                      textAlign: "center",
-                      transition: "transform 0.1s, opacity 0.2s",
-                    }}
-                    onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.98)")}
-                    onMouseUp={(e) => (e.currentTarget.style.transform = "none")}
-                  >
-                    {ev.presentationFile.toLowerCase().endsWith(".pdf")
-                      ? "📥 Download Slide Deck (.pdf)"
-                      : "📥 Download Slide Deck (.pptx)"}
-                  </a>
-                )}
+                {ev.presentationFile && (() => {
+                  const downloadFilename = getPresentationDownloadFilename(ev);
+                  return (
+                    <a
+                      id={`resource-${ev.id}-download`}
+                      href={`/api/events/${ev.id}/presentation/download`}
+                      download={downloadFilename}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                        background: PRIMARY,
+                        color: "white",
+                        padding: "12px 20px",
+                        borderRadius: "10px",
+                        textDecoration: "none",
+                        fontWeight: 700,
+                        fontSize: "0.88rem",
+                        boxShadow: `0 4px 10px ${PRIMARY}30`,
+                        textAlign: "center",
+                        transition: "transform 0.1s, opacity 0.2s",
+                      }}
+                      onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.98)")}
+                      onMouseUp={(e) => (e.currentTarget.style.transform = "none")}
+                    >
+                      {ev.presentationFile.toLowerCase().endsWith(".pdf")
+                        ? "📥 Download Slide Deck (.pdf)"
+                        : "📥 Download Slide Deck (.pptx)"}
+                    </a>
+                  );
+                })()}
               </article>
             );
           })}

@@ -18,6 +18,7 @@ import ConfirmModal from "@/components/ConfirmModal";
 import CleanYoutubePlayer from "@/components/quiz/CleanYoutubePlayer";
 import ImageLightbox from "@/components/ImageLightbox";
 import QuizLoading from "./loading";
+import { getPresentationDownloadFilename } from "@/lib/presentationUtils";
 
 const PRIMARY = "#4EB1CB";
 
@@ -48,6 +49,7 @@ interface QuizStatus {
     status: string;
     eventId?: number | null;
     presentationFile?: string | null;
+    presentationOriginalName?: string | null;
     presentationSlides?: any | null;
     commentary?: string | null;
     speaker?: string | null;
@@ -676,31 +678,43 @@ export default function MemberQuizPage() {
                 )}
 
                 {/* Download Button */}
-                {quiz?.presentationFile && (
-                  <a
-                    href={quiz.presentationFile}
-                    download
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "8px",
-                      background: PRIMARY,
-                      color: "white",
-                      padding: "12px",
-                      borderRadius: "10px",
-                      textDecoration: "none",
-                      fontWeight: 700,
-                      fontSize: "0.88rem",
-                      boxShadow: `0 4px 10px ${PRIMARY}30`,
-                      textAlign: "center",
-                    }}
-                  >
-                    {quiz.presentationFile.toLowerCase().endsWith(".pdf")
-                      ? "📥 Download Sermon Slide Deck (.pdf)"
-                      : "📥 Download Sermon Slide Deck (.pptx)"}
-                  </a>
-                )}
+                {quiz?.presentationFile && (() => {
+                  const downloadFilename = getPresentationDownloadFilename({
+                    title: quiz.title,
+                    commentary: quiz.commentary,
+                    presentationFile: quiz.presentationFile,
+                    presentationOriginalName: quiz.presentationOriginalName,
+                  });
+                  const downloadUrl = quiz.eventId
+                    ? `/api/events/${quiz.eventId}/presentation/download`
+                    : quiz.presentationFile;
+
+                  return (
+                    <a
+                      href={downloadUrl}
+                      download={downloadFilename}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                        background: PRIMARY,
+                        color: "white",
+                        padding: "12px",
+                        borderRadius: "10px",
+                        textDecoration: "none",
+                        fontWeight: 700,
+                        fontSize: "0.88rem",
+                        boxShadow: `0 4px 10px ${PRIMARY}30`,
+                        textAlign: "center",
+                      }}
+                    >
+                      {quiz.presentationFile.toLowerCase().endsWith(".pdf")
+                        ? "📥 Download Sermon Slide Deck (.pdf)"
+                        : "📥 Download Sermon Slide Deck (.pptx)"}
+                    </a>
+                  );
+                })()}
               </div>
             )}
           </div>
