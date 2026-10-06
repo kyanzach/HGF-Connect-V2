@@ -5,6 +5,13 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.73.2] — 2026-10-06
+### Fixed & Enhanced — Deep-Link Auto-Scroll Offset to Past Quizzes Tab
+- **Precision Auto-Scroll to Past Quizzes (`/quiz/hub`)**:
+  - Implemented automatic viewport scrolling directly to the sticky tab navigation (`#past-quizzes-section`) when landing via deep link (`?tab=archive#past-quizzes-section`).
+  - Corrected offset calculations to account for sticky UnifiedHeader (56px) and iOS safe-area insets, ensuring the Past Quizzes cards are immediately visible without senior members having to manually scroll past the hero image and introductory stats.
+  - Added staggered layout-settling triggers (50ms, 250ms, 600ms) ensuring smooth alignment even with asynchronous images loading.
+
 ## [v2.73.1] — 2026-10-06
 ### Added & Enhanced — Senior-Friendly Deep Link Catch-Up Navigation
 - **Header Past Quizzes Catch-Up Deep Link (`/quiz`)**:

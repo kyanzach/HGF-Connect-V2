@@ -477,7 +477,7 @@ export default function MemberQuizPage() {
 
         {/* Clear Catch-Up & Past Quizzes Button (Right side) */}
         <button
-          onClick={() => router.push("/quiz/hub?tab=archive")}
+          onClick={() => router.push("/quiz/hub?tab=archive#past-quizzes-section")}
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -628,7 +628,7 @@ export default function MemberQuizPage() {
                 {startingCatchup ? "⏳ Activating Pass..." : "🎯 Start 7-Day Catch-Up Pass"}
               </button>
               <button
-                onClick={() => router.push("/quiz/hub?tab=archive")}
+                onClick={() => router.push("/quiz/hub?tab=archive#past-quizzes-section")}
                 style={{
                   background: "#ffffff",
                   color: "#0369a1",
