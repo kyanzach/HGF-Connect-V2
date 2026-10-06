@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import ResourcesClient from "./ResourcesClient";
 
@@ -10,6 +12,16 @@ export const metadata: Metadata = {
 };
 
 export default async function ResourcesPage() {
+  const session = await auth();
+  if (!session?.user) {
+    redirect("/login?callbackUrl=/resources");
+  }
+
+  // Pending members are restricted to dashboard
+  if ((session.user as any).status === "pending") {
+    redirect("/dashboard");
+  }
+
   const events = await db.event.findMany({
     where: {
       presentationFile: { not: null },

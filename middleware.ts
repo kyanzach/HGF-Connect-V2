@@ -64,14 +64,17 @@ export default auth((request) => {
     pathname.startsWith("/prayer") ||
     pathname.startsWith("/devo") ||
     pathname.startsWith("/journal") ||
-    pathname.startsWith("/groups")
+    pathname.startsWith("/groups") ||
+    pathname.startsWith("/resources")
   ) {
     if (!isLoggedIn) {
       // Allow bot crawlers to bypass login check for feed post shares
       if (pathname.startsWith("/feed") && nextUrl.searchParams.has("post") && isCrawler) {
         return NextResponse.next();
       }
-      return NextResponse.redirect(new URL("/login", request.url));
+      const loginUrl = new URL("/login", request.url);
+      loginUrl.searchParams.set("callbackUrl", pathname);
+      return NextResponse.redirect(loginUrl);
     }
     return NextResponse.next();
   }

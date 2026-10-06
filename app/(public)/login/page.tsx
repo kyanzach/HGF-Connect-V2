@@ -53,7 +53,8 @@ export default function LoginPage() {
       sessionStorage.setItem("hgf-just-logged-in", "1");
       success = true;
       await clearBrowserCaches();
-      window.location.href = "/feed";
+      const targetUrl = new URLSearchParams(window.location.search).get("callbackUrl") || "/feed";
+      window.location.href = targetUrl;
     } catch (err: unknown) {
       // Two-case error handling:
       // 1. User explicitly cancelled (NotAllowedError) → show a brief message
@@ -99,8 +100,8 @@ export default function LoginPage() {
 
     await clearBrowserCaches();
 
-    // Go straight to /feed — AppLayout territory, where modals fire
-    window.location.href = "/feed";
+    const targetUrl = new URLSearchParams(window.location.search).get("callbackUrl") || "/feed";
+    window.location.href = targetUrl;
   }
 
   return (

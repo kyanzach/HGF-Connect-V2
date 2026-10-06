@@ -5,6 +5,17 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.71.6] — 2026-10-06
+### Security & Access Control — Gated Sermon Resources & Downloads
+- **Authentication & Membership Enforcement (`/resources`)**:
+  - Gated the `/resources` route in `middleware.ts` and `app/(public)/resources/page.tsx` so unauthenticated visitors are automatically redirected to `/login?callbackUrl=/resources`.
+  - Restricted access for pending accounts, routing them to the dashboard pending pastoral/admin approval.
+  - Enhanced `app/(public)/login/page.tsx` to preserve and redirect back to `callbackUrl` upon successful authentication (both password and biometric/passkey).
+- **Protected Presentation Download Endpoint (`/api/events/[id]/presentation/download`)**:
+  - Added session authentication and member status verification to the presentation streaming API route, returning 401 Unauthorized for guests and 403 Forbidden for pending accounts.
+- **Nginx Upload Shielding**:
+  - Blocked raw direct HTTP downloads of presentation decks (`^/uploads/presentations/.*(\.pptx|\.pdf)$`) at the Nginx edge (returns 403 Forbidden), guaranteeing that presentation files are only downloadable through the authenticated Next.js streaming route.
+
 ## [v2.71.5] — 2026-10-06
 ### Fixed & Enhanced — Sermon Presentation & Slide Deck Download Naming
 - **Clean & Engaging Slide Deck File Names (`lib/presentationUtils.ts`)**:

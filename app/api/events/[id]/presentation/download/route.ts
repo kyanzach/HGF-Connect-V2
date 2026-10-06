@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getPresentationDownloadFilename } from "@/lib/presentationUtils";
 import path from "path";
@@ -12,6 +13,21 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: "Unauthorized. Please sign in to download sermon resources." },
+        { status: 401 }
+      );
+    }
+
+    if ((session.user as any).status === "pending") {
+      return NextResponse.json(
+        { error: "Forbidden. Account approval required to download sermon resources." },
+        { status: 403 }
+      );
+    }
+
     const { id } = await params;
     const eventId = parseInt(id, 10);
     if (isNaN(eventId)) {
