@@ -5,6 +5,17 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.73.1] — 2026-10-06
+### Added & Enhanced — Senior-Friendly Deep Link Catch-Up Navigation
+- **Header Past Quizzes Catch-Up Deep Link (`/quiz`)**:
+  - Added a prominent, high-contrast **"📁 Past Quizzes (Catch Up →)"** button directly in the main quiz brand header (right side).
+  - Deep links directly to `/quiz/hub?tab=archive` with zero friction, specifically tailored for senior and non-tech-savvy church members to quickly find all missed Sunday sermon quizzes.
+- **Deep Link Tab Activation (`/quiz/hub`)**:
+  - Enhanced `/quiz/hub` to automatically read URL parameters (`?tab=archive`, `?tab=past`, or `?tab=catchup`) and immediately open the "Past Quizzes" tab.
+  - Synchronized browser history state on tab switches so navigation and back buttons work seamlessly.
+- **Dual Action on Expired Banner (`/quiz`)**:
+  - Added a secondary **"📁 View All Past Quizzes →"** button on the expired banner beside the catch-up pass button.
+
 ## [v2.73.0] — 2026-10-06
 ### Added & Enhanced — Manual Multi-Date Quiz Backfill Engine & Direct Expired Catch-Up
 - **Direct Expired Catch-Up on Main Quiz Page (`/quiz`)**:

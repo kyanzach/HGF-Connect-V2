@@ -73,6 +73,18 @@ export default function QuizHubPage() {
   }>({ open: false, message: "", activeQuizId: undefined });
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get("tab");
+      if (tabParam === "archive" || tabParam === "past" || tabParam === "catchup") {
+        setActiveTab("archive");
+      } else if (tabParam === "leaderboard") {
+        setActiveTab("leaderboard");
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     if (authStatus === "authenticated") {
       Promise.all([
         fetch("/api/quiz/leaderboard").then(r => r.ok ? r.json() : null),
@@ -382,7 +394,12 @@ export default function QuizHubPage() {
       {/* Navigation Tabs */}
       <div style={{ display: "flex", borderBottom: "1px solid #e2e8f0", padding: "0 16px", background: "white", position: "sticky", top: 0, zIndex: 10 }}>
         <button
-          onClick={() => setActiveTab("leaderboard")}
+          onClick={() => {
+            setActiveTab("leaderboard");
+            if (typeof window !== "undefined") {
+              window.history.replaceState(null, "", "/quiz/hub");
+            }
+          }}
           style={{
             flex: 1,
             padding: "14px 0",
@@ -399,7 +416,12 @@ export default function QuizHubPage() {
           🏆 Leaderboard
         </button>
         <button
-          onClick={() => setActiveTab("archive")}
+          onClick={() => {
+            setActiveTab("archive");
+            if (typeof window !== "undefined") {
+              window.history.replaceState(null, "", "/quiz/hub?tab=archive");
+            }
+          }}
           style={{
             flex: 1,
             padding: "14px 0",

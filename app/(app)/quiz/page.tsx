@@ -461,17 +461,44 @@ export default function MemberQuizPage() {
   return (
     <div style={{ background: "#f8fafc", minHeight: "100vh", padding: "20px 16px 120px", paddingTop: "calc(env(safe-area-inset-top) + 20px)" }}>
       {/* Brand Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px", gap: "10px" }}>
         <button
-          onClick={() => router.push("/quiz/hub")}
-          style={{ display: "flex", alignItems: "center", gap: "10px", background: "none", border: "none", padding: 0, cursor: "pointer" }}
+          onClick={() => router.push("/quiz/hub?tab=leaderboard")}
+          style={{ display: "flex", alignItems: "center", gap: "10px", background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left" }}
         >
-          <div style={{ width: 44, height: 44, borderRadius: "50%", background: PRIMARY, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.4rem", color: "white", boxShadow: `0 3px 8px ${PRIMARY}30` }}>
+          <div style={{ width: 44, height: 44, borderRadius: "50%", background: PRIMARY, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.4rem", color: "white", boxShadow: `0 3px 8px ${PRIMARY}30`, flexShrink: 0 }}>
             🧠
           </div>
           <div style={{ textAlign: "left" }}>
             <h1 style={{ fontSize: "0.95rem", fontWeight: 800, color: "#0f172a", margin: 0 }}>HGF Quiz for Christ Page</h1>
             <span style={{ fontSize: "0.75rem", color: PRIMARY, fontWeight: 700 }}>View Leaderboard →</span>
+          </div>
+        </button>
+
+        {/* Clear Catch-Up & Past Quizzes Button (Right side) */}
+        <button
+          onClick={() => router.push("/quiz/hub?tab=archive")}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "8px",
+            background: "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)",
+            color: "#ffffff",
+            padding: "8px 14px",
+            borderRadius: "14px",
+            border: "none",
+            cursor: "pointer",
+            boxShadow: "0 4px 12px rgba(2, 132, 199, 0.25)",
+            whiteSpace: "nowrap",
+            flexShrink: 0,
+            transition: "transform 0.15s, opacity 0.15s",
+          }}
+          aria-label="Catch up on past quizzes"
+        >
+          <span style={{ fontSize: "1.1rem" }}>📁</span>
+          <div style={{ textAlign: "left", lineHeight: 1.2 }}>
+            <span style={{ display: "block", fontSize: "0.82rem", fontWeight: 800 }}>Past Quizzes</span>
+            <span style={{ display: "block", fontSize: "0.7rem", fontWeight: 700, color: "#bae6fd" }}>Catch Up →</span>
           </div>
         </button>
       </div>
@@ -578,27 +605,48 @@ export default function MemberQuizPage() {
                 : "You missed this Sunday quiz, but you can unlock a 7-day personal catch-up pass to play all 7 challenges and earn points for your leaderboard score!"
               }
             </p>
-            <button
-              onClick={() => handleStartCatchupDirect()}
-              disabled={startingCatchup}
-              style={{
-                background: "linear-gradient(135deg, #0e7490 0%, #0284c7 100%)",
-                color: "white",
-                border: "none",
-                borderRadius: "12px",
-                padding: "9px 18px",
-                fontSize: "0.85rem",
-                fontWeight: 700,
-                cursor: startingCatchup ? "not-allowed" : "pointer",
-                boxShadow: "0 4px 12px rgba(14, 116, 144, 0.3)",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "8px",
-                transition: "all 0.2s",
-              }}
-            >
-              {startingCatchup ? "⏳ Activating Pass..." : "🎯 Start 7-Day Catch-Up Pass"}
-            </button>
+            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
+              <button
+                onClick={() => handleStartCatchupDirect()}
+                disabled={startingCatchup}
+                style={{
+                  background: "linear-gradient(135deg, #0e7490 0%, #0284c7 100%)",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "12px",
+                  padding: "9px 18px",
+                  fontSize: "0.85rem",
+                  fontWeight: 700,
+                  cursor: startingCatchup ? "not-allowed" : "pointer",
+                  boxShadow: "0 4px 12px rgba(14, 116, 144, 0.3)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  transition: "all 0.2s",
+                }}
+              >
+                {startingCatchup ? "⏳ Activating Pass..." : "🎯 Start 7-Day Catch-Up Pass"}
+              </button>
+              <button
+                onClick={() => router.push("/quiz/hub?tab=archive")}
+                style={{
+                  background: "#ffffff",
+                  color: "#0369a1",
+                  border: "1.5px solid #bae6fd",
+                  borderRadius: "12px",
+                  padding: "8px 14px",
+                  fontSize: "0.82rem",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+                }}
+              >
+                📁 View All Past Quizzes →
+              </button>
+            </div>
           </div>
         </div>
       )}
