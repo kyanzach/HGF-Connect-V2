@@ -490,6 +490,7 @@
   }
 
   #prompter-scroll {
+    position: relative;
     height: 100%;
     overflow-y: auto;
     scroll-behavior: auto;
@@ -772,14 +773,25 @@
     white-space: nowrap;
   }
 
-  /* ── Bookmark ── */
+  /* ── Bookmark / Active Anchor ── */
   #prompter-scroll .tp-marked {
     position: relative;
-    background: rgba(239, 68, 68, 0.08);
-    border-left: 4px solid #ef4444;
-    padding-left: 20px;
-    margin-left: -24px;
-    border-radius: 0 4px 4px 0;
+    background: rgba(239, 68, 68, 0.08) !important;
+    border-left: 5px solid #ef4444 !important;
+    padding-left: 20px !important;
+    margin-left: -25px !important;
+    border-radius: 0 6px 6px 0;
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.15);
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+
+  #prompter-scroll .cue.tp-marked,
+  #prompter-scroll .next-slide.tp-marked,
+  #prompter-scroll .call-to-say.tp-marked {
+    margin-left: 0 !important;
+    padding-left: 24px !important;
+    border-left: 6px solid #ef4444 !important;
+    box-shadow: 0 0 25px rgba(239, 68, 68, 0.35) !important;
   }
 
   .ctrl-btn.mark-btn { font-size: 13px; }
@@ -4179,6 +4191,20 @@
     }
     startSectionTracking();
     restoreBookmark();
+    // If no prior bookmark was restored, anchor & center on the first sermon stop
+    if (!bookmarkEl) {
+      const stops = getPrompterStops();
+      if (stops.length > 0) {
+        activeStopEl = stops[0];
+        stops[0].classList.add('tp-marked');
+        bookmarkEl = stops[0];
+        markBtn.classList.add('has-mark');
+        scrollToCenterElement(stops[0], false);
+      }
+    } else {
+      activeStopEl = bookmarkEl;
+      scrollToCenterElement(bookmarkEl, false);
+    }
     scrollEl.focus();
 
     // Auto-enter fullscreen on start
@@ -4251,10 +4277,9 @@
   fasterBtn.addEventListener('click', () => setSpeed(speed + 1));
   playBtn.addEventListener('click', togglePlay);
 
-  // ── Manual scroll ──
-  const NUDGE = 120;
-  upBtn.addEventListener('click', () => { scrollEl.scrollTop -= NUDGE; });
-  downBtn.addEventListener('click', () => { scrollEl.scrollTop += NUDGE; });
+  // ── Manual step / scroll ──
+  upBtn.addEventListener('click', () => { advanceAndMark(-1); });
+  downBtn.addEventListener('click', () => { advanceAndMark(1); });
 
   // ── Mode toggle ──
   modeBtn.addEventListener('click', () => {
@@ -4544,45 +4569,39 @@
     overlaySection.textContent = '';
   }
 
-  function checkCurrentSection() {
-    if (!inPrompter) return;
-    const el = getElementAtCenter();
-    if (!el || el === currentSectionEl) return;
-    // Skip cues, slide markers, and call-to-say for section timing
-    if (el.classList.contains('cue') || el.classList.contains('next-slide') || el.classList.contains('call-to-say')) return;
-    // Record previous section
-    recordCurrentSection();
-    // Start new section
-    currentSectionEl = el;
-    currentSectionStartTime = Date.now();
-  }
-
-  function recordCurrentSection() {
-    if (!currentSectionEl || !currentSectionStartTime) return;
-    const elapsed = Math.round((Date.now() - currentSectionStartTime) / 1000);
-    if (elapsed >= 1) {
-      const text = currentSectionEl.textContent.trim().substring(0, 80);
-      sectionTimings.push({ text, seconds: elapsed });
-    }
-  }
-
   // ══════════════════════════════════════
-  //  BOOKMARK ("I am here")
+  //  PROMPTER STOPS, ANCHOR & CENTERING ENGINE
   // ══════════════════════════════════════
+  let activeStopEl = null;
+  let isAdvancing = false;
+
   function hasRealText(el) {
-    return el.textContent.replace(/[\s\u00a0]+/g, '').length > 0;
+    return el && el.textContent.replace(/[\s\u00a0]+/g, '').length > 0;
   }
 
-  function getElementAtCenter() {
-    // Find the text element closest to the reading line (~1/3 from top)
+  function getPrompterStops() {
+    // Collect all valid top-level sermon beats (paragraphs, cues, slides, calls to say, headers, quotes, lists)
+    const rawElements = Array.from(
+      scrollEl.querySelectorAll('h1, h2, h3, p, blockquote, li, .cue, .next-slide, .call-to-say')
+    );
+    return rawElements.filter(el => {
+      if (!hasRealText(el)) return false;
+      // Do not duplicate children inside container stops (e.g. <p> inside <blockquote> or <span> in .call-to-say)
+      const parentStop = el.parentElement ? el.parentElement.closest('h1, h2, h3, p, blockquote, li, .cue, .next-slide, .call-to-say') : null;
+      if (parentStop && scrollEl.contains(parentStop)) {
+        return false;
+      }
+      return true;
+    });
+  }
+
+  function findClosestStop(stops) {
+    if (!stops || stops.length === 0) return null;
     const rect = scrollEl.getBoundingClientRect();
-    const readingY = rect.top + rect.height * 0.5;
-    const children = scrollEl.querySelectorAll('p, div:not(#prompter-scroll), h1, h2, blockquote, li');
-    let closest = null;
+    const readingY = rect.top + rect.height * 0.45;
+    let closest = stops[0];
     let closestDist = Infinity;
-    for (const el of children) {
-      // Skip empty elements (including &nbsp;-only)
-      if (!hasRealText(el)) continue;
+    for (const el of stops) {
       const r = el.getBoundingClientRect();
       const elCenter = r.top + r.height / 2;
       const dist = Math.abs(elCenter - readingY);
@@ -4594,70 +4613,117 @@
     return closest;
   }
 
+  function scrollToCenterElement(targetEl, smooth = true) {
+    if (!targetEl) return;
+    const rect = scrollEl.getBoundingClientRect();
+    const elRect = targetEl.getBoundingClientRect();
+
+    let offset;
+    // For tall elements (multi-line paragraphs on tablet/laptop taking > 60% of viewport),
+    // anchor their top with comfortable upper reading margin (18% from top) so text never cuts off
+    if (elRect.height > rect.height * 0.6) {
+      offset = elRect.top - rect.top - (rect.height * 0.18);
+    } else {
+      // Perfectly center vertically in visible screen
+      const elCenter = elRect.top + elRect.height / 2;
+      const containerCenter = rect.top + rect.height / 2;
+      offset = elCenter - containerCenter;
+    }
+
+    const targetTop = Math.max(0, scrollEl.scrollTop + offset);
+    isAdvancing = true;
+    scrollEl.scrollTo({
+      top: targetTop,
+      behavior: smooth ? 'smooth' : 'auto'
+    });
+
+    bookmarkScrollTop = targetTop;
+    localStorage.setItem(BOOKMARK_KEY, String(Math.round(targetTop)));
+
+    setTimeout(() => {
+      isAdvancing = false;
+    }, 450);
+  }
+
+  function checkCurrentSection() {
+    if (!inPrompter) return;
+    const stops = getPrompterStops();
+    const el = activeStopEl || findClosestStop(stops);
+    if (!el || el === currentSectionEl) return;
+    // Skip cues, slide markers, and call-to-say for section timing
+    if (el.classList.contains('cue') || el.classList.contains('next-slide') || el.classList.contains('call-to-say')) return;
+    recordCurrentSection();
+    currentSectionEl = el;
+    currentSectionStartTime = Date.now();
+  }
+
   function clearBookmark() {
     if (bookmarkEl) bookmarkEl.classList.remove('tp-marked');
+    if (activeStopEl) activeStopEl.classList.remove('tp-marked');
     bookmarkEl = null;
+    activeStopEl = null;
     bookmarkScrollTop = null;
     markBtn.classList.remove('has-mark');
     localStorage.removeItem(BOOKMARK_KEY);
   }
 
   function setBookmark() {
-    // Clear previous
-    if (bookmarkEl) bookmarkEl.classList.remove('tp-marked');
-    // Mark current element
-    const el = getElementAtCenter();
+    const stops = getPrompterStops();
+    const el = activeStopEl || findClosestStop(stops);
     if (!el) return;
+    if (bookmarkEl) bookmarkEl.classList.remove('tp-marked');
+    if (activeStopEl) activeStopEl.classList.remove('tp-marked');
     el.classList.add('tp-marked');
     bookmarkEl = el;
+    activeStopEl = el;
     bookmarkScrollTop = scrollEl.scrollTop;
     markBtn.classList.add('has-mark');
-    localStorage.setItem(BOOKMARK_KEY, scrollEl.scrollTop);
+    localStorage.setItem(BOOKMARK_KEY, String(Math.round(scrollEl.scrollTop)));
   }
 
-  function advanceAndMark() {
-    // Content stops only — include call to say, skip cues, slide markers, and empty/nbsp elements
-    const stops = Array.from(
-      scrollEl.querySelectorAll('p, h1, h2, blockquote, li, .call-to-say')
-    ).filter(el => hasRealText(el) && !el.closest('.cue') && !el.closest('.next-slide'));
-    const currentEl = getElementAtCenter();
-    if (!currentEl) return;
-    // Mark current element
-    if (bookmarkEl) bookmarkEl.classList.remove('tp-marked');
-    currentEl.classList.add('tp-marked');
-    bookmarkEl = currentEl;
-    markBtn.classList.add('has-mark');
-    // Find next stop by DOM order (not viewport position)
-    let nextEl = null;
-    const idx = stops.indexOf(currentEl);
-    if (idx >= 0 && idx < stops.length - 1) {
-      nextEl = stops[idx + 1];
-    } else if (idx === -1) {
-      // currentEl is a cue or other non-stop — find first stop after it in DOM
-      for (const el of stops) {
-        if (currentEl.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING) {
-          nextEl = el;
-          break;
-        }
-      }
-    }
-    if (nextEl) {
-      // Center the next element in the visible scroll area
-      // Use offsetTop (relative to scroll container) for accurate positioning
-      const elTop = nextEl.offsetTop;
-      const elHeight = nextEl.offsetHeight;
-      const containerHeight = scrollEl.clientHeight;
-      // scrollTop that places the element's center at the container's center
-      const newTop = elTop - (containerHeight / 2) + (elHeight / 2);
-      scrollEl.scrollTo({ top: Math.max(0, newTop), behavior: 'smooth' });
-      bookmarkScrollTop = Math.max(0, newTop);
-      localStorage.setItem(BOOKMARK_KEY, String(Math.round(bookmarkScrollTop)));
+  function advanceAndMark(direction = 1) {
+    if (isPlaying) stop(); // Pause auto-scroll when user manually advances
+
+    const stops = getPrompterStops();
+    if (stops.length === 0) return;
+
+    let currentIndex = -1;
+    if (activeStopEl && stops.includes(activeStopEl)) {
+      currentIndex = stops.indexOf(activeStopEl);
+    } else if (bookmarkEl && stops.includes(bookmarkEl)) {
+      currentIndex = stops.indexOf(bookmarkEl);
     } else {
-      // End of script — finalize session!
-      bookmarkScrollTop = scrollEl.scrollTop;
-      localStorage.setItem(BOOKMARK_KEY, String(Math.round(bookmarkScrollTop)));
-      finalizeSession();
+      const closest = findClosestStop(stops);
+      currentIndex = closest ? stops.indexOf(closest) : 0;
     }
+
+    let nextIndex;
+    if (direction > 0) {
+      nextIndex = currentIndex + 1;
+      if (nextIndex >= stops.length) {
+        // Reached end of sermon script
+        finalizeSession();
+        return;
+      }
+    } else {
+      nextIndex = Math.max(0, currentIndex - 1);
+    }
+
+    const nextEl = stops[nextIndex];
+    if (!nextEl) return;
+
+    // Remove previous anchor mark
+    if (bookmarkEl) bookmarkEl.classList.remove('tp-marked');
+    if (activeStopEl) activeStopEl.classList.remove('tp-marked');
+
+    // Anchor the new active element directly
+    nextEl.classList.add('tp-marked');
+    activeStopEl = nextEl;
+    bookmarkEl = nextEl;
+    markBtn.classList.add('has-mark');
+
+    // Smoothly center the element in visible screen
+    scrollToCenterElement(nextEl, true);
   }
 
   function finalizeSession() {
@@ -4752,11 +4818,7 @@
 
   function returnToBookmark() {
     if (!bookmarkEl) return;
-    // Scroll to put the marked element near center
-    const rect = scrollEl.getBoundingClientRect();
-    const elRect = bookmarkEl.getBoundingClientRect();
-    const offset = elRect.top - rect.top - rect.height / 2 + elRect.height / 2;
-    scrollEl.scrollTop += offset;
+    scrollToCenterElement(bookmarkEl, true);
   }
 
   markBtn.addEventListener('click', setBookmark);
@@ -4783,8 +4845,17 @@
         togglePlay();
         break;
       case 'Space':
+      case 'PageDown':
+      case 'ArrowDown':
+      case 'ArrowRight':
         e.preventDefault();
-        advanceAndMark();
+        advanceAndMark(1);
+        break;
+      case 'PageUp':
+      case 'ArrowUp':
+      case 'ArrowLeft':
+        e.preventDefault();
+        advanceAndMark(-1);
         break;
       case 'Equal':
       case 'NumpadAdd':
@@ -4905,7 +4976,26 @@
 
   // ── Advance button (spacebar equivalent for touch) ──
   const advanceBtn = document.getElementById('advance-btn');
-  advanceBtn.addEventListener('click', () => advanceAndMark());
+  advanceBtn.addEventListener('click', () => advanceAndMark(1));
+
+  // ── Tap on any sermon stop to anchor & center directly ──
+  scrollEl.addEventListener('click', (e) => {
+    if (!inPrompter) return;
+    const stopEl = e.target.closest('h1, h2, h3, p, blockquote, li, .cue, .next-slide, .call-to-say');
+    if (stopEl && scrollEl.contains(stopEl) && hasRealText(stopEl)) {
+      const stops = getPrompterStops();
+      const matched = stops.find(s => s === stopEl || s.contains(stopEl));
+      if (matched) {
+        if (bookmarkEl) bookmarkEl.classList.remove('tp-marked');
+        if (activeStopEl) activeStopEl.classList.remove('tp-marked');
+        matched.classList.add('tp-marked');
+        activeStopEl = matched;
+        bookmarkEl = matched;
+        markBtn.classList.add('has-mark');
+        scrollToCenterElement(matched, true);
+      }
+    }
+  });
 
   // ══════════════════════════════════════
   //  DOUBLE-TAP TO ADVANCE (whole screen)
@@ -4925,7 +5015,7 @@
       if (now - lastTapTime < DOUBLE_TAP_DELAY) {
         // Double tap detected!
         e.preventDefault();
-        advanceAndMark();
+        advanceAndMark(1);
 
         // Visual ripple feedback
         const touch = e.changedTouches[0];
@@ -4949,7 +5039,7 @@
       if (!inPrompter) return;
       if (e.target.closest('#controls') || e.target.closest('#back-btn') || e.target.closest('button')) return;
       e.preventDefault();
-      advanceAndMark();
+      advanceAndMark(1);
 
       // Visual ripple feedback
       const ripple = document.createElement('div');

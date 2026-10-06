@@ -5,6 +5,18 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.73.4] — 2026-10-06
+### Fixed & Enhanced — Teleprompter Next Navigation, Anchor Indicator & Centering Engine
+- **Bug Fix for Next Button & Off-Screen Scrolling (`public/thewordtool.html`)**:
+  - Re-engineered `advanceAndMark()` to maintain a dedicated `activeStopEl` state index, completely eliminating intermittent backward jumps and stuck states during smooth scroll transitions.
+  - Added `.cue`, `.next-slide`, and `.call-to-say` as first-class sermon stops alongside paragraphs and headings; cues and stage directions are never skipped or pushed off-screen.
+- **Accurate Screen Centering & Anchor Indicator**:
+  - Implemented dynamic bounding-box centering (`scrollToCenterElement`) that accurately calculates offset relative to the visible teleprompter viewport on laptops and tablets regardless of screen aspect ratio or resolution.
+  - Added smart top-anchor positioning for tall multi-line paragraphs (viewport height > 60%) to prevent the start of paragraphs from cutting off at the top.
+  - Moved `.tp-marked` anchor indicator to the actual active destination element upon advance, with glowing 5px–6px red border line so preachers always maintain visual focus.
+  - Added tap-to-anchor support: tapping or clicking on any paragraph or cue in prompter view immediately anchors and centers it.
+  - Enhanced prompter controls and presentation remotes: `▲` / `▼` buttons, PageUp/PageDown, and Arrow keys now smoothly step through stops.
+
 ## [v2.73.3] — 2026-10-06
 ### Added & Enhanced — "🗣️ Call to Say" Tool in THE WORD Preacher Suite
 - **New Toolbar Tool `🗣️ Call to Say` (`public/thewordtool.html`)**:
