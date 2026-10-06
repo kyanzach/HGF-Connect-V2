@@ -382,6 +382,23 @@
     font-weight: 500;
   }
 
+  #script-editor .call-to-say {
+    background: #251c14;
+    border: 1px solid #78350f;
+    border-left: 4px solid #f59e0b;
+    border-radius: 6px;
+    padding: 10px 16px;
+    margin: 12px 0;
+    color: #fde68a;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  #script-editor .call-to-say b,
+  #script-editor .call-to-say strong {
+    color: #fbbf24;
+  }
+
   #script-editor .next-slide {
     background: #1a2e1a;
     border: 1px solid #3b7a3b;
@@ -557,6 +574,24 @@
     font-size: clamp(20px, 2.8vw, 34px);
     font-weight: 500;
     text-align: center;
+  }
+
+  #prompter-scroll .call-to-say {
+    background: rgba(245, 158, 11, 0.12) !important;
+    border: 2px solid #f59e0b;
+    border-radius: 10px;
+    padding: 16px 24px;
+    margin: 24px 0;
+    color: #fde68a;
+    font-size: clamp(22px, 3.2vw, 38px) !important;
+    font-weight: 600;
+    text-align: center;
+    line-height: 1.5 !important;
+  }
+
+  #prompter-scroll .call-to-say b,
+  #prompter-scroll .call-to-say strong {
+    color: #fbbf24 !important;
   }
 
   #prompter-scroll .next-slide {
@@ -1918,6 +1953,7 @@
     <button class="tb-btn" data-cmd="quote" title="Quote">❭ Quote</button>
     <button class="tb-btn" data-cmd="cue" title="Cue / Stage direction">🎬 Cue</button>
     <button class="tb-btn" data-cmd="nextslide" title="Next Slide marker">📺 Slide</button>
+    <button class="tb-btn" data-cmd="calltosay" title="Call to Say (Audience response prompt)">🗣️ Call to Say</button>
     <div class="tb-sep"></div>
     <button class="tb-btn" data-cmd="ol" title="Numbered list">1.</button>
     <button class="tb-btn" data-cmd="ul" title="Bullet list">•</button>
@@ -2181,7 +2217,7 @@
     if (!text) return;
 
     // Detect if pasted content is a structured markdown sermon
-    const isStructuredMarkdown = /(?:^|\n)(?:#{1,3}\s|\*\*(?:Visual|Sticky Headline|Sermon Series|Sermon Text|Format|Structure)|\d+\.\s|\-{3,}|\*{3,})/i.test(text);
+    const isStructuredMarkdown = /(?:^|\n)(?:#{1,3}\s|\*\*(?:Visual|Sticky Headline|Sermon Series|Sermon Text|Format|Structure|Call to Say)|\d+\.\s|\-{3,}|\*{3,}|🗣️)/i.test(text);
     const editorEmpty = !editor.innerText.trim() || editor.innerHTML === '<p><br></p>';
 
     if (isStructuredMarkdown && editorEmpty) {
@@ -2306,6 +2342,16 @@
         continue;
       }
 
+      // 5b. Call to Say (○ 🗣️ Call to Say: ... or * **Call to Say:** ...)
+      const callToSayRegex = /^[○\*\-]?\s*(?:🗣️\s*)?(?:\*\*)?Call to Say:?(?:\*\*)?\s*(.*)$/i;
+      if (callToSayRegex.test(trimmed) && (trimmed.includes('🗣️') || /Call to Say/i.test(trimmed))) {
+        const match = trimmed.match(callToSayRegex);
+        const sayText = match && match[1] ? parseInlineMd(match[1].trim()) : '';
+        output.push('<div class="call-to-say" contenteditable="true">🗣️ <b>Call to Say:</b> ' + sayText + '</div><p><br></p>');
+        i++;
+        continue;
+      }
+
       // 6. Slide Cues / Stage Directions
       if (/^[\*\-]\s+\*\*(Visual|Sticky Headline|Text Slide|Scripture Slide|Scripture|Cue|Action|Video|Audio|Prop|Stage Direction):\*\*/i.test(trimmed)) {
         const cueItems = [];
@@ -2404,7 +2450,7 @@
           const cur = lines[i].trim();
           if (!cur) { i++; continue; }
           if (/^[\*\-]\s+/.test(cur)) {
-            if (/^[\*\-]\s+\*\*(Visual|Sticky Headline|Text Slide|Scripture Slide|Scripture|Cue|Sermon Text):\*\*/i.test(cur)) {
+            if (/^[\*\-]\s+\*\*(Visual|Sticky Headline|Text Slide|Scripture Slide|Scripture|Cue|Sermon Text|Call to Say):\*\*/i.test(cur) || /^[○\*\-]\s*🗣️/i.test(cur) || /^[○\*\-]\s*Call to Say/i.test(cur)) {
               break;
             }
             listItems.push('<li>' + parseInlineMd(cur.replace(/^[\*\-]\s+/, '')) + '</li>');
@@ -2768,6 +2814,12 @@
         }
         return '';
       }
+    });
+
+    // 3b. Handle Call to Say prompts (preserve spoken audience response)
+    docHtml = docHtml.replace(/<div class="call-to-say"[^>]*>([\s\S]*?)<\/div>/gi, (match, inner) => {
+      const clean = decodeHtmlEntities(inner.replace(/<[^>]+>/g, '').trim());
+      return '<p>' + clean + '</p>';
     });
 
     // 4. Handle slide markers
@@ -3446,6 +3498,20 @@
         document.execCommand('insertHTML', false,
           '<div class="next-slide" contenteditable="false">NEXT SLIDE</div><p><br></p>');
         break;
+      case 'calltosay': {
+        const sel = window.getSelection();
+        let sayText = 'Turn to your neighbor on your right and tell them: "..."';
+        if (sel && !sel.isCollapsed) {
+          const frag = sel.getRangeAt(0).cloneContents();
+          const tmp = document.createElement('div');
+          tmp.appendChild(frag);
+          let raw = tmp.innerHTML.replace(/^(?:[○\*\-]\s*)?(?:🗣️\s*)?(?:<b>)?(?:Call to Say:?)(?:<\/b>)?\s*/i, '');
+          if (raw.trim()) sayText = raw.trim();
+        }
+        document.execCommand('insertHTML', false,
+          '<div class="call-to-say" contenteditable="true">🗣️ <b>Call to Say:</b> ' + sayText + '</div><p><br></p>');
+        break;
+      }
       case 'hr':
         document.execCommand('insertHTML', false, '<hr><p><br></p>');
         break;
@@ -4014,7 +4080,7 @@
     const headers = editorEl.querySelectorAll('h1, h2');
     totalSeconds += headers.length * 2.0; // 2s pause per slide/heading
     
-    const blocks = editorEl.querySelectorAll('blockquote, .cue');
+    const blocks = editorEl.querySelectorAll('blockquote, .cue, .call-to-say');
     totalSeconds += blocks.length * 3.0; // 3s pause per blockquote/cue directions
     
     const mins = Math.floor(totalSeconds / 60);
@@ -4482,8 +4548,8 @@
     if (!inPrompter) return;
     const el = getElementAtCenter();
     if (!el || el === currentSectionEl) return;
-    // Skip cues and slide markers for section timing
-    if (el.classList.contains('cue') || el.classList.contains('next-slide')) return;
+    // Skip cues, slide markers, and call-to-say for section timing
+    if (el.classList.contains('cue') || el.classList.contains('next-slide') || el.classList.contains('call-to-say')) return;
     // Record previous section
     recordCurrentSection();
     // Start new section
@@ -4550,9 +4616,9 @@
   }
 
   function advanceAndMark() {
-    // Content stops only — skip cues, slide markers, and empty/nbsp elements
+    // Content stops only — include call to say, skip cues, slide markers, and empty/nbsp elements
     const stops = Array.from(
-      scrollEl.querySelectorAll('p, h1, h2, blockquote, li')
+      scrollEl.querySelectorAll('p, h1, h2, blockquote, li, .call-to-say')
     ).filter(el => hasRealText(el) && !el.closest('.cue') && !el.closest('.next-slide'));
     const currentEl = getElementAtCenter();
     if (!currentEl) return;

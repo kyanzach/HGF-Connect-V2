@@ -5,6 +5,20 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.73.3] — 2026-10-06
+### Added & Enhanced — "🗣️ Call to Say" Tool in THE WORD Preacher Suite
+- **New Toolbar Tool `🗣️ Call to Say` (`public/thewordtool.html`)**:
+  - Added dedicated `🗣️ Call to Say` tool button immediately adjacent to `📺 Slide` in the editor toolbar.
+  - Automatically wraps selected text or inserts a high-visibility audience callout block: `<div class="call-to-say" contenteditable="true">🗣️ <b>Call to Say:</b> ...</div>`.
+- **Visual Styling for Editor and Teleprompter**:
+  - **Script Editor**: Distinctive amber/gold callout container with solid amber accent border (`#f59e0b`), dark amber background (`#251c14`), and warm highlight typography (`#fde68a` / `#fbbf24`).
+  - **Teleprompter Mode**: High-contrast, large-format stage prompt box (`clamp(22px, 3.2vw, 38px)`) with glowing amber border for unmistakable readability during live delivery.
+- **Smart Importer & Parser Integration**:
+  - Markdown note importer automatically parses `○ 🗣️ Call to Say: ...`, `* 🗣️ Call to Say: ...`, `* **Call to Say:** ...`, and bullet variants into rich `Call to Say` blocks.
+  - Paste listener recognizes sermon notes containing Call to Say markers without losing formatting.
+  - Preserved in teleprompter advance stops so speaker pedals/taps stop directly on audience interaction prompts.
+  - Integrated into estimated sermon duration calculations and preserved during speech / smart glasses exports.
+
 ## [v2.73.2] — 2026-10-06
 ### Fixed & Enhanced — Deep-Link Auto-Scroll Offset to Past Quizzes Tab
 - **Precision Auto-Scroll to Past Quizzes (`/quiz/hub`)**:
