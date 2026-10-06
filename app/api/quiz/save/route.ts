@@ -10,6 +10,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { extractVideoId } from "@/lib/youtube";
+import { isQuizWeekExpired } from "@/lib/quiz-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -42,26 +43,53 @@ export async function POST(request: Request) {
       announcementCaption,
       questions,
       eventId,
+      archiveMode,
     } = body;
 
     if (!title || !sermonDate || !questions?.length) {
       return NextResponse.json({ error: "Title, sermon date, and questions are required" }, { status: 400 });
     }
-    if (!eventId) {
-      return NextResponse.json({ error: "Linked Sunday Service event (eventId) is required" }, { status: 400 });
-    }
 
     const memberId = parseInt(session.user.id, 10);
     const youtubeVideoId = youtubeUrl ? extractVideoId(youtubeUrl) : null;
-    const parsedEventId = parseInt(eventId, 10);
-    if (isNaN(parsedEventId)) {
-      return NextResponse.json({ error: "Invalid Event ID" }, { status: 400 });
+    const isPast = isQuizWeekExpired(sermonDate);
+    const targetStatus = (archiveMode || isPast) ? "completed" : "draft";
+
+    let parsedEventId = eventId ? parseInt(eventId, 10) : NaN;
+    if (isNaN(parsedEventId) || !parsedEventId) {
+      const sDate = new Date(sermonDate);
+      const startOfDay = new Date(sDate.toISOString().split("T")[0] + "T00:00:00.000Z");
+      const endOfDay = new Date(sDate.toISOString().split("T")[0] + "T23:59:59.999Z");
+
+      const existingEvent = await db.event.findFirst({
+        where: {
+          eventType: "sunday_service",
+          eventDate: { gte: startOfDay, lte: endOfDay },
+        },
+      });
+
+      if (existingEvent) {
+        parsedEventId = existingEvent.id;
+      } else {
+        const newEvent = await db.event.create({
+          data: {
+            title: title || "Sunday Worship Service",
+            eventType: "sunday_service",
+            eventDate: sDate,
+            startTime: new Date("1970-01-01T09:00:00Z"),
+            location: "House of Grace Sanctuary",
+            description: `Sunday Service sermon: ${title}`,
+            createdBy: memberId,
+          },
+        });
+        parsedEventId = newEvent.id;
+      }
     }
 
     if (quizId) {
       // ── Update existing draft ──
       const existing = await db.sermonQuiz.findUnique({ where: { id: quizId } });
-      if (!existing || existing.status !== "draft") {
+      if (!existing || (existing.status !== "draft" && !archiveMode && !isPast)) {
         return NextResponse.json({ error: "Quiz not found or already published" }, { status: 400 });
       }
 
@@ -76,6 +104,7 @@ export async function POST(request: Request) {
           transcriptText: transcriptText || null,
           announcementCaption: announcementCaption || null,
           eventId: parsedEventId,
+          status: targetStatus,
         },
       });
 
@@ -94,9 +123,9 @@ export async function POST(request: Request) {
         })),
       });
 
-      return NextResponse.json({ success: true, quizId });
+      return NextResponse.json({ success: true, quizId, status: targetStatus });
     } else {
-      // ── Create new draft quiz ──
+      // ── Create new quiz ──
       const quiz = await db.sermonQuiz.create({
         data: {
           title,
@@ -105,7 +134,7 @@ export async function POST(request: Request) {
           youtubeVideoId: youtubeVideoId || null,
           transcriptText: transcriptText || null,
           announcementCaption: announcementCaption || null,
-          status: "draft",
+          status: targetStatus,
           createdById: memberId,
           eventId: parsedEventId,
           questions: {

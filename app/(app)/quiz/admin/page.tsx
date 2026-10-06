@@ -12,6 +12,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { isQuizWeekExpired } from "@/lib/quiz-helpers";
 
 const QUIZ_TYPE_LABELS: Record<string, { label: string; difficulty: string; emoji: string }> = {
   MULTIPLE_CHOICE:    { label: "Balloon Pop",       difficulty: "Easy",        emoji: "🎈" },
@@ -97,6 +98,25 @@ export default function QuizAdminPage() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const isPastSermon = sermonDate ? isQuizWeekExpired(sermonDate) : false;
+
+  function handleDateChange(newDate: string) {
+    setSermonDate(newDate);
+    if (newDate) {
+      const match = allEvents.find((ev) => {
+        const evD = new Date(ev.eventDate).toISOString().split("T")[0];
+        return evD === newDate;
+      });
+      if (match) {
+        setLinkedEvent(match);
+      } else {
+        setLinkedEvent(null);
+      }
+    } else {
+      setLinkedEvent(null);
+    }
+  }
 
   function selectEvent(event: any) {
     setLinkedEvent(event);
@@ -277,12 +297,12 @@ export default function QuizAdminPage() {
 
   // ── Generate quiz via AI ──
   async function handleGenerate() {
-    if (!linkedEvent) {
-      setGenError("No physical Sunday Service event found to link the sermon to. Please add a Sunday Service event first.");
+    if (!sermonDate) {
+      setGenError("Please select or enter the Sunday sermon date first.");
       return;
     }
 
-    const slides = linkedEvent.presentationSlides;
+    const slides = linkedEvent?.presentationSlides;
     const hasSlides = slides
       ? (Array.isArray(slides)
           ? slides.length > 0
@@ -290,7 +310,7 @@ export default function QuizAdminPage() {
       : false;
 
     if (!hasSlides && (!sermonText || !sermonText.trim())) {
-      setGenError("Please paste the sermon notes / transcript script or select an event with slides first.");
+      setGenError("Please paste the sermon notes / transcript script (or select an event with slides first).");
       return;
     }
 
@@ -322,7 +342,7 @@ export default function QuizAdminPage() {
       const res = await fetch("/api/quiz/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sermonText, sermonDate, eventId: linkedEvent.id }),
+        body: JSON.stringify({ sermonText, sermonDate, eventId: linkedEvent?.id || null }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -352,8 +372,8 @@ export default function QuizAdminPage() {
 
   // ── Save as draft ──
   async function handleSave() {
-    if (!linkedEvent) {
-      showAlert("Error", "No linked Sunday Service event found. You must have a physical Sunday Service event to save a quiz.", "error");
+    if (!sermonDate) {
+      showAlert("Error", "Please select or enter a Sunday sermon date.", "error");
       return;
     }
     setSaving(true);
@@ -369,14 +389,15 @@ export default function QuizAdminPage() {
           transcriptText: sermonText || null,
           announcementCaption: generatedCaption,
           questions: generatedQuestions,
-          eventId: linkedEvent.id,
+          eventId: linkedEvent?.id || null,
+          archiveMode: isPastSermon,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setSavedQuizId(data.quizId);
       loadQuizzes();
-      showAlert("Success", "✅ Saved as draft!", "success");
+      showAlert("Success", isPastSermon ? "📁 Saved to Catch-Up Archive (status: completed)!" : "✅ Saved as draft!", "success");
     } catch (err: any) {
       showAlert("Error", "Save failed: " + (err?.message || "Unknown error"), "error");
     } finally {
@@ -386,14 +407,55 @@ export default function QuizAdminPage() {
 
   // ── Publish ──
   async function handlePublish() {
-    if (!linkedEvent) {
-      showAlert("Error", "No linked Sunday Service event found. You must have a physical Sunday Service event to publish a quiz.", "error");
+    if (!sermonDate) {
+      showAlert("Error", "Please select or enter a Sunday sermon date.", "error");
       return;
     }
-    if (!savedQuizId) {
-      // Auto-save first
-      setSaving(true);
+
+    // Past sermon: save directly to catch-up archive without feed spam or push notifications
+    if (isPastSermon) {
+      setPublishing(true);
       try {
+        const res = await fetch("/api/quiz/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            quizId: savedQuizId,
+            title,
+            sermonDate,
+            youtubeUrl: youtubeUrl || null,
+            transcriptText: sermonText || null,
+            announcementCaption: generatedCaption,
+            questions: generatedQuestions,
+            eventId: linkedEvent?.id || null,
+            archiveMode: true,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+
+        loadQuizzes();
+        showAlert(
+          "Saved to Catch-Up Archive!",
+          "📁 This past Sunday sermon quiz was saved directly to the Catch-Up Archive! It is now available for members to catch up on, without spamming notifications or disrupting the current live week. You can now add your next missed Sunday!",
+          "success"
+        );
+        // Reset form for next Sunday backfill
+        setTitle(""); setSermonDate(""); setSermonText(""); setYoutubeUrl(""); setLinkedEvent(null);
+        setGeneratedCaption(""); setGeneratedQuestions([]); setSavedQuizId(null);
+      } catch (err: any) {
+        showAlert("Error", "Archive failed: " + (err?.message || "Unknown error"), "error");
+      } finally {
+        setPublishing(false);
+      }
+      return;
+    }
+
+    // Live sermon (current week):
+    setPublishing(true);
+    try {
+      let qId = savedQuizId;
+      if (!qId) {
         const res = await fetch("/api/quiz/save", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -404,45 +466,23 @@ export default function QuizAdminPage() {
             transcriptText: sermonText || null,
             announcementCaption: generatedCaption,
             questions: generatedQuestions,
-            eventId: linkedEvent.id,
+            eventId: linkedEvent?.id || null,
+            archiveMode: false,
           }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
-        setSavedQuizId(data.quizId);
-
-        // Now publish
-        const pubRes = await fetch("/api/quiz/publish", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ quizId: data.quizId }),
-        });
-        const pubData = await pubRes.json();
-        if (!pubRes.ok) throw new Error(pubData.error);
-
-        loadQuizzes();
-        showAlert("Success", "🚀 Quiz published! Announcement posted to community feed.", "success");
-        // Reset form
-        setTitle(""); setSermonDate(""); setSermonText(""); setYoutubeUrl(""); setLinkedEvent(null);
-        setGeneratedCaption(""); setGeneratedQuestions([]); setSavedQuizId(null);
-      } catch (err: any) {
-        showAlert("Error", "Publish failed: " + (err?.message || "Unknown error"), "error");
-      } finally {
-        setSaving(false);
-        setPublishing(false);
+        qId = data.quizId;
+        setSavedQuizId(qId);
       }
-      return;
-    }
 
-    setPublishing(true);
-    try {
-      const res = await fetch("/api/quiz/publish", {
+      const pubRes = await fetch("/api/quiz/publish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ quizId: savedQuizId }),
+        body: JSON.stringify({ quizId: qId }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      const pubData = await pubRes.json();
+      if (!pubRes.ok) throw new Error(pubData.error);
 
       loadQuizzes();
       showAlert("Success", "🚀 Quiz published! Announcement posted to community feed.", "success");
@@ -631,9 +671,76 @@ export default function QuizAdminPage() {
           ✨ Create New Quiz Week
         </div>
 
+        {/* Sunday Sermon Date */}
+        <div style={{ marginTop: "16px" }}>
+          <label style={S.label}>📅 Sunday Sermon Date (Required)</label>
+          <input
+            type="date"
+            value={sermonDate}
+            onChange={(e) => handleDateChange(e.target.value)}
+            style={{
+              ...S.input,
+              fontSize: "1rem",
+              fontWeight: 600,
+              color: "#1e293b",
+            }}
+          />
+          <p style={{ margin: "4px 0 0", fontSize: "0.8rem", color: "#64748b" }}>
+            Pick any past Sunday to backfill into the Catch-Up Archive, or select the current Sunday to launch live.
+          </p>
+        </div>
+
+        {/* Mode Indicator Badge */}
+        {sermonDate && (
+          isPastSermon ? (
+            <div
+              style={{
+                marginTop: "12px",
+                padding: "12px 14px",
+                borderRadius: "10px",
+                background: "#f0fdf4",
+                border: "1.5px solid #86efac",
+                display: "flex",
+                alignItems: "flex-start",
+                gap: "10px",
+              }}
+            >
+              <span style={{ fontSize: "1.3rem" }}>📁</span>
+              <div style={{ fontSize: "0.85rem", color: "#166534" }}>
+                <strong style={{ display: "block", fontSize: "0.9rem", marginBottom: "2px" }}>
+                  Catch-Up Archive Mode ({new Date(sermonDate + "T00:00:00").toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" })})
+                </strong>
+                This sermon date is in the past (&gt; 7 days). When saved, it goes directly to the <strong>Catch-Up Archive</strong> (status: completed). Members will be able to unlock it via their 7-day catch-up pass without spamming notifications or disrupting the current week!
+              </div>
+            </div>
+          ) : (
+            <div
+              style={{
+                marginTop: "12px",
+                padding: "12px 14px",
+                borderRadius: "10px",
+                background: "#eff6ff",
+                border: "1.5px solid #93c5fd",
+                display: "flex",
+                alignItems: "flex-start",
+                gap: "10px",
+              }}
+            >
+              <span style={{ fontSize: "1.3rem" }}>🌟</span>
+              <div style={{ fontSize: "0.85rem", color: "#1e40af" }}>
+                <strong style={{ display: "block", fontSize: "0.9rem", marginBottom: "2px" }}>
+                  Current Live Week Mode ({new Date(sermonDate + "T00:00:00").toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" })})
+                </strong>
+                This sermon is within the active Sunday window. When published, it will become the active live quiz for the entire church and post an announcement to the community feed.
+              </div>
+            </div>
+          )
+        )}
+
+        {/* Linked Event (Optional / Auto-Matched) */}
         <div ref={dropdownRef} style={{ marginTop: "16px", position: "relative" }}>
           <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>
-            🔗 Linked Event (Sunday Gating & Slides)
+            🔗 Linked Church Event (Optional — Links Slides & Speaker)
           </span>
           <button
             type="button"
@@ -663,7 +770,7 @@ export default function QuizAdminPage() {
                   </span>
                 </>
               ) : (
-                "Choose an event to link..."
+                "Choose an event to link slides (optional)..."
               )}
             </span>
             <span>{dropdownOpen ? "▲" : "▼"}</span>
@@ -761,26 +868,35 @@ export default function QuizAdminPage() {
               </div>
             </div>
           )}
-          {linkedEvent && (
-            <div style={{ marginTop: "6px", fontSize: "0.82rem", color: "#64748b" }}>
-              Selected: <strong style={{ color: "#0f172a" }}>{linkedEvent.title}</strong> on {new Date(linkedEvent.eventDate).toLocaleDateString()}
+          {linkedEvent ? (
+            <div style={{ marginTop: "6px", fontSize: "0.82rem", color: "#64748b", display: "flex", alignItems: "center", gap: "6px" }}>
+              <span>Selected: <strong style={{ color: "#0f172a" }}>{linkedEvent.title}</strong> on {new Date(linkedEvent.eventDate).toLocaleDateString()}</span>
+              <button
+                type="button"
+                onClick={() => setLinkedEvent(null)}
+                style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "0.8rem", textDecoration: "underline", padding: 0 }}
+              >
+                (Unlink)
+              </button>
             </div>
-          )}
-          {!linkedEvent && !loadingEvent && (
-            <p style={{ margin: "4px 0 0", fontSize: "0.9rem", color: "#ef4444", fontWeight: 600 }}>
-              ⚠️ No event linked! Please select an event to link slides and enable gating.
-            </p>
-          )}
+          ) : sermonDate ? (
+            <div style={{ marginTop: "6px", fontSize: "0.82rem", color: "#64748b" }}>
+              ℹ️ No specific calendar event linked. A Sunday Service event record will be automatically associated.
+            </div>
+          ) : null}
         </div>
 
-        <label style={S.label}>YouTube Sermon Video URL (Optional)</label>
+        <label style={S.label}>📺 YouTube Sermon Video URL (Optional)</label>
         <input
           type="text"
           value={youtubeUrl}
           onChange={(e) => setYoutubeUrl(e.target.value)}
-          placeholder="e.g. https://www.youtube.com/watch?v=..."
+          placeholder="e.g. https://www.youtube.com/watch?v=... or https://youtu.be/..."
           style={S.input}
         />
+        <p style={{ color: "#a0aec0", fontSize: "0.8rem", margin: "-4px 0 12px" }}>
+          Embeds the full sermon replay above the daily challenges for members to watch.
+        </p>
 
         <label style={S.label}>Sermon Notes / Script / Transcript (Optional if Event Slides exist)</label>
         <textarea
@@ -922,16 +1038,27 @@ export default function QuizAdminPage() {
           })}
 
           {/* Action buttons */}
-          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginTop: "24px" }}>
             <button onClick={handleSave} disabled={saving} style={{ ...S.btnSecondary, opacity: saving ? 0.6 : 1 }}>
               {saving ? "Saving..." : "💾 Save as Draft"}
             </button>
             <button
               onClick={handlePublish}
               disabled={publishing || saving}
-              style={{ ...S.btn, opacity: (publishing || saving) ? 0.6 : 1 }}
+              style={{
+                ...S.btn,
+                background: isPastSermon
+                  ? "linear-gradient(135deg, #10b981 0%, #059669 100%)"
+                  : "linear-gradient(135deg, #4EB1CB 0%, #38A89D 100%)",
+                boxShadow: isPastSermon
+                  ? "0 4px 15px rgba(16, 185, 129, 0.3)"
+                  : "0 4px 15px rgba(78, 177, 203, 0.3)",
+                opacity: (publishing || saving) ? 0.6 : 1,
+              }}
             >
-              {publishing ? "Publishing..." : "🚀 Publish Quiz Week"}
+              {publishing
+                ? (isPastSermon ? "Archiving..." : "Publishing...")
+                : (isPastSermon ? "📁 Save to Catch-Up Archive" : "🚀 Publish Live Quiz Week")}
             </button>
           </div>
         </div>

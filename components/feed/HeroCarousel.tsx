@@ -47,7 +47,14 @@ export default function HeroCarousel({ firstName }: HeroCarouselProps) {
   const [idx, setIdx] = useState(0);
   const [event, setEvent] = useState<UpcomingEvent | null>(null);
   const [prayer, setPrayer] = useState<PrayerSpotlight | null>(null);
-  const [quizProgress, setQuizProgress] = useState<{ active: boolean; title?: string; completed?: number } | null>(null);
+  const [quizProgress, setQuizProgress] = useState<{
+    active: boolean;
+    title?: string;
+    completed?: number;
+    total?: number;
+    isExpired?: boolean;
+    isCatchup?: boolean;
+  } | null>(null);
   const touchStartX = useRef<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -239,11 +246,14 @@ export default function HeroCarousel({ firstName }: HeroCarouselProps) {
     fetch("/api/quiz/status")
       .then((r) => r.json())
       .then((d) => {
-        if (mounted && d.active) {
+        if (mounted && d.active && d.quiz) {
           setQuizProgress({
             active: true,
             title: d.quiz.title,
-            completed: d.progress.completed,
+            completed: d.progress?.completed ?? 0,
+            total: d.progress?.total ?? 7,
+            isExpired: !!d.isExpired,
+            isCatchup: !!d.isCatchup,
           });
         }
       })
@@ -261,46 +271,61 @@ export default function HeroCarousel({ firstName }: HeroCarouselProps) {
   if (quizProgress?.active) {
     slides.push({
       key: "quiz",
-      render: () => (
-        <>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
-            <span style={{ fontSize: "1.75rem" }}>🧠</span>
-            <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-              Quiz for Christ is LIVE!
-            </span>
-          </div>
-          {(() => {
-            const parts = (quizProgress.title || "").split(/ — | - /);
-            const displayTitle = parts[0];
-            const displayDate = parts[1];
-            return (
-              <>
-                <h2 style={{ fontSize: "1.125rem", fontWeight: 800, color: "white", margin: "0 0 0.25rem", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }} title={displayTitle}>
-                  {displayTitle}
-                </h2>
-                {displayDate && (
-                  <div style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.75)", fontWeight: 600, display: "flex", alignItems: "center", gap: "4px", marginBottom: "0.375rem" }}>
-                    📅 {displayDate}
-                  </div>
-                )}
-              </>
-            );
-          })()}
-          <p style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.85)", margin: "0 0 0.625rem" }}>
-            📊 Progress: {quizProgress.completed}/5 days complete
-          </p>
-          <Link
-            href="/quiz"
-            style={{
-              display: "inline-block", background: "white", color: PRIMARY,
-              padding: "0.4rem 1rem", borderRadius: "999px", fontSize: "0.8rem",
-              fontWeight: 700, textDecoration: "none",
-            }}
-          >
-            Play Now →
-          </Link>
-        </>
-      ),
+      render: () => {
+        const isCatchup = quizProgress.isCatchup;
+        const isExpired = quizProgress.isExpired && !isCatchup;
+        const badgeText = isCatchup
+          ? "⏳ CATCH-UP IN PROGRESS"
+          : isExpired
+            ? "🎯 MISSED SUNDAY QUIZ CATCH-UP"
+            : "QUIZ FOR CHRIST IS LIVE!";
+        const ctaText = isCatchup
+          ? "Continue Quiz →"
+          : isExpired
+            ? "Catch Up Now →"
+            : "Play Now →";
+
+        return (
+          <>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
+              <span style={{ fontSize: "1.75rem" }}>🧠</span>
+              <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "rgba(255,255,255,0.85)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                {badgeText}
+              </span>
+            </div>
+            {(() => {
+              const parts = (quizProgress.title || "").split(/ — | - /);
+              const displayTitle = parts[0];
+              const displayDate = parts[1];
+              return (
+                <>
+                  <h2 style={{ fontSize: "1.125rem", fontWeight: 800, color: "white", margin: "0 0 0.25rem", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }} title={displayTitle}>
+                    {displayTitle}
+                  </h2>
+                  {displayDate && (
+                    <div style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.75)", fontWeight: 600, display: "flex", alignItems: "center", gap: "4px", marginBottom: "0.375rem" }}>
+                      📅 {displayDate}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+            <p style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.85)", margin: "0 0 0.625rem" }}>
+              📊 Progress: {quizProgress.completed}/{quizProgress.total || 7} challenges complete
+            </p>
+            <Link
+              href="/quiz"
+              style={{
+                display: "inline-block", background: "white", color: PRIMARY,
+                padding: "0.4rem 1rem", borderRadius: "999px", fontSize: "0.8rem",
+                fontWeight: 700, textDecoration: "none",
+              }}
+            >
+              {ctaText}
+            </Link>
+          </>
+        );
+      },
     });
   }
 

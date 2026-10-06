@@ -10,7 +10,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { getQuizDayForDate, QUIZ_DAYS, QUIZ_TYPE_LABELS } from "@/lib/quiz-helpers";
+import { getQuizDayForDate, isQuizWeekExpired, QUIZ_DAYS, QUIZ_TYPE_LABELS } from "@/lib/quiz-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -42,14 +42,27 @@ export async function POST(request: Request) {
     });
 
     if (!quiz) return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
-    if (quiz.status !== "draft") {
-      return NextResponse.json({ error: "Quiz already published" }, { status: 400 });
+    if (quiz.status === "published" || quiz.status === "completed") {
+      return NextResponse.json({ error: "Quiz already published/completed" }, { status: 400 });
     }
     if (quiz.questions.length < 7) {
       return NextResponse.json({ error: "Quiz must have 7 questions (one per day)" }, { status: 400 });
     }
 
     const memberId = parseInt(session.user.id, 10);
+
+    // If this is a past expired Sunday sermon, archive it directly without feed spam or notification blasts!
+    if (isQuizWeekExpired(quiz.sermonDate)) {
+      await db.sermonQuiz.update({
+        where: { id: quizId },
+        data: { status: "completed" },
+      });
+      return NextResponse.json({
+        success: true,
+        archived: true,
+        message: "Past sermon quiz safely saved to Catch-Up Archive! Members can now catch up on it via the Quiz Hub.",
+      });
+    }
 
     // ── Create announcement post in community feed ──
     const videoId = quiz.youtubeVideoId;

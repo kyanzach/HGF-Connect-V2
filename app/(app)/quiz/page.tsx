@@ -104,6 +104,18 @@ export default function MemberQuizPage() {
     message: string | React.ReactNode;
   }>({ open: false, title: "", message: "" });
 
+  // ── Catch-up states ──
+  const [startingCatchup, setStartingCatchup] = useState(false);
+  const [conflictModal, setConflictModal] = useState<{
+    open: boolean;
+    message: string;
+    activeQuizId?: number;
+  }>({ open: false, message: "" });
+  const [catchupPromptModal, setCatchupPromptModal] = useState<{
+    open: boolean;
+    day: QuizDay | null;
+  }>({ open: false, day: null });
+
   const loadStatus = useCallback(async () => {
     try {
       const params = new URLSearchParams(window.location.search);
@@ -123,7 +135,46 @@ export default function MemberQuizPage() {
 
   const [activeQuestion, setActiveQuestion] = useState<any | null>(null);
 
-
+  async function handleStartCatchupDirect(targetDay?: QuizDay | null) {
+    if (!quizStatus?.quiz?.id) return;
+    setStartingCatchup(true);
+    try {
+      const res = await fetch("/api/quiz/catchup/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quizId: quizStatus.quiz.id }),
+      });
+      const data = await res.json();
+      if (res.status === 409) {
+        setCatchupPromptModal({ open: false, day: null });
+        setConflictModal({
+          open: true,
+          message: data.message || "You have the chance to answer previous Sunday quiz after you finish this one, and you have 7 days to finish this one.",
+          activeQuizId: data.activeQuizId,
+        });
+        return;
+      }
+      if (!res.ok) {
+        setCatchupPromptModal({ open: false, day: null });
+        setInfoModal({
+          open: true,
+          title: "Notice",
+          message: data.error || "Unable to start catch-up session.",
+        });
+        return;
+      }
+      // Success! Reload status to unlock all days
+      setCatchupPromptModal({ open: false, day: null });
+      await loadStatus();
+      if (targetDay) {
+        setActiveQuestion({ ...targetDay, status: "available" });
+      }
+    } catch (err: any) {
+      console.error("Failed to start catch-up:", err);
+    } finally {
+      setStartingCatchup(false);
+    }
+  }
 
   useEffect(() => {
     if (authStatus === "authenticated") {
@@ -146,10 +197,9 @@ export default function MemberQuizPage() {
   async function handleStartDay(day: QuizDay) {
     if (day.status === "locked") return;
     if (day.status === "expired") {
-      setInfoModal({
+      setCatchupPromptModal({
         open: true,
-        title: "Week Ended",
-        message: "This quiz week has ended. You can no longer play missed challenges. Check back when a new quiz is published!",
+        day,
       });
       return;
     }
@@ -507,23 +557,48 @@ export default function MemberQuizPage() {
       {/* Expired Week Banner */}
       {quizStatus?.isExpired && !quizStatus?.isCatchup && (
         <div style={{
-          background: "#fef3c7",
-          border: "1px solid #fbbf24",
-          borderRadius: "16px",
-          padding: "14px 16px",
+          background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
+          border: "1.5px solid #fcd34d",
+          borderRadius: "18px",
+          padding: "18px",
           marginBottom: "20px",
           display: "flex",
-          alignItems: "center",
-          gap: "10px",
+          alignItems: "flex-start",
+          gap: "14px",
+          boxShadow: "0 2px 10px rgba(245, 158, 11, 0.12)",
         }}>
-          <span style={{ fontSize: "1.4rem" }}>⏰</span>
-          <div>
-            <strong style={{ fontSize: "0.85rem", color: "#92400e", display: "block" }}>
-              This quiz week has ended
+          <span style={{ fontSize: "1.8rem", lineHeight: 1 }}>⏰</span>
+          <div style={{ flex: 1 }}>
+            <strong style={{ fontSize: "0.95rem", color: "#92400e", display: "block", marginBottom: "4px" }}>
+              This quiz week has ended, but you can still catch up!
             </strong>
-            <span style={{ fontSize: "0.78rem", color: "#a16207", lineHeight: 1.4 }}>
-              Your completed challenges and scores are saved. Check back when a new quiz is published!
-            </span>
+            <p style={{ fontSize: "0.82rem", color: "#a16207", lineHeight: 1.45, margin: "0 0 12px" }}>
+              {(progress?.completed ?? 0) > 0
+                ? `You've completed ${progress?.completed}/7 challenges. Start a 7-day catch-up pass to finish the rest at your own pace!`
+                : "You missed this Sunday quiz, but you can unlock a 7-day personal catch-up pass to play all 7 challenges and earn points for your leaderboard score!"
+              }
+            </p>
+            <button
+              onClick={() => handleStartCatchupDirect()}
+              disabled={startingCatchup}
+              style={{
+                background: "linear-gradient(135deg, #0e7490 0%, #0284c7 100%)",
+                color: "white",
+                border: "none",
+                borderRadius: "12px",
+                padding: "9px 18px",
+                fontSize: "0.85rem",
+                fontWeight: 700,
+                cursor: startingCatchup ? "not-allowed" : "pointer",
+                boxShadow: "0 4px 12px rgba(14, 116, 144, 0.3)",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "8px",
+                transition: "all 0.2s",
+              }}
+            >
+              {startingCatchup ? "⏳ Activating Pass..." : "🎯 Start 7-Day Catch-Up Pass"}
+            </button>
           </div>
         </div>
       )}
@@ -1114,6 +1189,57 @@ export default function MemberQuizPage() {
         cancelLabel={null}
         onConfirm={() => setInfoModal({ open: false, title: "", message: "" })}
         onCancel={() => setInfoModal({ open: false, title: "", message: "" })}
+      />
+
+      {/* Catch-Up Prompt Modal (when clicking a missed day) */}
+      <ConfirmModal
+        open={catchupPromptModal.open}
+        title="🎯 Start 7-Day Catch-Up Pass"
+        message={
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px", textAlign: "left" }}>
+            <p style={{ margin: 0, color: "#334155", fontSize: "0.92rem", lineHeight: 1.5 }}>
+              This challenge is from a past Sunday sermon. Would you like to activate your 7-day personal catch-up pass to unlock all 7 challenges and answer at your own pace?
+            </p>
+            <div style={{ background: "#f0fdfa", border: "1px solid #ccfbf1", borderRadius: "10px", padding: "10px 12px", display: "flex", flexDirection: "column", gap: "4px" }}>
+              <span style={{ fontSize: "0.82rem", color: "#0f766e" }}>
+                ⏳ <strong>7-Day Window:</strong> Complete all questions at your convenience.
+              </span>
+              <span style={{ fontSize: "0.82rem", color: "#0f766e" }}>
+                🏆 <strong>Full Credit:</strong> Correct answers directly boost your All-Time score!
+              </span>
+            </div>
+          </div>
+        }
+        confirmLabel="Start 7-Day Catch-Up"
+        cancelLabel="Cancel"
+        confirmColor={PRIMARY}
+        loading={startingCatchup}
+        onConfirm={() => handleStartCatchupDirect(catchupPromptModal.day)}
+        onCancel={() => setCatchupPromptModal({ open: false, day: null })}
+      />
+
+      {/* Polite Conflict Modal */}
+      <ConfirmModal
+        open={conflictModal.open}
+        title="🕊️ One Quiz at a Time"
+        message={
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px", textAlign: "left" }}>
+            <p style={{ margin: 0, color: "#1e293b", fontSize: "0.92rem", lineHeight: 1.55 }}>
+              {conflictModal.message}
+            </p>
+          </div>
+        }
+        confirmLabel={conflictModal.activeQuizId ? "Go to Active Quiz" : "Understood"}
+        cancelLabel={conflictModal.activeQuizId ? "Close" : null}
+        confirmColor={PRIMARY}
+        onConfirm={() => {
+          const activeId = conflictModal.activeQuizId;
+          setConflictModal({ open: false, message: "", activeQuizId: undefined });
+          if (activeId && activeId !== quizStatus?.quiz?.id) {
+            router.push(`/quiz?quizId=${activeId}`);
+          }
+        }}
+        onCancel={() => setConflictModal({ open: false, message: "", activeQuizId: undefined })}
       />
 
       {lightboxSrc && (

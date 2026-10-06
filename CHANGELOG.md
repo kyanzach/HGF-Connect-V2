@@ -5,6 +5,27 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.73.0] — 2026-10-06
+### Added & Enhanced — Manual Multi-Date Quiz Backfill Engine & Direct Expired Catch-Up
+- **Direct Expired Catch-Up on Main Quiz Page (`/quiz`)**:
+  - Solved the dilemma where members visiting `/quiz` on an expired Sunday were greeted with "This quiz week has ended" and all 7 days labeled "Missed" with no way forward.
+  - Replaced the passive expired banner with an interactive **"Start 7-Day Catch-Up Pass"** action button.
+  - Clicking any "Missed" day card directly triggers the catch-up pass prompt, unlocking all 7 challenges immediately with a fresh 7-day personal window.
+- **Hero Carousel State Intelligence (`components/feed/HeroCarousel.tsx`)**:
+  - Replaced the misleading "QUIZ FOR CHRIST IS LIVE!" banner on expired weeks with a vibrant **"🎯 MISSED SUNDAY QUIZ CATCH-UP"** badge and **"Catch Up Now →"** button.
+  - Dynamically displays **"⏳ CATCH-UP IN PROGRESS"** when a pass is actively running.
+  - Fixed progress counter to display `${completed}/${total || 7} challenges complete`.
+- **Manual Multi-Date Admin Backfill System (`/quiz/admin`)**:
+  - Added a dedicated Sunday date selector `<input type="date">` enabling admins to backfill any missed past Sunday sermon.
+  - Automatically identifies whether a selected date is past (>7 days) or current live week.
+  - Shows dynamic mode indicators: **📁 Catch-Up Archive Mode** vs **🌟 Current Live Week Mode**.
+  - Decoupled physical calendar event requirements: auto-associates a Sunday Service event record with start time if none exists, ensuring gating and slides work smoothly.
+  - Added dedicated YouTube sermon replay URL field with CleanYoutubePlayer embedding.
+- **Loophole & Notification Spam Safeguards (`/api/quiz/save`, `/api/quiz/publish`)**:
+  - Any past Sunday sermon quiz saved via the backfill system is directly saved with `status: "completed"` (Catch-Up Archive).
+  - Explicitly bypasses community feed `QUIZ_ANNOUNCEMENT` post generation and member push/bell notification blasts for backfilled sermons, preventing member spam and feed clutter.
+  - Protects the live active quiz slot so backfilled sermons never hijack the current week's quiz.
+
 ## [v2.72.0] — 2026-10-06
 ### Added & Enhanced — Missed Sunday Quiz Catch-Up Engine & Active Quiz Gating
 - **7-Day Personal Catch-Up Window**:
