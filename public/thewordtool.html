@@ -701,20 +701,24 @@
   #doubletap-hint.visible { opacity: 1; }
 
   #back-btn {
-    position: absolute;
-    top: 16px;
-    left: 16px;
-    z-index: 10;
-    background: rgba(40,40,40,0.8);
-    color: #aaa;
-    border: none;
-    border-radius: 6px;
-    padding: 8px 14px;
-    font-size: 13px;
-    cursor: pointer;
+    position: fixed !important;
+    top: calc(16px + env(safe-area-inset-top, 0px)) !important;
+    left: 16px !important;
+    z-index: 99999 !important;
+    background: rgba(30, 30, 30, 0.92) !important;
+    color: #fff !important;
+    border: 1px solid #666 !important;
+    border-radius: 8px !important;
+    padding: 10px 18px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6) !important;
+    touch-action: manipulation;
   }
 
-  #back-btn:hover { color: #fff; background: rgba(60,60,60,0.9); }
+  #back-btn:hover { color: #fff !important; background: rgba(55, 55, 55, 0.95) !important; border-color: #888 !important; }
 
   /* ── Progress Bar ── */
   #progress-bar {
@@ -2216,6 +2220,41 @@
     document.title = `${name} — THE WORD`;
   }
 
+  // ── Normalize Script HTML to standard elements (<p>, cues, callouts) ──
+  function normalizeScriptHtml(input) {
+    if (!input) return '';
+    let h = input;
+
+    // 1. Unwrap empty nested div wrappers around cues, call-to-say, and next-slide
+    for (let pass = 0; pass < 3; pass++) {
+      h = h.replace(/<div(?:\s+style="[^"]*")?>\s*(<(?:div|p)[^>]*class="(?:cue|call-to-say|next-slide)"[^>]*>[\s\S]*?<\/(?:div|p)>)\s*<\/div>/gi, '$1');
+    }
+
+    // 2. If a div wraps both a <p> and a <div class="call-to-say|cue">, unwrap outer div
+    h = h.replace(/<div(?:\s+style="[^"]*")?>\s*(<p>[\s\S]*?<\/p>)\s*(<div[^>]*class="(?:cue|call-to-say|next-slide)"[^>]*>[\s\S]*?<\/div>)\s*<\/div>/gi, '$1$2');
+
+    // 3. Convert any remaining plain <div>...</div> into standard <p>...</p>
+    h = h.replace(/<div(?:\s+style="[^"]*")?>([\s\S]*?)<\/div>/gi, (match, inner) => {
+      if (/<(?:div|ol|ul|h1|h2|h3)[^>]*>/i.test(inner)) {
+        return inner;
+      }
+      const trimmed = inner.trim();
+      if (!trimmed || trimmed === '<br>') return '';
+      return '<p>' + inner + '</p>';
+    });
+
+    // 4. Clean up empty paragraphs and consecutive blank lines
+    h = h.replace(/<p>\s*<\/p>/gi, '');
+    h = h.replace(/(?:<p>\s*<br\s*\/?>\s*<\/p>\s*){2,}/gi, '<p><br></p>');
+
+    return h;
+  }
+
+  // Force contenteditable to use <p> instead of <div> on Enter
+  try {
+    document.execCommand('defaultParagraphSeparator', false, 'p');
+  } catch {}
+
   function syncDraft() {
     localStorage.setItem(DRAFT_KEY, editor.innerHTML);
     localStorage.setItem(DRAFT_NAME_KEY, currentFileName || '');
@@ -3249,7 +3288,7 @@
           if (!res.ok) throw new Error();
           const data = await res.json();
           currentFileName = data.name; currentFolder = folderName; savedToServer = true; fileHandle = null;
-          editor.innerHTML = data.content;
+          editor.innerHTML = normalizeScriptHtml(data.content);
           isDirty = false;
           setSavePref(data.name, 'server', folderName);
           updateTitle(); addToRecents(data.name, data.content); syncDraft();
@@ -3273,6 +3312,7 @@
   }
 
   async function saveToServerFolder(folder, name) {
+    editor.innerHTML = normalizeScriptHtml(editor.innerHTML);
     const content = editor.innerHTML;
     const body = { folder, name, content };
     if (folderPasswords[folder]) body.password = folderPasswords[folder];
@@ -3358,6 +3398,7 @@
   document.getElementById('btn-save-local').addEventListener('click', () => doSaveLocal());
 
   async function doSaveLocal() {
+    editor.innerHTML = normalizeScriptHtml(editor.innerHTML);
     const content = editor.innerHTML;
     if (window.showSaveFilePicker) {
       try {
@@ -3440,7 +3481,7 @@
         currentFileName = file.name.replace(/\.(html?|txt)$/i, '');
       }
       fileHandle = null; savedToServer = false; currentFolder = null;
-      editor.innerHTML = loadedContent; isDirty = false;
+      editor.innerHTML = normalizeScriptHtml(loadedContent); isDirty = false;
       updateTitle(); addToRecents(currentFileName, editor.innerHTML); syncDraft(); editor.focus();
     };
     reader.readAsText(file); fileInput.value = '';
@@ -4174,9 +4215,11 @@
   }
 
   startBtn.addEventListener('click', () => {
-    const content = editor.innerHTML.trim();
-    if (!content || content === '<br>') return;
-    scrollEl.innerHTML = content;
+    const rawContent = editor.innerHTML.trim();
+    if (!rawContent || rawContent === '<br>') return;
+    const normalized = normalizeScriptHtml(rawContent);
+    editor.innerHTML = normalized;
+    scrollEl.innerHTML = normalized;
     editorView.style.display = 'none';
     prompterView.style.display = 'flex';
     inPrompter = true;
@@ -4221,21 +4264,45 @@
     }
   });
 
-  backBtn.addEventListener('click', () => {
-    stop();
-    pauseTimer();
-    stopTimerInterval();
-    stopSectionTracking();
-    completionOverlay.classList.remove('visible');
-    // Log session if they spent meaningful time (>= 5s)
-    if (timerSeconds >= 5) {
-      addSession(currentFileName || 'Untitled', timerSeconds, sectionTimings);
+  function exitPrompterToEditor() {
+    try { stop(); } catch {}
+    try { pauseTimer(); } catch {}
+    try { stopTimerInterval(); } catch {}
+    try { stopSectionTracking(); } catch {}
+    try { completionOverlay.classList.remove('visible'); } catch {}
+
+    // Exit fullscreen if browser is currently in fullscreen
+    if (document.fullscreenElement && document.exitFullscreen) {
+      document.exitFullscreen().catch(() => {});
     }
+
+    // Switch view DOM states immediately
     prompterView.style.display = 'none';
     editorView.style.display = 'flex';
     inPrompter = false;
     updateStartBtn();
-    editor.focus();
+    try { editor.focus(); } catch {}
+
+    // Safely record session in background
+    try {
+      if (timerSeconds >= 5) {
+        addSession(currentFileName || 'Untitled', timerSeconds, sectionTimings);
+      }
+    } catch (e) {
+      console.warn('Session save error:', e);
+    }
+  }
+
+  backBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    exitPrompterToEditor();
+  });
+
+  backBtn.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    exitPrompterToEditor();
   });
 
   // ── Progress bar ──
@@ -4580,12 +4647,17 @@
   }
 
   function getPrompterStops() {
-    // Collect all valid top-level sermon beats (paragraphs, cues, slides, calls to say, headers, quotes, lists)
+    // Collect all valid top-level sermon beats (paragraphs, cues, slides, calls to say, headers, quotes, lists, text divs)
     const rawElements = Array.from(
-      scrollEl.querySelectorAll('h1, h2, h3, p, blockquote, li, .cue, .next-slide, .call-to-say')
+      scrollEl.querySelectorAll('h1, h2, h3, p, blockquote, li, .cue, .next-slide, .call-to-say, div:not(#prompter-scroll)')
     );
     return rawElements.filter(el => {
       if (!hasRealText(el)) return false;
+      // If it is a generic div that contains block children, it is just a container wrapper, not a terminal stop
+      if (el.tagName === 'DIV' && !el.classList.contains('cue') && !el.classList.contains('next-slide') && !el.classList.contains('call-to-say')) {
+        const hasChildBlocks = el.querySelector('p, div, h1, h2, h3, blockquote, ol, ul, li');
+        if (hasChildBlocks) return false;
+      }
       // Do not duplicate children inside container stops (e.g. <p> inside <blockquote> or <span> in .call-to-say)
       const parentStop = el.parentElement ? el.parentElement.closest('h1, h2, h3, p, blockquote, li, .cue, .next-slide, .call-to-say') : null;
       if (parentStop && scrollEl.contains(parentStop)) {
@@ -4891,7 +4963,7 @@
         fsBtn.click();
         break;
       case 'Escape':
-        backBtn.click();
+        exitPrompterToEditor();
         break;
     }
   });
@@ -4903,7 +4975,7 @@
   const savedName = localStorage.getItem(DRAFT_NAME_KEY);
 
   if (savedDraft) {
-    editor.innerHTML = savedDraft;
+    editor.innerHTML = normalizeScriptHtml(savedDraft);
     if (savedName) {
       currentFileName = savedName;
       isDirty = false;

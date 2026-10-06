@@ -5,6 +5,22 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.73.5] — 2026-10-06
+### Fixed & Enhanced — Teleprompter Element Navigation, Exit Controls & Script Normalization
+- **Fixed Next Button Skipping Text & Jumping Straight to Cues (`public/thewordtool.html`)**:
+  - Identified root cause where contenteditable paragraphs saved as `<div>` tags (Chromium / Safari behavior) were omitted from the prompter stop query, skipping entire text sections directly to the next `<div class="cue">`.
+  - Added `div:not(#prompter-scroll)` with intelligent container filtering to `getPrompterStops()`, ensuring terminal text divs are recognized as first-class stops.
+  - Added `normalizeScriptHtml()` engine: cleanly converts legacy/pasted content `<div>` tags into standardized `<p>` tags, unwraps empty wrapper divs around cues and call-to-say elements, and purges empty paragraphs while preserving 100% of text, spans, markers, and inline styles.
+  - Set `defaultParagraphSeparator: 'p'` so editing and typing naturally generates standard `<p>` elements.
+  - Added automatic script normalization on script open, server load, local load, draft restore, save to server, and save to local.
+- **Fixed "← Edit Script" / Exit Prompter Mode (`public/thewordtool.html`)**:
+  - Fixed `#back-btn` styling to `position: fixed !important; z-index: 99999 !important; pointer-events: auto !important;` with safe-area inset support, preventing prompter scroll layers or overlays from intercepting clicks.
+  - Added dedicated `exitPrompterToEditor()` with both `click` and `touchend` event listeners (`e.preventDefault()`, `e.stopPropagation()`).
+  - Wrapped teardowns in robust `try/catch` and added auto-exit from fullscreen (`document.exitFullscreen()`), ensuring view transition back to editor mode never hangs or fails.
+  - Hooked `Escape` key directly to `exitPrompterToEditor()`.
+- **Database & Sermon File Normalization**:
+  - Formatted and normalized sermon `"KINGDOM HEART: A New Way Of Loving"` on the server, converting `<div>` tags to standard `<p>` tags with 100% text and formatting parity verified.
+
 ## [v2.73.4] — 2026-10-06
 ### Fixed & Enhanced — Teleprompter Next Navigation, Anchor Indicator & Centering Engine
 - **Bug Fix for Next Button & Off-Screen Scrolling (`public/thewordtool.html`)**:
