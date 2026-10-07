@@ -455,6 +455,150 @@
 
   #start-btn:hover { background: #1d4ed8; }
 
+  /* ── Voice Follow Controls & Toggle ── */
+  .voice-opt-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 10px 14px;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease;
+  }
+  .voice-opt-wrap:hover {
+    border-color: #059669;
+    background: #1b2620;
+  }
+  .voice-opt-wrap input[type="checkbox"] {
+    accent-color: #10b981;
+    width: 17px;
+    height: 17px;
+    cursor: pointer;
+    margin: 0;
+  }
+  .voice-opt-badge {
+    color: #e2e8f0;
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .voice-opt-wrap:has(input:checked) {
+    border-color: #10b981;
+    background: rgba(16, 185, 129, 0.14);
+  }
+  .voice-opt-wrap:has(input:checked) .voice-opt-badge {
+    color: #34d399;
+  }
+
+  #voice-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+  }
+  #voice-btn.active {
+    background: #065f46 !important;
+    border: 1px solid #10b981 !important;
+    color: #34d399 !important;
+    box-shadow: 0 0 14px rgba(16, 185, 129, 0.45);
+  }
+
+  /* ── Voice HUD Pill (Prompter Stage Mode) ── */
+  #voice-hud {
+    display: none;
+    position: fixed;
+    top: calc(85px + env(safe-area-inset-top, 0px));
+    right: 20px;
+    z-index: 99990;
+    background: rgba(15, 23, 42, 0.90);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    border-radius: 12px;
+    padding: 10px 14px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 16px rgba(16, 185, 129, 0.15);
+    max-width: 360px;
+    pointer-events: auto;
+    font-family: inherit;
+    transition: all 0.25s ease;
+  }
+  #voice-hud.visible {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .voice-hud-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .voice-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+    animation: voice-pulse 1.6s infinite;
+    flex-shrink: 0;
+  }
+  @keyframes voice-pulse {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+    70% { transform: scale(1.05); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+  }
+  .voice-hud-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #34d399;
+    letter-spacing: 0.3px;
+    flex: 1;
+    white-space: nowrap;
+  }
+  #voice-lang-select {
+    background: #0f172a;
+    color: #94a3b8;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    font-size: 11px;
+    padding: 3px 6px;
+    outline: none;
+    cursor: pointer;
+  }
+  .voice-hud-toggle {
+    background: transparent;
+    border: none;
+    color: #64748b;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+    transition: color 0.15s;
+  }
+  .voice-hud-toggle:hover { color: #f87171; }
+  .voice-hud-preview {
+    font-size: 13px;
+    color: #e2e8f0;
+    line-height: 1.35;
+    background: rgba(0, 0, 0, 0.35);
+    padding: 6px 10px;
+    border-radius: 6px;
+    border-left: 2px solid #10b981;
+    font-style: italic;
+    word-break: break-word;
+    max-height: 54px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .voice-hud-preview.matched {
+    border-left-color: #38bdf8;
+    background: rgba(56, 189, 248, 0.18);
+    color: #7dd3fc;
+  }
+
   /* ── Prompter View ── */
   #prompter-view {
     display: none;
@@ -1999,6 +2143,10 @@
       <option value="grace">🌙 Grace Night (30 min)</option>
       <option value="special">⭐ Special Event</option>
     </select>
+    <label class="voice-opt-wrap" title="Auto-start Voice Follow when entering Stage Mode">
+      <input type="checkbox" id="voice-auto-chk">
+      <span class="voice-opt-badge">🎙️ Voice Follow</span>
+    </label>
     <button id="start-btn">▶ Start The Word</button>
   </div>
 </div>
@@ -2009,6 +2157,19 @@
   <button id="back-btn">← Edit Script</button>
   <div id="timer-overlay">
     <span id="overlay-total">00:00</span>
+  </div>
+  <div id="voice-hud">
+    <div class="voice-hud-row">
+      <span class="voice-dot"></span>
+      <span class="voice-hud-title" id="voice-hud-title">Voice Following</span>
+      <select id="voice-lang-select" title="Speech Recognition Language">
+        <option value="en-PH">🇵🇭 Taglish / EN-PH</option>
+        <option value="fil-PH">🇵🇭 Filipino / Tagalog</option>
+        <option value="en-US">🇺🇸 English (US)</option>
+      </select>
+      <button class="voice-hud-toggle" id="voice-hud-toggle" title="Pause / Stop Voice Follow">✕</button>
+    </div>
+    <div id="voice-hud-preview" class="voice-hud-preview">Listening for spoken words...</div>
   </div>
   <div id="prompter-container">
     <div id="prompter-scroll" tabindex="0"></div>
@@ -2025,6 +2186,7 @@
     <div class="divider"></div>
     <button class="ctrl-btn play-btn" id="play-btn">▶</button>
     <button class="ctrl-btn" id="advance-btn">▶▶ Next</button>
+    <button class="ctrl-btn" id="voice-btn" title="Toggle Voice Recognition Auto-Follow (V)">🎙️ Voice Follow</button>
     <div class="divider"></div>
     <div class="ctrl-group">
       <button class="ctrl-btn" id="up-btn">▲</button>
@@ -4255,6 +4417,13 @@
       document.documentElement.requestFullscreen().catch(() => {});
     }
 
+    // Auto-start Voice Follow if enabled
+    if (voiceAutoChk && voiceAutoChk.checked && (window.SpeechRecognition || window.webkitSpeechRecognition)) {
+      setTimeout(() => {
+        if (inPrompter) startVoiceFollow();
+      }, 350);
+    }
+
     // Show double-tap hint briefly on first use
     const hintKey = 'theword_doubletap_hint_shown';
     if (!localStorage.getItem(hintKey)) {
@@ -4265,6 +4434,7 @@
   });
 
   function exitPrompterToEditor() {
+    try { stopVoiceFollow(); } catch {}
     try { stop(); } catch {}
     try { pauseTimer(); } catch {}
     try { stopTimerInterval(); } catch {}
@@ -4753,6 +4923,23 @@
     localStorage.setItem(BOOKMARK_KEY, String(Math.round(scrollEl.scrollTop)));
   }
 
+  function jumpToStop(targetIndex, smooth = true) {
+    const stops = getPrompterStops();
+    if (targetIndex < 0 || targetIndex >= stops.length) return;
+    const targetEl = stops[targetIndex];
+    if (!targetEl || targetEl === activeStopEl) return;
+
+    if (bookmarkEl) bookmarkEl.classList.remove('tp-marked');
+    if (activeStopEl) activeStopEl.classList.remove('tp-marked');
+
+    targetEl.classList.add('tp-marked');
+    activeStopEl = targetEl;
+    bookmarkEl = targetEl;
+    markBtn.classList.add('has-mark');
+
+    scrollToCenterElement(targetEl, smooth);
+  }
+
   function advanceAndMark(direction = 1) {
     if (isPlaying) stop(); // Pause auto-scroll when user manually advances
 
@@ -4781,22 +4968,300 @@
       nextIndex = Math.max(0, currentIndex - 1);
     }
 
-    const nextEl = stops[nextIndex];
-    if (!nextEl) return;
-
-    // Remove previous anchor mark
-    if (bookmarkEl) bookmarkEl.classList.remove('tp-marked');
-    if (activeStopEl) activeStopEl.classList.remove('tp-marked');
-
-    // Anchor the new active element directly
-    nextEl.classList.add('tp-marked');
-    activeStopEl = nextEl;
-    bookmarkEl = nextEl;
-    markBtn.classList.add('has-mark');
-
-    // Smoothly center the element in visible screen
-    scrollToCenterElement(nextEl, true);
+    jumpToStop(nextIndex, true);
   }
+
+  // ══════════════════════════════════════
+  //  VOICE WORD RECOGNITION & AUTO-FOLLOW
+  // ══════════════════════════════════════
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let voiceRecognition = null;
+  let isVoiceActive = false;
+  let voiceAutoRestart = true;
+  let lastVoiceAdvanceTime = 0;
+  const VOICE_COOLDOWN_MS = 600;
+
+  const voiceAutoChk    = document.getElementById('voice-auto-chk');
+  const voiceBtn        = document.getElementById('voice-btn');
+  const voiceHud        = document.getElementById('voice-hud');
+  const voiceHudTitle   = document.getElementById('voice-hud-title');
+  const voiceHudPreview = document.getElementById('voice-hud-preview');
+  const voiceLangSelect = document.getElementById('voice-lang-select');
+  const voiceHudToggle  = document.getElementById('voice-hud-toggle');
+
+  // Restore voice preferences
+  const savedVoiceLang = localStorage.getItem('hgf_tp_voice_lang') || 'en-PH';
+  if (voiceLangSelect) {
+    voiceLangSelect.value = savedVoiceLang;
+    voiceLangSelect.addEventListener('change', () => {
+      localStorage.setItem('hgf_tp_voice_lang', voiceLangSelect.value);
+      if (voiceRecognition) {
+        voiceRecognition.lang = voiceLangSelect.value;
+        if (isVoiceActive) {
+          try { voiceRecognition.stop(); } catch {}
+        }
+      }
+    });
+  }
+
+  const savedVoiceAuto = localStorage.getItem('hgf_tp_voice_auto') === 'true';
+  if (voiceAutoChk) {
+    voiceAutoChk.checked = savedVoiceAuto;
+    voiceAutoChk.addEventListener('change', () => {
+      localStorage.setItem('hgf_tp_voice_auto', voiceAutoChk.checked ? 'true' : 'false');
+    });
+  }
+
+  function cleanSpeechTokens(str) {
+    if (!str) return [];
+    return str
+      .toLowerCase()
+      .replace(/[^a-z0-9\u00C0-\u024F\u1E00-\u1EFF\s]/gi, ' ')
+      .split(/\s+/)
+      .filter(w => w.length > 0);
+  }
+
+  function getStopTokens(el) {
+    if (!el) return [];
+    let text = el.textContent || '';
+    text = text.replace(/^(?:cue|call to say|slide|action)\s*:\s*/i, '');
+    return cleanSpeechTokens(text);
+  }
+
+  function calculateTokenMatchScore(spokenTokens, stopTokens) {
+    if (!spokenTokens || !stopTokens || stopTokens.length === 0) return 0;
+    let score = 0;
+
+    // Consecutive 2-word sequence matches (strong signal)
+    for (let i = 0; i < spokenTokens.length - 1; i++) {
+      const w1 = spokenTokens[i];
+      const w2 = spokenTokens[i + 1];
+      for (let j = 0; j < stopTokens.length - 1; j++) {
+        if (stopTokens[j] === w1 && stopTokens[j + 1] === w2) {
+          score += 3;
+        }
+      }
+    }
+
+    // Significant word overlap (length >= 4)
+    const spokenSig = new Set(spokenTokens.filter(w => w.length >= 4));
+    let wordMatches = 0;
+    for (const w of stopTokens) {
+      if (w.length >= 4 && spokenSig.has(w)) {
+        wordMatches++;
+      }
+    }
+    score += wordMatches;
+
+    return score;
+  }
+
+  function initVoiceRecognition() {
+    if (!SpeechRecognition) {
+      if (voiceBtn) {
+        voiceBtn.disabled = true;
+        voiceBtn.title = 'Speech recognition requires Google Chrome.';
+      }
+      return null;
+    }
+    if (voiceRecognition) return voiceRecognition;
+
+    const rec = new SpeechRecognition();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.maxAlternatives = 1;
+    rec.lang = voiceLangSelect ? voiceLangSelect.value : (localStorage.getItem('hgf_tp_voice_lang') || 'en-PH');
+
+    rec.onstart = () => {
+      isVoiceActive = true;
+      updateVoiceUI(true);
+      if (voiceHudPreview) voiceHudPreview.textContent = 'Listening for your voice...';
+    };
+
+    rec.onresult = (event) => {
+      if (!isVoiceActive || !inPrompter) return;
+
+      let interimTranscript = '';
+      let finalTranscript = '';
+
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        const item = event.results[i];
+        if (item.isFinal) {
+          finalTranscript += item[0].transcript + ' ';
+        } else {
+          interimTranscript += item[0].transcript + ' ';
+        }
+      }
+
+      const activeText = (finalTranscript + ' ' + interimTranscript).trim();
+      if (!activeText) return;
+
+      if (voiceHudPreview) {
+        const words = activeText.split(/\s+/);
+        const snippet = words.slice(-7).join(' ');
+        voiceHudPreview.textContent = `“...${snippet}...”`;
+      }
+
+      processVoiceSpeech(activeText);
+    };
+
+    rec.onerror = (event) => {
+      console.warn('Voice recognition event error:', event.error);
+      if (event.error === 'not-allowed') {
+        isVoiceActive = false;
+        voiceAutoRestart = false;
+        updateVoiceUI(false);
+        if (voiceHudPreview) voiceHudPreview.textContent = '❌ Microphone access denied in Chrome settings.';
+        showToast('⚠️ Microphone access denied. Allow mic permission in Chrome address bar.');
+      }
+    };
+
+    rec.onend = () => {
+      if (isVoiceActive && voiceAutoRestart && inPrompter) {
+        setTimeout(() => {
+          if (isVoiceActive && inPrompter) {
+            try { rec.start(); } catch (err) {
+              setTimeout(() => {
+                if (isVoiceActive && inPrompter) {
+                  try { rec.start(); } catch {}
+                }
+              }, 400);
+            }
+          }
+        }, 150);
+      } else {
+        isVoiceActive = false;
+        updateVoiceUI(false);
+      }
+    };
+
+    voiceRecognition = rec;
+    return rec;
+  }
+
+  function processVoiceSpeech(transcript) {
+    const now = Date.now();
+    if (now - lastVoiceAdvanceTime < VOICE_COOLDOWN_MS) return;
+
+    const spokenTokens = cleanSpeechTokens(transcript);
+    if (spokenTokens.length < 2) return;
+
+    const recentSpoken = spokenTokens.slice(-10);
+
+    const stops = getPrompterStops();
+    if (stops.length === 0) return;
+
+    let currentIndex = -1;
+    if (activeStopEl && stops.includes(activeStopEl)) {
+      currentIndex = stops.indexOf(activeStopEl);
+    } else if (bookmarkEl && stops.includes(bookmarkEl)) {
+      currentIndex = stops.indexOf(bookmarkEl);
+    } else {
+      const closest = findClosestStop(stops);
+      currentIndex = closest ? stops.indexOf(closest) : 0;
+    }
+
+    // Compare against forward candidate window: candidate +1, +2, +3
+    const maxAhead = Math.min(stops.length - 1, currentIndex + 3);
+
+    const currentTokens = getStopTokens(stops[currentIndex]);
+    const currentScore = calculateTokenMatchScore(recentSpoken, currentTokens);
+
+    let bestCandidateIndex = -1;
+    let bestCandidateScore = 0;
+
+    for (let i = currentIndex + 1; i <= maxAhead; i++) {
+      const candidateTokens = getStopTokens(stops[i]);
+      if (candidateTokens.length === 0) continue;
+
+      const score = calculateTokenMatchScore(recentSpoken, candidateTokens);
+
+      if (score >= 2 && score > bestCandidateScore) {
+        if (currentScore <= 2 || score > currentScore) {
+          bestCandidateScore = score;
+          bestCandidateIndex = i;
+        }
+      }
+    }
+
+    if (bestCandidateIndex !== -1 && bestCandidateScore >= 2) {
+      lastVoiceAdvanceTime = now;
+
+      jumpToStop(bestCandidateIndex, true);
+
+      if (voiceHudPreview) {
+        voiceHudPreview.classList.add('matched');
+        const matchedEl = stops[bestCandidateIndex];
+        const label = matchedEl.textContent.trim().slice(0, 32);
+        voiceHudPreview.textContent = `🎯 Followed: "${label}..."`;
+        setTimeout(() => {
+          if (voiceHudPreview) voiceHudPreview.classList.remove('matched');
+        }, 1200);
+      }
+    }
+  }
+
+  function startVoiceFollow() {
+    if (!SpeechRecognition) {
+      showToast('⚠️ Speech recognition requires Google Chrome.', true);
+      return;
+    }
+    const rec = initVoiceRecognition();
+    if (!rec) return;
+
+    voiceAutoRestart = true;
+    try {
+      rec.start();
+      isVoiceActive = true;
+      updateVoiceUI(true);
+      showToast('🎙️ Voice Follow active');
+    } catch (e) {
+      isVoiceActive = true;
+      updateVoiceUI(true);
+    }
+  }
+
+  function stopVoiceFollow() {
+    voiceAutoRestart = false;
+    isVoiceActive = false;
+    if (voiceRecognition) {
+      try { voiceRecognition.stop(); } catch {}
+    }
+    updateVoiceUI(false);
+  }
+
+  function toggleVoiceFollow() {
+    if (isVoiceActive) {
+      stopVoiceFollow();
+      showToast('🎙️ Voice Follow paused');
+    } else {
+      startVoiceFollow();
+    }
+  }
+
+  function updateVoiceUI(active) {
+    if (voiceBtn) {
+      if (active) {
+        voiceBtn.classList.add('active');
+        voiceBtn.innerHTML = '🎙️ Voice: ON';
+        voiceBtn.title = 'Voice Follow Active (Click or press V to pause)';
+      } else {
+        voiceBtn.classList.remove('active');
+        voiceBtn.innerHTML = '🎙️ Voice Follow';
+        voiceBtn.title = 'Start Voice Follow (V)';
+      }
+    }
+    if (voiceHud) {
+      if (active && inPrompter) {
+        voiceHud.classList.add('visible');
+      } else {
+        voiceHud.classList.remove('visible');
+      }
+    }
+  }
+
+  if (voiceBtn) voiceBtn.addEventListener('click', toggleVoiceFollow);
+  if (voiceHudToggle) voiceHudToggle.addEventListener('click', stopVoiceFollow);
 
   function finalizeSession() {
     stop();
@@ -4897,6 +5362,7 @@
   returnBtn.addEventListener('click', returnToBookmark);
 
   completionBtn.addEventListener('click', () => {
+    try { stopVoiceFollow(); } catch {}
     completionOverlay.classList.remove('visible');
     resetTimer();
     clearBookmark();
@@ -4949,6 +5415,10 @@
         break;
       case 'KeyM':
         modeBtn.click();
+        break;
+      case 'KeyV':
+        e.preventDefault();
+        toggleVoiceFollow();
         break;
       case 'KeyB':
         setBookmark();

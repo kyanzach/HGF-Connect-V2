@@ -5,6 +5,21 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.73.6] — 2026-10-07
+### Added — Voice Word Recognition & Live Auto-Follow Teleprompter Engine
+- **Voice-Guided Teleprompter Tracking (`public/thewordtool.html`)**:
+  - Built real-time speech recognition using Chrome's native Web Speech API (`webkitSpeechRecognition`) with continuous streaming (`continuous: true`, `interimResults: true`).
+  - Added smart forward-window phrase matcher (`[currentIndex + 1 ... + 3]`) utilizing 2-gram consecutive sequences and significant word overlap scoring to track spoken words directly to the script.
+  - Automatically advances and anchors the teleprompter to the exact sermon beat or cue as the preacher speaks, without premature jumps or drifting during pauses.
+  - Fail-safe auto-reconnect heartbeat: seamlessly recovers from Chrome's speech timeout or periods of stage silence without user intervention.
+- **Stage Mode Controls & Live HUD**:
+  - Added `🎙️ Voice Follow` button in prompter controls HUD with active glowing state indicator (`🎙️ Voice: ON`).
+  - Added floating Stage Mode Voice HUD with live audio pulsing indicator, language selector (`en-PH` Taglish, `fil-PH` Filipino, `en-US` English), and real-time heard word stream display.
+  - Added keyboard shortcut `V` to quickly toggle Voice Follow on/off during delivery.
+  - Added `🎙️ Voice Follow` auto-start toggle next to **"▶ Start The Word"** in the script editor bar (persisted in local storage).
+  - Clean lifecycle integration: automatically stops recognition and releases microphone when exiting stage mode via **"← Edit Script"**, completion screen, or `Escape`.
+  - Zero conflict with physical remote clickers: manual clicker advances (`Next`, `▲`, `▼`, Arrow keys, PageUp/PageDown, screen taps) immediately re-anchor voice tracking from the new position.
+
 ## [v2.73.5] — 2026-10-06
 ### Fixed & Enhanced — Teleprompter Element Navigation, Exit Controls & Script Normalization
 - **Fixed Next Button Skipping Text & Jumping Straight to Cues (`public/thewordtool.html`)**:
