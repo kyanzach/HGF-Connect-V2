@@ -137,6 +137,19 @@ export default function QuizHubPage() {
     }
   }, [authStatus]);
 
+  // Deep link: /quiz/hub?tab=archive&quizId=N → open that quiz's catch-up briefing
+  useEffect(() => {
+    if (loading || typeof window === "undefined") return;
+    const qid = Number(new URLSearchParams(window.location.search).get("quizId"));
+    if (!qid) return;
+    const match = (quizHistory as any[]).find((w) => w.id === qid);
+    if (match) {
+      setActiveTab("archive");
+      setCatchupModal({ open: true, quiz: match, loading: false });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+
   if (authStatus === "loading" || loading) {
     return <HubLoading />;
   }

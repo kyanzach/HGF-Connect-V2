@@ -1,3 +1,8 @@
+## [v2.74.4] — 2026-10-17
+### Added / Changed
+- Quiz notifications now announce each quiz with deep links: live week -> /quiz?quizId=N (daily adds &day=N); catch-up -> /quiz/hub?tab=archive&quizId=N, which auto-opens that quiz catch-up briefing.
+- Rewrote notification wording; catch-up notify checkbox now defaults ON.
+
 # Changelog
 
 All notable changes to HGF Connect will be documented in this file.

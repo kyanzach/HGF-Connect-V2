@@ -62,7 +62,7 @@ export default function QuizAdminPage() {
   });
 
   // ── Archive in-app notification toggle ──
-  const [notifyArchiveMembers, setNotifyArchiveMembers] = useState(false);
+  const [notifyArchiveMembers, setNotifyArchiveMembers] = useState(true);
 
   // Searchable select dropdown state
   const [allEvents, setAllEvents] = useState<any[]>([]);

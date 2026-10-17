@@ -162,9 +162,9 @@ export async function POST(request: Request) {
             data: activeMembers.map((m) => ({
               memberId: m.id,
               type: "quiz_announcement" as const,
-              title: "📁 Catch-Up Quiz Added!",
-              body: `A past sermon quiz "${title}" is now available in Catch-Up Archive. Study and catch up anytime!`,
-              link: `/quiz?quizId=${quiz.id}&tab=past`,
+              title: "📖 New Catch-Up Quiz Available",
+              body: `Missed a Sunday? "${title}" is now open in the Catch-Up Archive. Tap to catch up and earn your points!`,
+              link: `/quiz/hub?tab=archive&quizId=${quiz.id}`,
               actorId: memberId,
             })),
           });

@@ -117,9 +117,9 @@ export async function POST(request: Request) {
         data: activeMembers.map((m) => ({
           memberId: m.id,
           type: "quiz_announcement" as const,
-          title: "🧠 Quiz for Christ is HERE!",
-          body: `This week's quiz based on "${quiz.title}" starts today. Are you ready?`,
-          link: "/quiz",
+          title: "🧠 This Week's Quiz for Christ is LIVE!",
+          body: `"${quiz.title}" — 7 daily challenges built on Sunday's message. Tap to start and earn points!`,
+          link: `/quiz?quizId=${quiz.id}`,
           actorId: memberId,
         })),
       });
@@ -172,8 +172,8 @@ export async function POST(request: Request) {
             memberId: m.id,
             type: "quiz_daily" as const,
             title: `🧠 Day ${dayInfo.dayNumber}: ${typeInfo.label}`,
-            body: `Today's Quiz for Christ challenge is ready! Can you get it right?`,
-            link: `/quiz?day=${dayInfo.dayNumber}`,
+            body: `Today's challenge from "${quiz.title}" is ready. Can you ace it?`,
+            link: `/quiz?quizId=${quiz.id}&day=${dayInfo.dayNumber}`,
             actorId: memberId,
           })),
         });
