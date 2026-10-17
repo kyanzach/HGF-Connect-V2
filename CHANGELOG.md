@@ -5,6 +5,19 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.74.1] — 2026-10-17
+### Added — YouTube CC Closed Caption Scraper & Auto-Transcript Generation
+- **YouTube Closed Caption (CC) Engine (`lib/youtube.ts`)**:
+  - Integrated YouTube InnerTube API (Android client context) with timedtext parsing for high-reliability caption extraction without API keys.
+  - Automatically parses XML format 3 (`<p t="..." d="...">`) and classic format, stripping HTML tags, decoding entities, and combining speech segments.
+  - Extracts video title and speech language (`English (auto-generated)`).
+- **Dedicated Transcript API Endpoint (`app/api/quiz/admin/fetch-transcript/route.ts`)**:
+  - Added `POST /api/quiz/admin/fetch-transcript` for Pastors/Admins to fetch YouTube captions on demand with word count, character count, and language metadata.
+- **Sermon Notes Now Fully Optional (`app/(app)/quiz/admin/page.tsx`, `app/api/quiz/generate/route.ts`)**:
+  - Added **`📥 Fetch CC / Transcript`** button next to YouTube URL input in `/quiz/admin` to populate sermon notes in one click.
+  - If sermon notes are left blank, clicking **Generate Quiz via AI** automatically downloads and uses the YouTube CC captions as the sermon source text.
+  - Added word/character counters and a preview badge with Clear option.
+
 ## [v2.74.0] — 2026-10-17
 ### Added — Quiz Participant Analytics Drawer, In-App Drip Nudges & Archive Notification Toggle
 - **Quiz Participant Analytics Drawer (`components/quiz/ParticipantAnalyticsDrawer.tsx`)**:

@@ -172,6 +172,17 @@ export default function QuizAdminPage() {
   const [transcriptSource, setTranscriptSource] = useState<string | null>(null);
   const [genError, setGenError] = useState("");
 
+  // ── YouTube Transcript state ──
+  const [fetchingTranscript, setFetchingTranscript] = useState(false);
+  const [transcriptMeta, setTranscriptMeta] = useState<{
+    wordCount: number;
+    charCount: number;
+    segmentCount: number;
+    language: string;
+    title?: string;
+  } | null>(null);
+  const [transcriptError, setTranscriptError] = useState("");
+
   // ── Saved quiz state ──
   const [savedQuizId, setSavedQuizId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
@@ -310,6 +321,46 @@ export default function QuizAdminPage() {
     }
   }
 
+  // ── Fetch YouTube CC Transcript ──
+  async function handleFetchTranscript() {
+    if (!youtubeUrl || !youtubeUrl.trim()) {
+      setTranscriptError("Please enter a YouTube sermon video URL first.");
+      return;
+    }
+    setFetchingTranscript(true);
+    setTranscriptError("");
+    try {
+      const res = await fetch("/api/quiz/admin/fetch-transcript", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: youtubeUrl }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to fetch closed captions");
+
+      setSermonText(data.transcript);
+      setTranscriptMeta({
+        wordCount: data.wordCount,
+        charCount: data.charCount,
+        segmentCount: data.segmentCount,
+        language: data.language,
+        title: data.title,
+      });
+      if (!title.trim() && data.title) {
+        setTitle(data.title);
+      }
+      showAlert(
+        "Transcript Extracted!",
+        `✅ Successfully fetched ${data.wordCount.toLocaleString()} words of ${data.language} closed captions directly from YouTube! The sermon notes have been populated below.`,
+        "success"
+      );
+    } catch (err: any) {
+      setTranscriptError(err.message || "Failed to fetch captions");
+    } finally {
+      setFetchingTranscript(false);
+    }
+  }
+
   // ── Generate quiz via AI ──
   async function handleGenerate() {
     if (!sermonDate) {
@@ -323,16 +374,22 @@ export default function QuizAdminPage() {
           ? slides.length > 0
           : JSON.parse(JSON.stringify(slides)).length > 0)
       : false;
+    const hasYoutube = !!youtubeUrl?.trim();
+    const hasText = !!sermonText?.trim();
 
-    if (!hasSlides && (!sermonText || !sermonText.trim())) {
-      setGenError("Please paste the sermon notes / transcript script (or select an event with slides first).");
+    if (!hasSlides && !hasText && !hasYoutube) {
+      setGenError("Please paste sermon notes, provide a YouTube URL with captions/CC, or select an event with slides.");
       return;
     }
 
     setGenerating(true);
     setGenError("");
     setGenProgress(5);
-    setGenFootnote("Initiating smart switching AI pipeline...");
+    setGenFootnote(
+      !hasText && hasYoutube
+        ? "Phase 1: Fetching closed captions directly from YouTube video..."
+        : "Initiating smart switching AI pipeline..."
+    );
 
     let currentProgress = 5;
     const progressTimer = setInterval(() => {
@@ -341,7 +398,11 @@ export default function QuizAdminPage() {
       setGenProgress(currentProgress);
 
       if (currentProgress < 25) {
-        setGenFootnote("Phase 1: Analyzing sermon notes & filtering Tagalog/Bisaya filler words...");
+        setGenFootnote(
+          !hasText && hasYoutube
+            ? "Phase 1: Extracted YouTube CC! Analyzing sermon beats and translating Bisaya/Tagalog..."
+            : "Phase 1: Analyzing sermon notes & filtering Tagalog/Bisaya filler words..."
+        );
       } else if (currentProgress < 50) {
         setGenFootnote("Phase 1: Translating sermon context into English for cost efficiency...");
       } else if (currentProgress < 75) {
@@ -357,7 +418,12 @@ export default function QuizAdminPage() {
       const res = await fetch("/api/quiz/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sermonText, sermonDate, eventId: linkedEvent?.id || null }),
+        body: JSON.stringify({
+          sermonText,
+          sermonDate,
+          eventId: linkedEvent?.id || null,
+          youtubeUrl: youtubeUrl || null,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -370,6 +436,16 @@ export default function QuizAdminPage() {
       setGeneratedCaption(data.announcementCaption);
       setGeneratedQuestions(data.questions);
       setTranscriptSource(data.transcriptSource);
+
+      if (data.sourceText && !sermonText?.trim()) {
+        setSermonText(data.sourceText);
+        setTranscriptMeta({
+          wordCount: data.sourceText.split(/\s+/).filter(Boolean).length,
+          charCount: data.sourceText.length,
+          segmentCount: 0,
+          language: "English (YouTube CC)",
+        });
+      }
 
       setTimeout(() => {
         setGenProgress(0);
@@ -919,31 +995,152 @@ export default function QuizAdminPage() {
         </div>
 
         <label style={S.label}>📺 YouTube Sermon Video URL (Optional)</label>
-        <input
-          type="text"
-          value={youtubeUrl}
-          onChange={(e) => setYoutubeUrl(e.target.value)}
-          placeholder="e.g. https://www.youtube.com/watch?v=... or https://youtu.be/..."
-          style={S.input}
-        />
-        <p style={{ color: "#a0aec0", fontSize: "0.8rem", margin: "-4px 0 12px" }}>
-          Embeds the full sermon replay above the daily challenges for members to watch.
+        <div style={{ display: "flex", gap: "8px", alignItems: "stretch", flexWrap: "wrap" }}>
+          <input
+            type="text"
+            value={youtubeUrl}
+            onChange={(e) => {
+              setYoutubeUrl(e.target.value);
+              setTranscriptError("");
+            }}
+            placeholder="e.g. https://www.youtube.com/watch?v=... or https://youtu.be/..."
+            style={{ ...S.input, flex: "1 1 280px" }}
+          />
+          <button
+            type="button"
+            onClick={handleFetchTranscript}
+            disabled={fetchingTranscript || !youtubeUrl?.trim()}
+            style={{
+              padding: "12px 18px",
+              borderRadius: "10px",
+              border: "none",
+              background: fetchingTranscript
+                ? "#cbd5e1"
+                : "linear-gradient(135deg, #4EB1CB 0%, #38A89D 100%)",
+              color: "#fff",
+              fontWeight: 700,
+              fontSize: "0.85rem",
+              cursor: fetchingTranscript || !youtubeUrl?.trim() ? "not-allowed" : "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              whiteSpace: "nowrap",
+              boxShadow: "0 2px 8px rgba(78,177,203,0.25)",
+              transition: "opacity 0.2s, transform 0.1s",
+            }}
+            onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.98)")}
+            onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
+          >
+            {fetchingTranscript ? (
+              <>⏳ Scraping CC...</>
+            ) : (
+              <>📥 Fetch CC / Transcript</>
+            )}
+          </button>
+        </div>
+
+        {transcriptMeta && (
+          <div
+            style={{
+              marginTop: "10px",
+              padding: "10px 14px",
+              borderRadius: "10px",
+              background: "#f0fdf4",
+              border: "1px solid #86efac",
+              fontSize: "0.84rem",
+              color: "#166534",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "10px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <span style={{ fontSize: "1.1rem" }}>💬</span>
+              <span>
+                <strong>{transcriptMeta.wordCount.toLocaleString()} words</strong> extracted from YouTube CC (
+                {transcriptMeta.language}). Populated into sermon notes below.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setTranscriptMeta(null);
+                setSermonText("");
+              }}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#15803d",
+                fontSize: "0.78rem",
+                textDecoration: "underline",
+                cursor: "pointer",
+                padding: "2px 4px",
+                fontWeight: 600,
+              }}
+            >
+              Clear
+            </button>
+          </div>
+        )}
+
+        {transcriptError && (
+          <div
+            style={{
+              marginTop: "8px",
+              padding: "10px 14px",
+              borderRadius: "10px",
+              background: "#fff7ed",
+              border: "1px solid #fdba74",
+              fontSize: "0.83rem",
+              color: "#9a3412",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            <span>⚠️</span>
+            <span>{transcriptError}</span>
+          </div>
+        )}
+
+        <p style={{ color: "#a0aec0", fontSize: "0.8rem", margin: "6px 0 12px" }}>
+          Embeds sermon replay for congregation. Click <strong>Fetch CC / Transcript</strong> to auto-scrape video captions and skip typing sermon notes!
         </p>
 
-        <label style={S.label}>Sermon Notes / Script / Transcript (Optional if Event Slides exist)</label>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "baseline",
+            marginTop: "16px",
+            marginBottom: "6px",
+          }}
+        >
+          <label style={{ ...S.label, margin: 0 }}>
+            Sermon Notes / Transcript (Optional if YouTube CC or Slides exist)
+          </label>
+          {sermonText && (
+            <span style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: 600 }}>
+              {sermonText.split(/\s+/).filter(Boolean).length.toLocaleString()} words ({sermonText.length.toLocaleString()} chars)
+            </span>
+          )}
+        </div>
         <textarea
           value={sermonText}
           onChange={(e) => setSermonText(e.target.value)}
           placeholder={
-            linkedEvent?.presentationSlides
-              ? "Paste sermon notes here, or leave blank to automatically generate the quiz from the uploaded slides..."
-              : "Paste the full sermon script, notes, or copied transcript here..."
+            youtubeUrl?.trim()
+              ? "Leave blank to auto-generate quiz directly from YouTube CC captions, or paste custom notes here..."
+              : linkedEvent?.presentationSlides
+              ? "Leave blank to auto-generate from presentation slides, or paste notes here..."
+              : "Paste sermon notes, script, or click 'Fetch CC / Transcript' above..."
           }
           rows={12}
           style={S.textarea}
         />
         <p style={{ color: "#a0aec0", fontSize: "0.8rem", marginTop: "4px" }}>
-          Provide the sermon notes or copy-pasted transcript. Bisaya, Tagalog, and English are all accepted. If slides are uploaded for this event, you can leave this blank to generate the quiz directly from the slides.
+          Notes are optional when a YouTube URL with captions is provided or slides exist. You can also edit the fetched transcript or add pastor study notes here to enrich the questions.
         </p>
 
         {genError && <div style={S.error}>{genError}</div>}

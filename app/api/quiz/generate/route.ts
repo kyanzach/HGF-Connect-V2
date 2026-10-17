@@ -10,6 +10,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { generateQuiz } from "@/lib/quiz-helpers";
+import { extractVideoId, fetchTranscriptWithMeta } from "@/lib/youtube";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { sermonText, sermonDate, eventId } = body;
+    const { sermonText, sermonDate, eventId, youtubeUrl } = body;
 
     if (!sermonDate) {
       return NextResponse.json({ error: "Sermon date is required" }, { status: 400 });
@@ -52,7 +53,23 @@ export async function POST(request: Request) {
 
     let sourceText = sermonText;
     let transcriptSource = "manual";
+    let videoId: string | null = null;
 
+    // If manual notes not provided, try YouTube CC transcript first
+    if ((!sourceText || !sourceText.trim()) && youtubeUrl) {
+      const cleanId = extractVideoId(youtubeUrl);
+      if (cleanId) {
+        videoId = cleanId;
+        const ytResult = await fetchTranscriptWithMeta(cleanId);
+        if (ytResult && ytResult.text && ytResult.text.trim()) {
+          sourceText = ytResult.text;
+          transcriptSource = "youtube";
+          console.log(`[quiz/generate] Successfully extracted ${ytResult.wordCount} words from YouTube CC for video ${cleanId}`);
+        }
+      }
+    }
+
+    // If still empty, try linked presentation slides commentary
     if ((!sourceText || !sourceText.trim()) && eventId) {
       const event = await db.event.findUnique({
         where: { id: eventId },
@@ -66,7 +83,10 @@ export async function POST(request: Request) {
 
     if (!sourceText || !sourceText.trim()) {
       return NextResponse.json(
-        { error: "Sermon notes are required, or link an event with uploaded slides to generate from slides." },
+        {
+          error:
+            "Sermon material is required: please provide sermon notes, a YouTube URL with captions/CC, or link an event with slides.",
+        },
         { status: 400 }
       );
     }
@@ -77,7 +97,8 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       transcriptSource,
-      videoId: null,
+      videoId,
+      sourceText,
       transcriptLength: sourceText.length,
       title: result.title,
       announcementCaption: result.announcementCaption,
