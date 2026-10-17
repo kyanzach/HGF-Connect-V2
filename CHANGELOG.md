@@ -5,6 +5,25 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.74.0] — 2026-10-17
+### Added — Quiz Participant Analytics Drawer, In-App Drip Nudges & Archive Notification Toggle
+- **Quiz Participant Analytics Drawer (`components/quiz/ParticipantAnalyticsDrawer.tsx`)**:
+  - Built comprehensive slide-out analytics and participant management drawer accessible from any quiz card in `/quiz/admin`.
+  - Displays high-level summary KPI cards: Total Participants, Completion Count (7/7 days) with completion rate %, Perfect Scores (7/7 correct), and Average Score.
+  - Interactive Day Drop-off & Difficulty Funnel showing participant drop-off from Day 1 to Day 7 with per-day accuracy rates.
+  - Reward Tier Breakdown (`PERFECT`, `EXCELLENT`, `GOOD`, `PARTICIPANT`).
+  - Searchable, filterable participant list (All, In Progress, Completed 7/7, Perfect 7/7) showing:
+    - Member avatar, name, masked phone number, and active ministry badges.
+    - Interactive 7-day dot progress timeline (green for correct, red for incorrect, gray for remaining days).
+    - Total points scored and reward badge eligibility.
+- **In-App Bell Drip Nudge Engine (`app/api/quiz/admin/participants/route.ts`)**:
+  - Pastors and Admins can nudge in-progress participants individually or in bulk ("Nudge All In-Progress").
+  - Strictly creates in-app bell notifications (`type: "quiz_daily"`, Zero SMS sent).
+  - Target members receive direct deep links (`/quiz?quizId=<id>`) to resume their quiz and maintain streaks.
+- **Archive Sermon Quiz In-App Notification Option (`app/(app)/quiz/admin/page.tsx`, `app/api/quiz/save/route.ts`)**:
+  - Added optional checkbox banner when saving past or archived Sunday sermon quizzes: *"Send In-App Notification (Bell) to active members so they know this past sermon quiz is available to play (Zero SMS)"*.
+  - When enabled, notifies active members in-app that an archive sermon quiz has been added to their Quiz Hub.
+
 ## [v2.73.6] — 2026-10-07
 ### Added — Voice Word Recognition & Live Auto-Follow Teleprompter Engine
 - **Voice-Guided Teleprompter Tracking (`public/thewordtool.html`)**:

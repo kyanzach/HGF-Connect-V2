@@ -13,6 +13,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { isQuizWeekExpired } from "@/lib/quiz-helpers";
+import ParticipantAnalyticsDrawer from "@/components/quiz/ParticipantAnalyticsDrawer";
 
 const QUIZ_TYPE_LABELS: Record<string, { label: string; difficulty: string; emoji: string }> = {
   MULTIPLE_CHOICE:    { label: "Balloon Pop",       difficulty: "Easy",        emoji: "🎈" },
@@ -47,6 +48,20 @@ export default function QuizAdminPage() {
   const [loadingEvent, setLoadingEvent] = useState(false);
   const [genProgress, setGenProgress] = useState(0);
   const [genFootnote, setGenFootnote] = useState("");
+
+  // ── Participant Analytics Drawer state ──
+  const [analyticsDrawer, setAnalyticsDrawer] = useState<{
+    open: boolean;
+    quizId: number | null;
+    quizTitle: string;
+  }>({
+    open: false,
+    quizId: null,
+    quizTitle: "",
+  });
+
+  // ── Archive in-app notification toggle ──
+  const [notifyArchiveMembers, setNotifyArchiveMembers] = useState(false);
 
   // Searchable select dropdown state
   const [allEvents, setAllEvents] = useState<any[]>([]);
@@ -391,6 +406,7 @@ export default function QuizAdminPage() {
           questions: generatedQuestions,
           eventId: linkedEvent?.id || null,
           archiveMode: isPastSermon,
+          notifyArchiveMembers: isPastSermon ? notifyArchiveMembers : false,
         }),
       });
       const data = await res.json();
@@ -429,6 +445,7 @@ export default function QuizAdminPage() {
             questions: generatedQuestions,
             eventId: linkedEvent?.id || null,
             archiveMode: true,
+            notifyArchiveMembers: notifyArchiveMembers,
           }),
         });
         const data = await res.json();
@@ -437,7 +454,9 @@ export default function QuizAdminPage() {
         loadQuizzes();
         showAlert(
           "Saved to Catch-Up Archive!",
-          "📁 This past Sunday sermon quiz was saved directly to the Catch-Up Archive! It is now available for members to catch up on, without spamming notifications or disrupting the current live week. You can now add your next missed Sunday!",
+          notifyArchiveMembers
+            ? "📁 This past Sunday sermon quiz was saved directly to Catch-Up Archive, and an in-app bell notification was sent to active members!"
+            : "📁 This past Sunday sermon quiz was saved directly to the Catch-Up Archive! It is now available for members to catch up on, without spamming notifications or disrupting the current live week.",
           "success"
         );
         // Reset form for next Sunday backfill
@@ -710,7 +729,20 @@ export default function QuizAdminPage() {
                 <strong style={{ display: "block", fontSize: "0.9rem", marginBottom: "2px" }}>
                   Catch-Up Archive Mode ({new Date(sermonDate + "T00:00:00").toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" })})
                 </strong>
-                This sermon date is in the past (&gt; 7 days). When saved, it goes directly to the <strong>Catch-Up Archive</strong> (status: completed). Members will be able to unlock it via their 7-day catch-up pass without spamming notifications or disrupting the current week!
+                This sermon date is in the past (&gt; 7 days). When saved, it goes directly to the <strong>Catch-Up Archive</strong> (status: completed). Members will be able to unlock it via their 7-day catch-up pass without disrupting the current live week!
+
+                <div style={{ marginTop: "10px", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <input
+                    type="checkbox"
+                    id="notifyArchiveMembers"
+                    checked={notifyArchiveMembers}
+                    onChange={(e) => setNotifyArchiveMembers(e.target.checked)}
+                    style={{ width: "16px", height: "16px", cursor: "pointer", accentColor: "#166534" }}
+                  />
+                  <label htmlFor="notifyArchiveMembers" style={{ fontSize: "0.82rem", fontWeight: 700, color: "#14532d", cursor: "pointer" }}>
+                    🔔 Send in-app notification to active members about this archive quiz (Zero SMS)
+                  </label>
+                </div>
               </div>
             </div>
           ) : (
@@ -1263,8 +1295,29 @@ export default function QuizAdminPage() {
                 </div>
               )}
 
-              {quiz.status !== "draft" && (
-                <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}>
+              <div style={{ marginTop: "12px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                <button
+                  onClick={() => setAnalyticsDrawer({ open: true, quizId: quiz.id, quizTitle: quiz.title })}
+                  style={{
+                    background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
+                    color: "#ffffff",
+                    border: "none",
+                    borderRadius: "8px",
+                    padding: "8px 14px",
+                    fontSize: "0.85rem",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    boxShadow: "0 2px 6px rgba(15, 23, 42, 0.2)",
+                  }}
+                >
+                  <span>👥</span>
+                  <span>Participants & Analytics ({quiz._count?.submissions || 0})</span>
+                </button>
+
+                {quiz.status !== "draft" && (
                   <button
                     onClick={() => loadRewards(quiz.id)}
                     style={{
@@ -1275,12 +1328,13 @@ export default function QuizAdminPage() {
                       fontSize: "0.85rem",
                       cursor: "pointer",
                       color: "#2d3748",
+                      fontWeight: 600,
                     }}
                   >
-                    🏆 View Rewards
+                    🏆 View Rewards ({quiz._count?.rewards || 0})
                   </button>
-                </div>
-              )}
+                )}
+              </div>
 
               {selectedQuizForRewards === quiz.id && (
                 <div style={{ marginTop: "12px", padding: "12px", background: "#f7fafc", borderRadius: "10px" }}>
@@ -1351,6 +1405,14 @@ export default function QuizAdminPage() {
         message={alertModal.message}
         type={alertModal.type}
         onClose={() => setAlertModal((prev) => ({ ...prev, open: false }))}
+      />
+
+      {/* Participant Analytics Drawer */}
+      <ParticipantAnalyticsDrawer
+        quizId={analyticsDrawer.quizId}
+        quizTitle={analyticsDrawer.quizTitle}
+        isOpen={analyticsDrawer.open}
+        onClose={() => setAnalyticsDrawer({ open: false, quizId: null, quizTitle: "" })}
       />
     </div>
   );

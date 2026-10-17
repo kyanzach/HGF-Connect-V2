@@ -151,6 +151,26 @@ export async function POST(request: Request) {
         },
       });
 
+      // Send optional in-app bell notification to active members if requested (Zero SMS)
+      if (body.notifyArchiveMembers && targetStatus === "completed") {
+        const activeMembers = await db.member.findMany({
+          where: { status: "active" },
+          select: { id: true },
+        });
+        if (activeMembers.length > 0) {
+          await db.notification.createMany({
+            data: activeMembers.map((m) => ({
+              memberId: m.id,
+              type: "quiz_announcement" as const,
+              title: "📁 Catch-Up Quiz Added!",
+              body: `A past sermon quiz "${title}" is now available in Catch-Up Archive. Study and catch up anytime!`,
+              link: `/quiz?quizId=${quiz.id}&tab=past`,
+              actorId: memberId,
+            })),
+          });
+        }
+      }
+
       return NextResponse.json({ success: true, quizId: quiz.id });
     }
   } catch (error: any) {
