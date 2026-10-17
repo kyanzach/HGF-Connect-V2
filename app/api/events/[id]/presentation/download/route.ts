@@ -61,8 +61,11 @@ export async function GET(
     const stat = await fs.promises.stat(absolutePath);
     const finalFilename = getPresentationDownloadFilename(event);
     const asciiFilename = finalFilename.replace(/[^\x20-\x7E]/g, "_");
+    const isZip = event.presentationFile.toLowerCase().endsWith(".zip");
     const isPdf = event.presentationFile.toLowerCase().endsWith(".pdf");
-    const contentType = isPdf
+    const contentType = isZip
+      ? "application/zip"
+      : isPdf
       ? "application/pdf"
       : "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 

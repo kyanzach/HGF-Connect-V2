@@ -898,7 +898,9 @@ export default function MemberQuizPage() {
                         textAlign: "center",
                       }}
                     >
-                      {quiz.presentationFile.toLowerCase().endsWith(".pdf")
+                      {quiz.presentationFile.toLowerCase().endsWith(".zip")
+                        ? "📥 Download Sermon Assets (.zip)"
+                        : quiz.presentationFile.toLowerCase().endsWith(".pdf")
                         ? "📥 Download Sermon Slide Deck (.pdf)"
                         : "📥 Download Sermon Slide Deck (.pptx)"}
                     </a>

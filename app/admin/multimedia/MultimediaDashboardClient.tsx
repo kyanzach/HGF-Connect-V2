@@ -858,11 +858,13 @@ export default function MultimediaDashboardClient({
                     Sermon Slides
                   </h3>
                   <p style={{ color: "#64748b", fontSize: "0.8125rem", margin: "0.125rem 0 0" }}>
-                    Flattened and optimized JPEGs (150 DPI) ready for ProPresenter.
+                    Flattened and optimized JPEGs (150 DPI) + extracted media ready for ProPresenter 7.
                   </p>
                 </div>
 
                 {event.presentationFile && (() => {
+                  const isZip = event.presentationFile.toLowerCase().endsWith(".zip");
+                  const isPdf = event.presentationFile.toLowerCase().endsWith(".pdf");
                   const downloadFilename = getPresentationDownloadFilename({
                     title: event.title,
                     commentary: event.commentary,
@@ -887,7 +889,11 @@ export default function MultimediaDashboardClient({
                         boxShadow: "0 4px 12px rgba(78, 177, 203, 0.2)",
                       }}
                     >
-                      📥 Download Presentation (PPTX)
+                      {isZip
+                        ? "📥 Download ProPresenter Package (.zip)"
+                        : isPdf
+                        ? "📥 Download Presentation (.pdf)"
+                        : "📥 Download Presentation (.pptx)"}
                     </a>
                   );
                 })()}

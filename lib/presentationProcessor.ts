@@ -47,7 +47,7 @@ export async function processPresentation(
   const finalDestPath = path.join(uploadDir, finalFilename);
 
   let pdfPath = filePath;
-  const slideMediaMap = new Map<number, { videoUrl: string; videoType: string }>();
+  const slideMediaMap = new Map<number, { videoUrl: string; videoType: string; localVideoPath: string; targetExt: string }>();
 
   try {
     // 1. If it's a PPTX file, inspect embedded media and convert to PDF
@@ -92,6 +92,8 @@ export async function processPresentation(
                   slideMediaMap.set(slideNum, {
                     videoUrl: webVideoPath,
                     videoType: targetExt === ".webm" ? "video/webm" : "video/mp4",
+                    localVideoPath: videoDestPath,
+                    targetExt,
                   });
                   console.log(`[presentationProcessor] Extracted embedded video for Slide ${slideNum}: ${webVideoPath}`);
                   break;
@@ -291,21 +293,68 @@ Keep the tone encouraging, warm, and faith-based (in standard English, but frien
       });
     }
 
-    // 5. Generate and save final PPTX file (or preserve native PPTX upload)
-    if (ext === ".pptx") {
-      await fs.copyFile(filePath, finalDestPath);
-    } else {
-      onProgress?.(96, "Generating final PPTX presentation...");
-      await pptx.writeFile({ fileName: finalDestPath });
+    // 5. Package all assets into a ZIP file for ProPresenter 7
+    onProgress?.(92, "Packaging individual slides, media & presentation into ZIP...");
+
+    const zipStageDir = path.join(tempDir, "zip_package");
+    await fs.mkdir(zipStageDir, { recursive: true });
+
+    const padLength = Math.max(2, String(jpegFiles.length).length);
+
+    // Copy individual slide images into zip package
+    for (const file of jpegFiles) {
+      const padNum = String(file.pageNum).padStart(padLength, "0");
+      const slideFilename = `${uuid}-slide-${String(file.pageNum).padStart(3, "0")}.jpg`;
+      const slideDestPath = path.join(slidesDir, slideFilename);
+      const zipSlideName = `Slide ${padNum}.jpg`;
+      await fs.copyFile(slideDestPath, path.join(zipStageDir, zipSlideName));
+
+      // If this slide has an extracted video, copy it right alongside the slide
+      const media = slideMediaMap.get(file.pageNum);
+      if (media && media.localVideoPath) {
+        try {
+          const zipVideoName = `Slide ${padNum} (Video)${media.targetExt}`;
+          await fs.copyFile(media.localVideoPath, path.join(zipStageDir, zipVideoName));
+        } catch (copyErr) {
+          console.warn(`Could not copy video to zip package:`, copyErr);
+        }
+      }
     }
 
-    const finalOriginalName = originalName.toLowerCase().endsWith(".pptx")
-      ? originalName
-      : `${originalName.replace(/\.[^/.]+$/, "")}.pptx`;
+    // Also include the original uploaded presentation file (PPTX or PDF)
+    const safeOriginalName = originalName.replace(/[/\\:*?"<>|]/g, "_").trim() || `Original_Presentation${ext}`;
+    await fs.copyFile(filePath, path.join(zipStageDir, safeOriginalName));
 
-    onProgress?.(100, "Optimization complete!");
+    // For PDF uploads, generate a PPTX companion slide deck if possible
+    if (ext !== ".pptx") {
+      try {
+        const generatedPptxName = `${originalName.replace(/\.[^/.]+$/, "")}.pptx`.replace(/[/\\:*?"<>|]/g, "_");
+        const generatedPptxPath = path.join(tempDir, "generated.pptx");
+        await pptx.writeFile({ fileName: generatedPptxPath });
+        await fs.copyFile(generatedPptxPath, path.join(zipStageDir, generatedPptxName));
+      } catch (genErr) {
+        console.warn("Could not generate PPTX companion for PDF:", genErr);
+      }
+    } else {
+      // Also preserve original PPTX in uploads/presentations/ directory
+      try {
+        await fs.copyFile(filePath, path.join(uploadDir, `${uuid}.pptx`));
+      } catch {}
+    }
+
+    const finalZipFilename = `${uuid}.zip`;
+    const finalZipPath = path.join(uploadDir, finalZipFilename);
+
+    onProgress?.(96, "Creating final ZIP archive for ProPresenter 7...");
+    // Zip all files inside zipStageDir
+    await execAsync(`cd "${zipStageDir}" && zip -q -r "${finalZipPath}" .`);
+
+    const baseNameWithoutExt = originalName.replace(/\.[^/.]+$/, "").trim() || "Sermon Presentation";
+    const finalOriginalName = `${baseNameWithoutExt}.zip`;
+
+    onProgress?.(100, "Packaging complete!");
     return {
-      presentationFile: `/uploads/presentations/${finalFilename}`,
+      presentationFile: `/uploads/presentations/${finalZipFilename}`,
       presentationOriginalName: finalOriginalName,
       presentationSlides: slideItems,
       commentary,

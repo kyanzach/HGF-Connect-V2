@@ -462,7 +462,9 @@ export default function ResourcesClient({ events }: Props) {
                       onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.98)")}
                       onMouseUp={(e) => (e.currentTarget.style.transform = "none")}
                     >
-                      {ev.presentationFile.toLowerCase().endsWith(".pdf")
+                      {ev.presentationFile.toLowerCase().endsWith(".zip")
+                        ? "📥 Download Presentation Package (.zip)"
+                        : ev.presentationFile.toLowerCase().endsWith(".pdf")
                         ? "📥 Download Slide Deck (.pdf)"
                         : "📥 Download Slide Deck (.pptx)"}
                     </a>

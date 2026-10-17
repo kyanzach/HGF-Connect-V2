@@ -8,8 +8,9 @@ export function getPresentationDownloadFilename(event: {
   presentationFile?: string | null;
   presentationOriginalName?: string | null;
 }): string {
+  const isZip = event.presentationFile?.toLowerCase().endsWith(".zip") || event.presentationOriginalName?.toLowerCase().endsWith(".zip");
   const isPdf = event.presentationFile?.toLowerCase().endsWith(".pdf");
-  const ext = isPdf ? ".pdf" : ".pptx";
+  const ext = isZip ? ".zip" : isPdf ? ".pdf" : ".pptx";
 
   let derivedTitle = "";
   if (event.commentary) {

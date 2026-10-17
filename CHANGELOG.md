@@ -1,3 +1,9 @@
+## [v2.75.0] — 2026-10-17
+### Added / Changed
+- **ProPresenter 7 Ready ZIP Packages for Sermon Presentations**: PPTX and PDF presentation uploads are now packaged directly into downloadable `.zip` archives containing individual flattened slide images (150 DPI JPEG), extracted embedded videos (e.g., MP4/WebM alongside their corresponding slide), plus the original presentation file intact.
+- **MacBook ProPresenter 7 Drag-and-Drop Workflow**: Eliminates PowerPoint video decoding memory lag and freezes on church production laptops by serving separate native media files.
+- **Updated Download UI & Endpoints**: Added `.zip` archive support to `/api/events/[id]/presentation/download`, multimedia dashboard, resources page, and quiz presentation download links.
+
 ## [v2.74.5] — 2026-10-17
 ### Fixed
 - Quiz announcement notifications only targeted status=active (69), missing 387 approved members (incl. admins). Now target active + approved. Backfilled quiz 6/7 notifications for approved members.

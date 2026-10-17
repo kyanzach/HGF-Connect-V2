@@ -313,7 +313,7 @@ export default function AddEventModal({ open, onClose }: Props) {
                       {form.presentationOriginalName}
                     </p>
                     <p style={{ fontSize: "0.75rem", color: "#15803d", margin: 0 }}>
-                      ✅ Optimized & Compressed ({form.presentationSlides.length} slides)
+                      ✅ ProPresenter ZIP Package ({form.presentationSlides.length} slides{form.presentationSlides.filter((s: any) => typeof s === "object" && s?.video).length > 0 ? ` • 🎬 ${form.presentationSlides.filter((s: any) => typeof s === "object" && s?.video).length} video` : ""})
                     </p>
                   </div>
                 </div>
@@ -340,7 +340,7 @@ export default function AddEventModal({ open, onClose }: Props) {
                     transition: "all 0.2s ease"
                   }}
                 >
-                  {presUploading ? `⚡ Optimizing slides... (${presProgress}%)` : dragPres ? "💧 Drop PDF/PPTX here" : "📁 Click or Drag & Drop PDF/PPTX presentation"}
+                  {presUploading ? `⚡ Packaging slides & media... (${presProgress}%)` : dragPres ? "💧 Drop PDF/PPTX here" : "📁 Click or Drag & Drop PDF/PPTX presentation"}
                 </button>
                 <input ref={presInputRef} type="file" accept=".pdf,.pptx" hidden onChange={e => { if (e.target.files?.[0]) handlePresentationUpload(e.target.files[0]); e.target.value = ""; }} />
               </div>
