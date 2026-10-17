@@ -14,6 +14,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { isQuizWeekExpired } from "@/lib/quiz-helpers";
 import ParticipantAnalyticsDrawer from "@/components/quiz/ParticipantAnalyticsDrawer";
+import { SERMON_CC_BOOKMARKLET } from "@/lib/ytBookmarklet";
 
 const QUIZ_TYPE_LABELS: Record<string, { label: string; difficulty: string; emoji: string }> = {
   MULTIPLE_CHOICE:    { label: "Balloon Pop",       difficulty: "Easy",        emoji: "🎈" },
@@ -1145,12 +1146,16 @@ export default function QuizAdminPage() {
           </p>
           <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
             <a
-              href={`javascript:(async function(){try{const pr=window.ytInitialPlayerResponse;const tracks=pr?.captions?.playerCaptionsTracklistRenderer?.captionTracks;if(!tracks||!tracks.length){alert("No caption tracks found on this video. Make sure CC is available.");return;}const track=tracks.find(t=>t.languageCode==='en'||t.vssId==='a.en')||tracks[0];const res=await fetch(track.baseUrl);const xml=await res.text();const pRegex=/<p\\s+[^>]*>([\\s\\S]*?)<\\/p>/g;let m,texts=[];while((m=pRegex.exec(xml))!==null){let t=m[1].replace(/<[^>]+>/g,' ').replace(/&amp;/g,'&').replace(/&#39;/g,"'").replace(/&quot;/g,'"').replace(/&lt;/g,'<').replace(/&gt;/g,'>').trim();if(t&&!t.startsWith('[Music]'))texts.push(t);}const text=texts.join(' ');await navigator.clipboard.writeText(text);alert('✅ Copied '+text.split(/\\s+/).filter(Boolean).length.toLocaleString()+' words of sermon CC to clipboard!\\n\\nNow return to HGF Connect and click \"Paste from Clipboard\".');}catch(e){alert('Error: '+e.message);}})();`}
+              ref={(el) => {
+                // React blocks javascript: hrefs, so attach it directly to the DOM node.
+                if (el) el.setAttribute("href", SERMON_CC_BOOKMARKLET);
+              }}
+              draggable
               onClick={(e) => {
                 e.preventDefault();
                 showAlert(
-                  "How to use this Bookmarklet",
-                  "1. Drag this button to your Chrome Bookmarks Bar at the top of your screen.\n2. When you open your Sunday Sermon on YouTube, click [🧠 Copy Sermon CC] on your bookmark bar.\n3. Return here and click '📋 Paste from Clipboard'!",
+                  "Drag it, don't click it",
+                  "Drag this blue button up to your Bookmarks Bar. Then open the sermon on YouTube and click the bookmark there.",
                   "info"
                 );
               }}
@@ -1169,11 +1174,22 @@ export default function QuizAdminPage() {
                 boxShadow: "0 2px 6px rgba(2,132,199,0.3)",
               }}
             >
-              ⭐ Drag to Bookmarks: [ 🧠 Copy Sermon CC ]
+              🧠 Copy Sermon CC
             </a>
-            <span style={{ fontSize: "0.78rem", color: "#64748b" }}>
-              (Click on YouTube tab → switches here → click <strong>Paste from Clipboard</strong>)
-            </span>
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(SERMON_CC_BOOKMARKLET);
+                  showAlert("Bookmarklet code copied", "Create a new bookmark, name it 'Copy Sermon CC', and paste this into the URL field.", "success");
+                } catch {
+                  showAlert("Copy failed", "Your browser blocked clipboard access.", "error");
+                }
+              }}
+              style={{ background: "none", border: "none", color: "#0369a1", textDecoration: "underline", fontSize: "0.78rem", cursor: "pointer", padding: 0 }}
+            >
+              Can't drag? Copy the code instead
+            </button>
           </div>
         </div>
 

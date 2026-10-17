@@ -5,6 +5,13 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.74.3] — 2026-10-17
+### Fixed — "Copy Sermon CC" bookmarklet was dead on arrival
+- React 19 refuses to render `javascript:` hrefs and swaps in a stub that throws "React has blocked a javascript: URL", so the dragged bookmark did nothing.
+- Bookmarklet now lives in `lib/ytBookmarklet.ts` and is attached to the link via a DOM ref (`app/(app)/quiz/admin/page.tsx`).
+- Falls back to a same-origin InnerTube call when the page's own caption URL returns empty.
+- Shorter link label so the bookmark is named "Copy Sermon CC"; added "Can't drag? Copy the code instead" fallback.
+
 ## [v2.74.2] — 2026-10-17
 ### Added — 1-Click YouTube CC Grabber Bookmarklet & Clipboard Paste Action
 - **1-Click Browser CC Grabber (`app/(app)/quiz/admin/page.tsx`)**:
