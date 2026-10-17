@@ -58,8 +58,9 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            "No closed captions / transcript found for this video. YouTube may still be generating auto-captions, or CC is disabled on this video.",
+            "YouTube's anti-bot system blocked our cloud server IP from scraping this video ('Sign in to confirm you're not a bot'). Use the 1-Click Bookmarklet above to grab the captions in 1 second, or click 'Paste from Clipboard' below!",
           videoId: cleanId,
+          botBlocked: true,
         },
         { status: 404 }
       );

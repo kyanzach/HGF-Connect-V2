@@ -361,6 +361,22 @@ export default function QuizAdminPage() {
     }
   }
 
+  // ── Paste from Clipboard ──
+  async function handlePasteFromClipboard() {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text || !text.trim()) {
+        showAlert("Clipboard Empty", "Your clipboard does not contain any text. Please copy your sermon notes or captions first.", "info");
+        return;
+      }
+      setSermonText(text.trim());
+      const words = text.trim().split(/\s+/).filter(Boolean).length;
+      showAlert("Pasted Successfully!", `📋 Pasted ${words.toLocaleString()} words directly from your clipboard into Sermon Notes!`, "success");
+    } catch {
+      showAlert("Clipboard Access", "Please click into the Sermon Notes box and press Cmd+V (Mac) or Ctrl+V (Windows) to paste.", "info");
+    }
+  }
+
   // ── Generate quiz via AI ──
   async function handleGenerate() {
     if (!sermonDate) {
@@ -1104,27 +1120,103 @@ export default function QuizAdminPage() {
           </div>
         )}
 
-        <p style={{ color: "#a0aec0", fontSize: "0.8rem", margin: "6px 0 12px" }}>
-          Embeds sermon replay for congregation. Click <strong>Fetch CC / Transcript</strong> to auto-scrape video captions and skip typing sermon notes!
+        <p style={{ color: "#a0aec0", fontSize: "0.8rem", margin: "6px 0 8px" }}>
+          Embeds sermon replay for congregation. Click <strong>Fetch CC / Transcript</strong> to scrape video captions directly.
         </p>
+
+        {/* 1-Click Browser Grabber Bookmarklet */}
+        <div
+          style={{
+            marginTop: "10px",
+            marginBottom: "16px",
+            padding: "12px 14px",
+            borderRadius: "10px",
+            background: "#f8fafc",
+            border: "1.5px dashed #cbd5e1",
+            fontSize: "0.82rem",
+            color: "#334155",
+          }}
+        >
+          <div style={{ fontWeight: 700, color: "#0f172a", marginBottom: "4px", display: "flex", alignItems: "center", gap: "6px" }}>
+            <span>⚡ 1-Click YouTube CC Grabber Bookmarklet</span>
+          </div>
+          <p style={{ margin: "0 0 8px", color: "#64748b", lineHeight: "1.4" }}>
+            Because YouTube blocks cloud servers (DigitalOcean) from automated scraping, drag this button to your Chrome Bookmarks Bar once. When on any sermon on YouTube, click it to instantly copy all CC captions directly from your browser!
+          </p>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            <a
+              href={`javascript:(async function(){try{const pr=window.ytInitialPlayerResponse;const tracks=pr?.captions?.playerCaptionsTracklistRenderer?.captionTracks;if(!tracks||!tracks.length){alert("No caption tracks found on this video. Make sure CC is available.");return;}const track=tracks.find(t=>t.languageCode==='en'||t.vssId==='a.en')||tracks[0];const res=await fetch(track.baseUrl);const xml=await res.text();const pRegex=/<p\\s+[^>]*>([\\s\\S]*?)<\\/p>/g;let m,texts=[];while((m=pRegex.exec(xml))!==null){let t=m[1].replace(/<[^>]+>/g,' ').replace(/&amp;/g,'&').replace(/&#39;/g,"'").replace(/&quot;/g,'"').replace(/&lt;/g,'<').replace(/&gt;/g,'>').trim();if(t&&!t.startsWith('[Music]'))texts.push(t);}const text=texts.join(' ');await navigator.clipboard.writeText(text);alert('✅ Copied '+text.split(/\\s+/).filter(Boolean).length.toLocaleString()+' words of sermon CC to clipboard!\\n\\nNow return to HGF Connect and click \"Paste from Clipboard\".');}catch(e){alert('Error: '+e.message);}})();`}
+              onClick={(e) => {
+                e.preventDefault();
+                showAlert(
+                  "How to use this Bookmarklet",
+                  "1. Drag this button to your Chrome Bookmarks Bar at the top of your screen.\n2. When you open your Sunday Sermon on YouTube, click [🧠 Copy Sermon CC] on your bookmark bar.\n3. Return here and click '📋 Paste from Clipboard'!",
+                  "info"
+                );
+              }}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                background: "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)",
+                color: "#fff",
+                padding: "8px 14px",
+                borderRadius: "8px",
+                fontWeight: 700,
+                fontSize: "0.82rem",
+                textDecoration: "none",
+                cursor: "grab",
+                boxShadow: "0 2px 6px rgba(2,132,199,0.3)",
+              }}
+            >
+              ⭐ Drag to Bookmarks: [ 🧠 Copy Sermon CC ]
+            </a>
+            <span style={{ fontSize: "0.78rem", color: "#64748b" }}>
+              (Click on YouTube tab → switches here → click <strong>Paste from Clipboard</strong>)
+            </span>
+          </div>
+        </div>
 
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "baseline",
+            alignItems: "center",
             marginTop: "16px",
             marginBottom: "6px",
+            flexWrap: "wrap",
+            gap: "8px",
           }}
         >
           <label style={{ ...S.label, margin: 0 }}>
             Sermon Notes / Transcript (Optional if YouTube CC or Slides exist)
           </label>
-          {sermonText && (
-            <span style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: 600 }}>
-              {sermonText.split(/\s+/).filter(Boolean).length.toLocaleString()} words ({sermonText.length.toLocaleString()} chars)
-            </span>
-          )}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            {sermonText && (
+              <span style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: 600 }}>
+                {sermonText.split(/\s+/).filter(Boolean).length.toLocaleString()} words ({sermonText.length.toLocaleString()} chars)
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={handlePasteFromClipboard}
+              style={{
+                background: "#f1f5f9",
+                border: "1px solid #cbd5e1",
+                borderRadius: "6px",
+                padding: "4px 10px",
+                fontSize: "0.78rem",
+                fontWeight: 700,
+                color: "#1e293b",
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+              }}
+            >
+              📋 Paste from Clipboard
+            </button>
+          </div>
         </div>
         <textarea
           value={sermonText}

@@ -5,6 +5,15 @@ All notable changes to HGF Connect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.74.2] — 2026-10-17
+### Added — 1-Click YouTube CC Grabber Bookmarklet & Clipboard Paste Action
+- **1-Click Browser CC Grabber (`app/(app)/quiz/admin/page.tsx`)**:
+  - Added draggable Chrome Bookmarklet `⭐ [ 🧠 Copy Sermon CC ]` to bypass YouTube's cloud datacenter anti-bot verification (`Sign in to confirm you're not a bot`).
+  - Clicking the bookmarklet on any active YouTube sermon tab extracts the full CC transcript directly from player memory in 0.1s and copies all speech words to clipboard.
+  - Added **`📋 Paste from Clipboard`** action button above the Sermon Notes textarea to load copied captions in 1 click.
+- **Enhanced Cloud Scraping Error Handling (`app/api/quiz/admin/fetch-transcript/route.ts`)**:
+  - Detects YouTube datacenter IP blocks and guides pastors/admins with clear next steps.
+
 ## [v2.74.1] — 2026-10-17
 ### Added — YouTube CC Closed Caption Scraper & Auto-Transcript Generation
 - **YouTube Closed Caption (CC) Engine (`lib/youtube.ts`)**:
