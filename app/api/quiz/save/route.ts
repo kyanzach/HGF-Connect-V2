@@ -154,7 +154,7 @@ export async function POST(request: Request) {
       // Send optional in-app bell notification to active members if requested (Zero SMS)
       if (body.notifyArchiveMembers && targetStatus === "completed") {
         const activeMembers = await db.member.findMany({
-          where: { status: "active" },
+          where: { status: { in: ["active", "approved"] } },
           select: { id: true },
         });
         if (activeMembers.length > 0) {

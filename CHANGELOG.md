@@ -1,3 +1,7 @@
+## [v2.74.5] — 2026-10-17
+### Fixed
+- Quiz announcement notifications only targeted status=active (69), missing 387 approved members (incl. admins). Now target active + approved. Backfilled quiz 6/7 notifications for approved members.
+
 ## [v2.74.4] — 2026-10-17
 ### Added / Changed
 - Quiz notifications now announce each quiz with deep links: live week -> /quiz?quizId=N (daily adds &day=N); catch-up -> /quiz/hub?tab=archive&quizId=N, which auto-opens that quiz catch-up briefing.

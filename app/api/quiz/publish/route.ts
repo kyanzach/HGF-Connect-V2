@@ -108,7 +108,7 @@ export async function POST(request: Request) {
 
     // ── Fire bell notifications to all active members ──
     const activeMembers = await db.member.findMany({
-      where: { status: "active" },
+      where: { status: { in: ["active", "approved"] } },
       select: { id: true },
     });
 
