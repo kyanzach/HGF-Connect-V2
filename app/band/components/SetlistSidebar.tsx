@@ -78,7 +78,7 @@ interface SetlistSidebarProps {
   onOpenScraper: (initialQuery?: string) => void;
   onAddSongToSetlist?: (songId: string, setlistId?: string) => void;
   onRemoveSongFromSetlist?: (songId: string, setlistId: string) => void;
-  onReorderSongInSetlist?: (fromIndex: number, toIndex: number) => Promise<void> | void;
+  onReorderSongInSetlist?: (from: number | string, to: number | string) => Promise<void> | void;
   onDeleteSong?: (id: string) => Promise<void> | void;
   currentUser?: BandUser | null;
 }
@@ -175,6 +175,11 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
 
   const handleDrop = (e: React.DragEvent, targetIndex: number) => {
     e.preventDefault();
+    suppressClickRef.current = true;
+    setTimeout(() => {
+      suppressClickRef.current = false;
+    }, 450);
+
     if (draggedIndex !== null && draggedIndex !== targetIndex && onReorderSongInSetlist) {
       let finalTarget = targetIndex;
       if (dropPosition === 'bottom' && targetIndex < draggedIndex) {
@@ -182,7 +187,13 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
       } else if (dropPosition === 'top' && targetIndex > draggedIndex) {
         finalTarget = Math.max(0, targetIndex - 1);
       }
-      onReorderSongInSetlist(draggedIndex, finalTarget);
+      const fromSong = displayList[draggedIndex];
+      const toSong = displayList[finalTarget];
+      if (fromSong && toSong) {
+        onReorderSongInSetlist(fromSong.id, toSong.id);
+      } else {
+        onReorderSongInSetlist(draggedIndex, finalTarget);
+      }
     }
     setDraggedIndex(null);
     setDragOverIndex(null);
@@ -288,7 +299,13 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
         } else if (dropPositionRef.current === 'top' && toIdx > fromIdx) {
           finalTarget = Math.max(0, toIdx - 1);
         }
-        onReorderSongInSetlist(fromIdx, finalTarget);
+        const fromSong = currentList[fromIdx];
+        const toSong = currentList[finalTarget];
+        if (fromSong && toSong) {
+          onReorderSongInSetlist(fromSong.id, toSong.id);
+        } else {
+          onReorderSongInSetlist(fromIdx, finalTarget);
+        }
       }
 
       touchDragStartIndex.current = null;
@@ -712,7 +729,12 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
                           disabled={idx === 0}
                           onClick={(e) => {
                             e.stopPropagation();
-                            onReorderSongInSetlist?.(idx, idx - 1);
+                            const prevSong = displayList[idx - 1];
+                            if (prevSong) {
+                              onReorderSongInSetlist?.(song.id, prevSong.id);
+                            } else {
+                              onReorderSongInSetlist?.(idx, idx - 1);
+                            }
                           }}
                           onPointerDown={(e) => e.stopPropagation()}
                           onTouchStart={(e) => e.stopPropagation()}
@@ -740,7 +762,12 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
                           disabled={idx === displayList.length - 1}
                           onClick={(e) => {
                             e.stopPropagation();
-                            onReorderSongInSetlist?.(idx, idx + 1);
+                            const nextSong = displayList[idx + 1];
+                            if (nextSong) {
+                              onReorderSongInSetlist?.(song.id, nextSong.id);
+                            } else {
+                              onReorderSongInSetlist?.(idx, idx + 1);
+                            }
                           }}
                           onPointerDown={(e) => e.stopPropagation()}
                           onTouchStart={(e) => e.stopPropagation()}

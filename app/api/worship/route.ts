@@ -170,10 +170,34 @@ export async function DELETE(req: NextRequest) {
     const filePath = path.join(SONGS_DIR, `${sanitize(id)}.json`);
     try {
       await fs.unlink(filePath);
-      return NextResponse.json({ ok: true });
     } catch {
       return NextResponse.json({ error: 'Song not found' }, { status: 404 });
     }
+
+    // Also prune this song from all setlists so ghost entries never accumulate
+    try {
+      const setlistsDir = path.join(DATA_DIR, 'setlists');
+      const setlistFiles = await fs.readdir(setlistsDir);
+      for (const file of setlistFiles) {
+        if (!file.endsWith('.json')) continue;
+        const setlistPath = path.join(setlistsDir, file);
+        try {
+          const raw = await fs.readFile(setlistPath, 'utf-8');
+          const setlist = JSON.parse(raw);
+          if (Array.isArray(setlist.songs)) {
+            const initialCount = setlist.songs.length;
+            setlist.songs = setlist.songs.filter((s: any) => (typeof s === 'string' ? s : s.id) !== id);
+            if (setlist.songs.length !== initialCount) {
+              setlist.songCount = setlist.songs.length;
+              setlist.updatedAt = Date.now();
+              await fs.writeFile(setlistPath, JSON.stringify(setlist, null, 2), 'utf-8');
+            }
+          }
+        } catch (_) {}
+      }
+    } catch (_) {}
+
+    return NextResponse.json({ ok: true });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Delete failed' }, { status: 500 });
   }

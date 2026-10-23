@@ -1,3 +1,10 @@
+## [v2.75.1] — 2026-10-23
+### Fixed
+- **Setlist Song Sorting & Drag-and-Drop Reliability**: Fixed issue where songs in a setlist could not be moved or sorted to the bottom position (e.g. moving Adlaw-Adlaw to the last spot).
+- **Ghost Song Array Desynchronization**: Resolved root cause where deleted library songs left orphan IDs in setlists, desynchronizing the visual display indices from underlying array indices and causing drop actions and down buttons (▼) to target invisible songs or fail to reach the end of the list.
+- **Song-ID-Based Reordering**: Upgraded setlist reordering to match songs by immutable IDs rather than raw array indices, automatically prune orphan songs, and suppress accidental click events after desktop drag-and-drop.
+- **Auto-Pruning on Song Deletion**: Deleting songs from the master library now automatically cleans their references out of all setlist files.
+
 ## [v2.75.0] — 2026-10-17
 ### Added / Changed
 - **ProPresenter 7 Ready ZIP Packages for Sermon Presentations**: PPTX and PDF presentation uploads are now packaged directly into downloadable `.zip` archives containing individual flattened slide images (150 DPI JPEG), extracted embedded videos (e.g., MP4/WebM alongside their corresponding slide), plus the original presentation file intact.

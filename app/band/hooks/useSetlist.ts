@@ -451,48 +451,68 @@ export function useSetlist() {
     }
   }, [activeSetlistId, setlists]);
 
-  const reorderSongInSetlist = useCallback(async (fromIndex: number, toIndex: number, setlistId?: string) => {
-    const targetSetId = setlistId || activeSetlistId;
-    if (!targetSetId) return;
-    const targetSet = setlists.find((s) => s.id === targetSetId);
-    if (!targetSet || !Array.isArray(targetSet.songs)) return;
-    if (fromIndex < 0 || fromIndex >= targetSet.songs.length) return;
-    if (toIndex < 0 || toIndex >= targetSet.songs.length) return;
-    if (fromIndex === toIndex) return;
+  const reorderSongInSetlist = useCallback(
+    async (from: number | string, to: number | string, setlistId?: string) => {
+      const targetSetId = setlistId || activeSetlistId;
+      if (!targetSetId) return;
+      const targetSet = setlists.find((s) => s.id === targetSetId);
+      if (!targetSet || !Array.isArray(targetSet.songs)) return;
 
-    lastSetlistMutationTimeRef.current = Date.now();
+      // 1. Clean out any deleted/orphan songs that no longer exist in the library
+      const validSongIds = songs.length > 0 ? new Set(songs.map((s) => s.id)) : null;
+      const baseSongs = validSongIds
+        ? targetSet.songs.filter((s) => validSongIds.has(typeof s === 'string' ? s : s.id))
+        : [...targetSet.songs];
 
-    const updatedSongs = [...targetSet.songs];
-    const [moved] = updatedSongs.splice(fromIndex, 1);
-    updatedSongs.splice(toIndex, 0, moved);
+      // 2. Resolve from & to indices (supporting both song ID strings and numeric indices)
+      let fromIndex =
+        typeof from === 'string'
+          ? baseSongs.findIndex((s) => (typeof s === 'string' ? s : s.id) === from)
+          : from;
+      let toIndex =
+        typeof to === 'string'
+          ? baseSongs.findIndex((s) => (typeof s === 'string' ? s : s.id) === to)
+          : to;
 
-    const updatedSetlist: Setlist = {
-      ...targetSet,
-      songs: updatedSongs,
-      songCount: updatedSongs.length,
-      updatedAt: Date.now(),
-    };
+      if (fromIndex < 0 || fromIndex >= baseSongs.length) return;
+      if (toIndex < 0 || toIndex >= baseSongs.length) return;
+      if (fromIndex === toIndex) return;
 
-    // Optimistically update in-memory state and localStorage for instant 0ms snappy response
-    const newSetlists = sortSetlistsUpcomingFirst(setlists.map((s) => (s.id === targetSetId ? updatedSetlist : s)));
-    setSetlists(newSetlists);
-    if (typeof window !== 'undefined') {
+      lastSetlistMutationTimeRef.current = Date.now();
+
+      const updatedSongs = [...baseSongs];
+      const [moved] = updatedSongs.splice(fromIndex, 1);
+      updatedSongs.splice(toIndex, 0, moved);
+
+      const updatedSetlist: Setlist = {
+        ...targetSet,
+        songs: updatedSongs,
+        songCount: updatedSongs.length,
+        updatedAt: Date.now(),
+      };
+
+      // Optimistically update in-memory state and localStorage for instant 0ms snappy response
+      const newSetlists = sortSetlistsUpcomingFirst(setlists.map((s) => (s.id === targetSetId ? updatedSetlist : s)));
+      setSetlists(newSetlists);
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(STORAGE_LOCAL_SETLISTS, JSON.stringify(newSetlists));
+        } catch (_) {}
+      }
+
+      // Background sync to server without disruptive refreshData() to eliminate flicker/bounceback
       try {
-        localStorage.setItem(STORAGE_LOCAL_SETLISTS, JSON.stringify(newSetlists));
-      } catch (_) {}
-    }
-
-    // Background sync to server without disruptive refreshData() to eliminate flicker/bounceback
-    try {
-      await fetch('/api/worship/setlists', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedSetlist),
-      });
-    } catch (err) {
-      console.error('Failed to sync setlist reorder to server:', err);
-    }
-  }, [activeSetlistId, setlists]);
+        await fetch('/api/worship/setlists', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedSetlist),
+        });
+      } catch (err) {
+        console.error('Failed to sync setlist reorder to server:', err);
+      }
+    },
+    [activeSetlistId, setlists, songs]
+  );
 
   // Instant optimistic ingestion for newly scraped or created songs
   const optimisticAddSong = useCallback(
