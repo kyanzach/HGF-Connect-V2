@@ -8,7 +8,18 @@ export function useAmbientPad() {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [isFadingOut, setIsFadingOut] = useState<boolean>(false);
   const [currentKey, setCurrentKey] = useState<string>('C');
-  const [volume, setVolumeState] = useState<number>(0.85);
+  const [volume, setVolumeState] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('hgf_band_pad_volume');
+        if (saved !== null) {
+          const val = parseFloat(saved);
+          if (!isNaN(val) && val >= 0 && val <= 1) return val;
+        }
+      } catch (_) {}
+    }
+    return 0.25; // 25% volume sweet spot for solo acoustic performers
+  });
 
   const playerRef = useRef<AmbientPadPlayer | null>(null);
 
@@ -18,6 +29,7 @@ export function useAmbientPad() {
       setCurrentKey(key);
       setIsFadingOut(fadingOut);
     });
+    player.setVolume(volume);
     playerRef.current = player;
 
     return () => {
@@ -44,8 +56,11 @@ export function useAmbientPad() {
   }, []);
 
   const setVolume = useCallback((vol: number) => {
-    const num = typeof vol === 'number' ? vol : 0.85;
+    const num = typeof vol === 'number' ? vol : 0.25;
     setVolumeState(num);
+    try {
+      localStorage.setItem('hgf_band_pad_volume', String(num));
+    } catch (_) {}
     if (playerRef.current) {
       playerRef.current.setVolume(num);
     }

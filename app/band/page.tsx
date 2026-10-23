@@ -134,6 +134,36 @@ export default function BandStagePage() {
     setVolume: setPadVolume,
   } = useAmbientPad();
 
+  // Ambient Worship Pad: Auto-Shift & 3.0s Crossfade on Song Switch or Key Transpose
+  const prevTargetPadKeyRef = useRef<string | null>(null);
+  const isPadMountedRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    const rawKey = effectiveKey || currentSong?.key || 'C';
+    const targetKey = getRootNote(rawKey);
+
+    // Initial mount: prime active key without triggering audio
+    if (!isPadMountedRef.current) {
+      isPadMountedRef.current = true;
+      prevTargetPadKeyRef.current = targetKey;
+      selectPadKey(targetKey);
+      return;
+    }
+
+    // Key changed via song switch (swipe / nav buttons / setlist) or key transpose
+    if (prevTargetPadKeyRef.current !== targetKey) {
+      prevTargetPadKeyRef.current = targetKey;
+
+      if (isPadPlaying && !isPadFadingOut) {
+        // Continuous Worship: Dual-deck 3.0s crossfade to the next song's ambient bed!
+        playPad(targetKey);
+      } else {
+        // Paused mode: update primed key without playing audio
+        selectPadKey(targetKey);
+      }
+    }
+  }, [currentSong?.id, effectiveKey, isPadPlaying, isPadFadingOut, playPad, selectPadKey]);
+
   const {
     hasAudio,
     isPlaying: isBacktrackPlaying,
@@ -1608,6 +1638,11 @@ export default function BandStagePage() {
           onOpenDurationPicker={() => setIsDurationModalOpen(true)}
           isLyricsOnly={isLyricsOnly}
           onToggleLyricsOnly={handleToggleLyricsOnly}
+          isPadPlaying={isPadPlaying}
+          isPadFadingOut={isPadFadingOut}
+          activePadKey={activePadKey || getRootNote(effectiveKey || currentSong?.key || 'C')}
+          onTogglePad={() => togglePad(activePadKey || getRootNote(effectiveKey || currentSong?.key || 'C'))}
+          onOpenPadModal={() => setIsAmbientPadOpen(true)}
         />
       )}
 

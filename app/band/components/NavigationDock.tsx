@@ -23,6 +23,11 @@ interface NavigationDockProps {
   onOpenDurationPicker?: () => void;
   isLyricsOnly?: boolean;
   onToggleLyricsOnly?: () => void;
+  isPadPlaying?: boolean;
+  isPadFadingOut?: boolean;
+  activePadKey?: string;
+  onTogglePad?: () => void;
+  onOpenPadModal?: () => void;
 }
 
 export const NavigationDock: React.FC<NavigationDockProps> = ({
@@ -44,6 +49,11 @@ export const NavigationDock: React.FC<NavigationDockProps> = ({
   onOpenDurationPicker,
   isLyricsOnly = false,
   onToggleLyricsOnly,
+  isPadPlaying = false,
+  isPadFadingOut = false,
+  activePadKey = 'C',
+  onTogglePad,
+  onOpenPadModal,
 }) => {
   return (
     <div
@@ -61,100 +71,128 @@ export const NavigationDock: React.FC<NavigationDockProps> = ({
         transition: 'bottom 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
       }}
     >
-
-      {/* BPM Metronome FAB (Moved to Floating Dock) */}
-      {onOpenMetronome && (
-        <button
-          onClick={onOpenMetronome}
-          title="Live Visual BPM Pulse • Tap for Metronome Settings"
-          style={{
-            width: '44px',
-            height: '44px',
-            borderRadius: '50%',
-            backgroundColor: isMetronomeAudioActive ? 'rgba(245, 158, 11, 0.3)' : 'rgba(22, 28, 38, 0.9)',
-            backdropFilter: 'blur(10px)',
-            border: `1.5px solid ${
-              isMetronomePulsing
-                ? '#fbbf24'
-                : isMetronomeAudioActive
-                ? '#f59e0b'
-                : 'rgba(245, 158, 11, 0.45)'
-            }`,
-            color: '#fbbf24',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            boxShadow: isMetronomePulsing
-              ? '0 0 14px rgba(251, 191, 36, 0.7), 0 6px 16px rgba(0,0,0,0.5)'
-              : isMetronomeAudioActive
-              ? '0 0 10px rgba(245, 158, 11, 0.4), 0 6px 16px rgba(0,0,0,0.5)'
-              : '0 6px 16px rgba(0,0,0,0.5)',
-            transform: isMetronomePulsing ? 'scale(1.08)' : 'scale(1)',
-            transition: 'transform 0.08s ease, border-color 0.08s ease, box-shadow 0.08s ease',
-          }}
-        >
-          <div
+      {/* Ambient Worship Pad FAB (Solo Performer Ambient Bed) */}
+      {onTogglePad && (
+        <div style={{ position: 'relative' }}>
+          <button
+            onClick={onTogglePad}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              onOpenPadModal?.();
+            }}
+            title={
+              isPadPlaying
+                ? `Ambient Pad Playing [${activePadKey}] • Tap to Fade Out • Gear icon for settings`
+                : isPadFadingOut
+                ? `Ambient Pad Fading Out [${activePadKey}]`
+                : `Ambient Pad Paused [${activePadKey}] • Tap to Play ambient bed • Gear icon for settings`
+            }
             style={{
-              fontSize: '11px',
-              fontWeight: 900,
-              lineHeight: 1,
-              letterSpacing: '-0.2px',
+              width: '44px',
+              height: '44px',
+              borderRadius: '50%',
+              backgroundColor: isPadPlaying
+                ? 'rgba(78, 177, 203, 0.22)'
+                : isPadFadingOut
+                ? 'rgba(245, 158, 11, 0.16)'
+                : 'rgba(22, 28, 38, 0.85)',
+              backdropFilter: 'blur(10px)',
+              border: `1.5px solid ${
+                isPadPlaying ? '#4EB1CB' : isPadFadingOut ? '#f59e0b' : '#334155'
+              }`,
+              color: isPadPlaying ? '#38bdf8' : isPadFadingOut ? '#fde047' : '#94a3b8',
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
-              gap: '2px',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              boxShadow: isPadPlaying
+                ? '0 0 16px rgba(78, 177, 203, 0.65), 0 6px 16px rgba(0,0,0,0.5)'
+                : isPadFadingOut
+                ? '0 0 14px rgba(245, 158, 11, 0.4), 0 6px 16px rgba(0,0,0,0.5)'
+                : '0 6px 16px rgba(0,0,0,0.5)',
+              transform: isPadPlaying ? 'scale(1.05)' : 'scale(1)',
+              transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
             }}
           >
+            <span style={{ fontSize: '13px', lineHeight: 1 }}>🎹</span>
             <span
               style={{
-                width: '5px',
-                height: '5px',
-                borderRadius: '50%',
-                backgroundColor: isMetronomePulsing ? '#fbbf24' : '#f59e0b',
-                display: 'inline-block',
-                boxShadow: isMetronomePulsing ? '0 0 6px #fbbf24' : 'none',
+                fontSize: '9px',
+                fontWeight: 900,
+                marginTop: '1px',
+                letterSpacing: '-0.3px',
+                color: isPadPlaying ? '#ffffff' : isPadFadingOut ? '#fde047' : '#cbd5e1',
+                lineHeight: 1,
               }}
-            />
-            <span>{bpm ? String(bpm).replace(/[^0-9]/g, '') : '72'}</span>
-          </div>
-          <div
-            style={{
-              fontSize: '8px',
-              fontWeight: 800,
-              color: isMetronomeAudioActive ? '#fbbf24' : '#94a3b8',
-              lineHeight: 1,
-              marginTop: '2px',
-              textTransform: 'uppercase',
-            }}
-          >
-            BPM
-          </div>
-        </button>
+            >
+              {activePadKey}
+            </span>
+          </button>
+
+          {/* Settings mini-badge to open Ambient Pad modal */}
+          {onOpenPadModal && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenPadModal();
+              }}
+              title="Ambient Pad Settings (Volume, Key, Sounds)"
+              style={{
+                position: 'absolute',
+                top: '-4px',
+                right: '-4px',
+                width: '18px',
+                height: '18px',
+                borderRadius: '50%',
+                backgroundColor: '#1e293b',
+                border: '1px solid #475569',
+                color: '#cbd5e1',
+                fontSize: '9px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                padding: 0,
+                boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
+              }}
+            >
+              ⚙
+            </button>
+          )}
+        </div>
       )}
 
-      {/* Auto-scroll FAB with Duration Badge */}
+      {/* Auto-scroll FAB: Yellow Play / Pause Button */}
       <div style={{ position: 'relative' }}>
         <button
           onClick={onToggleAutoScroll}
-          title={isAutoScrolling ? 'Pause Auto-Scroll' : 'Start Auto-Scroll'}
+          title={isAutoScrolling ? 'Pause Auto-Scroll (Playing)' : 'Start Auto-Scroll (Play)'}
           style={{
             width: '44px',
             height: '44px',
             borderRadius: '50%',
-            backgroundColor: isAutoScrolling ? '#10b981' : 'rgba(22, 28, 38, 0.85)',
+            backgroundColor: isAutoScrolling ? '#facc15' : 'rgba(245, 158, 11, 0.16)',
             backdropFilter: 'blur(10px)',
-            border: `1px solid ${isAutoScrolling ? '#10b981' : '#334155'}`,
-            color: isAutoScrolling ? '#000' : '#fff',
+            border: `1.5px solid ${isAutoScrolling ? '#facc15' : '#f59e0b'}`,
+            color: isAutoScrolling ? '#000' : '#fbbf24',
             fontSize: '16px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             cursor: 'pointer',
-            boxShadow: '0 6px 16px rgba(0,0,0,0.5)',
+            boxShadow: isAutoScrolling
+              ? '0 0 16px rgba(250, 204, 21, 0.65), 0 6px 16px rgba(0,0,0,0.5)'
+              : '0 4px 12px rgba(245, 158, 11, 0.25), 0 6px 16px rgba(0,0,0,0.5)',
+            transform: isAutoScrolling ? 'scale(1.05)' : 'scale(1)',
+            transition: 'all 0.15s ease',
           }}
         >
-          📜
+          {isAutoScrolling ? (
+            <span style={{ fontSize: '15px', fontWeight: 900, lineHeight: 1 }}>⏸</span>
+          ) : (
+            <span style={{ fontSize: '15px', fontWeight: 900, lineHeight: 1, marginLeft: '2px' }}>▶</span>
+          )}
         </button>
       </div>
 

@@ -254,6 +254,21 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     if (!containerRef.current) return;
     const currentScroll = containerRef.current.scrollTop;
 
+    // Detect section currently in view
+    const headers = Array.from(containerRef.current.querySelectorAll<HTMLElement>('[data-section-title]'));
+    const scrollY = currentScroll + 60;
+    let foundSection = '';
+    for (const h of headers) {
+      if (h.offsetTop <= scrollY) {
+        foundSection = h.getAttribute('data-section-title') || h.textContent || '';
+      } else {
+        break;
+      }
+    }
+    if (foundSection) {
+      setActiveSectionName(foundSection);
+    }
+
     if (isUserInteractingRef.current) {
       scrollPosRef.current = currentScroll;
       const maxScroll = containerRef.current.scrollHeight - containerRef.current.clientHeight;
@@ -358,14 +373,78 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     return () => cancelAnimationFrame(animId);
   }, [isAutoScrolling]);
 
-  // Section order roadmap parts
+  const [activeSectionName, setActiveSectionName] = useState<string>('');
+
+  // Section order roadmap parts from song metadata
   const sectionParts = (song?.sectionOrder || '')
     .split(/[,>|–-]+|\s{2,}/)
     .map((s) => s.trim())
     .filter(Boolean);
 
-  const jumpToSection = (name: string) => {
+  // Auto-parsed song sections from sheet chords & lyrics
+  const songSections = useMemo(() => {
+    const list: { id: string; name: string; lineIdx: number; cleanName: string; type: string }[] = [];
+    parsedLines.forEach((line, lIdx) => {
+      if (line.type === 'section') {
+        const rawName = (line.sectionName || line.raw || '').replace(/^[\[|\s#]+|[\]|\s]+$/g, '').trim();
+        if (rawName) {
+          const lower = rawName.toLowerCase();
+          let secType = 'other';
+          if (lower.includes('intro')) secType = 'intro';
+          else if (lower.includes('verse')) secType = 'verse';
+          else if (lower.includes('chorus') && !lower.includes('pre')) secType = 'chorus';
+          else if (lower.includes('pre-chorus') || lower.includes('pre chorus') || lower.includes('prechorus')) secType = 'prechorus';
+          else if (lower.includes('bridge')) secType = 'bridge';
+          else if (lower.includes('outro') || lower.includes('ending') || lower.includes('tag')) secType = 'outro';
+          else if (lower.includes('interlude') || lower.includes('vamp') || lower.includes('instrumental')) secType = 'interlude';
+
+          list.push({
+            id: `sec-${lIdx}-${rawName}`,
+            name: rawName,
+            lineIdx: lIdx,
+            cleanName: rawName,
+            type: secType,
+          });
+        }
+      }
+    });
+    return list;
+  }, [parsedLines]);
+
+  const allSections = useMemo(() => {
+    if (songSections.length > 0) return songSections;
+    return sectionParts.map((sec, idx) => {
+      const lower = sec.toLowerCase();
+      let secType = 'other';
+      if (lower.includes('intro')) secType = 'intro';
+      else if (lower.includes('verse') || /^v\d+$/i.test(sec)) secType = 'verse';
+      else if ((lower.includes('chorus') || /^c\d*$/i.test(sec)) && !lower.includes('pre')) secType = 'chorus';
+      else if (lower.includes('pre') || /^pc\d*$/i.test(sec)) secType = 'prechorus';
+      else if (lower.includes('bridge') || /^b\d*$/i.test(sec)) secType = 'bridge';
+      else if (lower.includes('outro') || /^o$/i.test(sec)) secType = 'outro';
+      return {
+        id: `order-sec-${idx}-${sec}`,
+        name: sec,
+        lineIdx: -1,
+        cleanName: sec,
+        type: secType,
+      };
+    });
+  }, [songSections, sectionParts]);
+
+  const jumpToSection = (name: string, targetLineIdx?: number) => {
     if (!containerRef.current || !name) return;
+    if (typeof targetLineIdx === 'number' && targetLineIdx >= 0) {
+      const el = containerRef.current.querySelector(`#sheet-line-${targetLineIdx}`) as HTMLElement | null;
+      if (el) {
+        containerRef.current.scrollTo({
+          top: Math.max(0, el.offsetTop - 24),
+          behavior: 'smooth',
+        });
+        setActiveSectionName(name);
+        return;
+      }
+    }
     const q = name.toLowerCase().replace(/[^a-z0-9]/g, '');
     const headers = Array.from(containerRef.current.querySelectorAll('[data-section-title]'));
     const target = headers.find((el) => {
@@ -375,9 +454,10 @@ export const SongSheet: React.FC<SongSheetProps> = ({
 
     if (target) {
       containerRef.current.scrollTo({
-        top: target.offsetTop - 20,
+        top: Math.max(0, target.offsetTop - 24),
         behavior: 'smooth',
       });
+      setActiveSectionName(name);
     }
   };
 
@@ -472,8 +552,9 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   }
 
   return (
-    <div
-      ref={containerRef}
+    <>
+      <div
+        ref={containerRef}
       id="sheetWrapper"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
@@ -1082,5 +1163,101 @@ export const SongSheet: React.FC<SongSheetProps> = ({
         })()}
       </div>
     </div>
+
+      {/* FLOATING BOTTOM SECTION QUICK-JUMP DOCK */}
+      {allSections.length > 0 && !isImmersionMode && (
+        <div
+          data-testid="section-jump-dock"
+          style={{
+            position: 'fixed',
+            left: '16px',
+            bottom: hasPlaybackDock
+              ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 148px)'
+              : 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 20px)',
+            maxWidth: 'calc(100vw - 86px)',
+            zIndex: 55,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '4px 6px',
+            borderRadius: '24px',
+            backgroundColor: 'rgba(15, 23, 42, 0.88)',
+            backdropFilter: 'blur(14px)',
+            WebkitBackdropFilter: 'blur(14px)',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.35)',
+            overflowX: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+          }}
+        >
+          {allSections.map((sec) => {
+            const isMatch =
+              activeSectionName &&
+              activeSectionName.toLowerCase().replace(/[^a-z0-9]/g, '').includes(sec.cleanName.toLowerCase().replace(/[^a-z0-9]/g, ''));
+
+            let badgeBg = 'rgba(255, 255, 255, 0.08)';
+            let badgeBorder = 'rgba(255, 255, 255, 0.16)';
+            let badgeColor = '#cbd5e1';
+
+            if (sec.type === 'chorus') {
+              badgeBg = isMatch ? '#9333ea' : 'rgba(168, 85, 247, 0.18)';
+              badgeBorder = isMatch ? '#c084fc' : 'rgba(168, 85, 247, 0.45)';
+              badgeColor = isMatch ? '#fff' : '#d8b4fe';
+            } else if (sec.type === 'bridge') {
+              badgeBg = isMatch ? '#d97706' : 'rgba(245, 158, 11, 0.18)';
+              badgeBorder = isMatch ? '#fbbf24' : 'rgba(245, 158, 11, 0.45)';
+              badgeColor = isMatch ? '#fff' : '#fde047';
+            } else if (sec.type === 'verse') {
+              badgeBg = isMatch ? '#0284c7' : 'rgba(14, 165, 233, 0.16)';
+              badgeBorder = isMatch ? '#38bdf8' : 'rgba(14, 165, 233, 0.4)';
+              badgeColor = isMatch ? '#fff' : '#7dd3fc';
+            } else if (sec.type === 'prechorus') {
+              badgeBg = isMatch ? '#0d9488' : 'rgba(20, 184, 166, 0.16)';
+              badgeBorder = isMatch ? '#2dd4bf' : 'rgba(20, 184, 166, 0.4)';
+              badgeColor = isMatch ? '#fff' : '#5eead4';
+            } else if (sec.type === 'intro' || sec.type === 'outro' || sec.type === 'interlude') {
+              badgeBg = isMatch ? '#475569' : 'rgba(148, 163, 184, 0.12)';
+              badgeBorder = isMatch ? '#94a3b8' : 'rgba(148, 163, 184, 0.25)';
+              badgeColor = isMatch ? '#fff' : '#94a3b8';
+            }
+
+            return (
+              <button
+                key={sec.id}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  jumpToSection(sec.name, sec.lineIdx >= 0 ? sec.lineIdx : undefined);
+                }}
+                title={`Jump to ${sec.name}`}
+                style={{
+                  flexShrink: 0,
+                  padding: '5px 11px',
+                  borderRadius: '16px',
+                  backgroundColor: badgeBg,
+                  border: `1.5px solid ${badgeBorder}`,
+                  color: badgeColor,
+                  fontSize: '11px',
+                  fontWeight: 800,
+                  letterSpacing: '0.2px',
+                  textTransform: 'uppercase',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  boxShadow: isMatch ? '0 0 10px rgba(78, 177, 203, 0.5)' : 'none',
+                  transform: isMatch ? 'scale(1.04)' : 'scale(1)',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {sec.cleanName}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </>
   );
 };

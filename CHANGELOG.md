@@ -1,3 +1,12 @@
+## [v2.75.2] — 2026-10-23
+### Added / Changed
+- **Solo Worship Ambient Pad Floating FAB**: Added a floating Ambient Pad action button directly in the stage navigation dock featuring current key readout (`[G]`, `[A]`, `[C]`, etc.), glow state indicator, single-tap Play/Pause toggle with 3.0s smooth fade, and gear shortcut for sound & volume customization.
+- **Continuous Worship Auto-Crossfade on Song Switch**: When switching songs during a live set (via left/right swipe gestures, navigation buttons, or setlist selection), if the ambient pad is playing, it automatically shifts to the new song's key with a seamless dual-deck 3.0-second crossfade so there is zero audio cut, zero clicks, and no dead silence during worship transitions. If paused, it automatically primes the new key without playing audio.
+- **Ambient Pad Solo Volume Sweet-Spot**: Configured default ambient pad volume to 25% (0.25) specifically tailored for solo acoustic guitar and vocals so the pad creates a warm sonic cushion without clashing, persisted in `localStorage`.
+- **Floating Bottom Section Quick-Jump Dock**: Added a glassmorphism pill dock at the bottom of the band stage sheet displaying song sections (Intro, Verse, Chorus, Bridge, Outro, etc.) with color-coded badges. Tapping any section smoothly glides directly to that part of the song chart; active section highlights automatically during playback.
+- **Yellow Auto-Scroll Play Button**: Converted the auto-scroll floating action button from a scroll icon to a vibrant yellow Play button (`▶`), toggling to an active Pause indicator (`⏸`) while scrolling.
+- **Removed Duplicate Floating BPM Button**: Cleaned up the right-hand floating navigation dock by removing the redundant circular BPM pulse button, keeping the screen clutter-free while preserving metronome settings in the top bar.
+
 ## [v2.75.1] — 2026-10-23
 ### Fixed
 - **Setlist Song Sorting & Drag-and-Drop Reliability**: Fixed issue where songs in a setlist could not be moved or sorted to the bottom position (e.g. moving Adlaw-Adlaw to the last spot).
