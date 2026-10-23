@@ -32,6 +32,8 @@ interface StageTopBarProps {
   worshipLeaderKey?: string;
   onRevertKey?: () => void;
   onOpenInstallModal?: () => void;
+  onCopyProPresenter?: () => void;
+  isCopiedProPresenter?: boolean;
 }
 
 export const StageTopBar: React.FC<StageTopBarProps> = ({
@@ -55,6 +57,8 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
   worshipLeaderKey,
   onRevertKey,
   onOpenInstallModal,
+  onCopyProPresenter,
+  isCopiedProPresenter = false,
 }) => {
   const [copiedLink, setCopiedLink] = React.useState(false);
   const [isUpdatingApp, setIsUpdatingApp] = React.useState(false);
@@ -472,6 +476,35 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
             <span>🗒️</span>
             <span>Notes</span>
           </button>
+          {onCopyProPresenter && (
+            <button
+              onClick={onCopyProPresenter}
+              title={
+                isCopiedProPresenter
+                  ? 'Copied to clipboard! In ProPresenter 7, go to File > Import > Text from Clipboard.'
+                  : 'Copy lyrics formatted for ProPresenter 7 (2 lines per slide, Verse/Chorus/Bridge groups)'
+              }
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '0 10px',
+                height: '34px',
+                borderRadius: '8px',
+                background: isCopiedProPresenter ? 'rgba(16, 185, 129, 0.2)' : '#1e293b',
+                border: `1px solid ${isCopiedProPresenter ? '#10b981' : '#334155'}`,
+                color: isCopiedProPresenter ? '#10b981' : '#f8fafc',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                transition: 'all 0.18s ease',
+              }}
+            >
+              <span>{isCopiedProPresenter ? '✅' : '📋'}</span>
+              <span>{isCopiedProPresenter ? 'Copied Pro7!' : 'ProPresenter'}</span>
+            </button>
+          )}
           <button
             onClick={onOpenAmbientPad}
             title="Ambient Worship Pads"

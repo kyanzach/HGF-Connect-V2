@@ -1,3 +1,8 @@
+## [v2.75.5] — 2026-10-23
+### Added / Fixed
+- **ProPresenter 7 One-Tap Import from Clipboard**: Added a dedicated `📋 ProPresenter` button placed directly between the Notes icon and Ambient Pad in the stage top bar. Formats lyrics strictly to ProPresenter 7's clipboard import specification (`File > Import > Text from Clipboard`): automatically strips chords, bracketed cues, and instrumental notes; labels standard slide group headers (`Verse 1`, `Verse 2`, `Chorus`, `Bridge`, `Pre-Chorus`, `Interlude`, `Outro`, etc.); and groups lyrics into clean **2 lines per slide** separated by double blank lines for instant 16:9 projection and lower-thirds presentation.
+- **Ultra-Smooth GPU Subpixel Auto-Scroll**: Fixed robotic and stuttery stepping at slow scroll speeds (1x to 3x). Replaced integer-quantized `element.scrollTop` stepping with a hybrid GPU subpixel compositor using `translate3d(0, -subpixelRemainder, 0)` on the scroll body. Eliminated frame-by-frame layout thrashing by throttling section detection to 350ms and resetting scroll behaviors to ensure 60fps buttery-smooth motion even at 2.0 px/sec.
+
 ## [v2.75.4] — 2026-10-23
 ### Fixed / Changed
 - **Section Quick-Jump Click Scrolling Fix**: Fixed issue where tapping section badges (`VERSE 2`, `CHORUS`, `BRIDGE`, etc.) did nothing or snapped back immediately. Resolved root cause where active auto-scroll animation frames fought scroll position changes, and element `offsetTop` was skewed by `#sheetScrollBody`'s relative positioning. Now uses true bounding client rects relative to the scroll container, synchronizes auto-scroll position refs seamlessly during and after the jump, and adds an instant cyan glow highlight on arrival for clear visual feedback.

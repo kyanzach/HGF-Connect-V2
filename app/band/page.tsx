@@ -36,6 +36,7 @@ import { BandInstallModal } from './components/modals/BandInstallModal';
 
 import { BandUser, Song, Setlist, AudioTrack, AudioMarker, DrawingStroke } from './types/band';
 import { getCachedAudioMarkers, saveCachedAudioMarkers } from './lib/audioAnalysis';
+import { formatSongForProPresenter, copyTextToClipboard } from './lib/propresenterExport';
 
 function parseDurationToSec(dur?: string): number {
   if (!dur) return 0;
@@ -453,6 +454,19 @@ export default function BandStagePage() {
   // Auto-scroll pacing & duration mode (default is speed mode)
   const [scrollMode, setScrollMode] = useState<'duration' | 'speed'>('speed');
   const [elapsedScrollSeconds, setElapsedScrollSeconds] = useState<number>(0);
+
+  // ProPresenter 7 Clipboard Export (2 lines per slide, Verse/Chorus/Bridge structure)
+  const [isCopiedProPresenter, setIsCopiedProPresenter] = useState<boolean>(false);
+  const handleCopyProPresenter = useCallback(async () => {
+    if (!currentSong) return;
+    const formatted = formatSongForProPresenter(currentSong, parsedLines);
+    if (!formatted) return;
+    const success = await copyTextToClipboard(formatted);
+    if (success) {
+      setIsCopiedProPresenter(true);
+      setTimeout(() => setIsCopiedProPresenter(false), 2500);
+    }
+  }, [currentSong, parsedLines]);
 
   // Login Gate Modal
   const [loginPrompt, setLoginPrompt] = useState<{
@@ -1566,6 +1580,8 @@ export default function BandStagePage() {
           worshipLeaderKey={officialWorshipLeaderKey || undefined}
           onRevertKey={handleUnifiedRevertKey}
           onOpenInstallModal={() => setIsInstallModalOpen(true)}
+          onCopyProPresenter={handleCopyProPresenter}
+          isCopiedProPresenter={isCopiedProPresenter}
         />
       )}
 

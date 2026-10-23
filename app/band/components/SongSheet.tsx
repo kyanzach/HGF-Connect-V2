@@ -184,6 +184,8 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   hasAutoScrollBar = false,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const scrollBodyRef = useRef<HTMLDivElement>(null);
+  const lastSectionCheckTimeRef = useRef<number>(0);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
   const lastTapTimeRef = useRef<number>(0);
@@ -368,23 +370,30 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     if (!containerRef.current) return;
     const currentScroll = containerRef.current.scrollTop;
 
-    // Detect section currently in view
-    const headers = Array.from(containerRef.current.querySelectorAll<HTMLElement>('[data-section-title]'));
-    const scrollY = currentScroll + 60;
-    let foundSection = '';
-    for (const h of headers) {
-      if (h.offsetTop <= scrollY) {
-        foundSection = h.getAttribute('data-section-title') || h.textContent || '';
-      } else {
-        break;
+    // Throttle section detection to prevent layout reflow thrashing on every scroll event
+    const now = Date.now();
+    if (now - lastSectionCheckTimeRef.current > 350) {
+      lastSectionCheckTimeRef.current = now;
+      const headers = Array.from(containerRef.current.querySelectorAll<HTMLElement>('[data-section-title]'));
+      const scrollY = currentScroll + 60;
+      let foundSection = '';
+      for (const h of headers) {
+        if (h.offsetTop <= scrollY) {
+          foundSection = h.getAttribute('data-section-title') || h.textContent || '';
+        } else {
+          break;
+        }
       }
-    }
-    if (foundSection) {
-      setActiveSectionName(foundSection);
+      if (foundSection && foundSection !== activeSectionName) {
+        setActiveSectionName(foundSection);
+      }
     }
 
     if (isUserInteractingRef.current) {
       scrollPosRef.current = currentScroll;
+      if (scrollBodyRef.current) {
+        scrollBodyRef.current.style.transform = '';
+      }
       const maxScroll = containerRef.current.scrollHeight - containerRef.current.clientHeight;
       if (maxScroll > 0) {
         const totalMs = effectiveTargetSecRef.current * 1000;
@@ -399,9 +408,14 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     }
   };
 
-  // Resilient, abuse-proof Auto-Scroll loop (60fps/120fps requestAnimationFrame)
+  // Resilient, abuse-proof Auto-Scroll loop (60fps/120fps requestAnimationFrame with GPU Subpixel Compositing)
   useEffect(() => {
-    if (!isAutoScrolling || !containerRef.current) return;
+    if (!isAutoScrolling || !containerRef.current) {
+      if (scrollBodyRef.current) {
+        scrollBodyRef.current.style.transform = '';
+      }
+      return;
+    }
     const container = containerRef.current;
     const maxScroll = container.scrollHeight - container.clientHeight;
     const totalMs = effectiveTargetSecRef.current * 1000;
@@ -413,6 +427,9 @@ export const SongSheet: React.FC<SongSheetProps> = ({
       elapsedMsRef.current = 0;
       lastReportedSecRef.current = 0;
       onUpdateElapsedRef.current?.(0);
+      if (scrollBodyRef.current) {
+        scrollBodyRef.current.style.transform = '';
+      }
     } else {
       scrollPosRef.current = container.scrollTop;
       if (maxScroll > 0) {
@@ -436,6 +453,9 @@ export const SongSheet: React.FC<SongSheetProps> = ({
         if (isUserInteractingRef.current) {
           // User is dragging or touching the screen: synchronize position without fighting user
           scrollPosRef.current = el.scrollTop;
+          if (scrollBodyRef.current) {
+            scrollBodyRef.current.style.transform = '';
+          }
           if (currentMaxScroll > 0) {
             elapsedMsRef.current = (el.scrollTop / currentMaxScroll) * currentTotalMs;
           }
@@ -445,7 +465,13 @@ export const SongSheet: React.FC<SongSheetProps> = ({
             elapsedMsRef.current = Math.min(currentTotalMs, elapsedMsRef.current + dt);
             const ratio = elapsedMsRef.current / currentTotalMs;
             scrollPosRef.current = Math.min(currentMaxScroll, ratio * currentMaxScroll);
-            el.scrollTop = scrollPosRef.current;
+
+            const intScroll = Math.floor(scrollPosRef.current);
+            const subpixel = scrollPosRef.current - intScroll;
+            el.scrollTop = intScroll;
+            if (scrollBodyRef.current) {
+              scrollBodyRef.current.style.transform = `translate3d(0, ${-subpixel.toFixed(3)}px, 0)`;
+            }
 
             // Report elapsed seconds to UI
             const currentSec = Math.floor(elapsedMsRef.current / 1000);
@@ -455,24 +481,30 @@ export const SongSheet: React.FC<SongSheetProps> = ({
             }
 
             if (elapsedMsRef.current >= currentTotalMs || scrollPosRef.current >= currentMaxScroll - 1) {
+              if (scrollBodyRef.current) scrollBodyRef.current.style.transform = '';
               onAutoScrollCompleteRef.current?.();
               return;
             }
           } else {
-            // Speed Mode: continuous subpixel accumulation with calibrated gradual speeds
+            // Speed Mode: continuous subpixel GPU accumulation with calibrated gradual speeds
             const currentSpeed = scrollSpeedRef.current;
             const pxPerSec = SPEED_MAP[currentSpeed] || (currentSpeed <= 1 ? 2.0 : currentSpeed * 10);
             scrollPosRef.current = Math.min(currentMaxScroll, scrollPosRef.current + (dt / 1000) * pxPerSec);
-            el.scrollTop = scrollPosRef.current;
 
-            elapsedMsRef.current = (scrollPosRef.current / currentMaxScroll) * currentTotalMs;
-            const currentSec = Math.floor(elapsedMsRef.current / 1000);
-            if (currentSec !== lastReportedSecRef.current) {
-              lastReportedSecRef.current = currentSec;
-              onUpdateElapsedRef.current?.(currentSec);
+            // Subpixel GPU rendering:
+            // el.scrollTop handles integer scrolling (keeps bounds & native touch gestures aligned)
+            // translate3d handles subpixel fractional rendering (eliminates discrete 1-pixel stepped jumps)
+            const targetPos = scrollPosRef.current;
+            const intScroll = Math.floor(targetPos);
+            const subpixel = targetPos - intScroll;
+
+            el.scrollTop = intScroll;
+            if (scrollBodyRef.current) {
+              scrollBodyRef.current.style.transform = `translate3d(0, ${-subpixel.toFixed(3)}px, 0)`;
             }
 
-            if (scrollPosRef.current >= currentMaxScroll - 1) {
+            if (scrollPosRef.current >= currentMaxScroll - 0.5) {
+              if (scrollBodyRef.current) scrollBodyRef.current.style.transform = '';
               onAutoScrollCompleteRef.current?.();
               return;
             }
@@ -484,7 +516,12 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     };
 
     animId = requestAnimationFrame(frame);
-    return () => cancelAnimationFrame(animId);
+    return () => {
+      cancelAnimationFrame(animId);
+      if (scrollBodyRef.current) {
+        scrollBodyRef.current.style.transform = '';
+      }
+    };
   }, [isAutoScrolling]);
 
   const [activeSectionName, setActiveSectionName] = useState<string>('');
@@ -717,6 +754,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
         flex: 1,
         overflowY: 'auto',
         overflowX: 'hidden',
+        scrollBehavior: 'auto',
         paddingTop: isImmersionMode ? 'calc(env(safe-area-inset-top, 0px) + 24px)' : '16px',
         paddingLeft: '20px',
         paddingRight: '20px',
@@ -1130,11 +1168,13 @@ export const SongSheet: React.FC<SongSheetProps> = ({
       {/* CHORD & LYRIC BODY */}
       <div
         id="sheetScrollBody"
+        ref={scrollBodyRef}
         style={{
           fontSize: `${fontSizePx}px`,
           lineHeight: '1.6',
           whiteSpace: 'pre-wrap',
           position: 'relative',
+          willChange: isAutoScrolling ? 'transform' : 'auto',
         }}
       >
         {(() => {
