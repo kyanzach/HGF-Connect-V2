@@ -49,14 +49,20 @@ function isPerformanceCue(l: string): boolean {
 
 export function matchSectionHeader(raw: string): string | null {
   const line = raw.trim();
-  const m = line.match(/^\[?\s*(intro|verse\s*\d*|pre-?chorus\s*\d*|half-?chorus\s*\d*|post-?chorus\s*\d*|chorus\s*\d*|bridge\s*\d*|interlude|instrumental\s*\d*|tag\s*\d*|outro|ending|refrain|vamp|coda)\b([^\]\n]*)/i);
+  const m = line.match(/^\[?\s*(intro|verse\s*\d*|[a-g][b#]?erse\s*\d*|pre-?chorus\s*\d*|[a-g][b#]?re-?chorus\s*\d*|half-?chorus\s*\d*|post-?chorus\s*\d*|chorus\s*\d*|[a-g][b#]?horus\s*\d*|bridge\s*\d*|[a-g][b#]?ridge\s*\d*|interlude|instrumental\s*\d*|tag\s*\d*|outro|ending|refrain|vamp|coda)\b([^\]\n]*)/i);
   if (!m) return null;
 
-  const type = m[1].toLowerCase().replace(/[\s-]/g, '');
+  let type = m[1].toLowerCase().replace(/[\s-]/g, '');
   const rest = m[2] || '';
 
   const numMatch = m[1].match(/\d+/) || rest.match(/\d+/);
   const num = numMatch ? numMatch[0] : '';
+
+  // Recover from accidental transposition (e.g. Dhorus -> chorus, C#ridge -> bridge)
+  if (type.endsWith('horus') && !type.includes('pre')) type = 'chorus';
+  if (type.endsWith('rechorus')) type = 'prechorus';
+  if (type.endsWith('ridge')) type = 'bridge';
+  if (type.endsWith('erse')) type = 'verse';
 
   if (type.startsWith('intro')) return '[Intro]';
   if (type.startsWith('verse')) return `[Verse ${num || 1}]`;

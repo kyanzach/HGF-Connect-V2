@@ -147,7 +147,7 @@ const SECTION_KEYWORDS = [
 ];
 
 const SECTION_REGEX = new RegExp(
-  `^\\s*(\\[?(${SECTION_KEYWORDS.join('|')})(\\s+[0-9A-Za-z]+)?\\s*\\]?:?)\\s*$`,
+  `^\\s*(\\[?(${SECTION_KEYWORDS.join('|')})(\\s+[0-9A-Za-z]+)?\\s*\\]?:?)(?:\\s*\\*.*\\*?)?\\s*$`,
   'i'
 );
 
@@ -321,7 +321,7 @@ export function parseAndTransposeSheetLines(
     // Check if line is a section header (e.g., Intro, Intro:, DROP:, HOLD:, [Chorus], etc.)
     const isStandardSection = SECTION_REGEX.test(trimmed);
     const isCustomCue = STANDALONE_CUE_REGEX.test(trimmed) && trimmed.length <= 35 && !CHORD_TOKEN_REGEX.test(trimmed);
-    const isBracketedTag = /^\[[^\]]+\]:?$/.test(trimmed);
+    const isBracketedTag = /^\[[^\]]+\](?:\s*\*.*\*?)?:?$/.test(trimmed);
 
     if (isStandardSection || isCustomCue || isBracketedTag) {
       const cleanTitle = trimmed.replace(/^[\[\s]+|[\]:\s]+$/g, '').trim().toUpperCase();

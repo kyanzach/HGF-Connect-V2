@@ -1,3 +1,10 @@
+## [v2.75.8] — 2026-10-23
+### Fixed
+- **Transposed Section Header Recovery & Regex Hardening (`musicTheory.ts`, `ai-clean-lyrics`, `propresenterExport.ts`)**:
+  - Fixed edge case where songs transposed across musical keys had section headers mistakenly corrupted by chord replacement (e.g. `[Chorus]` containing root note `C` transposed into `[Dhorus]`, or `[Bridge]` containing root `B` transposed into `[C#ridge]`), causing all sections to fail detection and collapse into `Verse 1`.
+  - Added smart transposition recovery in `matchSectionHeader`: automatically detects and recovers corrupted headers (`Dhorus` -> `[Chorus]`, `C#ridge` -> `[Bridge]`, `*erse` -> `[Verse #]`, `*rechorus` -> `[Pre-Chorus]`).
+  - Hardened `SECTION_REGEX` and `isBracketedTag` in `musicTheory.ts` to recognize bracketed headers with dynamic/performance notes (e.g. `[Chorus] *Band in softly, cymbal swells*`), preventing them from ever being treated as chord lines during song transpositions.
+
 ## [v2.75.7] — 2026-10-23
 ### Fixed / Changed
 - **ProPresenter Lyrics Formatter & AI Trainer Alignment (`/api/worship/ai-clean-lyrics`, `propresenterExport.ts`)**:
