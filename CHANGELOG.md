@@ -1,3 +1,10 @@
+## [v2.75.3] — 2026-10-23
+### Fixed / Changed
+- **Resolved Dock Overlap (Auto-Scroll Bar vs Section Quick-Jump Dock)**: When the Auto-Scroll speed/timer bar is open, the Section Quick-Jump Dock smoothly glides up (+78px) above it, eliminating visual collision and ensuring both controls remain fully visible and usable.
+- **Ambient Pad Long-Press & Clean FAB**: Removed the tiny overlapping gear badge on the Pad button. Implemented a responsive 450ms long-press (with haptic vibration on touchscreens) and double-tap to open the full Ambient Pad modal (where keys and volume can be easily selected with large touch targets), while keeping quick single-tap for Play/Pause toggle.
+- **Added Quick Volume Presets**: Added 1-tap volume presets in the Ambient Pad Modal (`15% Soft`, `25% Solo Sweet Spot ✨`, `40% Medium`, `60% Full`).
+- **Safe Setlist Song Removal (Prevent Accidental Master Library Deletion)**: In the Setlists view, replaced the red trash can with a safe "Remove from Setlist" button (`✕`). Removing a song from a setlist now strictly modifies the lineup and NEVER deletes the song from the master songbook library. Reserved permanent library deletion strictly for the "All Songs" view with an explicit confirmation dialog.
+
 ## [v2.75.2] — 2026-10-23
 ### Added / Changed
 - **Solo Worship Ambient Pad Floating FAB**: Added a floating Ambient Pad action button directly in the stage navigation dock featuring current key readout (`[G]`, `[A]`, `[C]`, etc.), glow state indicator, single-tap Play/Pause toggle with 3.0s smooth fade, and gear shortcut for sound & volume customization.

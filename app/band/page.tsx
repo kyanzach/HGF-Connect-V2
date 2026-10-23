@@ -1604,6 +1604,7 @@ export default function BandStagePage() {
         currentUser={currentUser}
         onUpdateSongNotes={handleSaveSongNotes}
         hasPlaybackDock={isPlaybackDockVisible}
+        hasAutoScrollBar={showAutoScrollBar}
         drawingCanvasElement={
           <DrawingCanvas
             key={`drawing_${currentSong?.id}_${currentUser?.id || 'guest'}`}

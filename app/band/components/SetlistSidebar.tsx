@@ -1072,30 +1072,70 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
                       </div>
                     )}
 
-                    {/* Quick Delete Song Action (Admin / MD Only) */}
-                    {(currentUser?.role === 'admin' || currentUser?.role === 'MD') && (
+                    {/* If inside an active setlist: show 'Remove from Setlist' button (keeps song in library!) */}
+                    {activeSetlist ? (
                       <button
-                        title="Delete song from songbook (Admin/MD)"
+                        type="button"
+                        title={`Remove "${song.title}" from ${activeSetlist.name} (keeps song in library)`}
                         onClick={(e) => {
                           e.stopPropagation();
-                          setSongToDelete(song);
+                          if (onRemoveSongFromSetlist) {
+                            onRemoveSongFromSetlist(song.id, activeSetlist.id);
+                          }
                         }}
                         style={{
-                          width: '22px',
-                          height: '22px',
-                          borderRadius: '5px',
-                          border: '1px solid rgba(239, 68, 68, 0.25)',
-                          background: 'rgba(239, 68, 68, 0.08)',
+                          width: '24px',
+                          height: '24px',
+                          borderRadius: '6px',
+                          border: '1px solid rgba(239, 68, 68, 0.35)',
+                          background: 'rgba(239, 68, 68, 0.12)',
                           color: '#f87171',
                           fontSize: '11px',
+                          fontWeight: 800,
                           cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
+                          transition: 'all 0.15s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'rgba(239, 68, 68, 0.25)';
+                          e.currentTarget.style.borderColor = '#ef4444';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)';
+                          e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.35)';
                         }}
                       >
-                        🗑️
+                        ✕
                       </button>
+                    ) : (
+                      /* ONLY in "All Songs" master library view: show permanent library delete button for Admin/MD */
+                      (currentUser?.role === 'admin' || currentUser?.role === 'MD') && (
+                        <button
+                          type="button"
+                          title="Permanently delete song from church library (Admin/MD)"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSongToDelete(song);
+                          }}
+                          style={{
+                            width: '24px',
+                            height: '24px',
+                            borderRadius: '6px',
+                            border: '1px solid rgba(239, 68, 68, 0.25)',
+                            background: 'rgba(239, 68, 68, 0.08)',
+                            color: '#f87171',
+                            fontSize: '11px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          🗑️
+                        </button>
+                      )
                     )}
                   </div>
                 </div>
@@ -1177,12 +1217,12 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
         </div>
       </aside>
 
-      {/* CONFIRMATION MODAL FOR DELETION */}
+      {/* CONFIRMATION MODAL FOR PERMANENT LIBRARY DELETION */}
       <ConfirmModal
         open={!!songToDelete}
-        title="🗑️ Delete Song from Songbook"
-        message={`Are you sure you want to delete "${songToDelete?.title}" from the songbook library? This will permanently remove the song and its chords.`}
-        confirmLabel="Delete Song"
+        title="⚠️ Permanently Delete from Church Library?"
+        message={`Are you sure you want to permanently delete "${songToDelete?.title}" from the entire church songbook library?\n\n⚠️ NOTE: This removes the song permanently for all musicians.\nIf you only wanted to remove this song from a setlist, cancel this and use the "✕" button inside that setlist instead.`}
+        confirmLabel="Permanently Delete Song"
         confirmColor="#ef4444"
         loading={isDeleting}
         onConfirm={async () => {

@@ -130,7 +130,9 @@ export const AmbientPadModal: React.FC<AmbientPadModalProps> = ({
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 700, color: '#94a3b8', marginBottom: '8px' }}>
               <span>🔊 PAD VOLUME</span>
-              <span>{Math.round(volume * 100)}%</span>
+              <span style={{ color: Math.abs(volume - 0.25) < 0.03 ? '#38bdf8' : '#f1f5f9', fontWeight: 800 }}>
+                {Math.round(volume * 100)}%{Math.abs(volume - 0.25) < 0.03 ? ' (Solo Sweet Spot)' : ''}
+              </span>
             </div>
             <input
               type="range"
@@ -142,6 +144,38 @@ export const AmbientPadModal: React.FC<AmbientPadModalProps> = ({
               onChange={(e) => onChangeVolume(parseFloat(e.target.value))}
               style={{ width: '100%', accentColor: '#38bdf8', cursor: 'pointer' }}
             />
+            {/* Quick volume presets */}
+            <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
+              {[
+                { label: '15% Soft', val: 0.15 },
+                { label: '25% Solo ✨', val: 0.25 },
+                { label: '40% Medium', val: 0.4 },
+                { label: '60% Full', val: 0.6 },
+              ].map((p) => {
+                const isActive = Math.abs(volume - p.val) < 0.03;
+                return (
+                  <button
+                    key={p.val}
+                    type="button"
+                    onClick={() => onChangeVolume(p.val)}
+                    style={{
+                      flex: 1,
+                      padding: '4px 4px',
+                      borderRadius: '6px',
+                      border: `1px solid ${isActive ? '#38bdf8' : '#334155'}`,
+                      background: isActive ? 'rgba(56, 189, 248, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                      color: isActive ? '#38bdf8' : '#94a3b8',
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {p.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* 12-Key Pad Matrix */}

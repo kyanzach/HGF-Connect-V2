@@ -1,7 +1,7 @@
 // app/band/components/NavigationDock.tsx
 'use client';
 
-import React from 'react';
+import React, { useRef } from 'react';
 
 interface NavigationDockProps {
   onPrevSong: () => void;
@@ -55,6 +55,38 @@ export const NavigationDock: React.FC<NavigationDockProps> = ({
   onTogglePad,
   onOpenPadModal,
 }) => {
+  const padLongPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isPadLongPressTriggeredRef = useRef<boolean>(false);
+
+  const startPadLongPress = () => {
+    isPadLongPressTriggeredRef.current = false;
+    if (padLongPressTimerRef.current) clearTimeout(padLongPressTimerRef.current);
+    padLongPressTimerRef.current = setTimeout(() => {
+      isPadLongPressTriggeredRef.current = true;
+      try {
+        if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+          navigator.vibrate?.(45);
+        }
+      } catch (_) {}
+      onOpenPadModal?.();
+    }, 450);
+  };
+
+  const cancelPadLongPress = () => {
+    if (padLongPressTimerRef.current) {
+      clearTimeout(padLongPressTimerRef.current);
+      padLongPressTimerRef.current = null;
+    }
+  };
+
+  const handlePadClick = (e: React.MouseEvent) => {
+    if (isPadLongPressTriggeredRef.current) {
+      isPadLongPressTriggeredRef.current = false;
+      return;
+    }
+    onTogglePad?.();
+  };
+
   return (
     <div
       style={{
@@ -75,27 +107,38 @@ export const NavigationDock: React.FC<NavigationDockProps> = ({
       {onTogglePad && (
         <div style={{ position: 'relative' }}>
           <button
-            onClick={onTogglePad}
+            onTouchStart={startPadLongPress}
+            onTouchEnd={cancelPadLongPress}
+            onTouchCancel={cancelPadLongPress}
+            onTouchMove={cancelPadLongPress}
+            onMouseDown={startPadLongPress}
+            onMouseUp={cancelPadLongPress}
+            onMouseLeave={cancelPadLongPress}
+            onClick={handlePadClick}
+            onDoubleClick={(e) => {
+              e.preventDefault();
+              onOpenPadModal?.();
+            }}
             onContextMenu={(e) => {
               e.preventDefault();
               onOpenPadModal?.();
             }}
             title={
               isPadPlaying
-                ? `Ambient Pad Playing [${activePadKey}] • Tap to Fade Out • Gear icon for settings`
+                ? `Ambient Pad: [${activePadKey}] Playing • Tap to Fade Out • Hold (Long-Press) to change Key & Volume`
                 : isPadFadingOut
-                ? `Ambient Pad Fading Out [${activePadKey}]`
-                : `Ambient Pad Paused [${activePadKey}] • Tap to Play ambient bed • Gear icon for settings`
+                ? `Ambient Pad: [${activePadKey}] Fading Out`
+                : `Ambient Pad: [${activePadKey}] Paused • Tap to Play • Hold (Long-Press) to change Key & Volume`
             }
             style={{
-              width: '44px',
-              height: '44px',
+              width: '46px',
+              height: '46px',
               borderRadius: '50%',
               backgroundColor: isPadPlaying
-                ? 'rgba(78, 177, 203, 0.22)'
+                ? 'rgba(78, 177, 203, 0.25)'
                 : isPadFadingOut
-                ? 'rgba(245, 158, 11, 0.16)'
-                : 'rgba(22, 28, 38, 0.85)',
+                ? 'rgba(245, 158, 11, 0.18)'
+                : 'rgba(22, 28, 38, 0.9)',
               backdropFilter: 'blur(10px)',
               border: `1.5px solid ${
                 isPadPlaying ? '#4EB1CB' : isPadFadingOut ? '#f59e0b' : '#334155'
@@ -107,18 +150,18 @@ export const NavigationDock: React.FC<NavigationDockProps> = ({
               justifyContent: 'center',
               cursor: 'pointer',
               boxShadow: isPadPlaying
-                ? '0 0 16px rgba(78, 177, 203, 0.65), 0 6px 16px rgba(0,0,0,0.5)'
+                ? '0 0 18px rgba(78, 177, 203, 0.7), 0 6px 16px rgba(0,0,0,0.5)'
                 : isPadFadingOut
-                ? '0 0 14px rgba(245, 158, 11, 0.4), 0 6px 16px rgba(0,0,0,0.5)'
+                ? '0 0 14px rgba(245, 158, 11, 0.45), 0 6px 16px rgba(0,0,0,0.5)'
                 : '0 6px 16px rgba(0,0,0,0.5)',
               transform: isPadPlaying ? 'scale(1.05)' : 'scale(1)',
               transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
             }}
           >
-            <span style={{ fontSize: '13px', lineHeight: 1 }}>🎹</span>
+            <span style={{ fontSize: '14px', lineHeight: 1 }}>🎹</span>
             <span
               style={{
-                fontSize: '9px',
+                fontSize: '9.5px',
                 fontWeight: 900,
                 marginTop: '1px',
                 letterSpacing: '-0.3px',
@@ -129,37 +172,6 @@ export const NavigationDock: React.FC<NavigationDockProps> = ({
               {activePadKey}
             </span>
           </button>
-
-          {/* Settings mini-badge to open Ambient Pad modal */}
-          {onOpenPadModal && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenPadModal();
-              }}
-              title="Ambient Pad Settings (Volume, Key, Sounds)"
-              style={{
-                position: 'absolute',
-                top: '-4px',
-                right: '-4px',
-                width: '18px',
-                height: '18px',
-                borderRadius: '50%',
-                backgroundColor: '#1e293b',
-                border: '1px solid #475569',
-                color: '#cbd5e1',
-                fontSize: '9px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                padding: 0,
-                boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
-              }}
-            >
-              ⚙
-            </button>
-          )}
         </div>
       )}
 

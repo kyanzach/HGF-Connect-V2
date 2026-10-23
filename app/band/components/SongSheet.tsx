@@ -42,6 +42,7 @@ interface SongSheetProps {
   onUpdateSongNotes?: (notes: string) => Promise<void>;
   onRevertToMasterLyrics?: () => void;
   hasPlaybackDock?: boolean;
+  hasAutoScrollBar?: boolean;
 }
 
 export const SongSheet: React.FC<SongSheetProps> = ({
@@ -78,6 +79,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   onUpdateSongNotes,
   onRevertToMasterLyrics,
   hasPlaybackDock = false,
+  hasAutoScrollBar = false,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number | null>(null);
@@ -585,7 +587,9 @@ export const SongSheet: React.FC<SongSheetProps> = ({
         paddingBottom: isImmersionMode
           ? 'calc(env(safe-area-inset-bottom, 0px) + 80px)'
           : hasPlaybackDock
-          ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 280px)'
+          ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 290px)'
+          : hasAutoScrollBar
+          ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 220px)'
           : 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 160px)',
         backgroundColor: '#0a0d14',
         color: '#f8fafc',
@@ -1172,8 +1176,13 @@ export const SongSheet: React.FC<SongSheetProps> = ({
             position: 'fixed',
             left: '16px',
             bottom: hasPlaybackDock
-              ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 148px)'
+              ? hasAutoScrollBar
+                ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 206px)'
+                : 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 148px)'
+              : hasAutoScrollBar
+              ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 78px)'
               : 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 20px)',
+            transition: 'bottom 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
             maxWidth: 'calc(100vw - 86px)',
             zIndex: 55,
             display: 'flex',
