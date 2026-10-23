@@ -72,6 +72,7 @@ export interface Song {
   updatedAt?: number;
   saveAsMaster?: boolean;
   hasCustomLyrics?: boolean;
+  proPresenterLyrics?: string;
 }
 
 export interface SetlistSongItem {

@@ -1,3 +1,11 @@
+## [v2.75.6] — 2026-10-23
+### Added / Fixed
+- **AI-Powered ProPresenter Lyric Cleaning & Server Persistence (`/api/worship/ai-clean-lyrics`, `propresenterExport.ts`, `StageTopBar.tsx`)**:
+  - Implemented 1-click intelligent cleanup using the lowest credit tier LLM (`gpt-4o-mini`) to detect and eliminate all non-lyrical clutter across worship chord sheets, including multi-line asterisks, performance dynamics (`*Piano only*`, `*Band in softly, cymbal swells*`, `*tom groove*`, `*breakdown*`, `*dropdown, 2 bar vamp*`, `*marching snare*`), guitar tab notation (`G=320033...`), scraper tags, inline chords, and empty instrumental sections (`[Intro]`, `[Interlude]`, `[Vamp]`, `[Ending]`).
+  - Automatically structures lyrics into standard ProPresenter 7 slide groups (`Verse 1`, `Verse 2`, `Chorus`, `Pre-Chorus`, `Bridge`, `Tag`, `Outro`) and strictly pairs lyrics into **2 lines per slide**, separated by blank lines.
+  - **Single-Click Workflow & Disk Persistence**: On first click, AI cleans the song, formats it, copies it to the clipboard, and saves the cleaned presentation text into the song's JSON file (`proPresenterLyrics`). Subsequent clicks on that song copy the saved clean version instantly with zero latency and 0 AI credit spend.
+  - Added visual button states (`✨ Cleaning with AI...` -> `✅ Copied Pro7!`) and a dedicated re-clean button (`✨`) for updating cached lyrics whenever chord charts are edited.
+
 ## [v2.75.5] — 2026-10-23
 ### Added / Fixed
 - **ProPresenter 7 One-Tap Import from Clipboard**: Added a dedicated `📋 ProPresenter` button placed directly between the Notes icon and Ambient Pad in the stage top bar. Formats lyrics strictly to ProPresenter 7's clipboard import specification (`File > Import > Text from Clipboard`): automatically strips chords, bracketed cues, and instrumental notes; labels standard slide group headers (`Verse 1`, `Verse 2`, `Chorus`, `Bridge`, `Pre-Chorus`, `Interlude`, `Outro`, etc.); and groups lyrics into clean **2 lines per slide** separated by double blank lines for instant 16:9 projection and lower-thirds presentation.

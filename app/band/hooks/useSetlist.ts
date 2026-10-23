@@ -617,6 +617,21 @@ export function useSetlist() {
     removeSongFromSetlist,
     reorderSongInSetlist,
     optimisticAddSong,
+    updateSongInMemory: (updatedSong: Song) => {
+      setSongs((prev) => prev.map((s) => (s.id === updatedSong.id ? updatedSong : s)));
+      if (typeof window !== 'undefined') {
+        try {
+          const cachedSongs = localStorage.getItem(STORAGE_LOCAL_SONGS);
+          if (cachedSongs) {
+            const parsed = JSON.parse(cachedSongs);
+            if (Array.isArray(parsed)) {
+              const updated = parsed.map((s: Song) => (s.id === updatedSong.id ? updatedSong : s));
+              localStorage.setItem(STORAGE_LOCAL_SONGS, JSON.stringify(updated));
+            }
+          }
+        } catch (_) {}
+      }
+    },
     refreshData,
   };
 }

@@ -34,6 +34,9 @@ interface StageTopBarProps {
   onOpenInstallModal?: () => void;
   onCopyProPresenter?: () => void;
   isCopiedProPresenter?: boolean;
+  isCleaningProPresenter?: boolean;
+  hasSavedProPresenterLyrics?: boolean;
+  onReCleanProPresenter?: () => void;
 }
 
 export const StageTopBar: React.FC<StageTopBarProps> = ({
@@ -59,6 +62,9 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
   onOpenInstallModal,
   onCopyProPresenter,
   isCopiedProPresenter = false,
+  isCleaningProPresenter = false,
+  hasSavedProPresenterLyrics = false,
+  onReCleanProPresenter,
 }) => {
   const [copiedLink, setCopiedLink] = React.useState(false);
   const [isUpdatingApp, setIsUpdatingApp] = React.useState(false);
@@ -477,33 +483,98 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
             <span>Notes</span>
           </button>
           {onCopyProPresenter && (
-            <button
-              onClick={onCopyProPresenter}
-              title={
-                isCopiedProPresenter
-                  ? 'Copied to clipboard! In ProPresenter 7, go to File > Import > Text from Clipboard.'
-                  : 'Copy lyrics formatted for ProPresenter 7 (2 lines per slide, Verse/Chorus/Bridge groups)'
-              }
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                padding: '0 10px',
-                height: '34px',
-                borderRadius: '8px',
-                background: isCopiedProPresenter ? 'rgba(16, 185, 129, 0.2)' : '#1e293b',
-                border: `1px solid ${isCopiedProPresenter ? '#10b981' : '#334155'}`,
-                color: isCopiedProPresenter ? '#10b981' : '#f8fafc',
-                fontSize: '12px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                transition: 'all 0.18s ease',
-              }}
-            >
-              <span>{isCopiedProPresenter ? '✅' : '📋'}</span>
-              <span>{isCopiedProPresenter ? 'Copied Pro7!' : 'ProPresenter'}</span>
-            </button>
+            <div style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
+              <button
+                onClick={onCopyProPresenter}
+                disabled={isCleaningProPresenter}
+                title={
+                  isCleaningProPresenter
+                    ? 'AI is cleaning chords, asterisks, and dynamics notes...'
+                    : isCopiedProPresenter
+                    ? 'Copied to clipboard! In ProPresenter 7, go to File > Import > Text from Clipboard.'
+                    : hasSavedProPresenterLyrics
+                    ? 'Copy AI-cleaned lyrics formatted for ProPresenter 7 (Saved on server). Click the sparkle icon to re-clean.'
+                    : '1-click: Clean with AI, save to server, & copy formatted for ProPresenter 7 (2 lines per slide, Verse/Chorus/Bridge groups)'
+                }
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '0 10px',
+                  height: '34px',
+                  borderRadius: hasSavedProPresenterLyrics && onReCleanProPresenter ? '8px 0 0 8px' : '8px',
+                  background: isCleaningProPresenter
+                    ? 'rgba(168, 85, 247, 0.2)'
+                    : isCopiedProPresenter
+                    ? 'rgba(16, 185, 129, 0.2)'
+                    : hasSavedProPresenterLyrics
+                    ? 'rgba(56, 189, 248, 0.12)'
+                    : '#1e293b',
+                  border: `1px solid ${
+                    isCleaningProPresenter
+                      ? '#a855f7'
+                      : isCopiedProPresenter
+                      ? '#10b981'
+                      : hasSavedProPresenterLyrics
+                      ? '#38bdf8'
+                      : '#334155'
+                  }`,
+                  color: isCleaningProPresenter
+                    ? '#c084fc'
+                    : isCopiedProPresenter
+                    ? '#10b981'
+                    : hasSavedProPresenterLyrics
+                    ? '#38bdf8'
+                    : '#f8fafc',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: isCleaningProPresenter ? 'wait' : 'pointer',
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.18s ease',
+                  opacity: isCleaningProPresenter ? 0.85 : 1,
+                }}
+              >
+                <span>
+                  {isCleaningProPresenter ? '✨' : isCopiedProPresenter ? '✅' : hasSavedProPresenterLyrics ? '📋' : '✨'}
+                </span>
+                <span>
+                  {isCleaningProPresenter
+                    ? 'Cleaning with AI...'
+                    : isCopiedProPresenter
+                    ? 'Copied Pro7!'
+                    : hasSavedProPresenterLyrics
+                    ? 'ProPresenter'
+                    : 'AI Pro7'}
+                </span>
+              </button>
+              {hasSavedProPresenterLyrics && onReCleanProPresenter && !isCleaningProPresenter && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onReCleanProPresenter();
+                  }}
+                  title="Re-clean lyrics with AI (lowest credit) and update saved version"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '24px',
+                    height: '34px',
+                    borderRadius: '0 8px 8px 0',
+                    border: '1px solid #38bdf8',
+                    borderLeft: 'none',
+                    background: 'rgba(56, 189, 248, 0.15)',
+                    color: '#38bdf8',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.18s ease',
+                  }}
+                >
+                  ✨
+                </button>
+              )}
+            </div>
           )}
           <button
             onClick={onOpenAmbientPad}

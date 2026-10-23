@@ -36,7 +36,7 @@ import { BandInstallModal } from './components/modals/BandInstallModal';
 
 import { BandUser, Song, Setlist, AudioTrack, AudioMarker, DrawingStroke } from './types/band';
 import { getCachedAudioMarkers, saveCachedAudioMarkers } from './lib/audioAnalysis';
-import { formatSongForProPresenter, copyTextToClipboard } from './lib/propresenterExport';
+import { formatSongForProPresenter, copyTextToClipboard, cleanSongWithAi } from './lib/propresenterExport';
 
 function parseDurationToSec(dur?: string): number {
   if (!dur) return 0;
@@ -80,6 +80,7 @@ export default function BandStagePage() {
     removeSongFromSetlist,
     reorderSongInSetlist,
     optimisticAddSong,
+    updateSongInMemory,
     refreshData,
   } = useSetlist();
 
@@ -455,18 +456,48 @@ export default function BandStagePage() {
   const [scrollMode, setScrollMode] = useState<'duration' | 'speed'>('speed');
   const [elapsedScrollSeconds, setElapsedScrollSeconds] = useState<number>(0);
 
-  // ProPresenter 7 Clipboard Export (2 lines per slide, Verse/Chorus/Bridge structure)
+  // ProPresenter 7 Clipboard Export (AI Detection, Cleanup & Server Persistence)
   const [isCopiedProPresenter, setIsCopiedProPresenter] = useState<boolean>(false);
-  const handleCopyProPresenter = useCallback(async () => {
+  const [isCleaningProPresenter, setIsCleaningProPresenter] = useState<boolean>(false);
+
+  const handleCopyProPresenter = useCallback(async (forceRefresh = false) => {
     if (!currentSong) return;
-    const formatted = formatSongForProPresenter(currentSong, parsedLines);
-    if (!formatted) return;
-    const success = await copyTextToClipboard(formatted);
-    if (success) {
-      setIsCopiedProPresenter(true);
-      setTimeout(() => setIsCopiedProPresenter(false), 2500);
+
+    // 1. If already cleaned & saved and not forcing refresh, copy immediately (0 AI requests)
+    if (!forceRefresh && currentSong.proPresenterLyrics && currentSong.proPresenterLyrics.trim()) {
+      const success = await copyTextToClipboard(currentSong.proPresenterLyrics.trim());
+      if (success) {
+        setIsCopiedProPresenter(true);
+        setTimeout(() => setIsCopiedProPresenter(false), 2500);
+      }
+      return;
     }
-  }, [currentSong, parsedLines]);
+
+    // 2. 1 process when clicked: AI cleans, saves separately to server, and copies to clipboard
+    setIsCleaningProPresenter(true);
+    try {
+      const { text } = await cleanSongWithAi(currentSong, forceRefresh);
+      if (text) {
+        // Update song state and cache so subsequent clicks are instantaneous
+        const updatedSong = { ...currentSong, proPresenterLyrics: text };
+        updateSongInMemory(updatedSong);
+
+        const success = await copyTextToClipboard(text);
+        if (success) {
+          setIsCopiedProPresenter(true);
+          setTimeout(() => setIsCopiedProPresenter(false), 2500);
+        }
+      }
+    } catch (err) {
+      console.error('[handleCopyProPresenter] AI clean error:', err);
+    } finally {
+      setIsCleaningProPresenter(false);
+    }
+  }, [currentSong]);
+
+  const handleReCleanProPresenter = useCallback(() => {
+    handleCopyProPresenter(true);
+  }, [handleCopyProPresenter]);
 
   // Login Gate Modal
   const [loginPrompt, setLoginPrompt] = useState<{
@@ -1580,8 +1611,11 @@ export default function BandStagePage() {
           worshipLeaderKey={officialWorshipLeaderKey || undefined}
           onRevertKey={handleUnifiedRevertKey}
           onOpenInstallModal={() => setIsInstallModalOpen(true)}
-          onCopyProPresenter={handleCopyProPresenter}
+          onCopyProPresenter={() => handleCopyProPresenter(false)}
           isCopiedProPresenter={isCopiedProPresenter}
+          isCleaningProPresenter={isCleaningProPresenter}
+          hasSavedProPresenterLyrics={Boolean(currentSong?.proPresenterLyrics && currentSong.proPresenterLyrics.trim())}
+          onReCleanProPresenter={handleReCleanProPresenter}
         />
       )}
 

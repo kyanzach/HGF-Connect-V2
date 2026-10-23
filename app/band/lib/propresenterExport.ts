@@ -2,12 +2,46 @@
 import type { SheetLine } from './musicTheory';
 import type { Song } from '../types/band';
 
+const CHORD_REGEX = /^[A-G][b#]?(?:m|min|maj|sus|add|dim|aug|[0-9]|\/[0-9])*(?:\/[A-G][b#]?(?:m|min|maj|sus|add|dim|aug|[0-9])*)?$/i;
+
+function isChordToken(w: string): boolean {
+  return CHORD_REGEX.test(w) || /^[-–—()|/]+$/.test(w);
+}
+
+function isChordLine(l: string): boolean {
+  const unbracketed = l.replace(/\[[A-G][b#]?[^\]]*\]/g, '').trim();
+  if (!unbracketed) return true;
+  const words = unbracketed.split(/\s+/);
+  return words.length > 0 && words.every(isChordToken);
+}
+
+function isPerformanceCue(l: string): boolean {
+  if (/^\*.*\*?$/.test(l)) return true;
+  if (/\*(?:piano|drum|guitar|bass|synth|acoustic|cymbal|swell|groove|breakdown|vamp|marching|snare|tom|layers|dynamics|build|all in|dropdown|hits|tempo|soft|loud)\b/i.test(l)) return true;
+  if (/^(?:guitar|marching|breakdown|instrumental|vamp|intro|interlude|outro|coda|solo):?$/i.test(l)) return true;
+  if (/^\((?:repeat|instrumental|solo|key\s+change|\d+x|all|band|drums|build|to verse)[^)]*\)$/i.test(l)) return true;
+  if (/^[A-G][b#]?=\d+/i.test(l)) return true;
+  return false;
+}
+
+function isPureInstrumentalHeader(l: string): boolean {
+  return /^\[?(intro|interlude|instrumental|vamp|coda|ending)/i.test(l);
+}
+
+function isSectionHeader(l: string): boolean {
+  return /^\[?(verse|chorus|pre-chorus|prechorus|bridge|tag|outro|refrain)/i.test(l) && !/[a-g][b#]?m/i.test(l);
+}
+
 /**
  * Normalizes section headers to standard ProPresenter 7 group names.
  * e.g. "VERSE 1" -> "Verse 1", "[CHORUS]" -> "Chorus", "b1" -> "Bridge 1"
  */
 export function normalizeProPresenterHeader(rawHeader: string): string {
-  const clean = rawHeader.replace(/^[\[|\s#:]+|[\]|\s#:]+$/g, '').trim();
+  let clean = rawHeader.replace(/[\[\]*:]/g, '').trim();
+  clean = clean.replace(/:.*$/, '').trim();
+  clean = clean.replace(/[-–—].*$/, '').trim();
+  clean = clean.replace(/\*.*\*?$/, '').trim();
+
   const lower = clean.toLowerCase();
 
   // Match Verse
@@ -59,7 +93,8 @@ export function normalizeProPresenterHeader(rawHeader: string): string {
     return num ? `Tag ${num[0]}` : 'Tag';
   }
 
-  // Title case any other custom cues
+  if (lower.includes('refrain')) return 'Refrain';
+
   return clean
     .split(/\s+/)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
@@ -68,13 +103,16 @@ export function normalizeProPresenterHeader(rawHeader: string): string {
 
 /**
  * Formats a song's lyrics for direct import into ProPresenter 7 from Clipboard.
- *
- * Requirements met:
- * 1. Chords, chord brackets, and pure instrumental lines are stripped.
- * 2. Section labels (Verse 1, Chorus, Bridge, etc.) format cleanly as slide group headers.
- * 3. Lyrics inside each section are grouped into exactly 2 lines per slide, separated by blank lines.
+ * If song has saved proPresenterLyrics, returns it immediately.
  */
 export function formatSongForProPresenter(song: Song | null, parsedLines?: SheetLine[]): string {
+  if (!song) return '';
+
+  // If already saved with AI cleanup, return immediately
+  if (song.proPresenterLyrics && song.proPresenterLyrics.trim()) {
+    return song.proPresenterLyrics.trim();
+  }
+
   interface SectionGroup {
     header: string;
     lines: string[];
@@ -93,99 +131,132 @@ export function formatSongForProPresenter(song: Song | null, parsedLines?: Sheet
     }
   };
 
-  // If parsedLines are available, use them because chord-lyric interlocking is already resolved
-  if (parsedLines && parsedLines.length > 0) {
-    for (const line of parsedLines) {
-      if (line.type === 'section') {
-        const raw = line.sectionName || line.raw || '';
-        const normHeader = normalizeProPresenterHeader(raw);
-        if (normHeader) {
-          pushCurrentGroup();
-          currentGroup.header = normHeader;
+  const rawText = (song.lyrics && song.lyrics.trim()) || (song.chords && song.chords.trim()) || '';
+  const rawLines = rawText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+
+  // Collapse multi-line asterisks
+  const prefilteredLines: string[] = [];
+  let inAsteriskBlock = false;
+  for (const line of rawLines) {
+    if (!inAsteriskBlock && line.includes('*') && (line.match(/\*/g) || []).length % 2 === 1) {
+      const beforeAst = line.substring(0, line.indexOf('*')).trim();
+      if (beforeAst) prefilteredLines.push(beforeAst);
+      inAsteriskBlock = true;
+      continue;
+    }
+    if (inAsteriskBlock) {
+      if (line.includes('*')) {
+        inAsteriskBlock = false;
+        const afterAst = line.substring(line.lastIndexOf('*') + 1).trim();
+        if (afterAst) prefilteredLines.push(afterAst);
+      }
+      continue;
+    }
+    prefilteredLines.push(line);
+  }
+
+  for (let i = 0; i < prefilteredLines.length; i++) {
+    let line = prefilteredLines[i];
+
+    // Extract bracketed headers if mixed with notes
+    const bracketedMatch = line.match(/^(\[(?:verse|chorus|pre-chorus|prechorus|bridge|tag|outro|refrain)[^\]]*\])(?:\s*\*.*\*?)?$/i);
+    if (bracketedMatch) {
+      line = bracketedMatch[1];
+    }
+
+    if (isPerformanceCue(line)) continue;
+    if (isChordLine(line)) continue;
+
+    if (isPureInstrumentalHeader(line)) {
+      let hasLyrics = false;
+      for (let j = i + 1; j < prefilteredLines.length; j++) {
+        let next = prefilteredLines[j];
+        const nextB = next.match(/^(\[[^\]]+\])\s*\*.*\*?$/);
+        if (nextB) next = nextB[1];
+        if (isSectionHeader(next) || isPureInstrumentalHeader(next)) break;
+        if (!isChordLine(next) && !isPerformanceCue(next)) {
+          hasLyrics = true;
+          break;
         }
-        continue;
       }
-
-      if (line.type === 'empty') continue;
-
-      // Extract pure lyrics
-      let lyric = '';
-      if (line.pairedLyric) {
-        lyric = line.pairedLyric;
-      } else if (line.pairs && line.pairs.length > 0) {
-        lyric = line.pairs.map((p) => p.lyric).join('');
-      } else if (line.items && line.items.length > 0) {
-        lyric = line.items.filter((it) => !it.isChord).map((it) => it.text).join('');
-      } else if (line.raw) {
-        lyric = line.raw;
-      }
-
-      // Strip bracketed chords e.g. [D], [G/B]
-      lyric = lyric.replace(/\[[A-G][b#]?[^\]]*\]/g, '').trim();
-
-      // Skip lines that were only musical chords, cues, or empty
-      if (!lyric || /^[A-G][b#]?(?:m|maj|min|sus|add|dim|aug|2|4|5|6|7|9|11|13)*(?:\/[A-G][b#]?)?(?:\s+[A-G][b#]?[^\s]*)*$/i.test(lyric)) {
-        continue;
-      }
-
-      // Skip performance cues like "(Repeat 2x)", "(Instrumental)", "(Key change)"
-      if (/^\((?:repeat|instrumental|solo|key\s+change|2x|3x|4x|all|band|drums|build)[^)]*\)$/i.test(lyric)) {
-        continue;
-      }
-
-      currentGroup.lines.push(lyric);
+      if (!hasLyrics) continue;
     }
-  } else if (song?.lyrics || song?.chords) {
-    // Fallback: parse raw song lyrics or chords
-    const rawText = song.lyrics || song.chords || '';
-    const rawLines = rawText.split('\n');
-    for (const rawLine of rawLines) {
-      const trimmed = rawLine.trim();
-      if (!trimmed) continue;
 
-      // Section header detection
-      if (/^(\[?[A-Za-z0-9\s/–-]+\]?:?)$/.test(trimmed) && trimmed.length <= 40 && !/[A-G][b#]?(?:m|maj|min|sus|add|dim|aug|2|4|5|6|7|9|11|13)/.test(trimmed)) {
-        pushCurrentGroup();
-        currentGroup.header = normalizeProPresenterHeader(trimmed);
-        continue;
-      }
-
-      // Strip chords
-      const unbracketed = trimmed.replace(/\[[A-G][b#]?[^\]]*\]/g, '').trim();
-      const words = unbracketed.split(/\s+/);
-      const isPureChords = words.length > 0 && words.every((w: string) =>
-        /^[A-G][b#]?(?:m|maj|min|sus|add|dim|aug|2|4|5|6|7|9|11|13)*(?:\/[A-G][b#]?)?$/.test(w) ||
-        /^[-–—()|/]+$/.test(w)
-      );
-
-      if (isPureChords || !unbracketed) continue;
-
-      currentGroup.lines.push(unbracketed);
+    if (isSectionHeader(line)) {
+      pushCurrentGroup();
+      currentGroup.header = normalizeProPresenterHeader(line);
+      continue;
     }
+
+    let lyric = line
+      .replace(/\[[A-G][b#]?[^\]]*\]/g, '')
+      .replace(/\*.*?\*/g, '')
+      .replace(/\((?:repeat|\d+x)[^)]*\)/gi, '')
+      .replace(/\[\d+x\]/gi, '')
+      .trim();
+
+    if (!lyric || isChordLine(lyric)) continue;
+    currentGroup.lines.push(lyric);
   }
 
   pushCurrentGroup();
 
-  if (sections.length === 0) return '';
-
-  // Format into ProPresenter 2-line slide blocks separated by blank lines
-  const outputSections: string[] = [];
-
-  for (const sec of sections) {
-    const slides: string[] = [];
-
-    // Group into 2 lines per slide
-    for (let i = 0; i < sec.lines.length; i += 2) {
-      const pair = sec.lines.slice(i, i + 2);
-      slides.push(pair.join('\n'));
+  const slidesOutput: string[] = [];
+  for (const g of sections) {
+    const gSlides: string[] = [];
+    for (let i = 0; i < g.lines.length; i += 2) {
+      if (i + 1 < g.lines.length) {
+        gSlides.push(`${g.lines[i]}\n${g.lines[i + 1]}`);
+      } else {
+        gSlides.push(g.lines[i]);
+      }
     }
-
-    if (slides.length > 0) {
-      outputSections.push(`${sec.header}\n${slides.join('\n\n')}`);
+    if (gSlides.length > 0) {
+      slidesOutput.push(`${g.header}\n\n${gSlides.join('\n\n')}`);
     }
   }
 
-  return outputSections.join('\n\n');
+  return slidesOutput.join('\n\n');
+}
+
+/**
+ * Cleans song lyrics with AI (lowest credit gpt-4o-mini), saves separately to song file,
+ * and returns pristine ProPresenter 7 slides.
+ */
+export async function cleanSongWithAi(
+  song: Song,
+  forceRefresh: boolean = false
+): Promise<{ text: string; cached: boolean }> {
+  if (!forceRefresh && song.proPresenterLyrics && song.proPresenterLyrics.trim()) {
+    return { text: song.proPresenterLyrics.trim(), cached: true };
+  }
+
+  try {
+    const res = await fetch('/api/worship/ai-clean-lyrics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        songId: song.id,
+        title: song.title,
+        artist: song.artist,
+        chords: song.chords,
+        lyrics: song.lyrics,
+        forceRefresh,
+      }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.proPresenterLyrics) {
+        return { text: data.proPresenterLyrics.trim(), cached: Boolean(data.cached) };
+      }
+    }
+  } catch (err) {
+    console.warn('[cleanSongWithAi] Server AI cleaner fallback to local cleaner:', err);
+  }
+
+  // Fallback to local rule-based cleaner
+  const fallbackText = formatSongForProPresenter(song);
+  return { text: fallbackText, cached: false };
 }
 
 /**
