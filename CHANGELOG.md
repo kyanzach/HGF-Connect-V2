@@ -1,3 +1,9 @@
+## [v2.75.4] — 2026-10-23
+### Fixed / Changed
+- **Section Quick-Jump Click Scrolling Fix**: Fixed issue where tapping section badges (`VERSE 2`, `CHORUS`, `BRIDGE`, etc.) did nothing or snapped back immediately. Resolved root cause where active auto-scroll animation frames fought scroll position changes, and element `offsetTop` was skewed by `#sheetScrollBody`'s relative positioning. Now uses true bounding client rects relative to the scroll container, synchronizes auto-scroll position refs seamlessly during and after the jump, and adds an instant cyan glow highlight on arrival for clear visual feedback.
+- **Section Alias Matching & Roadmap Sync**: Upgraded section lookup with canonical alias matching (e.g., `v2` ↔ `verse2`, `c` ↔ `chorus`, `b` ↔ `bridge`, `ending` ↔ `outro`), occurrence index selection for duplicate sections, and added badge matching support for `refrain` and `interlude`.
+- **1x to 20x Auto-Scroll Speed Scale & Super Slow 1x Crawl**: Expanded auto-scroll speed from 10 steps to 20 steps (1x to 20x). Calibrated 1x to a true **super slow 2.0 px/sec crawl** (~21 seconds per line), allowing worship leaders and solo musicians to let slow contemplative ballads and acoustic worship flow without the text rushing ahead. Scaled the remaining 19 steps smoothly up to 215 px/sec for rapid teleprompter scrubbing.
+
 ## [v2.75.3] — 2026-10-23
 ### Fixed / Changed
 - **Resolved Dock Overlap (Auto-Scroll Bar vs Section Quick-Jump Dock)**: When the Auto-Scroll speed/timer bar is open, the Section Quick-Jump Dock smoothly glides up (+78px) above it, eliminating visual collision and ensuring both controls remain fully visible and usable.

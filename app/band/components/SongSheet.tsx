@@ -45,6 +45,108 @@ interface SongSheetProps {
   hasAutoScrollBar?: boolean;
 }
 
+function findSectionElement(
+  container: HTMLElement,
+  name: string,
+  targetLineIdx?: number,
+  occurrenceIndex?: number
+): HTMLElement | null {
+  // 1. If targetLineIdx is provided and valid, try that first
+  if (typeof targetLineIdx === 'number' && targetLineIdx >= 0) {
+    const el = container.querySelector(`#sheet-line-${targetLineIdx}`) as HTMLElement | null;
+    if (el) return el;
+  }
+
+  const clean = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const targetNorm = clean(name);
+  if (!targetNorm) return null;
+
+  // Canonical alias generator (e.g. v2 <-> verse2, c <-> chorus, b <-> bridge, etc.)
+  const getAliases = (norm: string): string[] => {
+    const aliases = new Set<string>([norm]);
+    const mVerse = norm.match(/^v(?:erse)?(\d+)$/);
+    if (mVerse) {
+      aliases.add(`verse${mVerse[1]}`);
+      aliases.add(`v${mVerse[1]}`);
+    }
+    const mChorus = norm.match(/^c(?:horus)?(\d*)$/);
+    if (mChorus) {
+      aliases.add(`chorus${mChorus[1]}`);
+      aliases.add(`c${mChorus[1]}`);
+      if (!mChorus[1] || mChorus[1] === '1') {
+        aliases.add('chorus');
+        aliases.add('c');
+      }
+    }
+    const mBridge = norm.match(/^b(?:ridge)?(\d*)$/);
+    if (mBridge) {
+      aliases.add(`bridge${mBridge[1]}`);
+      aliases.add(`b${mBridge[1]}`);
+      if (!mBridge[1] || mBridge[1] === '1') {
+        aliases.add('bridge');
+        aliases.add('b');
+      }
+    }
+    const mPre = norm.match(/^p(?:re)?c(?:horus)?(\d*)$/);
+    if (mPre) {
+      aliases.add(`prechorus${mPre[1]}`);
+      aliases.add(`pc${mPre[1]}`);
+    }
+    if (norm === 'ending' || norm === 'tag' || norm === 'outro' || norm === 'coda') {
+      aliases.add('ending');
+      aliases.add('tag');
+      aliases.add('outro');
+      aliases.add('coda');
+    }
+    return Array.from(aliases);
+  };
+
+  const targetAliases = getAliases(targetNorm);
+
+  // Collect candidate header elements
+  const headerElements = Array.from(
+    container.querySelectorAll<HTMLElement>('[data-section-title], [data-section-name]')
+  );
+
+  // Group candidate elements that match any alias
+  const matches: HTMLElement[] = [];
+  for (const el of headerElements) {
+    const titleAttr = clean(el.getAttribute('data-section-title') || '');
+    const nameAttr = clean(el.getAttribute('data-section-name') || '');
+    const textContent = clean(el.textContent || '');
+
+    const isMatch = targetAliases.some(
+      (alias) =>
+        titleAttr === alias ||
+        nameAttr === alias ||
+        textContent === alias ||
+        (alias.length >= 3 && (titleAttr.includes(alias) || nameAttr.includes(alias) || textContent.includes(alias)))
+    );
+
+    if (isMatch && !matches.includes(el)) {
+      matches.push(el);
+    }
+  }
+
+  if (matches.length > 0) {
+    if (typeof occurrenceIndex === 'number' && occurrenceIndex >= 0 && occurrenceIndex < matches.length) {
+      return matches[occurrenceIndex];
+    }
+    return matches[0];
+  }
+
+  // Fallback: search all line divs
+  const allLines = Array.from(container.querySelectorAll<HTMLElement>('.hgf-sheet-line'));
+  for (const line of allLines) {
+    const text = clean(line.textContent || '');
+    if (targetAliases.some((alias) => text.includes(alias))) {
+      return line;
+    }
+  }
+
+  return null;
+}
+
 export const SongSheet: React.FC<SongSheetProps> = ({
   song,
   displayKey,
@@ -177,18 +279,28 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     }
   };
 
-  // Calibrated gradual musical scroll speeds (px/sec)
+  // Calibrated gradual musical scroll speeds (1x - 20x in px/sec)
   const SPEED_MAP: Record<number, number> = {
-    1: 14, // 1x: gentle crawl for dense chord sheets
-    2: 20, // 2x: gradual step (+6)
-    3: 28, // 3x: standard comfortable reading (+8)
-    4: 38, // 4x: moderate (+10)
-    5: 50, // 5x: lively (+12)
-    6: 65, // 6x: fast (+15)
-    7: 82, // 7x: swift (+17)
-    8: 102, // 8x: high speed (+20)
-    9: 125, // 9x: fast scrub (+23)
-    10: 155, // 10x: maximum teleprompter scrub (+30)
+    1: 2.0,   // 1x: Super slow acoustic ballad crawl (~21s per line)
+    2: 3.5,   // 2x: Very slow crawl (~12s per line)
+    3: 5.5,   // 3x: Gentle acoustic pace (~8s per line)
+    4: 8.0,   // 4x: Slow worship reading (~5s per line)
+    5: 11.0,  // 5x: Relaxed worship pace (~4s per line)
+    6: 15.0,  // 6x: Moderate slow (~3s per line)
+    7: 20.0,  // 7x: Standard steady pace
+    8: 26.0,  // 8x: Comfortable reading
+    9: 33.0,  // 9x: Moderate reading
+    10: 41.0, // 10x: Mid-tempo standard
+    11: 50.0, // 11x: Moderate brisk
+    12: 60.0, // 12x: Lively praise
+    13: 72.0, // 13x: Upbeat
+    14: 85.0, // 14x: Brisk praise
+    15: 100.0,// 15x: High speed
+    16: 118.0,// 16x: Fast scrub
+    17: 138.0,// 17x: Rapid
+    18: 160.0,// 18x: Very rapid
+    19: 185.0,// 19x: Teleprompter scrub
+    20: 215.0,// 20x: Maximum teleprompter scrub
   };
 
   // Sync scrollPosRef & elapsedMs on mount or song change
@@ -349,7 +461,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
           } else {
             // Speed Mode: continuous subpixel accumulation with calibrated gradual speeds
             const currentSpeed = scrollSpeedRef.current;
-            const pxPerSec = SPEED_MAP[currentSpeed] || (currentSpeed * 12 + 10);
+            const pxPerSec = SPEED_MAP[currentSpeed] || (currentSpeed <= 1 ? 2.0 : currentSpeed * 10);
             scrollPosRef.current = Math.min(currentMaxScroll, scrollPosRef.current + (dt / 1000) * pxPerSec);
             el.scrollTop = scrollPosRef.current;
 
@@ -376,6 +488,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   }, [isAutoScrolling]);
 
   const [activeSectionName, setActiveSectionName] = useState<string>('');
+  const [activeSectionId, setActiveSectionId] = useState<string>('');
 
   // Section order roadmap parts from song metadata
   const sectionParts = (song?.sectionOrder || '')
@@ -395,6 +508,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
           if (lower.includes('intro')) secType = 'intro';
           else if (lower.includes('verse')) secType = 'verse';
           else if (lower.includes('chorus') && !lower.includes('pre')) secType = 'chorus';
+          else if (lower.includes('refrain')) secType = 'chorus';
           else if (lower.includes('pre-chorus') || lower.includes('pre chorus') || lower.includes('prechorus')) secType = 'prechorus';
           else if (lower.includes('bridge')) secType = 'bridge';
           else if (lower.includes('outro') || lower.includes('ending') || lower.includes('tag')) secType = 'outro';
@@ -421,9 +535,11 @@ export const SongSheet: React.FC<SongSheetProps> = ({
       if (lower.includes('intro')) secType = 'intro';
       else if (lower.includes('verse') || /^v\d+$/i.test(sec)) secType = 'verse';
       else if ((lower.includes('chorus') || /^c\d*$/i.test(sec)) && !lower.includes('pre')) secType = 'chorus';
+      else if (lower.includes('refrain')) secType = 'chorus';
       else if (lower.includes('pre') || /^pc\d*$/i.test(sec)) secType = 'prechorus';
       else if (lower.includes('bridge') || /^b\d*$/i.test(sec)) secType = 'bridge';
-      else if (lower.includes('outro') || /^o$/i.test(sec)) secType = 'outro';
+      else if (lower.includes('outro') || lower.includes('ending') || lower.includes('tag') || /^o$/i.test(sec)) secType = 'outro';
+      else if (lower.includes('interlude') || lower.includes('instrumental') || lower.includes('vamp')) secType = 'interlude';
       return {
         id: `order-sec-${idx}-${sec}`,
         name: sec,
@@ -434,33 +550,53 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     });
   }, [songSections, sectionParts]);
 
-  const jumpToSection = (name: string, targetLineIdx?: number) => {
+  const jumpToSection = (name: string, targetLineIdx?: number, occurrenceIndex?: number, sectionId?: string) => {
     if (!containerRef.current || !name) return;
-    if (typeof targetLineIdx === 'number' && targetLineIdx >= 0) {
-      const el = containerRef.current.querySelector(`#sheet-line-${targetLineIdx}`) as HTMLElement | null;
-      if (el) {
-        containerRef.current.scrollTo({
-          top: Math.max(0, el.offsetTop - 24),
-          behavior: 'smooth',
-        });
-        setActiveSectionName(name);
-        return;
-      }
-    }
-    const q = name.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const headers = Array.from(containerRef.current.querySelectorAll('[data-section-title]'));
-    const target = headers.find((el) => {
-      const text = (el.textContent || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-      return text.includes(q);
-    }) as HTMLElement | undefined;
+    const container = containerRef.current;
+    const targetEl = findSectionElement(container, name, targetLineIdx, occurrenceIndex);
 
-    if (target) {
-      containerRef.current.scrollTo({
-        top: Math.max(0, target.offsetTop - 24),
-        behavior: 'smooth',
-      });
-      setActiveSectionName(name);
+    if (!targetEl) return;
+
+    const cRect = container.getBoundingClientRect();
+    const tRect = targetEl.getBoundingClientRect();
+    const maxScroll = container.scrollHeight - container.clientHeight;
+    const currentTotalMs = effectiveTargetSecRef.current * 1000;
+
+    const relativeOffset = tRect.top - cRect.top;
+    const targetScrollTop = Math.max(0, Math.min(maxScroll, container.scrollTop + relativeOffset - 24));
+
+    // Immediately synchronize auto-scroll position refs so animation frame doesn't fight or revert
+    scrollPosRef.current = targetScrollTop;
+    if (maxScroll > 0) {
+      elapsedMsRef.current = (targetScrollTop / maxScroll) * currentTotalMs;
     }
+
+    // Suppress animation frame position overrides during the smooth scroll transition
+    if (userInteractionTimeoutRef.current) clearTimeout(userInteractionTimeoutRef.current);
+    isUserInteractingRef.current = true;
+    userInteractionTimeoutRef.current = setTimeout(() => {
+      isUserInteractingRef.current = false;
+    }, 700);
+
+    container.scrollTo({
+      top: targetScrollTop,
+      behavior: 'smooth',
+    });
+
+    setActiveSectionName(name);
+    if (sectionId) setActiveSectionId(sectionId);
+
+    // Visual feedback highlight on target section line
+    try {
+      targetEl.style.transition = 'background-color 0.25s ease, box-shadow 0.25s ease';
+      targetEl.style.backgroundColor = 'rgba(56, 189, 248, 0.28)';
+      targetEl.style.boxShadow = '0 0 16px rgba(56, 189, 248, 0.45)';
+      targetEl.style.borderRadius = '6px';
+      setTimeout(() => {
+        targetEl.style.backgroundColor = 'transparent';
+        targetEl.style.boxShadow = 'none';
+      }, 1400);
+    } catch (_) {}
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -790,7 +926,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
             {sectionParts.map((sec, idx) => (
               <button
                 key={idx}
-                onClick={() => jumpToSection(sec)}
+                onClick={() => jumpToSection(sec, undefined, idx)}
                 style={{
                   background: '#131c2e',
                   border: '1px solid #2d3f5e',
@@ -1201,10 +1337,12 @@ export const SongSheet: React.FC<SongSheetProps> = ({
             msOverflowStyle: 'none',
           }}
         >
-          {allSections.map((sec) => {
+          {allSections.map((sec, idx) => {
             const isMatch =
-              activeSectionName &&
-              activeSectionName.toLowerCase().replace(/[^a-z0-9]/g, '').includes(sec.cleanName.toLowerCase().replace(/[^a-z0-9]/g, ''));
+              activeSectionId === sec.id ||
+              (!activeSectionId &&
+                activeSectionName &&
+                activeSectionName.toLowerCase().replace(/[^a-z0-9]/g, '').includes(sec.cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')));
 
             let badgeBg = 'rgba(255, 255, 255, 0.08)';
             let badgeBorder = 'rgba(255, 255, 255, 0.16)';
@@ -1237,7 +1375,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
                 key={sec.id}
                 onClick={(e) => {
                   e.stopPropagation();
-                  jumpToSection(sec.name, sec.lineIdx >= 0 ? sec.lineIdx : undefined);
+                  jumpToSection(sec.name, sec.lineIdx >= 0 ? sec.lineIdx : undefined, idx, sec.id);
                 }}
                 title={`Jump to ${sec.name}`}
                 style={{

@@ -46,7 +46,7 @@ export const AutoScrollBar: React.FC<AutoScrollBarProps> = ({
   if (!isVisible) return null;
 
   const handleStepSpeed = (delta: number) => {
-    const next = Math.max(1, Math.min(10, speed + delta));
+    const next = Math.max(1, Math.min(20, speed + delta));
     onChangeSpeed(next);
   };
 
@@ -224,12 +224,12 @@ export const AutoScrollBar: React.FC<AutoScrollBarProps> = ({
           <input
             type="range"
             min="1"
-            max="10"
+            max="20"
             step="1"
             value={speed}
-            onChange={(e) => onChangeSpeed(parseInt(e.target.value, 10) || 3)}
+            onChange={(e) => onChangeSpeed(parseInt(e.target.value, 10) || 1)}
             style={{
-              width: '75px',
+              width: '90px',
               accentColor: '#4EB1CB',
               cursor: 'pointer',
             }}
@@ -258,11 +258,12 @@ export const AutoScrollBar: React.FC<AutoScrollBarProps> = ({
 
           <span
             style={{
-              fontSize: '12px',
+              fontSize: '11px',
               fontWeight: 800,
-              color: '#4EB1CB',
-              minWidth: '22px',
+              color: speed === 1 ? '#38bdf8' : '#4EB1CB',
+              minWidth: '24px',
               textAlign: 'center',
+              fontFamily: 'monospace',
             }}
           >
             {speed}x
