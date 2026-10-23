@@ -2,6 +2,19 @@
 import type { SheetLine } from './musicTheory';
 import type { Song } from '../types/band';
 
+export function decodeHtmlEntities(str: string): string {
+  return str
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/<[^>]+>/g, '');
+}
+
 const CHORD_REGEX = /^[A-G][b#]?(?:m|min|maj|sus|add|dim|aug|[0-9]|\/[0-9])*(?:\/[A-G][b#]?(?:m|min|maj|sus|add|dim|aug|[0-9])*)?$/i;
 
 function isChordToken(w: string): boolean {
@@ -24,81 +37,35 @@ function isPerformanceCue(l: string): boolean {
   return false;
 }
 
-function isPureInstrumentalHeader(l: string): boolean {
-  return /^\[?(intro|interlude|instrumental|vamp|coda|ending)/i.test(l);
-}
+export function matchSectionHeader(raw: string): string | null {
+  const line = raw.trim();
+  const m = line.match(/^\[?\s*(intro|verse\s*\d*|pre-?chorus\s*\d*|half-?chorus\s*\d*|post-?chorus\s*\d*|chorus\s*\d*|bridge\s*\d*|interlude|instrumental\s*\d*|tag\s*\d*|outro|ending|refrain|vamp|coda)\b([^\]\n]*)/i);
+  if (!m) return null;
 
-function isSectionHeader(l: string): boolean {
-  return /^\[?(verse|chorus|pre-chorus|prechorus|bridge|tag|outro|refrain)/i.test(l) && !/[a-g][b#]?m/i.test(l);
+  const type = m[1].toLowerCase().replace(/[\s-]/g, '');
+  const rest = m[2] || '';
+
+  const numMatch = m[1].match(/\d+/) || rest.match(/\d+/);
+  const num = numMatch ? numMatch[0] : '';
+
+  if (type.startsWith('intro')) return '[Intro]';
+  if (type.startsWith('verse')) return `[Verse ${num || 1}]`;
+  if (type.startsWith('prechorus') || type.startsWith('pc')) return num ? `[Pre-Chorus ${num}]` : '[Pre-Chorus]';
+  if (type.startsWith('postchorus') || type.startsWith('refrain') || type.startsWith('tag')) return num ? `[Tag ${num}]` : '[Tag]';
+  if (type.startsWith('halfchorus') || type.startsWith('chorus')) return num ? `[Chorus ${num}]` : '[Chorus]';
+  if (type.startsWith('bridge')) return num ? `[Bridge ${num}]` : '[Bridge]';
+  if (type.startsWith('interlude') || type.startsWith('instrumental') || type.startsWith('vamp')) return '[Interlude]';
+  if (type.startsWith('outro') || type.startsWith('coda')) return '[Outro]';
+  if (type.startsWith('ending')) return '[Ending]';
+  return null;
 }
 
 /**
- * Normalizes section headers to standard ProPresenter 7 group names.
- * e.g. "VERSE 1" -> "Verse 1", "[CHORUS]" -> "Chorus", "b1" -> "Bridge 1"
+ * Normalizes section headers to standard ProPresenter 7 bracket group names.
+ * e.g. "VERSE 1" -> "[Verse 1]", "Chorus" -> "[Chorus]"
  */
 export function normalizeProPresenterHeader(rawHeader: string): string {
-  let clean = rawHeader.replace(/[\[\]*:]/g, '').trim();
-  clean = clean.replace(/:.*$/, '').trim();
-  clean = clean.replace(/[-–—].*$/, '').trim();
-  clean = clean.replace(/\*.*\*?$/, '').trim();
-
-  const lower = clean.toLowerCase();
-
-  // Match Verse
-  const mVerse = lower.match(/^v(?:erse)?\s*(\d+)$/i);
-  if (mVerse) return `Verse ${mVerse[1]}`;
-  if (lower === 'verse' || lower === 'v') return 'Verse 1';
-
-  // Match Chorus
-  const mChorus = lower.match(/^c(?:horus)?\s*(\d*)$/i);
-  if (mChorus) return mChorus[1] ? `Chorus ${mChorus[1]}` : 'Chorus';
-  if (lower.includes('chorus') && !lower.includes('pre')) {
-    const num = lower.match(/\d+/);
-    return num ? `Chorus ${num[0]}` : 'Chorus';
-  }
-
-  // Match Pre-Chorus
-  if (lower.includes('pre-chorus') || lower.includes('prechorus') || lower.includes('pre chorus') || /^pc\d*$/i.test(lower)) {
-    const num = lower.match(/\d+/);
-    return num ? `Pre-Chorus ${num[0]}` : 'Pre-Chorus';
-  }
-
-  // Match Bridge
-  const mBridge = lower.match(/^b(?:ridge)?\s*(\d*)$/i);
-  if (mBridge) return mBridge[1] ? `Bridge ${mBridge[1]}` : 'Bridge';
-  if (lower.includes('bridge')) {
-    const num = lower.match(/\d+/);
-    return num ? `Bridge ${num[0]}` : 'Bridge';
-  }
-
-  // Match Interlude / Instrumental
-  if (lower.includes('interlude') || lower.includes('instrumental') || lower.includes('vamp')) {
-    const num = lower.match(/\d+/);
-    return num ? `Interlude ${num[0]}` : 'Interlude';
-  }
-
-  // Match Intro
-  if (lower.includes('intro')) {
-    const num = lower.match(/\d+/);
-    return num ? `Intro ${num[0]}` : 'Intro';
-  }
-
-  // Match Outro / Ending / Tag
-  if (lower.includes('outro') || lower.includes('ending')) {
-    const num = lower.match(/\d+/);
-    return num ? `Outro ${num[0]}` : 'Outro';
-  }
-  if (lower.includes('tag')) {
-    const num = lower.match(/\d+/);
-    return num ? `Tag ${num[0]}` : 'Tag';
-  }
-
-  if (lower.includes('refrain')) return 'Refrain';
-
-  return clean
-    .split(/\s+/)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(' ');
+  return matchSectionHeader(rawHeader) || '[Verse 1]';
 }
 
 /**
@@ -113,26 +80,11 @@ export function formatSongForProPresenter(song: Song | null, parsedLines?: Sheet
     return song.proPresenterLyrics.trim();
   }
 
-  interface SectionGroup {
-    header: string;
-    lines: string[];
-  }
-
-  const sections: SectionGroup[] = [];
-  let currentGroup: SectionGroup = { header: 'Verse 1', lines: [] };
-
-  const pushCurrentGroup = () => {
-    if (currentGroup.lines.length > 0) {
-      sections.push({
-        header: currentGroup.header,
-        lines: [...currentGroup.lines],
-      });
-      currentGroup.lines = [];
-    }
-  };
-
   const rawText = (song.lyrics && song.lyrics.trim()) || (song.chords && song.chords.trim()) || '';
-  const rawLines = rawText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (!rawText) return '';
+
+  const cleanText = decodeHtmlEntities(rawText);
+  const rawLines = cleanText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
 
   // Collapse multi-line asterisks
   const prefilteredLines: string[] = [];
@@ -155,38 +107,31 @@ export function formatSongForProPresenter(song: Song | null, parsedLines?: Sheet
     prefilteredLines.push(line);
   }
 
-  for (let i = 0; i < prefilteredLines.length; i++) {
-    let line = prefilteredLines[i];
+  interface SectionGroup {
+    header: string;
+    lines: string[];
+  }
 
-    // Extract bracketed headers if mixed with notes
-    const bracketedMatch = line.match(/^(\[(?:verse|chorus|pre-chorus|prechorus|bridge|tag|outro|refrain)[^\]]*\])(?:\s*\*.*\*?)?$/i);
-    if (bracketedMatch) {
-      line = bracketedMatch[1];
+  const sections: SectionGroup[] = [];
+  let currentGroup: SectionGroup | null = null;
+
+  for (let i = 0; i < prefilteredLines.length; i++) {
+    const line = prefilteredLines[i];
+
+    const header = matchSectionHeader(line);
+    if (header) {
+      if (currentGroup && currentGroup.header === header) {
+        continue;
+      }
+      if (currentGroup && currentGroup.lines.length > 0) {
+        sections.push(currentGroup);
+      }
+      currentGroup = { header, lines: [] };
+      continue;
     }
 
     if (isPerformanceCue(line)) continue;
     if (isChordLine(line)) continue;
-
-    if (isPureInstrumentalHeader(line)) {
-      let hasLyrics = false;
-      for (let j = i + 1; j < prefilteredLines.length; j++) {
-        let next = prefilteredLines[j];
-        const nextB = next.match(/^(\[[^\]]+\])\s*\*.*\*?$/);
-        if (nextB) next = nextB[1];
-        if (isSectionHeader(next) || isPureInstrumentalHeader(next)) break;
-        if (!isChordLine(next) && !isPerformanceCue(next)) {
-          hasLyrics = true;
-          break;
-        }
-      }
-      if (!hasLyrics) continue;
-    }
-
-    if (isSectionHeader(line)) {
-      pushCurrentGroup();
-      currentGroup.header = normalizeProPresenterHeader(line);
-      continue;
-    }
 
     let lyric = line
       .replace(/\[[A-G][b#]?[^\]]*\]/g, '')
@@ -196,13 +141,20 @@ export function formatSongForProPresenter(song: Song | null, parsedLines?: Sheet
       .trim();
 
     if (!lyric || isChordLine(lyric)) continue;
+
+    if (!currentGroup) {
+      currentGroup = { header: '[Verse 1]', lines: [] };
+    }
     currentGroup.lines.push(lyric);
   }
 
-  pushCurrentGroup();
+  if (currentGroup && currentGroup.lines.length > 0) {
+    sections.push(currentGroup);
+  }
 
   const slidesOutput: string[] = [];
   for (const g of sections) {
+    if (g.lines.length === 0) continue;
     const gSlides: string[] = [];
     for (let i = 0; i < g.lines.length; i += 2) {
       if (i + 1 < g.lines.length) {
@@ -211,9 +163,7 @@ export function formatSongForProPresenter(song: Song | null, parsedLines?: Sheet
         gSlides.push(g.lines[i]);
       }
     }
-    if (gSlides.length > 0) {
-      slidesOutput.push(`${g.header}\n\n${gSlides.join('\n\n')}`);
-    }
+    slidesOutput.push(`${g.header}\n${gSlides.join('\n\n')}`);
   }
 
   return slidesOutput.join('\n\n');

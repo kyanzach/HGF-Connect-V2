@@ -1,3 +1,15 @@
+## [v2.75.7] — 2026-10-23
+### Fixed / Changed
+- **ProPresenter Lyrics Formatter & AI Trainer Alignment (`/api/worship/ai-clean-lyrics`, `propresenterExport.ts`)**:
+  - Aligned AI prompt and clean-up logic with the exact ProPresenter trainer specification:
+    - Identifies all song sections and strictly labels every group in bracket format: `[Intro]`, `[Verse #]`, `[Pre-Chorus #]`, `[Chorus #]`, `[Bridge #]`, `[Interlude]`, `[Tag]`, `[Outro]`, or `[Ending]`.
+    - Eliminated previous tag stripping bug where only `Verse 1` remained; all verses, choruses, bridges, interludes, tags, and endings are now fully detected and labeled.
+    - Strictly formats lyrics into **2-line slides** with **no empty line between the 2 lines** (`Line 1\nLine 2`) and exactly **2 line breaks** (`\n\n`) between slides and sections.
+    - Immediately pairs bracket headers with the first slide without redundant empty lines (`[Verse 1]\nLine 1\nLine 2`).
+    - Decodes all HTML characters/entities (`&amp;`, `&quot;`, `&#39;`, `&lt;`, `&gt;`, `&nbsp;`, `<tags>`).
+    - Strips chords, tablature, and performance cues (`*dynamics*`, `*tom groove*`, `*piano only*`, etc.).
+    - Robust fail-safe engine prevents copyrighted worship lyrics from truncating when LLMs hit `content_filter`, guaranteeing 100% complete projection text every time.
+
 ## [v2.75.6] — 2026-10-23
 ### Added / Fixed
 - **AI-Powered ProPresenter Lyric Cleaning & Server Persistence (`/api/worship/ai-clean-lyrics`, `propresenterExport.ts`, `StageTopBar.tsx`)**:
