@@ -37,6 +37,7 @@ export const NavigationDock: React.FC<NavigationDockProps> = ({
   canNext,
   currentIndex,
   totalSongs,
+  fontSizePx = 17,
   onChangeFontSize,
   isAutoScrolling,
   onToggleAutoScroll,
@@ -175,14 +176,89 @@ export const NavigationDock: React.FC<NavigationDockProps> = ({
         </div>
       )}
 
+      {/* BPM Metronome FAB (Live Visual Pulse • Tap for Metronome Settings) */}
+      {onOpenMetronome && (
+        <button
+          onClick={onOpenMetronome}
+          title={
+            isMetronomeAudioActive
+              ? `Metronome Audio Active (${bpm || 72} BPM) • Tap to adjust`
+              : `Visual BPM Pulse (${bpm || 72} BPM) • Tap for Metronome Settings & Audio`
+          }
+          style={{
+            width: '46px',
+            height: '46px',
+            borderRadius: '50%',
+            backgroundColor: isMetronomeAudioActive ? 'rgba(245, 158, 11, 0.3)' : 'rgba(22, 28, 38, 0.9)',
+            backdropFilter: 'blur(10px)',
+            border: `1.5px solid ${
+              isMetronomePulsing
+                ? '#fbbf24'
+                : isMetronomeAudioActive
+                ? '#f59e0b'
+                : 'rgba(245, 158, 11, 0.45)'
+            }`,
+            color: '#fbbf24',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            boxShadow: isMetronomePulsing
+              ? '0 0 16px rgba(251, 191, 36, 0.75), 0 6px 16px rgba(0,0,0,0.5)'
+              : isMetronomeAudioActive
+              ? '0 0 10px rgba(245, 158, 11, 0.4), 0 6px 16px rgba(0,0,0,0.5)'
+              : '0 6px 16px rgba(0,0,0,0.5)',
+            transform: isMetronomePulsing ? 'scale(1.08)' : 'scale(1)',
+            transition: 'transform 0.08s ease, border-color 0.08s ease, box-shadow 0.08s ease',
+          }}
+        >
+          <div
+            style={{
+              fontSize: '11px',
+              fontWeight: 900,
+              lineHeight: 1,
+              letterSpacing: '-0.2px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '2px',
+            }}
+          >
+            <span
+              style={{
+                width: '5px',
+                height: '5px',
+                borderRadius: '50%',
+                backgroundColor: isMetronomePulsing ? '#fbbf24' : '#f59e0b',
+                display: 'inline-block',
+                boxShadow: isMetronomePulsing ? '0 0 6px #fbbf24' : 'none',
+              }}
+            />
+            <span>{bpm ? String(bpm).replace(/[^0-9]/g, '') : '72'}</span>
+          </div>
+          <div
+            style={{
+              fontSize: '8px',
+              fontWeight: 800,
+              color: isMetronomeAudioActive ? '#fbbf24' : '#94a3b8',
+              lineHeight: 1,
+              marginTop: '2px',
+              textTransform: 'uppercase',
+            }}
+          >
+            BPM
+          </div>
+        </button>
+      )}
+
       {/* Auto-scroll FAB: Yellow Play / Pause Button */}
       <div style={{ position: 'relative' }}>
         <button
           onClick={onToggleAutoScroll}
           title={isAutoScrolling ? 'Pause Auto-Scroll (Playing)' : 'Start Auto-Scroll (Play)'}
           style={{
-            width: '44px',
-            height: '44px',
+            width: '46px',
+            height: '46px',
             borderRadius: '50%',
             backgroundColor: isAutoScrolling ? '#facc15' : 'rgba(245, 158, 11, 0.16)',
             backdropFilter: 'blur(10px)',
@@ -218,8 +294,8 @@ export const NavigationDock: React.FC<NavigationDockProps> = ({
               : 'Lyrics-Only Mode (Hide Chords for Singers) • Tap for clean lyrics'
           }
           style={{
-            width: '44px',
-            height: '44px',
+            width: '46px',
+            height: '46px',
             borderRadius: '50%',
             backgroundColor: isLyricsOnly ? '#9333ea' : 'rgba(22, 28, 38, 0.85)',
             backdropFilter: 'blur(10px)',
@@ -253,7 +329,7 @@ export const NavigationDock: React.FC<NavigationDockProps> = ({
         </button>
       )}
 
-      {/* Font Size Zoom Stepper */}
+      {/* Font Size Zoom Stepper with Live Size Readout & 1-Tap Reset */}
       <div
         style={{
           display: 'flex',
@@ -261,35 +337,52 @@ export const NavigationDock: React.FC<NavigationDockProps> = ({
           backgroundColor: 'rgba(22, 28, 38, 0.85)',
           backdropFilter: 'blur(10px)',
           border: '1px solid #334155',
-          borderRadius: '22px',
+          borderRadius: '23px',
           overflow: 'hidden',
           boxShadow: '0 6px 16px rgba(0,0,0,0.5)',
         }}
       >
         <button
           onClick={() => onChangeFontSize(1)}
-          title="Increase font size"
+          title="Increase font size (A+)"
           style={{
-            width: '44px',
-            height: '36px',
+            width: '46px',
+            height: '34px',
             border: 'none',
             background: 'transparent',
             color: '#cbd5e1',
-            fontSize: '14px',
+            fontSize: '13px',
             fontWeight: 800,
             cursor: 'pointer',
           }}
         >
           A+
         </button>
+        <div
+          onClick={() => onChangeFontSize(0)}
+          title={`Current Font Size: ${fontSizePx}px • Tap to reset to normal (17px)`}
+          style={{
+            textAlign: 'center',
+            fontSize: '9px',
+            fontWeight: 800,
+            color: fontSizePx > 26 ? '#38bdf8' : '#94a3b8',
+            padding: '3px 0',
+            borderTop: '1px solid #334155',
+            borderBottom: '1px solid #334155',
+            cursor: 'pointer',
+            background: fontSizePx > 26 ? 'rgba(56, 189, 248, 0.12)' : 'transparent',
+            lineHeight: 1,
+          }}
+        >
+          {fontSizePx}px
+        </div>
         <button
           onClick={() => onChangeFontSize(-1)}
-          title="Decrease font size"
+          title="Decrease font size (A-)"
           style={{
-            width: '44px',
-            height: '36px',
+            width: '46px',
+            height: '34px',
             border: 'none',
-            borderTop: '1px solid #334155',
             background: 'transparent',
             color: '#cbd5e1',
             fontSize: '12px',

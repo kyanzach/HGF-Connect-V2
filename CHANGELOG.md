@@ -1,3 +1,16 @@
+## [v2.75.9] — 2026-10-24
+### Added / Enhanced / Fixed
+- **Distant Stage Reading & Font Sizing Optimization (Up to 64px Without Overflow or Clipping)**:
+  - **No Left/Right Clipping or Overflow**: Solved layout clipping and text overflow at huge font sizes by dividing chord-lyric pairs into atomic wrappable word tokens (`splitPairIntoWrappableTokens`). Chords remain firmly locked over their respective syllables while trailing phrases wrap naturally at word boundaries.
+  - **Fluid Lyrics-Only Mode**: In Lyrics-Only Mode, renders each line as a single continuous fluid text block with `whiteSpace: 'pre-wrap'` and `wordBreak: 'break-word'`, eliminating awkward flex chunk wrapping at stage-view font scales.
+  - **Stage Stand Scaling (12px to 64px)**: Expanded zoom range from 32px up to 64px so musicians and worship leaders can easily read charts from stands several meters away.
+  - **Accelerated Stepper & 1-Tap Reset**: Stepper dynamically scales (`+2px` under 20px, `+3px` under 32px, `+4px` above 32px). Tapping the center `{fontSizePx}px` badge instantly resets the sheet back to the standard 17px stage baseline.
+  - **Persistent Font Preference**: Stores chosen font size in `localStorage ('hgf_band_font_size')` across app reloads and song transitions.
+  - **Proportional Section Headers**: Section tags (`[Verse]`, `[Chorus]`, etc.) scale dynamically with font size, maintaining clean stage hierarchy.
+- **Restored Stage BPM Metronome FAB & Header Pill**:
+  - Restored the dedicated pulsing circular BPM Metronome FAB directly above Auto-Scroll in `NavigationDock` with live amber pulse dot, numeric tempo display, audio-active glow, and 1-tap shortcut to `MetronomeModal`.
+  - Maintained interactive pulsing BPM badge in the song header row with full live tempo synchronization.
+
 ## [v2.75.8] — 2026-10-23
 ### Fixed
 - **Transposed Section Header Recovery & Regex Hardening (`musicTheory.ts`, `ai-clean-lyrics`, `propresenterExport.ts`)**:

@@ -147,6 +147,46 @@ function findSectionElement(
   return null;
 }
 
+function splitPairIntoWrappableTokens(chord?: string, lyric?: string): { chord?: string; lyric: string }[] {
+  const c = chord || '';
+  const l = lyric || '';
+
+  if (!c) {
+    if (!l) return [];
+    // Pure lyric words - split by word boundaries while preserving trailing spaces
+    const words = l.match(/\S+\s*|\s+/g) || [l];
+    return words.map((w) => ({ chord: '', lyric: w }));
+  }
+
+  // Chord exists. If lyric is empty or whitespace
+  if (!l.trim()) {
+    return [{ chord: c, lyric: l || ' ' }];
+  }
+
+  // Match leading whitespace if any
+  const leadingSpaceMatch = l.match(/^\s+/);
+  const leadingSpace = leadingSpaceMatch ? leadingSpaceMatch[0] : '';
+  const remaining = l.substring(leadingSpace.length);
+
+  // Match the first word/token for the chord
+  const firstWordMatch = remaining.match(/^\S+\s*/);
+  if (!firstWordMatch) {
+    return [{ chord: c, lyric: l }];
+  }
+
+  const firstWord = leadingSpace + firstWordMatch[0];
+  const restLyric = remaining.substring(firstWordMatch[0].length);
+
+  const tokens: { chord?: string; lyric: string }[] = [{ chord: c, lyric: firstWord }];
+  if (restLyric) {
+    const restWords = restLyric.match(/\S+\s*|\s+/g) || [restLyric];
+    for (const rw of restWords) {
+      tokens.push({ chord: '', lyric: rw });
+    }
+  }
+  return tokens;
+}
+
 export const SongSheet: React.FC<SongSheetProps> = ({
   song,
   displayKey,
@@ -162,6 +202,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   bpm,
   isMetronomePulsing,
   isMetronomeAudioActive,
+  onOpenMetronomeModal,
   isSessionOverridden,
   worshipLeaderKey,
   plannedDuration,
@@ -756,8 +797,8 @@ export const SongSheet: React.FC<SongSheetProps> = ({
         overflowX: 'hidden',
         scrollBehavior: 'auto',
         paddingTop: isImmersionMode ? 'calc(env(safe-area-inset-top, 0px) + 24px)' : '16px',
-        paddingLeft: '20px',
-        paddingRight: '20px',
+        paddingLeft: 'calc(env(safe-area-inset-left, 0px) + 20px)',
+        paddingRight: isImmersionMode ? '20px' : 'calc(env(safe-area-inset-right, 0px) + 76px)',
         paddingBottom: isImmersionMode
           ? 'calc(env(safe-area-inset-bottom, 0px) + 80px)'
           : hasPlaybackDock
@@ -865,6 +906,43 @@ export const SongSheet: React.FC<SongSheetProps> = ({
                   {song.timeSignature}
                 </span>
               )}
+              {/* Interactive Pulsing BPM Badge */}
+              <div
+                onClick={onOpenMetronomeModal}
+                role="button"
+                tabIndex={0}
+                title="Live Visual BPM Pulse • Click for Metronome Settings"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '2px 8px',
+                  borderRadius: '6px',
+                  background: isMetronomeAudioActive ? 'rgba(245, 158, 11, 0.25)' : '#1e293b',
+                  border: isMetronomeAudioActive ? '1px solid #f59e0b' : '1px solid rgba(245, 158, 11, 0.35)',
+                  color: '#fbbf24',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  boxShadow: isMetronomeAudioActive ? '0 0 10px rgba(245, 158, 11, 0.35)' : 'none',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <span
+                  style={{
+                    width: '6px',
+                    height: '6px',
+                    borderRadius: '50%',
+                    backgroundColor: isMetronomePulsing ? '#fbbf24' : '#f59e0b',
+                    transform: isMetronomePulsing ? 'scale(1.5)' : 'scale(1)',
+                    boxShadow: isMetronomePulsing ? '0 0 8px #fbbf24' : 'none',
+                    display: 'inline-block',
+                    flexShrink: 0,
+                    transition: 'transform 0.08s ease',
+                  }}
+                />
+                <span>{bpm ? `${bpm} BPM` : song.tempo ? `${song.tempo} BPM` : '72 BPM'}</span>
+              </div>
               {/* Planned Live Arrangement Duration / Stage Timer */}
               {(plannedDuration || targetDurationSec > 0) && (
                 <button
@@ -1204,15 +1282,15 @@ export const SongSheet: React.FC<SongSheetProps> = ({
                   data-section-name={currentSectionTitle}
                   data-section-title={line.sectionName}
                   style={{
-                    fontSize: '14px',
+                    fontSize: `${Math.max(14, Math.round(fontSizePx * 0.65))}px`,
                     fontWeight: 800,
                     color: '#38bdf8',
                     textTransform: 'uppercase',
                     letterSpacing: '0.8px',
-                    marginTop: '16px',
-                    marginBottom: '6px',
-                    borderLeft: '3px solid #38bdf8',
-                    paddingLeft: '8px',
+                    marginTop: `${Math.max(16, Math.round(fontSizePx * 0.6))}px`,
+                    marginBottom: `${Math.max(6, Math.round(fontSizePx * 0.25))}px`,
+                    borderLeft: `${Math.max(3, Math.round(fontSizePx * 0.1))}px solid #38bdf8`,
+                    paddingLeft: `${Math.max(8, Math.round(fontSizePx * 0.25))}px`,
                   }}
                 >
                   {line.sectionName || line.raw}
@@ -1227,6 +1305,36 @@ export const SongSheet: React.FC<SongSheetProps> = ({
                 return null;
               }
 
+              // Lyrics-Only Mode: render whole line as single continuous text to prevent word wrapping glitches at huge font sizes
+              if (isLyricsOnly) {
+                const fullLyric = line.pairs.map((p) => p.lyric).join('');
+                if (!fullLyric.trim()) return null;
+                return (
+                  <div
+                    key={lIdx}
+                    id={`sheet-line-${lIdx}`}
+                    className="hgf-sheet-line"
+                    data-sheet-line-index={lIdx}
+                    data-section-name={currentSectionTitle}
+                    style={{
+                      color: '#f1f5f9',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      overflowWrap: 'break-word',
+                      lineHeight: 1.45,
+                      marginBottom: `${Math.max(4, Math.round(fontSizePx * 0.25))}px`,
+                    }}
+                  >
+                    {fullLyric.trimStart()}
+                  </div>
+                );
+              }
+
+              // Chords Mode: decompose pairs into wrappable atomic tokens so lines wrap naturally without breaking chord alignment
+              const wrappableTokens = line.pairs.flatMap((pair) =>
+                splitPairIntoWrappableTokens(pair.chord, pair.lyric)
+              );
+
               return (
                 <div
                   key={lIdx}
@@ -1238,15 +1346,16 @@ export const SongSheet: React.FC<SongSheetProps> = ({
                     display: 'flex',
                     flexWrap: 'wrap',
                     alignItems: 'flex-end',
-                    rowGap: isLyricsOnly ? '4px' : '10px',
+                    rowGap: `${Math.max(6, Math.round(fontSizePx * 0.35))}px`,
                     columnGap: '0px',
                     minHeight: '1.4em',
-                    marginBottom: isLyricsOnly ? '4px' : '6px',
+                    marginBottom: `${Math.max(6, Math.round(fontSizePx * 0.35))}px`,
+                    wordBreak: 'break-word',
                   }}
                 >
-                  {line.pairs.map((pair, pIdx) => (
+                  {wrappableTokens.map((token, tIdx) => (
                     <span
-                      key={pIdx}
+                      key={tIdx}
                       style={{
                         display: 'inline-flex',
                         flexDirection: 'column',
@@ -1254,24 +1363,22 @@ export const SongSheet: React.FC<SongSheetProps> = ({
                         verticalAlign: 'bottom',
                       }}
                     >
-                      {!isLyricsOnly && (
-                        <span
-                          onClick={() => pair.chord && onOpenChordDiagram && onOpenChordDiagram(pair.chord)}
-                          style={{
-                            fontSize: '0.82em',
-                            fontWeight: 800,
-                            color: '#f59e0b',
-                            cursor: pair.chord ? 'pointer' : 'default',
-                            minHeight: '1.2em',
-                            lineHeight: 1.2,
-                            whiteSpace: 'pre',
-                            paddingRight: pair.chord ? '4px' : '0px',
-                            userSelect: pair.chord ? 'none' : 'text',
-                          }}
-                        >
-                          {pair.chord || ''}
-                        </span>
-                      )}
+                      <span
+                        onClick={() => token.chord && onOpenChordDiagram && onOpenChordDiagram(token.chord)}
+                        style={{
+                          fontSize: '0.82em',
+                          fontWeight: 800,
+                          color: '#f59e0b',
+                          cursor: token.chord ? 'pointer' : 'default',
+                          minHeight: '1.2em',
+                          lineHeight: 1.2,
+                          whiteSpace: 'pre',
+                          paddingRight: token.chord ? '4px' : '0px',
+                          userSelect: token.chord ? 'none' : 'text',
+                        }}
+                      >
+                        {token.chord || ''}
+                      </span>
                       <span
                         style={{
                           color: '#f1f5f9',
@@ -1279,7 +1386,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
                           lineHeight: 1.4,
                         }}
                       >
-                        {pair.lyric}
+                        {token.lyric}
                       </span>
                     </span>
                   ))}
@@ -1297,7 +1404,14 @@ export const SongSheet: React.FC<SongSheetProps> = ({
                   className="hgf-sheet-line"
                   data-sheet-line-index={lIdx}
                   data-section-name={currentSectionTitle}
-                  style={{ minHeight: '1.5em' }}
+                  style={{
+                    minHeight: '1.5em',
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                    overflowWrap: 'break-word',
+                    lineHeight: 1.4,
+                    marginBottom: `${Math.max(4, Math.round(fontSizePx * 0.25))}px`,
+                  }}
                 >
                   {line.items?.map((item, iIdx) =>
                     item.isChord ? (
@@ -1312,6 +1426,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
                           borderRadius: '4px',
                           cursor: 'pointer',
                           display: 'inline-block',
+                          marginRight: '2px',
                         }}
                       >
                         {item.text}
@@ -1334,7 +1449,15 @@ export const SongSheet: React.FC<SongSheetProps> = ({
                 className="hgf-sheet-line"
                 data-sheet-line-index={lIdx}
                 data-section-name={currentSectionTitle}
-                style={{ color: '#f1f5f9', minHeight: '1.4em' }}
+                style={{
+                  color: '#f1f5f9',
+                  minHeight: '1.4em',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                  overflowWrap: 'break-word',
+                  lineHeight: 1.45,
+                  marginBottom: `${Math.max(4, Math.round(fontSizePx * 0.25))}px`,
+                }}
               >
                 {line.raw}
               </div>

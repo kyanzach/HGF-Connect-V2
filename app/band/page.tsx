@@ -693,6 +693,39 @@ export default function BandStagePage() {
     } catch (_) {}
   }, []);
 
+  // Persistent Font Size with adaptive scaling up to 64px for distant stage reading
+  useEffect(() => {
+    try {
+      const storedFont = localStorage.getItem('hgf_band_font_size');
+      if (storedFont) {
+        const parsed = parseInt(storedFont, 10);
+        if (!isNaN(parsed) && parsed >= 12 && parsed <= 64) {
+          setFontSizePx(parsed);
+        }
+      }
+    } catch (_) {}
+  }, []);
+
+  const handleChangeFontSize = useCallback((delta: number) => {
+    setFontSizePx((prev) => {
+      let next: number;
+      if (delta === 0) {
+        next = 17; // 1-tap reset to standard stage size
+      } else if (delta > 0) {
+        // Dynamic acceleration: 2px below 20, 3px below 32, 4px above 32
+        const step = prev < 20 ? 2 : prev < 32 ? 3 : 4;
+        next = Math.min(64, prev + step);
+      } else {
+        const step = prev > 32 ? 4 : prev > 20 ? 3 : 2;
+        next = Math.max(12, prev - step);
+      }
+      try {
+        localStorage.setItem('hgf_band_font_size', String(next));
+      } catch (_) {}
+      return next;
+    });
+  }, []);
+
   const handleToggleLyricsOnly = useCallback(() => {
     setIsLyricsOnly((prev) => {
       const next = !prev;
@@ -1677,7 +1710,7 @@ export default function BandStagePage() {
           currentIndex={currentIndex}
           totalSongs={currentLineup.length}
           fontSizePx={fontSizePx}
-          onChangeFontSize={(delta) => setFontSizePx((prev) => Math.max(12, Math.min(32, prev + delta)))}
+          onChangeFontSize={handleChangeFontSize}
           isAutoScrolling={isAutoScrolling}
           onToggleAutoScroll={handleToggleAutoScroll}
           bpm={tempo}
