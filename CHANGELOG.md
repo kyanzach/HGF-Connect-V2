@@ -1,3 +1,11 @@
+## [v2.75.10] — 2026-10-24
+### Added / Enhanced / Fixed
+- **Per-Song Metronome Auto-Saving & Clean Isolation on Song Switch**:
+  - **Auto-Save Metronome Settings per Song**: Modifying the BPM (slider, +/- steppers, or Tap Tempo) or Time Signature (presets `4/4`, `3/4`, `6/8`, `8/8`, or custom input) in `MetronomeModal` now automatically saves directly to that active song with zero lag.
+  - **Instant Local & Server Persistence**: Persists instantly to device `localStorage ('hgf_song_metronome_${songId}')` and in-memory song state, updates setlist session overrides when inside a setlist, and queues debounced background persistence to `/api/worship` and `/api/worship/setlists`.
+  - **No Cross-Song Bleed on Swiping**: Switching songs (swiping left/right, next/prev buttons, or jump navigation) strictly resolves that specific song's saved metronome settings. If a target song has no configured metronome settings, it immediately falls back to the clean stage baseline defaults (**72 BPM, 4/4**) rather than retaining the previous song's tempo or meter.
+  - **MetronomeModal Real-Time Synchronization**: Synchronized external time signature changes and reset custom input states when changing songs while the modal is open.
+
 ## [v2.75.9] — 2026-10-24
 ### Added / Enhanced / Fixed
 - **Distant Stage Reading & Font Sizing Optimization (Up to 64px Without Overflow or Clipping)**:

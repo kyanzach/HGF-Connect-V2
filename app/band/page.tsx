@@ -1002,15 +1002,211 @@ export default function BandStagePage() {
     setElapsedScrollSeconds(0);
   }, [currentSong?.id]);
 
-  // Sync tempo and time signature when currentSong changes
+  // Metronome auto-save debounce timer ref
+  const metronomeSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Helper to resolve song's metronome settings with strict fallback to defaults (72 BPM, 4/4)
+  const resolveSongMetronome = useCallback(
+    (
+      targetSong: Song | null,
+      targetSetlist: Setlist | null,
+      mdDefaults: any
+    ): { tempo: number; timeSignature: string } => {
+      if (!targetSong) return { tempo: 72, timeSignature: '4/4' };
+
+      let resolvedTempo: number | null = null;
+      let resolvedSig: string | null = null;
+
+      // 1. Check device local override for this specific song
+      if (typeof window !== 'undefined') {
+        try {
+          const savedRaw = localStorage.getItem(`hgf_song_metronome_${targetSong.id}`);
+          if (savedRaw) {
+            const parsed = JSON.parse(savedRaw);
+            if (parsed && typeof parsed.tempo === 'number' && parsed.tempo >= 30 && parsed.tempo <= 260) {
+              resolvedTempo = parsed.tempo;
+            }
+            if (parsed && typeof parsed.timeSignature === 'string' && parsed.timeSignature.trim()) {
+              resolvedSig = parsed.timeSignature.trim();
+            }
+          }
+        } catch (_) {}
+
+        if (resolvedTempo === null) {
+          try {
+            const indVal = localStorage.getItem(`hgf_song_tempo_${targetSong.id}`);
+            if (indVal) {
+              const num = parseInt(indVal, 10);
+              if (!isNaN(num) && num >= 30 && num <= 260) resolvedTempo = num;
+            }
+          } catch (_) {}
+        }
+        if (!resolvedSig) {
+          try {
+            const indSig = localStorage.getItem(`hgf_song_timesig_${targetSong.id}`);
+            if (indSig && indSig.trim()) resolvedSig = indSig.trim();
+          } catch (_) {}
+        }
+      }
+
+      // 2. MD setlist defaults (if in setlist)
+      if (resolvedTempo === null && mdDefaults?.tempo !== undefined && !isNaN(Number(mdDefaults.tempo))) {
+        resolvedTempo = Number(mdDefaults.tempo);
+      }
+      if (!resolvedSig && mdDefaults?.timeSignature && typeof mdDefaults.timeSignature === 'string') {
+        resolvedSig = mdDefaults.timeSignature.trim();
+      }
+
+      // 3. Song master attributes
+      if (
+        resolvedTempo === null &&
+        targetSong.tempo !== undefined &&
+        targetSong.tempo !== null &&
+        !isNaN(Number(targetSong.tempo))
+      ) {
+        resolvedTempo = Number(targetSong.tempo);
+      }
+      if (!resolvedSig && targetSong.timeSignature && typeof targetSong.timeSignature === 'string') {
+        resolvedSig = targetSong.timeSignature.trim();
+      }
+
+      // 4. Strict clean default fallback (72 BPM, 4/4) so it NEVER carries over previous song settings!
+      return {
+        tempo: resolvedTempo !== null && resolvedTempo > 0 ? resolvedTempo : 72,
+        timeSignature: resolvedSig && resolvedSig.trim() ? resolvedSig.trim() : '4/4',
+      };
+    },
+    []
+  );
+
+  // Synchronize tempo and time signature whenever currentSong changes
   useEffect(() => {
-    if (currentSong?.tempo) {
-      setTempo(Number(currentSong.tempo));
-    }
-    if (currentSong?.timeSignature) {
-      setMetronomeSignature(currentSong.timeSignature);
-    }
-  }, [currentSong?.id, currentSong?.tempo, currentSong?.timeSignature, setTempo, setMetronomeSignature]);
+    if (!currentSong?.id) return;
+    const { tempo: resolvedBpm, timeSignature: resolvedSig } = resolveSongMetronome(
+      currentSong,
+      activeSetlist,
+      activeSongMdDefaults
+    );
+    setTempo(resolvedBpm);
+    setMetronomeSignature(resolvedSig);
+  }, [
+    currentSong?.id,
+    activeSetlistId,
+    resolveSongMetronome,
+    activeSetlist,
+    activeSongMdDefaults,
+    setTempo,
+    setMetronomeSignature,
+  ]);
+
+  // Auto-save metronome settings to song regardless, with 0ms local response & debounced server persistence
+  const handleUpdateSongMetronome = useCallback(
+    (newBpm: number, newSig: string) => {
+      if (!currentSong?.id) return;
+      const songId = currentSong.id;
+      const validBpm = Math.max(30, Math.min(260, Math.round(newBpm)));
+      const validSig = newSig.trim() || '4/4';
+
+      // 1. Update active audio engine & UI immediately (0ms latency)
+      setTempo(validBpm);
+      setMetronomeSignature(validSig);
+
+      // 2. Persist instantly to device localStorage for this song
+      if (typeof window !== 'undefined') {
+        try {
+          const metronomeData = {
+            tempo: validBpm,
+            timeSignature: validSig,
+            updatedAt: Date.now(),
+          };
+          localStorage.setItem(`hgf_song_metronome_${songId}`, JSON.stringify(metronomeData));
+          localStorage.setItem(`hgf_song_tempo_${songId}`, String(validBpm));
+          localStorage.setItem(`hgf_song_timesig_${songId}`, validSig);
+        } catch (_) {}
+      }
+
+      // 3. Update in-memory song object across all state references
+      const updatedSong: Song = {
+        ...currentSong,
+        tempo: validBpm,
+        timeSignature: validSig,
+      };
+      updateSongInMemory(updatedSong);
+
+      // 4. If inside an active setlist, record session override so it stays locked during setlist flow
+      if (activeSetlistId) {
+        setSongSessionOverride(songId, { tempo: validBpm, timeSignature: validSig });
+      }
+
+      // 5. Debounce background network sync (500ms) to persist to master song file and setlist
+      if (metronomeSaveTimerRef.current) {
+        clearTimeout(metronomeSaveTimerRef.current);
+      }
+      metronomeSaveTimerRef.current = setTimeout(async () => {
+        try {
+          // Persist to master song JSON
+          fetch('/api/worship', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: songId,
+              tempo: validBpm,
+              timeSignature: validSig,
+            }),
+          }).catch(() => {});
+
+          // If inside active setlist, also persist to setlist file
+          if (activeSetlist) {
+            const updatedSongs = (activeSetlist.songs || []).map((it) => {
+              const itId = typeof it === 'string' ? it : it.id;
+              if (itId === songId) {
+                if (typeof it === 'object') {
+                  return { ...it, tempo: validBpm, timeSignature: validSig };
+                } else {
+                  return { id: it, tempo: validBpm, timeSignature: validSig };
+                }
+              }
+              return it;
+            });
+            fetch('/api/worship/setlists', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                ...activeSetlist,
+                songs: updatedSongs,
+                updatedAt: Date.now(),
+              }),
+            }).catch(() => {});
+          }
+        } catch (err) {
+          console.error('Failed to auto-save metronome settings to server:', err);
+        }
+      }, 500);
+    },
+    [
+      currentSong,
+      activeSetlist,
+      activeSetlistId,
+      setTempo,
+      setMetronomeSignature,
+      updateSongInMemory,
+      setSongSessionOverride,
+    ]
+  );
+
+  const handleBpmChange = useCallback(
+    (newBpm: number) => {
+      handleUpdateSongMetronome(newBpm, metronomeSignature);
+    },
+    [handleUpdateSongMetronome, metronomeSignature]
+  );
+
+  const handleTimeSignatureChange = useCallback(
+    (newSig: string) => {
+      handleUpdateSongMetronome(tempo, newSig);
+    },
+    [handleUpdateSongMetronome, tempo]
+  );
 
   // Official MD / Worship Leader key reference:
   // When inside a setlist, the MD setlist key is the official worship leader key.
@@ -2049,9 +2245,9 @@ export default function BandStagePage() {
         isOpen={isMetronomeModalOpen}
         onClose={() => setIsMetronomeModalOpen(false)}
         bpm={tempo}
-        onBpmChange={setTempo}
+        onBpmChange={handleBpmChange}
         timeSignature={metronomeSignature}
-        onTimeSignatureChange={setMetronomeSignature}
+        onTimeSignatureChange={handleTimeSignatureChange}
         isAudioActive={isMetronomeAudioActive}
         onToggleAudio={toggleMetronomeAudio}
         isPulsing={isPulsing}

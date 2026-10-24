@@ -26,8 +26,14 @@ export const MetronomeModal: React.FC<MetronomeModalProps> = ({
   onToggleAudio,
   isPulsing,
 }) => {
-  const [internalSig, setInternalSig] = useState<string>('4/4');
-  const timeSignature = externalSig || internalSig;
+  const [internalSig, setInternalSig] = useState<string>(externalSig || '4/4');
+  const timeSignature = externalSig || internalSig || '4/4';
+
+  useEffect(() => {
+    if (externalSig) {
+      setInternalSig(externalSig);
+    }
+  }, [externalSig]);
 
   const setTimeSignature = (sig: string) => {
     setInternalSig(sig);
@@ -42,11 +48,15 @@ export const MetronomeModal: React.FC<MetronomeModalProps> = ({
 
   useEffect(() => {
     const presets = ['4/4', '3/4', '6/8', '8/8'];
-    if (timeSignature && !presets.includes(timeSignature)) {
+    const currentSig = externalSig || internalSig || '4/4';
+    if (!presets.includes(currentSig)) {
       setIsCustomSig(true);
-      setCustomSigInput(timeSignature);
+      setCustomSigInput(currentSig);
+    } else {
+      setIsCustomSig(false);
+      setCustomSigInput('');
     }
-  }, [timeSignature]);
+  }, [externalSig, internalSig]);
 
   if (!isOpen) return null;
 
