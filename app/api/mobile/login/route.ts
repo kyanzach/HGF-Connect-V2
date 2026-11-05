@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     await db.member
       .update({
         where: { id: member.id },
-        data: { lastLoginAt: new Date() },
+        data: { lastLogin: new Date() },
       })
       .catch(() => {});
 
