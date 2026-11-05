@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getAuthenticatedMember } from "@/lib/mobileAuth";
+import { createNotification } from "@/lib/notify";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +49,21 @@ export async function POST(
         data: { postId, memberId: member.id, type: reactionType },
       });
       myReaction = reactionType;
+
+      const post = await db.post.findUnique({
+        where: { id: postId },
+        select: { authorId: true },
+      });
+      if (post && post.authorId !== member.id) {
+        createNotification({
+          memberId: post.authorId,
+          type: "general",
+          title: `${member.firstName} ${member.lastName} reacted (${reactionType}) to your post`,
+          body: "Tap to view your post in the community feed.",
+          link: `/feed?post=${postId}`,
+          actorId: member.id,
+        }).catch(() => {});
+      }
     }
 
     const count = await db.postLike.count({ where: { postId } });

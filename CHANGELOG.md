@@ -1,3 +1,20 @@
+## [v2.77.0] — 2026-11-06
+### Added / Enhanced / Fixed
+- **Phase 2 Native HGF Connect Feature Parity (`mobile/v1.1.0`, `v2.77.0`)**:
+  - **End-to-End Native Push Notification Pipeline (`lib/notify.ts`, `app/api/mobile/push-token/route.ts`, `mobile/services/notificationService.ts`, `mobile/app/_layout.tsx`)**:
+    - Guarded `expo-notifications` with `getNotificationsModule()` in `mobile/services/notificationService.ts` and `mobile/app/_layout.tsx` so Android Expo Go runs with zero console warnings while standalone iOS/Android builds and iOS Simulator automatically register `ExpoPushToken` via `POST /api/mobile/push-token`.
+    - Enhanced `lib/notify.ts` (`createNotification` & `notifyAllMembers`) to automatically dispatch real **Expo Push API (`https://exp.host/--/api/v2/push/send`)** banners alongside in-app DB notifications, and wired notifications into `/api/mobile/posts/[id]/react` and `/api/mobile/prayer`.
+  - **Native Church Hub (`mobile/app/church.tsx`, `app/api/mobile/church/route.ts`)**:
+    - Added 4-tab **HGF Church Hub** accessible from `TopHeader` (`Hub` pill) and the Feed quick-action bar (`Directory`, `Ministries`, `Quiz Hub`, `Grace AI`):
+      - **Member Directory**: Live search across all approved (`Auto`) and active (`Force Active`) church members with ministry tags and favorite verses.
+      - **Ministries**: Browse all 12 active House of Grace ministries and member counts.
+      - **Quiz for Christ Leaderboard**: Live weekly sermon quiz rankings and total points.
+      - **Grace AI Assistant**: Interactive Scripture & pastoral chat assistant inside the native app.
+  - **Native In-App Member Registration (`mobile/app/register.tsx`, `app/api/mobile/register/route.ts`)**:
+    - Added native registration flow linked from `mobile/app/login.tsx` with mandatory Terms of Use (`/terms`) & Privacy Policy (`/privacy`) acceptance checkbox (Apple Guideline 1.2 & 4.2).
+  - **Native Admin & Moderator Control Center (`mobile/app/admin.tsx`, `app/api/mobile/admin/route.ts`)**:
+    - Added native Admin Control Center with live church KPIs (`Approved Members`, `Pending Approvals`, `Feed Posts`, `Open UGC Reports`), 1-tap Member Status switcher (`Auto (Approved)` vs `Force Active`), and 1-tap UGC Moderation Report resolution.
+
 ## [v2.76.0] — 2026-11-06
 ### Added / Enhanced / Fixed
 - **Zero-Touch Auto-Unlock for Approved Members (`middleware.ts`, `app/(app)/layout.tsx`, `app/(public)/dashboard/page.tsx`, `components/VersionGuard.tsx`)**:

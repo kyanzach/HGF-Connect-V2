@@ -21,21 +21,30 @@ export function getNotificationsModule(): typeof import('expo-notifications') | 
   }
 }
 
+// Configure foreground presentation behavior (skipped in Android Expo Go where SDK 53+ removed remote push module)
 const NotificationsInit = getNotificationsModule();
 if (NotificationsInit) {
-  NotificationsInit.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-      priority: NotificationsInit.AndroidNotificationPriority.MAX,
-    }),
-  });
+  try {
+    NotificationsInit.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+        priority: NotificationsInit.AndroidNotificationPriority.MAX,
+      }),
+    });
+  } catch {
+    // Safe fallback
+  }
 }
 
-const LAST_SEEN_KEY = 'hgf_last_alerted_notif_id';
+const LAST_SEEN_KEY = 'hgf_connect_last_alerted_notif_id';
 
+/**
+ * Register Android notification channels, request OS-level permissions,
+ * and register the native Expo Push Token with /api/mobile/push-token
+ */
 export async function registerForPushNotificationsAsync(): Promise<boolean> {
   try {
     const Notifications = getNotificationsModule();
@@ -45,7 +54,7 @@ export async function registerForPushNotificationsAsync(): Promise<boolean> {
       try {
         await Notifications.setNotificationChannelAsync('hgf-connect-alerts', {
           name: 'HGF Connect Notifications',
-          description: 'Community posts, prayer requests, comments, and church event alerts',
+          description: 'Community posts, prayer requests, church events, and StewardShop updates',
           importance: Notifications.AndroidImportance.MAX,
           vibrationPattern: [0, 250, 250, 250],
           lightColor: '#4EB1CB',
@@ -55,7 +64,7 @@ export async function registerForPushNotificationsAsync(): Promise<boolean> {
           enableVibrate: true,
         });
       } catch {
-        // Safe fallback
+        // Safe channel fallback
       }
     }
 
@@ -66,12 +75,29 @@ export async function registerForPushNotificationsAsync(): Promise<boolean> {
       finalStatus = status;
     }
 
+    if (finalStatus === 'granted' && !isExpoGo) {
+      try {
+        const pushTokenRes = await Notifications.getExpoPushTokenAsync();
+        if (pushTokenRes?.data) {
+          await client.post('/push-token', {
+            token: pushTokenRes.data,
+            platform: Platform.OS,
+          });
+        }
+      } catch {
+        // Ignore token fetch errors on simulator
+      }
+    }
+
     return finalStatus === 'granted';
   } catch {
     return false;
   }
 }
 
+/**
+ * Trigger an instant native OS notification (displays in lock screen & top heads-up banner)
+ */
 export async function triggerLocalNotification(
   title: string,
   body: string,
@@ -94,22 +120,27 @@ export async function triggerLocalNotification(
       trigger: null,
     });
   } catch {
-    // silent fallback
+    // Silent fallback in simulator/Expo Go
   }
 }
 
+/**
+ * Sync with server /api/mobile/notifications and fire native push banners for new unread notifications
+ */
 export async function syncAndAlertNewNotifications(): Promise<number> {
   try {
     const res = await client.get('/notifications?limit=15');
     if (!res.data?.success) return 0;
 
     const notifs = res.data.data?.notifications || [];
-    const unreadCount = res.data.data?.unread_count || 0;
+    const unreadCount = res.data.data?.unreadCount || 0;
     if (notifs.length === 0) return 0;
 
-    let lastSeenStr = null;
+    let lastSeenStr: string | null = null;
     try {
-      lastSeenStr = await SecureStore.getItemAsync(LAST_SEEN_KEY);
+      if (Platform.OS !== 'web') {
+        lastSeenStr = await SecureStore.getItemAsync(LAST_SEEN_KEY);
+      }
     } catch {
       // ignore
     }
@@ -118,7 +149,7 @@ export async function syncAndAlertNewNotifications(): Promise<number> {
     const maxOverallId = Math.max(...notifs.map((n: any) => Number(n.id) || 0));
 
     if (lastSeenId === 0) {
-      if (maxOverallId > 0) {
+      if (maxOverallId > 0 && Platform.OS !== 'web') {
         try {
           await SecureStore.setItemAsync(LAST_SEEN_KEY, String(maxOverallId));
         } catch {
@@ -132,19 +163,19 @@ export async function syncAndAlertNewNotifications(): Promise<number> {
     const MAX_PUSH_AGE_MS = 30 * 60 * 1000;
 
     const newUnread = notifs.filter((n: any) => {
-      if (n.is_read || Number(n.id) <= lastSeenId) return false;
-      const createdMs = n.created_at ? new Date(n.created_at).getTime() : nowMs;
+      if (n.isRead || Number(n.id) <= lastSeenId) return false;
+      const createdMs = n.createdAt ? new Date(n.createdAt).getTime() : nowMs;
       return nowMs - createdMs <= MAX_PUSH_AGE_MS;
     });
 
     for (const n of newUnread) {
-      await triggerLocalNotification(n.title, n.message || '', {
+      await triggerLocalNotification(n.title, n.body || '', {
         link: n.link || '/(tabs)',
         id: n.id,
       });
     }
 
-    if (maxOverallId > lastSeenId) {
+    if (maxOverallId > lastSeenId && Platform.OS !== 'web') {
       try {
         await SecureStore.setItemAsync(LAST_SEEN_KEY, String(maxOverallId));
       } catch {

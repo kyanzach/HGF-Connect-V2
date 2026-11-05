@@ -258,6 +258,9 @@ When a page crashes or shows errors:
 - **Zero-Touch Auto-Unlock (`v2.76.0`) & Native Mobile App (`mobile/`)**:
   - Removed Edge `middleware.ts` `status === "pending"` redirect and moved authoritative pending check to `app/(app)/layout.tsx` (Node.js Prisma query), plus added automatic `redirect("/feed")` in `app/(public)/dashboard/page.tsx` when `effectiveStatus !== "pending"`. This guarantees zero-touch recovery for any member who was previously stuck on `/dashboard`.
   - Built the React Native (Expo SDK 54) mobile app (`mobile/`, bundle ID `ph.houseofgrace.connect`) exclusively for the main HGF Connect social media app (never `HGF Worship` `/band`), backed by `/api/mobile/*` HMAC-SHA256 Bearer token routes (`lib/mobileAuth.ts`), `/privacy`, `/terms`, and `/api/profile/delete-account`.
+- **Phase 2 Native Feature Parity & End-to-End Expo Push (`v2.77.0` / `mobile v1.1.0`)**:
+  - Added `getNotificationsModule()` in `mobile/services/notificationService.ts` to eliminate Android Expo Go SDK 53+ remote notification warnings while registering real `ExpoPushToken` tokens to `POST /api/mobile/push-token` and dispatching via `lib/notify.ts` (`https://exp.host/--/api/v2/push/send`).
+  - Added native `mobile/app/register.tsx` (`/api/mobile/register`), `mobile/app/church.tsx` (`/api/mobile/church` — Directory, 12 Ministries, Quiz for Christ Leaderboard, and Grace AI chat), and `mobile/app/admin.tsx` (`/api/mobile/admin` — Native Admin Control Center & UGC Moderation Queue).
 
 
 

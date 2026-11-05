@@ -316,21 +316,54 @@ export default function FeedScreen() {
         </Text>
 
         <View style={styles.statsRow}>
-          <View style={styles.statItem}>
+          <TouchableOpacity
+            style={styles.statItem}
+            onPress={() => router.push('/church?tab=directory' as any)}
+          >
             <Text style={styles.statNum}>{stats.memberCount}+</Text>
             <Text style={styles.statLabel}>Members</Text>
-          </View>
+          </TouchableOpacity>
           <View style={styles.statDivider} />
-          <View style={styles.statItem}>
+          <TouchableOpacity
+            style={styles.statItem}
+            onPress={() => router.push('/(tabs)/events' as any)}
+          >
             <Text style={styles.statNum}>{stats.upcomingCount}</Text>
             <Text style={styles.statLabel}>Events</Text>
-          </View>
+          </TouchableOpacity>
           <View style={styles.statDivider} />
-          <View style={styles.statItem}>
+          <TouchableOpacity
+            style={styles.statItem}
+            onPress={() => router.push('/church?tab=ministries' as any)}
+          >
             <Text style={styles.statNum}>{stats.ministryCount}</Text>
             <Text style={styles.statLabel}>Ministries</Text>
-          </View>
+          </TouchableOpacity>
         </View>
+      </View>
+
+      {/* Quick Church Hub Action Bar */}
+      <View style={styles.quickHubRow}>
+        {[
+          { label: 'Directory', icon: 'users', route: '/church?tab=directory' },
+          { label: 'Ministries', icon: 'sitemap', route: '/church?tab=ministries' },
+          { label: 'Quiz Hub', icon: 'trophy', route: '/church?tab=quiz' },
+          { label: 'Grace AI', icon: 'comments-o', route: '/church?tab=ai' },
+        ].map((item) => (
+          <TouchableOpacity
+            key={item.label}
+            style={styles.quickHubPill}
+            onPress={() => router.push(item.route as any)}
+            activeOpacity={0.85}
+          >
+            <View style={styles.quickHubIconWrap}>
+              <FontAwesome name={item.icon as any} size={14} color="#0e7490" />
+            </View>
+            <Text numberOfLines={1} adjustsFontSizeToFit style={styles.quickHubText}>
+              {item.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       {/* Daily Verse Card */}
@@ -694,6 +727,37 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',
+  },
+  quickHubRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 14,
+  },
+  quickHubPill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#ffffff',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  quickHubIconWrap: {
+    width: 24,
+    height: 24,
+    borderRadius: 7,
+    backgroundColor: '#e0f7fb',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickHubText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0f172a',
   },
   loaderWrap: {
     flex: 1,

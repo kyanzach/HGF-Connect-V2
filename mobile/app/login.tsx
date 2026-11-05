@@ -181,6 +181,16 @@ export default function LoginScreen() {
             )}
           </TouchableOpacity>
 
+          <TouchableOpacity
+            style={styles.registerLinkBtn}
+            onPress={() => router.push('/register' as any)}
+            activeOpacity={0.85}
+          >
+            <Text numberOfLines={1} adjustsFontSizeToFit style={styles.registerLinkText}>
+              New to House of Grace? Create Account
+            </Text>
+          </TouchableOpacity>
+
           <View style={styles.legalLinks}>
             <Text style={styles.legalHint}>
               By signing in, you agree to our community standards:
@@ -311,6 +321,21 @@ const styles = StyleSheet.create({
   signInBtnText: {
     color: '#ffffff',
     fontSize: 16,
+    fontWeight: '800',
+  },
+  registerLinkBtn: {
+    marginTop: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#bae6fd',
+    backgroundColor: '#f0f9ff',
+    alignItems: 'center',
+  },
+  registerLinkText: {
+    color: '#0e7490',
+    fontSize: 13,
     fontWeight: '800',
   },
   legalLinks: {

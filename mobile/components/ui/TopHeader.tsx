@@ -57,6 +57,28 @@ export default function TopHeader() {
         </View>
 
         <View style={styles.rightActions}>
+          <TouchableOpacity
+            style={styles.hubBtn}
+            onPress={() => router.push('/church' as any)}
+            activeOpacity={0.85}
+          >
+            <FontAwesome name="compass" size={14} color="#4EB1CB" />
+            <Text numberOfLines={1} adjustsFontSizeToFit style={styles.hubBtnText}>
+              Hub
+            </Text>
+          </TouchableOpacity>
+          {(user?.role === 'admin' || user?.role === 'moderator') ? (
+            <TouchableOpacity
+              style={styles.adminPill}
+              onPress={() => router.push('/admin' as any)}
+              activeOpacity={0.85}
+            >
+              <FontAwesome name="shield" size={13} color="#ffffff" />
+              <Text numberOfLines={1} adjustsFontSizeToFit style={styles.adminPillText}>
+                Admin
+              </Text>
+            </TouchableOpacity>
+          ) : null}
           {user ? (
             <>
               <TouchableOpacity
@@ -155,7 +177,37 @@ const styles = StyleSheet.create({
   rightActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
+  },
+  hubBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(78, 177, 203, 0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(78, 177, 203, 0.35)',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 999,
+  },
+  hubBtnText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  adminPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#0e7490',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 999,
+  },
+  adminPillText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '800',
   },
   iconBtn: {
     width: 38,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getAuthenticatedMember } from "@/lib/mobileAuth";
+import { createNotification } from "@/lib/notify";
 
 export const dynamic = "force-dynamic";
 
@@ -95,6 +96,16 @@ export async function POST(req: NextRequest) {
         where: { id: prayerId },
         data: { prayerCount: { increment: 1 } },
       });
+      if (updated.authorId && updated.authorId !== member.id) {
+        createNotification({
+          memberId: updated.authorId,
+          type: "general",
+          title: `${member.firstName} ${member.lastName} prayed for your request`,
+          body: updated.request.slice(0, 100),
+          link: `/prayer`,
+          actorId: member.id,
+        }).catch(() => {});
+      }
       if (body?.message && String(body.message).trim()) {
         await db.prayerResponse.create({
           data: {
