@@ -11,10 +11,10 @@ export default async function BirthdaysPage() {
     redirect("/login");
   }
 
-  // Fetch all active members who have a birthday set
+  // Fetch all active/approved members who have a birthday set
   const activeMembers = await db.member.findMany({
     where: {
-      status: "active",
+      status: { in: ["active", "approved"] },
       birthdate: { not: null },
     },
     select: {

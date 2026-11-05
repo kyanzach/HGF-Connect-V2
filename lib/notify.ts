@@ -64,7 +64,7 @@ export async function notifyAllMembers({
 }) {
   try {
     const members = await (db as any).member.findMany({
-      where: { status: "active", id: { not: actorId } },
+      where: { status: { in: ["active", "approved"] }, id: { not: actorId } },
       select: { id: true },
     });
     if (!members.length) return;

@@ -22,10 +22,16 @@ export async function GET(
     }
 
     if ((session.user as any).status === "pending") {
-      return NextResponse.json(
-        { error: "Forbidden. Account approval required to download sermon resources." },
-        { status: 403 }
-      );
+      const dbMember = await db.member.findUnique({
+        where: { id: Number(session.user.id) },
+        select: { status: true },
+      });
+      if (!dbMember || dbMember.status === "pending") {
+        return NextResponse.json(
+          { error: "Forbidden. Account approval required to download sermon resources." },
+          { status: 403 }
+        );
+      }
     }
 
     const { id } = await params;

@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
         { firstName: { contains: query } },
         { lastName: { contains: query } },
       ],
-      status: isStaff ? undefined : "active",
+      status: isStaff ? undefined : { notIn: ["pending", "archived"] },
     },
     take: 10,
     select: {

@@ -18,8 +18,8 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Block inactive / pending accounts that still hold a valid JWT
-  if (session.user.status !== "active") {
+  // Block pending / archived accounts that still hold a valid JWT
+  if (session.user.status === "pending" || session.user.status === "archived") {
     return NextResponse.json(
       { error: "Account not active" },
       { status: 403 }

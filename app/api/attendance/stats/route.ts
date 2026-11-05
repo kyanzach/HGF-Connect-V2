@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     db.attendanceRecord.count({ where: { attendanceDate: { gte: startOfToday } } }),
     db.attendanceRecord.count({ where: { attendanceDate: { gte: startOfWeek } } }),
     db.attendanceRecord.count({ where: { attendanceDate: { gte: startOfMonth } } }),
-    db.member.count({ where: { status: "active" } }),
+    db.member.count({ where: { status: { notIn: ["pending", "archived"] } } }),
   ]);
 
   return NextResponse.json({ todayCount, weekCount, monthCount, totalMembers });

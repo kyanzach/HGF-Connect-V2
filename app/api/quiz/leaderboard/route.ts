@@ -57,7 +57,7 @@ export async function GET() {
 
     // 2. All-Time Leaderboard
     const allTimeMembers = await db.member.findMany({
-      where: { status: "active" },
+      where: { status: { in: ["active", "approved"] } },
       select: {
         id: true,
         firstName: true,

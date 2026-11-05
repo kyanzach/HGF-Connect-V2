@@ -1,3 +1,10 @@
+## [v2.75.11] — 2026-11-06
+### Fixed / Changed
+- **Permanent Fix for "Account Pending Approval" Lockout & `Auto` (`approved`) Status Parity**:
+  - **Live JWT Session Status Sync (`lib/auth.ts`, `components/VersionGuard.tsx`)**: Fixed bug where members who logged in while `pending` and were subsequently approved retained `status: "pending"` in their 10-year PWA JWT cookie indefinitely. `lib/auth.ts` now refreshes `token.status` and `token.role` from the database whenever `token.status === "pending"`, `trigger === "update"`, or every 5 minutes (`statusSyncedAt`), while `VersionGuard.tsx` automatically triggers `updateSession()` and reloads if a client holds a stale `"pending"` session.
+  - **Full Feature Parity for `Auto` (`status = "approved"`) Members**: Updated `app/(public)/dashboard/page.tsx`, `app/(public)/resources/page.tsx`, `app/api/events/[id]/presentation/download/route.ts`, `app/api/prayer/[id]/pray/route.ts`, `lib/notify.ts`, `app/(app)/birthdays/page.tsx`, `app/(app)/church/page.tsx`, `app/admin/birthdays/page.tsx`, `app/api/admin/birthdays/demo/route.ts`, `app/api/auth/retrieve-account/search/route.ts`, `app/api/members/search/route.ts`, `app/api/quiz/daily-post/route.ts`, `app/api/quiz/rewards/announce/route.ts`, `app/api/quiz/admin/backfill/route.ts`, `app/api/quiz/leaderboard/route.ts`, `app/api/attendance/stats/route.ts`, and `app/page.tsx` so all 387 `Auto` (`approved`) members enjoy identical access, notifications, birthday listings, prayer actions, and search visibility as `Force Active` (`active`) members.
+  - **Mobile Store Readiness Skills (`mobile-audit`, `mobile-ux`)**: Added `.agents/skills/mobile-audit/SKILL.md` and `.agents/skills/mobile-ux/SKILL.md` for Apple App Store and Google Play Store compliance auditing.
+
 ## [v2.75.10] — 2026-10-24
 ### Added / Enhanced / Fixed
 - **Per-Song Metronome Auto-Saving & Clean Isolation on Song Switch**:

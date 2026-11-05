@@ -33,11 +33,11 @@ export async function POST(request: Request) {
       orConditions.push({ phone: { contains: phone.trim() } });
     }
 
-    // Fetch active members matching name or phone
+    // Fetch non-archived members matching name or phone
     const rawMembers = await db.member.findMany({
       where: {
         OR: orConditions,
-        status: { in: ["active", "pending"] }, // Include active or pending accounts for recovery
+        status: { notIn: ["archived"] }, // Include approved, active, pending, guest, or inactive accounts for recovery
       },
       select: {
         id: true,

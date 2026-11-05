@@ -33,9 +33,9 @@ export async function POST(request: Request) {
       ];
       const monthName = monthNames[currentMonth - 1];
 
-      // Fetch active members
+      // Fetch active/approved members
       const activeMembers = await db.member.findMany({
-        where: { status: "active" },
+        where: { status: { in: ["active", "approved"] } },
         select: {
           id: true,
           firstName: true,
@@ -124,7 +124,7 @@ export async function POST(request: Request) {
         }
       });
 
-      if (!member || member.status !== "active") {
+      if (!member || (member.status !== "active" && member.status !== "approved")) {
         return NextResponse.json({ error: "Active member not found" }, { status: 404 });
       }
 

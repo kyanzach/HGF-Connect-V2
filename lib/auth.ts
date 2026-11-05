@@ -198,19 +198,43 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
       }
 
-      // Re-fetch profile picture and user info from DB when session.update() is called (unless we are impersonating and just did the update above)
-      if (trigger === "update" && token.id && (!session || (!session.impersonateId && !session.stopImpersonating))) {
+      // Re-fetch profile picture, role, and live member status from DB:
+      // 1) Immediately whenever token.status === "pending" (so admin approval unlocks the user's session immediately without re-login)
+      // 2) Whenever session.update() is called
+      // 3) Every 5 minutes for active sessions so role/status changes propagate automatically
+      const nowMs = Date.now();
+      const lastSynced = typeof token.statusSyncedAt === "number" ? token.statusSyncedAt : 0;
+      const shouldSyncFromDb =
+        token.id &&
+        (!session || (!session.impersonateId && !session.stopImpersonating)) &&
+        (trigger === "update" || token.status === "pending" || nowMs - lastSynced > 5 * 60 * 1000);
+
+      if (shouldSyncFromDb) {
         const numericId = parseInt(String(token.id), 10);
         if (!Number.isNaN(numericId)) {
-          const fresh = await db.member.findUnique({
-            where: { id: numericId },
-            select: { profilePicture: true, username: true, firstName: true, lastName: true },
-          });
-          if (fresh) {
-            token.profilePicture = fresh.profilePicture;
-            token.username = fresh.username;
-            token.firstName = fresh.firstName;
-            token.lastName = fresh.lastName;
+          try {
+            const fresh = await db.member.findUnique({
+              where: { id: numericId },
+              select: {
+                profilePicture: true,
+                username: true,
+                firstName: true,
+                lastName: true,
+                status: true,
+                role: true,
+              },
+            });
+            if (fresh) {
+              token.profilePicture = fresh.profilePicture;
+              token.username = fresh.username;
+              token.firstName = fresh.firstName;
+              token.lastName = fresh.lastName;
+              token.status = fresh.status as any;
+              token.role = fresh.role as any;
+              token.statusSyncedAt = nowMs;
+            }
+          } catch {
+            // Note: middleware runs in Edge runtime where Prisma may not execute; fallback gracefully to token values
           }
         }
       }

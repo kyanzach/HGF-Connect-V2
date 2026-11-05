@@ -24,12 +24,15 @@ export default async function UserDashboardPage() {
     },
   });
 
+  // Always prefer authoritative DB status over potentially stale JWT cookie status
+  const effectiveStatus = member?.status ?? session.user.status;
+
   return (
     <>
       <div style={{ minHeight: "100vh", background: "#f8fafc", padding: "2rem 1.5rem" }}>
         <div style={{ maxWidth: "700px", margin: "0 auto" }}>
           {/* Status Banner */}
-          {session.user.status === "pending" && (
+          {effectiveStatus === "pending" && (
             <div
               style={{
                 background: "#fffbeb",
@@ -69,7 +72,7 @@ export default async function UserDashboardPage() {
               Welcome, {(session.user as any).firstName}! 👋
             </h1>
             <p style={{ color: "rgba(255,255,255,0.75)", fontSize: "0.9375rem" }}>
-              {session.user.status === "active"
+              {effectiveStatus !== "pending"
                 ? "You're an active HGF Connect member."
                 : "Your account is pending admin approval."}
             </p>

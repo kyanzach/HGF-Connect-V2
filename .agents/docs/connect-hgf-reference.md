@@ -245,4 +245,16 @@ When a page crashes or shows errors:
   - **Removed Redundant Sender Tags**: Completely eliminated `HGF:` prefix and `-HGF` suffix across all reminder and birthday templates, as approved telecom SenderID masks ("HGF Church" / "HGF Connect") already display on recipient devices.
   - **Revitalized Urgent Reminder Templates**: Removed stripped-down placeholder text like "Come worship!?" in favor of rich, inspiring Scripture hooks and warm invites ("See you there!") maximized up to ~150 characters without exceeding the 160-character (1 credit) ceiling.
 
+### 2026-11-06
+- **Member Status `"approved"` (`Auto`) vs `"active"` (`Force Active`) Parity & Stale JWT Cookie Auto-Refresh (v2.75.11)**:
+  - **Root Cause A (Status Enum Mismatch)**: Since `v2.31.0`, the Admin Members table supports `Auto` (`status = "approved"`) alongside `Force Active` (`status = "active"`). 387 approved members have `status = "approved"` (`Auto`), while 79 have `status = "active"`. Several legacy queries and checks checked `status === "active"` strictly instead of `status in ["active", "approved"]` or `status notIn ["pending", "archived"]`.
+  - **Root Cause B (10-Year JWT Cookie Staleness)**: NextAuth JWT strategy (`lib/auth.ts`) sets a 10-year `maxAge` cookie so PWA users stay logged in. Previously, `jwt()` only wrote `token.status = user.status` at initial sign-in. Any member who signed in while `pending` and was later approved by an admin kept `status: "pending"` inside their encrypted browser cookie indefinitely, causing `middleware.ts` and `/dashboard` to lock them in the "Pending Approval" banner.
+  - **Permanent Fix**:
+    1. Updated `lib/auth.ts` `jwt` callback to re-fetch `status` and `role` from `db.member` whenever `trigger === "update"`, `token.status === "pending"`, or `statusSyncedAt` is older than 5 minutes (wrapped in `try/catch` so Edge `middleware.ts` falls back gracefully when Prisma isn't available in Edge runtime).
+    2. Updated `components/VersionGuard.tsx` to automatically call `updateSession()` on mount when `session.user.status === "pending"` and reload once the fresh DB status is synced into the JWT cookie.
+    3. Updated `/dashboard`, `/resources`, `/api/prayer/[id]/pray`, `/api/events/[id]/presentation/download`, `lib/notify.ts`, birthdays, church page, quiz notifications/leaderboard, account retrieval, member search, and attendance stats to treat `"approved"` (`Auto`) on full parity with `"active"` (`Force Active`).
+- **Mobile Store Readiness Skills Synced (`mobile-audit` & `mobile-ux`)**:
+  - Synced `.agents/skills/mobile-audit/SKILL.md` and `.agents/skills/mobile-ux/SKILL.md` to enforce the 6-pillar Apple App Store & Google Play Store pre-submission audit checklist.
+
+
 

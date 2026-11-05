@@ -17,9 +17,15 @@ export default async function ResourcesPage() {
     redirect("/login?callbackUrl=/resources");
   }
 
-  // Pending members are restricted to dashboard
+  // Pending members are restricted to dashboard (verify live DB status in case JWT cookie was stale)
   if ((session.user as any).status === "pending") {
-    redirect("/dashboard");
+    const dbMember = await db.member.findUnique({
+      where: { id: Number(session.user.id) },
+      select: { status: true },
+    });
+    if (!dbMember || dbMember.status === "pending") {
+      redirect("/dashboard");
+    }
   }
 
   const events = await db.event.findMany({

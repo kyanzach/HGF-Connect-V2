@@ -13,10 +13,10 @@ export default async function ChurchPage() {
 
   const now = new Date();
 
-  // 1. Fetch all active members who have a birthday set
+  // 1. Fetch all active/approved members who have a birthday set
   const activeMembers = await db.member.findMany({
     where: {
-      status: "active",
+      status: { in: ["active", "approved"] },
       birthdate: { not: null },
     },
     select: {

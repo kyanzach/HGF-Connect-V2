@@ -57,7 +57,7 @@ const APP_FEATURES = [
 
 async function getData() {
   const [memberCount, upcomingEvents, ministryCount] = await Promise.all([
-    db.member.count({ where: { status: "active" } }),
+    db.member.count({ where: { status: { notIn: ["pending", "archived"] } } }),
     db.event.findMany({
       where: { eventDate: { gte: new Date() }, status: "scheduled" },
       orderBy: { eventDate: "asc" },

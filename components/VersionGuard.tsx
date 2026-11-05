@@ -23,14 +23,33 @@ const CHECK_INTERVAL_MS = 60_000; // 60 seconds
 const DISMISSED_KEY = "hgf_update_dismissed_version";
 
 export default function VersionGuard() {
-  const { status: sessionStatus } = useSession();
+  const { data: session, status: sessionStatus, update: updateSession } = useSession();
   const pathname = usePathname();
   const lastPathname = useRef<string | null>(null);
+  const syncedPendingRef = useRef(false);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isChecking = useRef(false);
   const [pendingVersion, setPendingVersion] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
+
+  // Auto-sync session token if the client cookie still says "pending"
+  // so approved members immediately unlock without having to log out and log back in.
+  useEffect(() => {
+    if (
+      sessionStatus === "authenticated" &&
+      (session?.user as any)?.status === "pending" &&
+      !syncedPendingRef.current
+    ) {
+      syncedPendingRef.current = true;
+      updateSession().then((updated) => {
+        const newStatus = (updated?.user as any)?.status;
+        if (newStatus && newStatus !== "pending") {
+          window.location.reload();
+        }
+      }).catch(() => {});
+    }
+  }, [sessionStatus, session, updateSession]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;

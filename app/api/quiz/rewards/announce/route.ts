@@ -165,7 +165,7 @@ export async function POST(request: Request) {
 
 async function notifyMembers(title: string, rewardTier: string, actorId: number) {
   const activeMembers = await db.member.findMany({
-    where: { status: "active" },
+    where: { status: { in: ["active", "approved"] } },
     select: { id: true },
   });
 
