@@ -33,21 +33,24 @@ export default function VersionGuard() {
   const [pendingVersion, setPendingVersion] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
 
-  // Auto-sync session token if the client cookie still says "pending"
-  // so approved members immediately unlock without having to log out and log back in.
+  // Auto-sync session token once per browser session (and immediately if client cookie says "pending")
+  // so approved members have their 10-year browser cookie rewritten automatically via Set-Cookie.
   useEffect(() => {
-    if (
-      sessionStatus === "authenticated" &&
-      (session?.user as any)?.status === "pending" &&
-      !syncedPendingRef.current
-    ) {
+    if (sessionStatus === "authenticated" && !syncedPendingRef.current) {
       syncedPendingRef.current = true;
-      updateSession().then((updated) => {
-        const newStatus = (updated?.user as any)?.status;
-        if (newStatus && newStatus !== "pending") {
-          window.location.reload();
-        }
-      }).catch(() => {});
+      const syncKey = `hgf_jwt_synced_${APP_VERSION}`;
+      const isPending = (session?.user as any)?.status === "pending";
+      if (isPending || !sessionStorage.getItem(syncKey)) {
+        sessionStorage.setItem(syncKey, "1");
+        updateSession()
+          .then((updated) => {
+            const newStatus = (updated?.user as any)?.status;
+            if (isPending && newStatus && newStatus !== "pending") {
+              window.location.reload();
+            }
+          })
+          .catch(() => {});
+      }
     }
   }, [sessionStatus, session, updateSession]);
 

@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import UnifiedHeader from "@/components/layout/UnifiedHeader";
 import BottomDock from "@/components/app/BottomDock";
@@ -15,6 +16,17 @@ export default async function AppLayout({
 
   if (!session) {
     redirect("/login");
+  }
+
+  // Authoritative DB check if session still reports "pending"
+  if ((session.user as any)?.status === "pending") {
+    const dbMember = await db.member.findUnique({
+      where: { id: Number(session.user.id) },
+      select: { status: true },
+    });
+    if (!dbMember || dbMember.status === "pending") {
+      redirect("/dashboard");
+    }
   }
 
   return (

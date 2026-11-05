@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import PhotoViewerModal, { type HistoryPhoto } from "@/components/PhotoViewerModal";
+import ConfirmModal from "@/components/ConfirmModal";
+import { triggerLogout } from "@/lib/logout";
 
 const PRIMARY = "#4EB1CB";
 
@@ -29,6 +31,8 @@ export default function EditProfilePage() {
   const [pwConfirm, setPwConfirm] = useState("");
   const [pwSaving, setPwSaving]   = useState(false);
   const [pwMsg, setPwMsg]         = useState<{ ok: boolean; text: string } | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -619,8 +623,35 @@ export default function EditProfilePage() {
                   }}
                   style={{ width: "100%", padding: "0.875rem", background: pwSaving ? "#94a3b8" : PRIMARY, border: "none", borderRadius: "12px", color: "white", fontSize: "0.9rem", fontWeight: 800, cursor: pwSaving ? "not-allowed" : "pointer" }}
                 >
-                  {pwSaving ? "Updating…" : "🔑 Update Password"}
+                  {pwSaving ? "Updating…" : "Update Password"}
                 </button>
+
+                {/* Apple Guideline 5.1.1(v) & Google Play Data Deletion: Self-Service Account Deletion */}
+                <div style={{ marginTop: "2rem", paddingTop: "1.25rem", borderTop: "1.5px solid #fee2e2" }}>
+                  <h4 style={{ margin: "0 0 0.25rem", fontSize: "0.875rem", fontWeight: 700, color: "#dc2626" }}>
+                    Delete Account
+                  </h4>
+                  <p style={{ margin: "0 0 0.875rem", fontSize: "0.8rem", color: "#64748b", lineHeight: 1.5 }}>
+                    Permanently delete your HGF Connect account and scrub your personal contact details.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setDeleteOpen(true)}
+                    style={{
+                      width: "100%",
+                      padding: "0.75rem",
+                      background: "#fef2f2",
+                      border: "1.5px solid #fecaca",
+                      borderRadius: "12px",
+                      color: "#dc2626",
+                      fontSize: "0.875rem",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Delete My Account
+                  </button>
+                </div>
               </div>
             )}
 
@@ -792,6 +823,35 @@ export default function EditProfilePage() {
         }}
       />
     )}
+    {/* Confirm Account Deletion Modal */}
+    <ConfirmModal
+      open={deleteOpen}
+      title="Delete Your Account?"
+      message="This will permanently deactivate your account and scrub your personal contact details from HGF Connect. This action cannot be undone."
+      confirmLabel="Delete Account"
+      cancelLabel="Cancel"
+      confirmColor="#dc2626"
+      loading={deletingAccount}
+      onCancel={() => setDeleteOpen(false)}
+      onConfirm={async () => {
+        setDeletingAccount(true);
+        try {
+          const res = await fetch("/api/profile/delete-account", { method: "POST" });
+          if (res.ok) {
+            setDeleteOpen(false);
+            triggerLogout();
+          } else {
+            setError("Failed to delete account. Please try again.");
+            setDeleteOpen(false);
+          }
+        } catch {
+          setError("Network error while deleting account.");
+          setDeleteOpen(false);
+        } finally {
+          setDeletingAccount(false);
+        }
+      }}
+    />
     </>
   );
 }

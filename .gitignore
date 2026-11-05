@@ -50,3 +50,11 @@ CREDENTIALS_REFERENCE.md
 /data/
 /public/audio/
 .aider*
+
+# Mobile native app (Expo / React Native)
+mobile/node_modules/
+mobile/.expo/
+mobile/ios/
+mobile/android/
+mobile/dist/
+mobile/web-build/

@@ -1,3 +1,18 @@
+## [v2.76.0] — 2026-11-06
+### Added / Enhanced / Fixed
+- **Zero-Touch Auto-Unlock for Approved Members (`middleware.ts`, `app/(app)/layout.tsx`, `app/(public)/dashboard/page.tsx`, `components/VersionGuard.tsx`)**:
+  - Removed Edge-runtime `status === "pending"` redirect in `middleware.ts` (since Edge cannot query MySQL and only saw stale browser cookies) and moved authoritative pending verification to `app/(app)/layout.tsx` (Node.js + Prisma live DB lookup).
+  - Updated `app/(public)/dashboard/page.tsx` so any approved member whose phone was previously sitting on `/dashboard` is automatically server-redirected straight into `/feed` (the social media feed) the instant they open their phone, with zero taps required.
+  - Enhanced `VersionGuard.tsx` to refresh NextAuth JWT cookies (`updateSession()`) once per app version so stale 10-year cookies are permanently overwritten with `Set-Cookie`.
+- **Real React Native Mobile App (`mobile/` — Expo SDK 54 / React Native 0.81) for HGF Connect (`ph.houseofgrace.connect`)**:
+  - Built standalone native iOS & Android social media community app in `mobile/` featuring 5 native bottom tabs (`Feed`, `Prayer`, `Events`, `StewardShop`, `Profile`), custom native modals (`AlertPromptModal`, `ConfirmModal`, `NotificationModal`), real `expo-notifications` push notifications (`mobile/services/notificationService.ts`), and `expo-image-picker` avatar uploads.
+  - Created 11 mobile Bearer-token + session API endpoints (`lib/mobileAuth.ts`, `/api/mobile/login`, `/api/mobile/feed`, `/api/mobile/posts/[id]/react`, `/api/mobile/posts/[id]/comments`, `/api/mobile/prayer`, `/api/mobile/events`, `/api/mobile/stewardshop`, `/api/mobile/notifications`, `/api/mobile/profile`, `/api/mobile/profile/photo`, `/api/mobile/moderation`).
+- **Apple App Store & Google Play Store Mandatory Compliance (`mobile-audit` & `mobile-ux` 6-Pillar Pass)**:
+  - **In-App Account Deletion (Apple Guideline 5.1.1(v) & Google Play Data Safety)**: Added `/api/profile/delete-account` endpoint and self-service Account Deletion modal flows in both Web (`/profile/edit`, `/me`) and Native (`mobile/app/(tabs)/profile.tsx`).
+  - **UGC Moderation — Report & Block User (Apple Guideline 1.2)**: Added `/api/mobile/moderation` and native 1-tap Report & Block User actions on Feed posts, Prayer requests, and StewardShop listings.
+  - **Public Legal Pages (`/privacy` & `/terms`)**: Created public Privacy Policy (`app/(public)/privacy/page.tsx`) and Terms of Use & Zero-Tolerance UGC EULA (`app/(public)/terms/page.tsx`).
+  - **1024×1024 Non-Transparent Store Icons**: Generated 1024×1024 RGB (`hasAlpha: no`) app icons in `mobile/assets/images/`.
+
 ## [v2.75.11] — 2026-11-06
 ### Fixed / Changed
 - **Permanent Fix for "Account Pending Approval" Lockout & `Auto` (`approved`) Status Parity**:

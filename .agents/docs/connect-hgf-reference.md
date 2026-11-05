@@ -255,6 +255,10 @@ When a page crashes or shows errors:
     3. Updated `/dashboard`, `/resources`, `/api/prayer/[id]/pray`, `/api/events/[id]/presentation/download`, `lib/notify.ts`, birthdays, church page, quiz notifications/leaderboard, account retrieval, member search, and attendance stats to treat `"approved"` (`Auto`) on full parity with `"active"` (`Force Active`).
 - **Mobile Store Readiness Skills Synced (`mobile-audit` & `mobile-ux`)**:
   - Synced `.agents/skills/mobile-audit/SKILL.md` and `.agents/skills/mobile-ux/SKILL.md` to enforce the 6-pillar Apple App Store & Google Play Store pre-submission audit checklist.
+- **Zero-Touch Auto-Unlock (`v2.76.0`) & Native Mobile App (`mobile/`)**:
+  - Removed Edge `middleware.ts` `status === "pending"` redirect and moved authoritative pending check to `app/(app)/layout.tsx` (Node.js Prisma query), plus added automatic `redirect("/feed")` in `app/(public)/dashboard/page.tsx` when `effectiveStatus !== "pending"`. This guarantees zero-touch recovery for any member who was previously stuck on `/dashboard`.
+  - Built the React Native (Expo SDK 54) mobile app (`mobile/`, bundle ID `ph.houseofgrace.connect`) exclusively for the main HGF Connect social media app (never `HGF Worship` `/band`), backed by `/api/mobile/*` HMAC-SHA256 Bearer token routes (`lib/mobileAuth.ts`), `/privacy`, `/terms`, and `/api/profile/delete-account`.
+
 
 
 

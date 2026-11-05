@@ -27,6 +27,12 @@ export default async function UserDashboardPage() {
   // Always prefer authoritative DB status over potentially stale JWT cookie status
   const effectiveStatus = member?.status ?? session.user.status;
 
+  // If an approved/active member lands on /dashboard (e.g. from a previously stuck pending tab),
+  // automatically send them straight into the main HGF Connect social feed with zero manual action required.
+  if (effectiveStatus !== "pending") {
+    redirect("/feed");
+  }
+
   return (
     <>
       <div style={{ minHeight: "100vh", background: "#f8fafc", padding: "2rem 1.5rem" }}>

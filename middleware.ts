@@ -95,18 +95,8 @@ export default auth((request) => {
     }
   }
 
-  // Pending users can only access /dashboard and /logout
-  if (
-    isLoggedIn &&
-    status === "pending" &&
-    !pathname.startsWith("/dashboard") &&
-    !pathname.startsWith("/admin") &&
-    !pathname.startsWith("/login") &&
-    !pathname.startsWith("/api") &&
-    pathname !== "/"
-  ) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
-  }
+  // Note: Pending status enforcement is handled in Server Components (app/(app)/layout.tsx, etc.)
+  // where Node.js can query the live MySQL status, avoiding stale Edge JWT cookie lockouts.
 
   return NextResponse.next();
 });
