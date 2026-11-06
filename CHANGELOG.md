@@ -1,3 +1,11 @@
+## [v2.79.0] — 2026-11-06
+### Added / Changed / Fixed
+- **100% Pixel-for-Pixel Web-to-Mobile UI/UX Replica (`mobile/v1.3.0`, `v2.79.0`)**:
+  - **UnifiedHeader & User Dropdown (`mobile/components/ui/TopHeader.tsx`)**: Exact replica of `components/layout/UnifiedHeader.tsx` with circular `HGF-icon-v1.0.png` logo, `HGF Connect`, `BETA v2.78.0` pill, notification bell, `[Avatar] {firstName} ▾` user dropdown menu (`View Profile →`, `🏠 Community Feed`, `🧠 Quiz for Christ`, `👤 My Profile`, `📝 My Grace Blog`, `🙏 My Prayer Request`, `✍️ Share Testimony`, `🤝 My Listings`, `🫰 My Shared Links`, `⚙️ Settings`, `✅ Attendance App`, `MANAGEMENT`: `📅 Add Event`, `🎛️ Admin Dashboard`, `🧠 Quiz Admin`, `🚪 Logout`), and `☰` slide-down drawer.
+  - **HeroCarousel, 8-Icon Quick-Action Bar & PostCard (`mobile/app/(tabs)/index.tsx`, `app/api/mobile/feed/route.ts`)**: Exact replica of `HeroCarousel.tsx`, `FeedClient.tsx`, and `PostCard.tsx` including `Welcome back, {firstName} 🙌` slide, `🧠 🎯 MISSED SUNDAY QUIZ CATCH-UP` slide (`The Kingdom Mind`), 8 pastel quick-action tiles (`✍️ Write`, `📅 Events`, `🙏 Ask for Prayer`, `🤝 StewardShop`, `👥 Directory`, `📝 Grace Blog`, `📖 Devo`, `💡 AI Helper`), `BIRTHDAY_DAILY` card (`Levine Paco`), `BIRTHDAY_MONTHLY`, `EVENT`, `bg:teal`/`bg:red`/`bg:mountain`/`bg:ocean` background posts, and `❤️`/`🙏`/`🤗` reactions.
+  - **BottomDock & Share with the Community (`mobile/app/(tabs)/_layout.tsx`, `mobile/app/create-post.tsx`, `app/api/mobile/posts/upload/route.ts`)**: Exact 5-item `BottomDock.tsx` (`🏠 Home`, `🙏 Prayer Wall`, center elevated `#4EB1CB` `✍️ Write` FAB, `🤝 StewardShop`, `👤 Me`) and `/feed/create` composer (`← Back Share with the Community`, `✍️ Thoughts | 🙌 Testimony | 🙏 Prayer` tabs, `Aa` background picker, `😊` emoji picker, `Add Photos (Optional)` dashed `+ Add` tile with `0 / 21 selected`, `🔒 Visible to: Members Only ▾`, and `✍️ Post Thoughts` CTA).
+  - **Prayer Wall, StewardShop, Me, Events & Login (`mobile/app/(tabs)/prayer.tsx`, `stewardshop.tsx`, `profile.tsx`, `events.tsx`, `login.tsx`)**: Rebuilt all tabs and screens to match their web counterparts pixel-for-pixel.
+
 ## [v2.78.0] — 2026-11-06
 ### Added / Enhanced
 - **Phase 3 Full Interactive Web-to-Mobile Feature Parity (`mobile/v1.2.0`, `v2.78.0`)**:

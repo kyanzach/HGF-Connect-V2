@@ -1,44 +1,66 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  TextInput,
   Image,
+  Switch,
+  TextInput,
+  Modal,
   ActivityIndicator,
+  KeyboardAvoidingView,
   Platform,
-  Linking,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
-import * as WebBrowser from 'expo-web-browser';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter } from 'expo-router';
 import client from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
 import AlertPromptModal, { AlertType } from '@/components/ui/AlertPromptModal';
 import ConfirmModal from '@/components/ui/ConfirmModal';
-import { triggerLocalNotification } from '@/services/notificationService';
+import * as SecureStore from 'expo-secure-store';
 
-export default function ProfileScreen() {
+interface ProfileData {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email?: string | null;
+  phone?: string | null;
+  role: string;
+  status: string;
+  type?: string | null;
+  ageGroup?: string | null;
+  profilePicture?: string | null;
+  coverPhoto?: string | null;
+  bio?: string | null;
+  favoriteVerse?: string | null;
+  createdAt?: string | null;
+  ministries?: { id: number; name: string; role: string }[];
+}
+
+export default function MeScreen() {
   const router = useRouter();
   const { user, logout, updateUser } = useAuth();
 
+  const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Biometric settings
+  const [bioSupported, setBioSupported] = useState(false);
+  const [bioEnabled, setBioEnabledState] = useState(false);
+
+  // Edit Profile Modal
+  const [editOpen, setEditOpen] = useState(false);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [favoriteVerse, setFavoriteVerse] = useState('');
   const [saving, setSaving] = useState(false);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [editing, setEditing] = useState(false);
 
-  const [firstName, setFirstName] = useState(user?.firstName || '');
-  const [lastName, setLastName] = useState(user?.lastName || '');
-  const [email, setEmail] = useState(user?.email || '');
-  const [phone, setPhone] = useState(user?.phone || '');
-  const [favoriteVerse, setFavoriteVerse] = useState(user?.favoriteVerse || '');
-  const [stats, setStats] = useState({ posts: 0, prayers: 0, attendance: 0 });
-
-  // Apple Guideline 5.1.1(v) & Google Play Data Deletion
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  // Settings & Account Modal
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const [alertModal, setAlertModal] = useState<{
@@ -48,120 +70,87 @@ export default function ProfileScreen() {
     message: string;
   }>({ visible: false, type: 'info', title: '', message: '' });
 
-  const showAlert = (type: AlertType, title: string, message: string) => {
-    setAlertModal({ visible: true, type, title, message });
-  };
-
-  useEffect(() => {
+  const loadProfile = useCallback(async () => {
     if (!user) return;
     setLoading(true);
-    client
-      .get('/profile')
-      .then((res) => {
-        if (res.data?.success && res.data.data?.user) {
-          const u = res.data.data.user;
-          setFirstName(u.firstName || '');
-          setLastName(u.lastName || '');
-          setEmail(u.email || '');
-          setPhone(u.phone || '');
-          setFavoriteVerse(u.favoriteVerse || '');
-          if (u.stats) setStats(u.stats);
-          updateUser({
-            firstName: u.firstName,
-            lastName: u.lastName,
-            fullName: u.fullName,
-            status: u.status,
-            role: u.role,
-            profilePicture: u.profilePicture,
-          });
-        }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [user?.id]);
-
-  const openLegal = async (path: string) => {
-    const url = `https://connect.houseofgrace.ph${path}`;
     try {
-      await WebBrowser.openBrowserAsync(url);
-    } catch {
-      Linking.openURL(url).catch(() => {});
-    }
-  };
-
-  const handlePickPhoto = async () => {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) {
-      showAlert(
-        'warning',
-        'Permission Required',
-        'Please allow photo library access to update your profile photo.'
-      );
-      return;
-    }
-
-    const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.85,
-    });
-
-    if (!res.canceled && res.assets && res.assets.length > 0) {
-      setUploadingPhoto(true);
-      try {
-        const uri = res.assets[0].uri;
-        const fd = new FormData();
-        const fileName = uri.split('/').pop() || 'avatar.jpg';
-        fd.append('photo', {
-          uri: Platform.OS === 'ios' ? uri.replace('file://', '') : uri,
-          name: fileName,
-          type: 'image/jpeg',
-        } as any);
-
-        const uploadRes = await client.post('/profile/photo', fd, {
-          headers: { 'Content-Type': 'multipart/form-data' },
+      const { data } = await client.get('/profile');
+      const payload = data?.data || data;
+      if (payload?.user) {
+        setProfile({
+          ...payload.user,
+          createdAt: payload.user.createdAt || payload.user.joinDate,
         });
-        if (uploadRes.data?.success && uploadRes.data.data?.profilePicture) {
-          await updateUser({ profilePicture: uploadRes.data.data.profilePicture });
-          showAlert('success', 'Photo Updated', 'Your profile photo has been updated.');
-        }
-      } catch {
-        showAlert('error', 'Upload Failed', 'Unable to upload photo right now.');
-      } finally {
-        setUploadingPhoto(false);
+        setFirstName(payload.user.firstName || '');
+        setLastName(payload.user.lastName || '');
+        setPhone(payload.user.phone || '');
+        setFavoriteVerse(payload.user.favoriteVerse || '');
       }
+    } catch {
+      // Fallback to AuthContext user
+    } finally {
+      setLoading(false);
     }
+  }, [user]);
+
+  useEffect(() => {
+    loadProfile();
+    (async () => {
+      try {
+        const val = await SecureStore.getItemAsync('hgf_biometric_enabled');
+        setBioSupported(true);
+        setBioEnabledState(val === 'true');
+      } catch {
+        setBioSupported(false);
+      }
+    })();
+  }, [loadProfile]);
+
+  const handleToggleBiometric = async (nextVal: boolean) => {
+    await SecureStore.setItemAsync('hgf_biometric_enabled', nextVal ? 'true' : 'false');
+    setBioEnabledState(nextVal);
   };
 
   const handleSaveProfile = async () => {
     if (!firstName.trim() || !lastName.trim()) {
-      showAlert('warning', 'Name Required', 'Please enter both your first and last name.');
+      setAlertModal({
+        visible: true,
+        type: 'warning',
+        title: 'Name Required',
+        message: 'First name and last name cannot be empty.',
+      });
       return;
     }
     setSaving(true);
     try {
-      const res = await client.put('/profile', {
+      await client.patch('/profile', {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        email: email.trim(),
         phone: phone.trim(),
         favoriteVerse: favoriteVerse.trim(),
       });
-      if (res.data?.success) {
-        await updateUser({
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          fullName: `${firstName.trim()} ${lastName.trim()}`,
-          email: email.trim(),
-          phone: phone.trim(),
-          favoriteVerse: favoriteVerse.trim(),
-        });
-        setEditing(false);
-        showAlert('success', 'Profile Saved', 'Your profile details have been updated.');
-      }
-    } catch {
-      showAlert('error', 'Save Failed', 'Could not update profile.');
+      await updateUser({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        fullName: `${firstName.trim()} ${lastName.trim()}`,
+        phone: phone.trim(),
+        favoriteVerse: favoriteVerse.trim(),
+      });
+      await loadProfile();
+      setEditOpen(false);
+      setAlertModal({
+        visible: true,
+        type: 'success',
+        title: 'Profile Updated',
+        message: 'Your profile has been saved.',
+      });
+    } catch (err: any) {
+      setAlertModal({
+        visible: true,
+        type: 'error',
+        title: 'Update Failed',
+        message: err?.response?.data?.error || 'Could not update profile.',
+      });
     } finally {
       setSaving(false);
     }
@@ -170,12 +159,19 @@ export default function ProfileScreen() {
   const handleDeleteAccount = async () => {
     setDeleting(true);
     try {
-      await client.post('/profile/delete-account');
-      setDeleteModalOpen(false);
+      await client.delete('/account');
+      setConfirmDelete(false);
+      setSettingsOpen(false);
       await logout();
-    } catch {
-      setDeleteModalOpen(false);
-      showAlert('error', 'Deletion Failed', 'Could not delete account. Please try again.');
+      router.replace('/login');
+    } catch (err: any) {
+      setConfirmDelete(false);
+      setAlertModal({
+        visible: true,
+        type: 'error',
+        title: 'Deletion Failed',
+        message: err?.response?.data?.error || 'Unable to delete account right now.',
+      });
     } finally {
       setDeleting(false);
     }
@@ -183,204 +179,303 @@ export default function ProfileScreen() {
 
   if (!user) {
     return (
-      <ScrollView contentContainerStyle={styles.guestWrap}>
+      <View style={styles.guestWrap}>
         <View style={styles.guestCard}>
-          <View style={styles.guestIconCircle}>
-            <FontAwesome name="user-o" size={32} color="#0e7490" />
-          </View>
-          <Text style={styles.guestTitle}>Member Profile &amp; Account</Text>
-          <Text style={styles.guestSub}>
-            Sign in to view your church profile, ministries, prayer requests, and notification settings.
+          <Text style={{ fontSize: 44, marginBottom: 10 }}>👤</Text>
+          <Text style={styles.guestTitle}>Sign In to HGF Connect</Text>
+          <Text style={styles.guestSubtitle}>
+            Access your church profile, ministries, devotionals, prayer requests, and StewardShop listings.
           </Text>
-
           <TouchableOpacity
             style={styles.primaryBtn}
-            onPress={() => router.push('/login' as any)}
+            onPress={() => router.push('/login')}
           >
-            <Text numberOfLines={1} adjustsFontSizeToFit style={styles.primaryBtnText}>
-              Sign In to HGF Connect
-            </Text>
+            <Text style={styles.primaryBtnText}>🔑 Login to Account</Text>
           </TouchableOpacity>
-
-          <View style={styles.legalSection}>
-            <TouchableOpacity style={styles.legalRow} onPress={() => openLegal('/privacy')}>
-              <FontAwesome name="shield" size={15} color="#0e7490" />
-              <Text style={styles.legalRowText}>Privacy Policy</Text>
-              <FontAwesome name="angle-right" size={16} color="#94a3b8" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.legalRow} onPress={() => openLegal('/terms')}>
-              <FontAwesome name="file-text-o" size={14} color="#0e7490" />
-              <Text style={styles.legalRowText}>Terms of Use &amp; Community EULA</Text>
-              <FontAwesome name="angle-right" size={16} color="#94a3b8" />
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={styles.outlineBtn}
+            onPress={() => router.push('/register')}
+          >
+            <Text style={styles.outlineBtnText}>Create New Account</Text>
+          </TouchableOpacity>
         </View>
-      </ScrollView>
+      </View>
     );
   }
 
+  const displayFirst = profile?.firstName || user.firstName || user.fullName?.split(' ')[0] || 'Member';
+  const displayLast = profile?.lastName || user.lastName || '';
+  const initials = `${displayFirst?.[0] || 'M'}${displayLast?.[0] || ''}`.toUpperCase();
+  const avatarUrl = profile?.profilePicture || user.profilePicture || null;
+  const fullAvatarUrl =
+    avatarUrl && avatarUrl.startsWith('http')
+      ? avatarUrl
+      : avatarUrl
+      ? `https://connect.houseofgrace.ph/uploads/profile_pictures/${avatarUrl.replace(/^\/uploads\/(avatars|profile_pictures)\//, '')}`
+      : null;
+
+  const MENU_ITEMS = [
+    { icon: '👤', label: 'Edit Profile', onPress: () => setEditOpen(true) },
+    {
+      icon: '🔔',
+      label: 'Notifications',
+      onPress: () =>
+        setAlertModal({
+          visible: true,
+          type: 'info',
+          title: 'Notifications',
+          message: 'You are up to date with all community notifications.',
+        }),
+    },
+    { icon: '📖', label: 'My Grace Blog', onPress: () => router.push('/church?tab=devo' as any) },
+    { icon: '🙏', label: 'My Prayer Requests', onPress: () => router.push('/(tabs)/prayer') },
+    { icon: '🤝', label: 'My Listings', onPress: () => router.push('/(tabs)/stewardshop') },
+    { icon: '🛡️', label: 'Privacy Policy', onPress: () => router.push('/privacy' as any) },
+    { icon: '📄', label: 'Terms of Use', onPress: () => router.push('/terms' as any) },
+    { icon: '⚙️', label: 'Settings & Account', onPress: () => setSettingsOpen(true) },
+  ];
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-      <View style={styles.profileCard}>
-        <TouchableOpacity
-          style={styles.avatarWrap}
-          onPress={handlePickPhoto}
-          disabled={uploadingPhoto}
-        >
-          {uploadingPhoto ? (
-            <ActivityIndicator size="small" color="#4EB1CB" />
-          ) : user.profilePicture ? (
-            <Image source={{ uri: user.profilePicture }} style={styles.avatarImg} />
-          ) : (
-            <Text style={styles.avatarInitials}>
-              {(user.firstName?.[0] || 'M').toUpperCase()}
-            </Text>
-          )}
-          <View style={styles.cameraBadge}>
-            <FontAwesome name="camera" size={10} color="#ffffff" />
-          </View>
-        </TouchableOpacity>
+      {/* Cover Banner (app/(app)/me/page.tsx) */}
+      <View style={styles.coverBanner} />
 
-        <Text style={styles.fullName}>{user.fullName}</Text>
-        <View style={styles.statusRow}>
-          <View style={styles.activeBadge}>
-            <FontAwesome name="check-circle" size={12} color="#059669" />
-            <Text style={styles.activeBadgeText}>Active HGF Member</Text>
-          </View>
-        </View>
-
-        <View style={styles.statsRow}>
-          <View style={styles.statBox}>
-            <Text style={styles.statNum}>{stats.attendance}</Text>
-            <Text style={styles.statLabel}>Visits</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statNum}>{stats.posts}</Text>
-            <Text style={styles.statLabel}>Posts</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statNum}>{stats.prayers}</Text>
-            <Text style={styles.statLabel}>Prayers</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Edit Profile Form */}
-      <View style={styles.sectionCard}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Personal Details</Text>
-          <TouchableOpacity onPress={() => setEditing((v) => !v)}>
-            <Text style={styles.editLink}>{editing ? 'Cancel' : 'Edit'}</Text>
-          </TouchableOpacity>
-        </View>
-
-        {editing ? (
-          <View>
-            <Text style={styles.inputLabel}>First Name</Text>
-            <TextInput style={styles.input} value={firstName} onChangeText={setFirstName} />
-            <Text style={styles.inputLabel}>Last Name</Text>
-            <TextInput style={styles.input} value={lastName} onChangeText={setLastName} />
-            <Text style={styles.inputLabel}>Email</Text>
-            <TextInput
-              style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-            />
-            <Text style={styles.inputLabel}>Mobile Number</Text>
-            <TextInput style={styles.input} value={phone} onChangeText={setPhone} />
-            <Text style={styles.inputLabel}>Favorite Bible Verse</Text>
-            <TextInput
-              style={[styles.input, { minHeight: 70 }]}
-              multiline
-              value={favoriteVerse}
-              onChangeText={setFavoriteVerse}
-            />
-            <TouchableOpacity
-              style={styles.primaryBtn}
-              onPress={handleSaveProfile}
-              disabled={saving}
-            >
-              <Text numberOfLines={1} style={styles.primaryBtnText}>
-                {saving ? 'Saving...' : 'Save Changes'}
+      <View style={styles.bodyWrap}>
+        {/* Main Profile Card overlapping cover */}
+        <View style={styles.profileCard}>
+          <View style={styles.avatarHeaderRow}>
+            <View style={styles.avatarCircle}>
+              {fullAvatarUrl ? (
+                <Image source={{ uri: fullAvatarUrl }} style={styles.avatarImg} />
+              ) : (
+                <Text style={styles.avatarInitials}>{initials}</Text>
+              )}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.memberName}>
+                {displayFirst} {displayLast}
               </Text>
-            </TouchableOpacity>
+              <View style={styles.rolePill}>
+                <Text style={styles.rolePillText}>
+                  {(profile?.role || user.role || 'member').toUpperCase()}
+                </Text>
+              </View>
+            </View>
           </View>
-        ) : (
-          <View style={styles.infoList}>
-            <Text style={styles.infoLine}>
-              <Text style={styles.infoKey}>Username: </Text>@{user.username || 'member'}
-            </Text>
-            <Text style={styles.infoLine}>
-              <Text style={styles.infoKey}>Email: </Text>
-              {email || 'Not set'}
-            </Text>
-            <Text style={styles.infoLine}>
-              <Text style={styles.infoKey}>Phone: </Text>
-              {phone || 'Not set'}
-            </Text>
-            {favoriteVerse ? (
-              <Text style={styles.verseText}>&ldquo;{favoriteVerse}&rdquo;</Text>
+
+          {loading && <ActivityIndicator size="small" color="#4EB1CB" style={{ marginTop: 8 }} />}
+
+          <View style={styles.metaList}>
+            {profile?.createdAt ? (
+              <Text style={styles.memberSinceText}>
+                📅 Member since{' '}
+                {new Date(profile.createdAt).toLocaleDateString('en-PH', {
+                  month: 'long',
+                  year: 'numeric',
+                })}
+              </Text>
+            ) : null}
+
+            {profile?.favoriteVerse ? (
+              <View style={styles.favVerseBox}>
+                <Text style={styles.favVerseText}>📖 {profile.favoriteVerse}</Text>
+              </View>
             ) : null}
           </View>
+        </View>
+
+        {/* Ministries Card */}
+        {profile?.ministries && profile.ministries.length > 0 && (
+          <View style={styles.ministriesCard}>
+            <Text style={styles.ministriesHeader}>🤲 MY MINISTRIES</Text>
+            <View style={styles.ministriesPillsWrap}>
+              {profile.ministries.map((m) => (
+                <View key={m.id} style={styles.ministryPill}>
+                  <Text style={styles.ministryPillText}>{m.name}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
         )}
-      </View>
 
-      {/* Native Push & Legal */}
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Notifications &amp; Legal</Text>
+        {/* View Public Profile Button */}
         <TouchableOpacity
-          style={styles.legalRow}
-          onPress={() =>
-            triggerLocalNotification(
-              'HGF Connect Push Verified',
-              'Native push notifications are enabled and active on your device!'
-            )
-          }
+          style={styles.viewFullProfileBtn}
+          onPress={() => router.push(`/member/${user.id}` as any)}
+          activeOpacity={0.85}
         >
-          <FontAwesome name="bell-o" size={15} color="#0e7490" />
-          <Text style={styles.legalRowText}>Test Native Push Notification</Text>
-          <FontAwesome name="angle-right" size={16} color="#94a3b8" />
+          <Text style={styles.viewFullProfileText}>👁 View My Full Profile</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.legalRow} onPress={() => openLegal('/privacy')}>
-          <FontAwesome name="shield" size={15} color="#0e7490" />
-          <Text style={styles.legalRowText}>Privacy Policy</Text>
-          <FontAwesome name="angle-right" size={16} color="#94a3b8" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.legalRow} onPress={() => openLegal('/terms')}>
-          <FontAwesome name="file-text-o" size={14} color="#0e7490" />
-          <Text style={styles.legalRowText}>Terms of Use &amp; Community EULA</Text>
-          <FontAwesome name="angle-right" size={16} color="#94a3b8" />
+
+        {/* Menu List Card */}
+        <View style={styles.menuCard}>
+          {MENU_ITEMS.map((item, idx) => (
+            <TouchableOpacity
+              key={item.label}
+              style={[
+                styles.menuRow,
+                idx < MENU_ITEMS.length - 1 && styles.menuRowBorder,
+              ]}
+              onPress={item.onPress}
+              activeOpacity={0.75}
+            >
+              <Text style={styles.menuIcon}>{item.icon}</Text>
+              <Text style={styles.menuLabel}>{item.label}</Text>
+              <Text style={styles.menuChevron}>›</Text>
+            </TouchableOpacity>
+          ))}
+
+          {(user.role === 'admin' || user.role === 'moderator') && (
+            <TouchableOpacity
+              style={[styles.menuRow, { borderTopWidth: 1, borderTopColor: '#f8fafc' }]}
+              onPress={() =>
+                setAlertModal({
+                  visible: true,
+                  type: 'info',
+                  title: 'Admin Panel',
+                  message: 'All members are currently approved and active.',
+                })
+              }
+            >
+              <Text style={styles.menuIcon}>🛡️</Text>
+              <Text style={[styles.menuLabel, { color: '#4EB1CB', fontWeight: '700' }]}>
+                Admin Panel
+              </Text>
+              <Text style={styles.menuChevron}>›</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Sign Out Button */}
+        <TouchableOpacity
+          style={styles.signOutBtn}
+          onPress={() => setConfirmLogout(true)}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.signOutBtnText}>🚪 Sign Out</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Sign Out & Account Deletion (Apple Guideline 5.1.1(v)) */}
-      <TouchableOpacity style={styles.signOutBtn} onPress={logout}>
-        <FontAwesome name="sign-out" size={15} color="#334155" />
-        <Text numberOfLines={1} style={styles.signOutBtnText}>
-          Sign Out
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.deleteAccountBtn}
-        onPress={() => setDeleteModalOpen(true)}
+      {/* Edit Profile Modal */}
+      <Modal
+        visible={editOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setEditOpen(false)}
       >
-        <FontAwesome name="trash-o" size={15} color="#dc2626" />
-        <Text numberOfLines={1} style={styles.deleteAccountText}>
-          Delete My Account
-        </Text>
-      </TouchableOpacity>
+        <KeyboardAvoidingView
+          style={styles.modalBackdrop}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={styles.modalSheet}>
+            <Text style={styles.modalTitle}>👤 Edit Profile</Text>
+            <Text style={styles.fieldLabel}>First Name</Text>
+            <TextInput
+              style={styles.input}
+              value={firstName}
+              onChangeText={setFirstName}
+              placeholder="First Name"
+            />
+            <Text style={styles.fieldLabel}>Last Name</Text>
+            <TextInput
+              style={styles.input}
+              value={lastName}
+              onChangeText={setLastName}
+              placeholder="Last Name"
+            />
+            <Text style={styles.fieldLabel}>Mobile Number</Text>
+            <TextInput
+              style={styles.input}
+              value={phone}
+              onChangeText={setPhone}
+              placeholder="09XX XXX XXXX"
+              keyboardType="phone-pad"
+            />
+            <Text style={styles.fieldLabel}>Favorite Bible Verse</Text>
+            <TextInput
+              style={styles.input}
+              value={favoriteVerse}
+              onChangeText={setFavoriteVerse}
+              placeholder="e.g. Psalm 23:1"
+            />
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
+              <TouchableOpacity
+                style={[styles.outlineBtn, { flex: 1, marginTop: 0 }]}
+                onPress={() => setEditOpen(false)}
+              >
+                <Text style={styles.outlineBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.primaryBtn, { flex: 2 }]}
+                onPress={handleSaveProfile}
+                disabled={saving}
+              >
+                <Text style={styles.primaryBtnText}>
+                  {saving ? 'Saving…' : 'Save Changes'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Settings & Account Modal */}
+      <Modal
+        visible={settingsOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSettingsOpen(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalSheet}>
+            <Text style={styles.modalTitle}>⚙️ Settings & Account</Text>
+            {bioSupported && (
+              <View style={styles.bioSwitchRow}>
+                <Text style={styles.menuLabel}>Face ID / Biometric Unlock</Text>
+                <Switch
+                  value={bioEnabled}
+                  onValueChange={handleToggleBiometric}
+                  trackColor={{ false: '#cbd5e1', true: '#4EB1CB' }}
+                />
+              </View>
+            )}
+            <TouchableOpacity
+              style={styles.deleteAccountBtn}
+              onPress={() => setConfirmDelete(true)}
+            >
+              <Text style={styles.deleteAccountText}>🗑️ Delete My Account Permanently</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.outlineBtn, { marginTop: 12 }]}
+              onPress={() => setSettingsOpen(false)}
+            >
+              <Text style={styles.outlineBtnText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       <ConfirmModal
-        visible={deleteModalOpen}
-        title="Delete Your Account?"
-        message="This will permanently deactivate your HGF Connect account and scrub your personal contact details. This action cannot be undone."
-        confirmText="Delete Account"
+        visible={confirmLogout}
+        title="Sign Out?"
+        message="Are you sure you want to sign out of your HGF Connect account?"
+        confirmText="Sign Out"
+        onConfirm={async () => {
+          setConfirmLogout(false);
+          await logout();
+        }}
+        onCancel={() => setConfirmLogout(false)}
+      />
+
+      <ConfirmModal
+        visible={confirmDelete}
+        title="Delete Account Permanently?"
+        message="This will permanently remove your HGF Connect account and personal data. This action cannot be undone."
+        confirmText="Delete Forever"
         destructive
         loading={deleting}
-        onCancel={() => setDeleteModalOpen(false)}
         onConfirm={handleDeleteAccount}
+        onCancel={() => setConfirmDelete(false)}
       />
 
       <AlertPromptModal
@@ -395,19 +490,202 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  container: { flex: 1, backgroundColor: '#f8fafc' },
+  scrollContent: { paddingBottom: 40 },
+  coverBanner: {
+    backgroundColor: '#2b8da6',
+    height: 105,
+  },
+  bodyWrap: {
+    paddingHorizontal: 14,
+    marginTop: -40,
+  },
+  profileCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  avatarHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 14,
+    marginBottom: 14,
+  },
+  avatarCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#4EB1CB',
+    borderWidth: 3,
+    borderColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: -44,
+    overflow: 'hidden',
+  },
+  avatarImg: {
+    width: '100%',
+    height: '100%',
+  },
+  avatarInitials: {
+    color: '#ffffff',
+    fontWeight: '900',
+    fontSize: 22,
+  },
+  memberName: {
+    fontWeight: '800',
+    fontSize: 18,
+    color: '#111827',
+  },
+  rolePill: {
+    backgroundColor: '#e0f7fb',
+    borderRadius: 99,
+    paddingVertical: 2,
+    paddingHorizontal: 10,
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  rolePillText: {
+    fontSize: 11,
+    color: '#4EB1CB',
+    fontWeight: '700',
+  },
+  metaList: {
+    gap: 6,
+  },
+  memberSinceText: {
+    fontSize: 13,
+    color: '#6b7280',
+  },
+  favVerseBox: {
+    backgroundColor: '#f0f9ff',
+    borderLeftWidth: 3,
+    borderLeftColor: '#4EB1CB',
+    borderRadius: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginTop: 4,
+  },
+  favVerseText: {
+    fontSize: 12.5,
+    fontStyle: 'italic',
+    color: '#1a5276',
+  },
+
+  // Ministries Card
+  ministriesCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 14,
+  },
+  ministriesHeader: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#6b7280',
+    letterSpacing: 0.5,
+    marginBottom: 10,
+  },
+  ministriesPillsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  ministryPill: {
+    backgroundColor: '#e0f7fb',
+    borderRadius: 99,
+    paddingVertical: 5,
+    paddingHorizontal: 14,
+  },
+  ministryPillText: {
+    color: '#1a7a94',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+
+  // View Full Profile Button
+  viewFullProfileBtn: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: '#4EB1CB',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  viewFullProfileText: {
+    color: '#4EB1CB',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+
+  // Menu Card
+  menuCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  menuRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 15,
+    paddingHorizontal: 18,
+  },
+  menuRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#f8fafc',
+  },
+  menuIcon: {
+    fontSize: 20,
+    width: 28,
+    textAlign: 'center',
+  },
+  menuLabel: {
+    fontSize: 14.5,
+    fontWeight: '600',
+    color: '#111827',
+    flex: 1,
+  },
+  menuChevron: {
+    color: '#d1d5db',
+    fontSize: 18,
+  },
+
+  // Sign Out Button
+  signOutBtn: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: '#fecaca',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  signOutBtnText: {
+    color: '#ef4444',
+    fontWeight: '700',
+    fontSize: 14.5,
+  },
+
+  // Guest Fallback
+  guestWrap: {
     flex: 1,
     backgroundColor: '#f8fafc',
-  },
-  scrollContent: {
-    padding: 14,
-    paddingBottom: 40,
-  },
-  guestWrap: {
-    flexGrow: 1,
-    padding: 18,
+    padding: 20,
     justifyContent: 'center',
-    backgroundColor: '#f8fafc',
   },
   guestCard: {
     backgroundColor: '#ffffff',
@@ -417,237 +695,78 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
-  guestIconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#e0f7fb',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 14,
-  },
-  guestTitle: {
-    fontSize: 19,
-    fontWeight: '800',
-    color: '#0f172a',
-    marginBottom: 6,
-  },
-  guestSub: {
-    fontSize: 13,
+  guestTitle: { fontSize: 20, fontWeight: '800', color: '#0f172a', marginBottom: 6 },
+  guestSubtitle: {
+    fontSize: 13.5,
     color: '#64748b',
     textAlign: 'center',
-    lineHeight: 19,
+    lineHeight: 20,
     marginBottom: 20,
   },
   primaryBtn: {
-    width: '100%',
-    height: 48,
-    borderRadius: 12,
     backgroundColor: '#4EB1CB',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-  },
-  primaryBtnText: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  legalSection: {
     width: '100%',
-    marginTop: 20,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
-  },
-  legalRow: {
-    flexDirection: 'row',
+    paddingVertical: 13,
+    borderRadius: 99,
     alignItems: 'center',
-    gap: 10,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f8fafc',
   },
-  legalRowText: {
+  primaryBtnText: { color: '#ffffff', fontWeight: '800', fontSize: 14 },
+  outlineBtn: {
+    marginTop: 10,
+    width: '100%',
+    paddingVertical: 13,
+    borderRadius: 99,
+    borderWidth: 1.5,
+    borderColor: '#cbd5e1',
+    alignItems: 'center',
+  },
+  outlineBtnText: { color: '#334155', fontWeight: '700', fontSize: 14 },
+
+  // Modals
+  modalBackdrop: {
     flex: 1,
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#1e293b',
+    backgroundColor: 'rgba(15, 23, 42, 0.5)',
+    justifyContent: 'flex-end',
   },
-  profileCard: {
+  modalSheet: {
     backgroundColor: '#ffffff',
-    borderRadius: 18,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     padding: 20,
-    alignItems: 'center',
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+    paddingBottom: 34,
   },
-  avatarWrap: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    backgroundColor: '#e0f7fb',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
-    position: 'relative',
-  },
-  avatarImg: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-  },
-  avatarInitials: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#0e7490',
-  },
-  cameraBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#0f2d3d',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#ffffff',
-  },
-  fullName: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#0f172a',
-  },
-  statusRow: {
-    marginTop: 6,
-    marginBottom: 14,
-  },
-  activeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#ecfdf5',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  activeBadgeText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#059669',
-  },
-  statsRow: {
-    flexDirection: 'row',
-    width: '100%',
-    borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
-    paddingTop: 12,
-  },
-  statBox: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statNum: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0f172a',
-  },
-  statLabel: {
-    fontSize: 11,
-    color: '#64748b',
-  },
-  sectionCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#0f172a',
-    marginBottom: 6,
-  },
-  editLink: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0e7490',
-  },
-  infoList: {
-    gap: 6,
-  },
-  infoLine: {
-    fontSize: 13,
-    color: '#334155',
-  },
-  infoKey: {
-    fontWeight: '700',
-    color: '#64748b',
-  },
-  verseText: {
-    fontSize: 12,
-    fontStyle: 'italic',
-    color: '#0e7490',
-    marginTop: 6,
-  },
-  inputLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#64748b',
-    marginBottom: 4,
-  },
+  modalTitle: { fontSize: 17, fontWeight: '800', color: '#0f172a', marginBottom: 14 },
+  fieldLabel: { fontSize: 12, fontWeight: '700', color: '#64748b', marginBottom: 4 },
   input: {
     borderWidth: 1.5,
     borderColor: '#e2e8f0',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     fontSize: 14,
     color: '#0f172a',
     marginBottom: 10,
   },
-  signOutBtn: {
+  bioSwitchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    height: 46,
-    borderRadius: 12,
-    backgroundColor: '#ffffff',
-    borderWidth: 1.5,
-    borderColor: '#e2e8f0',
-    marginBottom: 10,
-  },
-  signOutBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#334155',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
   },
   deleteAccountBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    height: 46,
-    borderRadius: 12,
+    marginTop: 14,
     backgroundColor: '#fef2f2',
     borderWidth: 1,
     borderColor: '#fecaca',
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: 'center',
   },
   deleteAccountText: {
-    fontSize: 13,
-    fontWeight: '700',
     color: '#dc2626',
+    fontWeight: '700',
+    fontSize: 13.5,
   },
 });

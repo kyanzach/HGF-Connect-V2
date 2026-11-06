@@ -22,7 +22,7 @@ export async function POST(
     }
 
     const body = await req.json().catch(() => ({}));
-    const reactionType = ["HEART", "AMEN", "PRAYING", "PRAISE"].includes(body?.type)
+    const reactionType = ["HEART", "PRAY", "HUG", "AMEN", "PRAYING", "PRAISE"].includes(body?.type)
       ? body.type
       : "HEART";
 
@@ -58,7 +58,7 @@ export async function POST(
         createNotification({
           memberId: post.authorId,
           type: "general",
-          title: `${member.firstName} ${member.lastName} reacted (${reactionType}) to your post`,
+          title: `${member.firstName} ${member.lastName} reacted to your post`,
           body: "Tap to view your post in the community feed.",
           link: `/feed?post=${postId}`,
           actorId: member.id,

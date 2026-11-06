@@ -13,46 +13,68 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter } from 'expo-router';
 import client from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
 import AlertPromptModal, { AlertType } from '@/components/ui/AlertPromptModal';
 
+interface PrayerResponseItem {
+  id: number;
+  prayer?: string | null;
+  createdAt: string;
+  member: { id: number; firstName: string; lastName: string };
+}
+
 interface PrayerItem {
   id: number;
   request: string;
   isAnswered: boolean;
-  prayerCount: number;
+  answeredNote?: string | null;
+  prayCount: number;
+  hasPrayed?: boolean;
+  responseCount?: number;
+  responses?: PrayerResponseItem[];
   createdAt: string;
-  author: {
+  author?: {
     id: number;
     name: string;
     avatar?: string | null;
   };
-  responses: {
+  member?: {
     id: number;
-    message: string;
-    authorName: string;
-  }[];
+    firstName: string;
+    lastName: string;
+    profilePicture?: string | null;
+  };
 }
 
-export default function PrayerScreen() {
+function timeAgo(d: string) {
+  const diff = (Date.now() - new Date(d).getTime()) / 1000;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
+
+function getAvatarUrl(pic?: string | null): string | null {
+  if (!pic) return null;
+  if (pic.startsWith('http')) return pic;
+  if (pic.startsWith('/uploads/')) return `https://connect.houseofgrace.ph${pic}`;
+  return `https://connect.houseofgrace.ph/uploads/profile_pictures/${pic}`;
+}
+
+export default function PrayerWallScreen() {
   const router = useRouter();
   const { user } = useAuth();
 
-  const [filter, setFilter] = useState<'active' | 'answered' | 'mine'>('active');
+  const [tab, setTab] = useState<'active' | 'answered'>('active');
   const [prayers, setPrayers] = useState<PrayerItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const [composeOpen, setComposeOpen] = useState(false);
-  const [requestText, setRequestText] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
-  const [noteTarget, setNoteTarget] = useState<PrayerItem | null>(null);
-  const [noteText, setNoteText] = useState('');
-  const [submittingNote, setSubmittingNote] = useState(false);
+  // Pray Commit Modal (matches web prayModal)
+  const [prayModal, setPrayModal] = useState<PrayerItem | null>(null);
+  const [prayNote, setPrayNote] = useState('');
+  const [praying, setPraying] = useState(false);
 
   const [alertModal, setAlertModal] = useState<{
     visible: boolean;
@@ -61,375 +83,272 @@ export default function PrayerScreen() {
     message: string;
   }>({ visible: false, type: 'info', title: '', message: '' });
 
-  const showAlert = (type: AlertType, title: string, message: string) => {
-    setAlertModal({ visible: true, type, title, message });
-  };
-
-  const loadPrayers = useCallback(async () => {
+  const fetchPrayers = useCallback(async () => {
+    setLoading(true);
     try {
-      const res = await client.get(`/prayer?filter=${filter}`);
-      if (res.data?.success) {
-        setPrayers(res.data.data?.prayers || []);
+      const { data } = await client.get(`/prayer?filter=${tab}`);
+      const payload = data?.data || data;
+      if (payload?.prayers) {
+        setPrayers(
+          payload.prayers.map((p: any) => ({
+            ...p,
+            prayCount: p.prayCount ?? p.prayerCount ?? 0,
+          }))
+        );
       }
     } catch {
-      // ignore
+      // Keep cached
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [filter]);
+  }, [tab]);
 
   useEffect(() => {
-    setLoading(true);
-    loadPrayers();
-  }, [loadPrayers]);
+    fetchPrayers();
+  }, [fetchPrayers]);
 
-  const handlePray = async (item: PrayerItem) => {
+  const handlePrayCommit = async () => {
+    if (!prayModal) return;
     if (!user) {
-      router.push('/login' as any);
+      setPrayModal(null);
+      router.push('/login');
       return;
     }
+
+    setPraying(true);
     try {
-      const res = await client.post('/prayer', {
+      await client.post('/prayer', {
         action: 'pray',
-        prayerId: item.id,
+        prayerId: prayModal.id,
+        message: prayNote.trim() || undefined,
       });
-      if (res.data?.success) {
-        const nextCount = res.data.data?.prayerCount ?? item.prayerCount + 1;
-        setPrayers((prev) =>
-          prev.map((p) => (p.id === item.id ? { ...p, prayerCount: nextCount } : p))
-        );
-      }
+      setPrayers((prev) =>
+        prev.map((p) =>
+          p.id === prayModal.id
+            ? {
+                ...p,
+                prayCount: p.prayCount + (p.hasPrayed ? 0 : 1),
+                hasPrayed: true,
+              }
+            : p
+        )
+      );
+      setPrayModal(null);
+      setPrayNote('');
     } catch {
-      showAlert('error', 'Action Failed', 'Unable to record prayer right now.');
-    }
-  };
-
-  const handleSendNote = async () => {
-    if (!noteTarget || !noteText.trim()) return;
-    setSubmittingNote(true);
-    try {
-      const res = await client.post('/prayer', {
-        action: 'pray',
-        prayerId: noteTarget.id,
-        message: noteText.trim(),
-      });
-      if (res.data?.success) {
-        setNoteText('');
-        setNoteTarget(null);
-        loadPrayers();
-        showAlert('success', 'Prayer Note Sent', 'Your encouragement has been shared.');
-      }
-    } catch {
-      showAlert('error', 'Action Failed', 'Unable to post prayer note right now.');
+      fetchPrayers();
+      setPrayModal(null);
     } finally {
-      setSubmittingNote(false);
+      setPraying(false);
     }
   };
 
-  const handleMarkAnswered = async (item: PrayerItem) => {
-    try {
-      const res = await client.post('/prayer', {
-        action: 'mark_answered',
-        prayerId: item.id,
-      });
-      if (res.data?.success) {
-        loadPrayers();
-        showAlert('success', 'Praise God!', 'Marked as an Answered Prayer.');
-      }
-    } catch {
-      showAlert('error', 'Action Failed', 'Unable to update prayer status.');
-    }
-  };
+  const renderHeader = () => (
+    <View>
+      {/* Hero Header (app/(app)/prayer/page.tsx) */}
+      <View style={styles.heroBanner}>
+        <Text style={styles.heroEmoji}>🙏</Text>
+        <Text style={styles.heroTitle}>Prayer Wall</Text>
+        <Text style={styles.heroSubtitle}>Stand together in prayer for one another</Text>
+        <TouchableOpacity
+          style={styles.submitHeroBtn}
+          onPress={() => {
+            if (!user) {
+              router.push('/login');
+            } else {
+              router.push('/create-post?tab=prayer' as any);
+            }
+          }}
+          activeOpacity={0.88}
+        >
+          <Text style={styles.submitHeroBtnText}>+ Submit Prayer Request</Text>
+        </TouchableOpacity>
+      </View>
 
-  const handleSubmitPrayer = async () => {
-    if (!user) {
-      setComposeOpen(false);
-      router.push('/login' as any);
-      return;
-    }
-    if (!requestText.trim()) {
-      showAlert('warning', 'Missing Request', 'Please enter your prayer request.');
-      return;
-    }
+      {/* Tabs: 🔴 Active | ✅ Answered */}
+      <View style={styles.tabsBar}>
+        <TouchableOpacity
+          style={[styles.tabItem, tab === 'active' && styles.tabItemActive]}
+          onPress={() => setTab('active')}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.tabText, tab === 'active' && styles.tabTextActive]}>
+            🔴 Active
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabItem, tab === 'answered' && styles.tabItemActive]}
+          onPress={() => setTab('answered')}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.tabText, tab === 'answered' && styles.tabTextActive]}>
+            ✅ Answered
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 
-    setSubmitting(true);
-    try {
-      const res = await client.post('/prayer', {
-        action: 'create',
-        request: requestText.trim(),
-      });
-      if (res.data?.success) {
-        setRequestText('');
-        setComposeOpen(false);
-        loadPrayers();
-        showAlert('success', 'Prayer Shared', 'Your church family can now pray with you.');
-      }
-    } catch {
-      showAlert('error', 'Submission Failed', 'Could not post your prayer request.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  const renderPrayerCard = ({ item }: { item: PrayerItem }) => {
+    const authorName =
+      item.author?.name ||
+      (item.member ? `${item.member.firstName} ${item.member.lastName}` : 'Church Member');
+    const initials = authorName
+      .split(' ')
+      .map((w) => w[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase();
+    const avatarUrl = getAvatarUrl(item.author?.avatar || item.member?.profilePicture);
+    const respCount = item.responseCount ?? item.responses?.length ?? 0;
 
-  const handleReportPrayer = async (item: PrayerItem) => {
-    try {
-      await client.post('/moderation', {
-        action: 'report',
-        targetType: 'prayer',
-        targetId: item.id,
-        reason: 'Reported from Prayer Wall',
-      });
-    } catch {
-      // ignore
-    }
-    showAlert(
-      'success',
-      'Prayer Reported',
-      'Thank you. Our moderation team reviews all flagged items within 24 hours.'
+    return (
+      <View style={styles.prayerCard}>
+        {item.isAnswered && (
+          <View style={styles.answeredBadge}>
+            <Text style={styles.answeredBadgeText}>
+              ✅ Praise Report — Prayer Answered!
+            </Text>
+          </View>
+        )}
+
+        {/* Author Row */}
+        <View style={styles.authorRow}>
+          <View style={styles.authorAvatar}>
+            {avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={styles.authorAvatarImg} />
+            ) : (
+              <Text style={styles.authorInitials}>{initials}</Text>
+            )}
+          </View>
+          <View>
+            <Text style={styles.authorName}>{authorName}</Text>
+            <Text style={styles.timeText}>{timeAgo(item.createdAt)}</Text>
+          </View>
+        </View>
+
+        <Text style={styles.requestText}>{item.request}</Text>
+
+        {item.answeredNote ? (
+          <View style={styles.answeredNoteBox}>
+            <Text style={styles.answeredNoteText}>🙌 {item.answeredNote}</Text>
+          </View>
+        ) : null}
+
+        {/* Action Row */}
+        <View style={styles.actionRow}>
+          <TouchableOpacity
+            style={styles.prayBtn}
+            onPress={() => {
+              if (!user) {
+                router.push('/login');
+              } else {
+                setPrayModal(item);
+              }
+            }}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.prayBtnText}>🙏 Pray · {item.prayCount}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={{ marginLeft: 'auto' }}
+            onPress={() => setPrayModal(item)}
+          >
+            <Text style={styles.responsesLinkText}>💬 {respCount} responses →</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     );
   };
 
   return (
     <View style={styles.container}>
-      <View style={styles.topBar}>
-        <View style={styles.filterRow}>
-          {(['active', 'answered', 'mine'] as const).map((tab) => (
-            <TouchableOpacity
-              key={tab}
-              style={[styles.filterPill, filter === tab && styles.filterPillActive]}
-              onPress={() => setFilter(tab)}
-            >
-              <Text
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                style={[styles.filterText, filter === tab && styles.filterTextActive]}
-              >
-                {tab === 'active'
-                  ? 'Active'
-                  : tab === 'answered'
-                  ? 'Answered'
-                  : 'My Prayers'}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <TouchableOpacity
-          style={styles.newPrayerBtn}
-          onPress={() => {
-            if (!user) {
-              router.push('/login' as any);
-            } else {
-              setComposeOpen(true);
-            }
-          }}
-        >
-          <FontAwesome name="plus" size={12} color="#ffffff" />
-          <Text numberOfLines={1} style={styles.newPrayerBtnText}>
-            Ask Prayer
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color="#4EB1CB" />
+      {loading && prayers.length === 0 ? (
+        <View style={{ flex: 1 }}>
+          {renderHeader()}
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color="#a855f7" />
+          </View>
         </View>
       ) : (
         <FlatList
           data={prayers}
           keyExtractor={(item) => String(item.id)}
+          renderItem={renderPrayerCard}
+          ListHeaderComponent={renderHeader()}
           contentContainerStyle={styles.listContent}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={() => {
                 setRefreshing(true);
-                loadPrayers();
+                fetchPrayers();
               }}
-              tintColor="#4EB1CB"
+              tintColor="#a855f7"
             />
           }
           ListEmptyComponent={
-            <View style={styles.center}>
-              <FontAwesome name="heart-o" size={32} color="#cbd5e1" />
-              <Text style={styles.emptyTitle}>No prayer requests found</Text>
-              <Text style={styles.emptySub}>Share a prayer request so the church can pray with you.</Text>
+            <View style={styles.emptyCard}>
+              <Text style={{ fontSize: 36, marginBottom: 8 }}>🙏</Text>
+              <Text style={styles.emptyTitle}>
+                {tab === 'answered' ? 'No answered prayers yet' : 'No active prayer requests'}
+              </Text>
+              <Text style={styles.emptySub}>Submit yours above!</Text>
             </View>
           }
-          renderItem={({ item }) => (
-            <View style={styles.card}>
-              <View style={styles.cardHeader}>
-                <View style={styles.avatar}>
-                  {item.author.avatar ? (
-                    <Image source={{ uri: item.author.avatar }} style={styles.avatarImg} />
-                  ) : (
-                    <Text style={styles.avatarInitial}>
-                      {(item.author.name?.[0] || 'M').toUpperCase()}
-                    </Text>
-                  )}
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.authorName}>{item.author.name}</Text>
-                  <Text style={styles.dateText}>
-                    {new Date(item.createdAt).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                    })}
-                  </Text>
-                </View>
-                {item.isAnswered ? (
-                  <View style={styles.answeredBadge}>
-                    <Text style={styles.answeredBadgeText}>Praise / Answered</Text>
-                  </View>
-                ) : null}
-                <TouchableOpacity
-                  style={{ padding: 6 }}
-                  onPress={() => handleReportPrayer(item)}
-                >
-                  <FontAwesome name="flag-o" size={14} color="#94a3b8" />
-                </TouchableOpacity>
-              </View>
-
-              <Text style={styles.requestBody}>{item.request}</Text>
-
-              {item.responses && item.responses.length > 0 ? (
-                <View style={styles.responsesBox}>
-                  {item.responses.slice(0, 2).map((r) => (
-                    <Text key={r.id} style={styles.responseLine}>
-                      <Text style={{ fontWeight: '700' }}>{r.authorName}: </Text>
-                      {r.message}
-                    </Text>
-                  ))}
-                </View>
-              ) : null}
-
-              <View style={styles.cardFooter}>
-                <TouchableOpacity
-                  style={styles.prayBtn}
-                  onPress={() => handlePray(item)}
-                  activeOpacity={0.85}
-                >
-                  <FontAwesome name="heart" size={13} color="#ffffff" />
-                  <Text numberOfLines={1} adjustsFontSizeToFit style={styles.prayBtnText}>
-                    I Prayed ({item.prayerCount})
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.noteBtn}
-                  onPress={() => {
-                    if (!user) {
-                      router.push('/login' as any);
-                    } else {
-                      setNoteTarget(item);
-                    }
-                  }}
-                >
-                  <FontAwesome name="comment-o" size={13} color="#0e7490" />
-                  <Text numberOfLines={1} style={styles.noteBtnText}>
-                    Encourage
-                  </Text>
-                </TouchableOpacity>
-
-                {user && item.author.id === user.id && !item.isAnswered ? (
-                  <TouchableOpacity
-                    style={styles.markAnsweredBtn}
-                    onPress={() => handleMarkAnswered(item)}
-                  >
-                    <FontAwesome name="check" size={12} color="#15803d" />
-                    <Text numberOfLines={1} style={styles.markAnsweredText}>
-                      Answered
-                    </Text>
-                  </TouchableOpacity>
-                ) : null}
-              </View>
-            </View>
-          )}
         />
       )}
 
+      {/* Pray Commit Modal (app/(app)/prayer/page.tsx) */}
       <Modal
-        visible={composeOpen}
+        visible={Boolean(prayModal)}
         transparent
         animationType="slide"
-        onRequestClose={() => setComposeOpen(false)}
+        onRequestClose={() => setPrayModal(null)}
       >
         <KeyboardAvoidingView
-          style={styles.modalOverlay}
+          style={styles.modalBackdrop}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <View style={styles.modalSheet}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Ask for Prayer</Text>
-              <TouchableOpacity onPress={() => setComposeOpen(false)}>
-                <FontAwesome name="times" size={18} color="#64748b" />
-              </TouchableOpacity>
+            <Text style={styles.modalTitle}>
+              🙏 Pray for{' '}
+              {prayModal?.member?.firstName ||
+                prayModal?.author?.name?.split(' ')[0] ||
+                'Member'}
+            </Text>
+            <View style={styles.modalQuoteBox}>
+              <Text style={styles.modalQuoteText} numberOfLines={4}>
+                “{prayModal?.request}”
+              </Text>
             </View>
             <TextInput
-              style={styles.input}
-              placeholder="How can your House of Grace family pray for you today?"
-              placeholderTextColor="#94a3b8"
+              style={styles.modalTextarea}
+              placeholder="Write a short prayer or encouragement (optional)…"
+              placeholderTextColor="#9ca3af"
               multiline
-              value={requestText}
-              onChangeText={setRequestText}
+              value={prayNote}
+              onChangeText={setPrayNote}
             />
-            <TouchableOpacity
-              style={[styles.submitBtn, submitting && { opacity: 0.7 }]}
-              onPress={handleSubmitPrayer}
-              disabled={submitting}
-            >
-              {submitting ? (
-                <ActivityIndicator size="small" color="#ffffff" />
-              ) : (
-                <Text numberOfLines={1} adjustsFontSizeToFit style={styles.submitBtnText}>
-                  Share Prayer Request
+            <View style={styles.modalBtnRow}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setPrayModal(null)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalCommitBtn}
+                onPress={handlePrayCommit}
+                disabled={praying}
+              >
+                <Text style={styles.modalCommitText}>
+                  {praying ? 'Committing…' : '🙏 Commit to Pray'}
                 </Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      <Modal
-        visible={noteTarget !== null}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setNoteTarget(null)}
-      >
-        <KeyboardAvoidingView
-          style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-          <View style={styles.modalSheet}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Pray &amp; Encourage</Text>
-              <TouchableOpacity onPress={() => setNoteTarget(null)}>
-                <FontAwesome name="times" size={18} color="#64748b" />
               </TouchableOpacity>
             </View>
-            <TextInput
-              style={styles.input}
-              placeholder={`Write a short prayer or encouragement for ${noteTarget?.author.name || 'this member'}...`}
-              placeholderTextColor="#94a3b8"
-              multiline
-              value={noteText}
-              onChangeText={setNoteText}
-            />
-            <TouchableOpacity
-              style={[styles.submitBtn, submittingNote && { opacity: 0.7 }]}
-              onPress={handleSendNote}
-              disabled={submittingNote}
-            >
-              {submittingNote ? (
-                <ActivityIndicator size="small" color="#ffffff" />
-              ) : (
-                <Text numberOfLines={1} style={styles.submitBtnText}>
-                  Send Prayer Note
-                </Text>
-              )}
-            </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -446,240 +365,246 @@ export default function PrayerScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-  },
-  topBar: {
-    flexDirection: 'row',
+  container: { flex: 1, backgroundColor: '#f8fafc' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 40 },
+  listContent: { paddingBottom: 32 },
+
+  // Hero Header (app/(app)/prayer/page.tsx)
+  heroBanner: {
+    backgroundColor: '#8b5cf6',
+    paddingTop: 28,
+    paddingBottom: 24,
+    paddingHorizontal: 16,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-    gap: 8,
   },
-  filterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    flex: 1,
-  },
-  filterPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 999,
-    backgroundColor: '#f1f5f9',
-  },
-  filterPillActive: {
-    backgroundColor: '#0f2d3d',
-  },
-  filterText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#64748b',
-  },
-  filterTextActive: {
-    color: '#ffffff',
-  },
-  newPrayerBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#4EB1CB',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-  },
-  newPrayerBtnText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#ffffff',
-  },
-  center: {
-    padding: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#334155',
-    marginTop: 10,
-  },
-  emptySub: {
-    fontSize: 12,
-    color: '#94a3b8',
-    marginTop: 4,
+  heroEmoji: { fontSize: 32, marginBottom: 6 },
+  heroTitle: { fontSize: 22, fontWeight: '800', color: '#ffffff', marginBottom: 4 },
+  heroSubtitle: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.82)',
+    marginBottom: 16,
     textAlign: 'center',
   },
-  listContent: {
-    padding: 14,
-    paddingBottom: 32,
+  submitHeroBtn: {
+    backgroundColor: '#ffffff',
+    borderRadius: 99,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
   },
-  card: {
+  submitHeroBtnText: {
+    color: '#7c3aed',
+    fontWeight: '700',
+    fontSize: 13.5,
+  },
+
+  // Tabs Bar
+  tabsBar: {
+    flexDirection: 'row',
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f4f8',
+    marginBottom: 14,
+  },
+  tabItem: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderBottomWidth: 2.5,
+    borderBottomColor: 'transparent',
+  },
+  tabItemActive: {
+    borderBottomColor: '#a855f7',
+  },
+  tabText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#6b7280',
+  },
+  tabTextActive: {
+    color: '#a855f7',
+  },
+
+  // Prayer Card
+  prayerCard: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
-    padding: 14,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+    padding: 16,
+    marginHorizontal: 14,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+  answeredBadge: {
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    borderRadius: 99,
+    paddingVertical: 3,
+    paddingHorizontal: 10,
+    alignSelf: 'flex-start',
     marginBottom: 10,
   },
-  avatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#e0f7fb',
+  answeredBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#16a34a',
+  },
+  authorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  authorAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#a855f7',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  avatarImg: {
-    width: 38,
-    height: 38,
+  authorAvatarImg: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
   },
-  avatarInitial: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#0e7490',
+  authorInitials: {
+    color: '#ffffff',
+    fontWeight: '700',
+    fontSize: 12,
   },
   authorName: {
-    fontSize: 14,
     fontWeight: '700',
-    color: '#0f172a',
+    fontSize: 13.5,
+    color: '#111827',
   },
-  dateText: {
+  timeText: {
     fontSize: 11,
-    color: '#94a3b8',
+    color: '#9ca3af',
   },
-  answeredBadge: {
-    backgroundColor: '#ecfdf5',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  answeredBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#059669',
-  },
-  requestBody: {
+  requestText: {
     fontSize: 14,
-    color: '#1e293b',
-    lineHeight: 20,
+    color: '#374151',
+    lineHeight: 22,
     marginBottom: 12,
   },
-  responsesBox: {
-    backgroundColor: '#f8fafc',
+  answeredNoteBox: {
+    backgroundColor: '#f0fdf4',
     borderRadius: 10,
     padding: 10,
     marginBottom: 12,
-    gap: 4,
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
   },
-  responseLine: {
-    fontSize: 12,
-    color: '#475569',
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: 8,
-  },
-  noteBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#e0f7fb',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-  },
-  noteBtnText: {
-    color: '#0e7490',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  markAnsweredBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#dcfce7',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-  },
-  markAnsweredText: {
+  answeredNoteText: {
+    fontSize: 12.5,
     color: '#15803d',
-    fontSize: 12,
-    fontWeight: '800',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   prayBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#4EB1CB',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
+    backgroundColor: '#f5f3ff',
+    borderWidth: 1,
+    borderColor: '#e9d5ff',
+    borderRadius: 99,
+    paddingVertical: 7,
+    paddingHorizontal: 16,
   },
   prayBtnText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#ffffff',
+    color: '#7c3aed',
+    fontSize: 13,
+    fontWeight: '700',
   },
-  modalOverlay: {
+  responsesLinkText: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontWeight: '600',
+  },
+
+  // Empty & Modal
+  emptyCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    marginHorizontal: 14,
+    padding: 40,
+    alignItems: 'center',
+  },
+  emptyTitle: { fontSize: 15, fontWeight: '700', color: '#374151', marginBottom: 4 },
+  emptySub: { fontSize: 13, color: '#9ca3af' },
+  modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   modalSheet: {
     backgroundColor: '#ffffff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     padding: 20,
-    paddingBottom: 30,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 14,
+    paddingBottom: 34,
   },
   modalTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '800',
-    color: '#0f172a',
+    color: '#1a1a2e',
+    marginBottom: 6,
   },
-  input: {
-    minHeight: 110,
-    borderWidth: 1.5,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
+  modalQuoteBox: {
+    backgroundColor: '#f5f3ff',
+    borderRadius: 10,
     padding: 12,
-    fontSize: 14,
-    color: '#0f172a',
-    textAlignVertical: 'top',
     marginBottom: 14,
   },
-  submitBtn: {
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: '#4EB1CB',
-    alignItems: 'center',
-    justifyContent: 'center',
+  modalQuoteText: {
+    fontSize: 13,
+    color: '#6b7280',
+    lineHeight: 19,
   },
-  submitBtnText: {
+  modalTextarea: {
+    borderWidth: 1.5,
+    borderColor: '#e5e7eb',
+    borderRadius: 12,
+    padding: 12,
+    minHeight: 80,
+    textAlignVertical: 'top',
+    fontSize: 14,
+    color: '#111827',
+    marginBottom: 12,
+  },
+  modalBtnRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  modalCancelBtn: {
+    flex: 1,
+    paddingVertical: 11,
+    borderRadius: 99,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    color: '#374151',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  modalCommitBtn: {
+    flex: 2,
+    paddingVertical: 11,
+    borderRadius: 99,
+    backgroundColor: '#8b5cf6',
+    alignItems: 'center',
+  },
+  modalCommitText: {
     color: '#ffffff',
-    fontSize: 15,
     fontWeight: '800',
+    fontSize: 14,
   },
 });

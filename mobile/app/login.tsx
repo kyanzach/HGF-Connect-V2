@@ -7,361 +7,272 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   ActivityIndicator,
-  Image,
-  Linking,
+  ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import * as WebBrowser from 'expo-web-browser';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import client from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
 import AlertPromptModal, { AlertType } from '@/components/ui/AlertPromptModal';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { login } = useAuth();
 
-  const [identifier, setIdentifier] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const [alertModal, setAlertModal] = useState<{
+  const [alertState, setAlertState] = useState<{
     visible: boolean;
     type: AlertType;
     title: string;
     message: string;
-  }>({ visible: false, type: 'info', title: '', message: '' });
-
-  const openLegal = async (path: string) => {
-    const url = `https://connect.houseofgrace.ph${path}`;
-    try {
-      await WebBrowser.openBrowserAsync(url);
-    } catch {
-      Linking.openURL(url).catch(() => {});
-    }
-  };
+  }>({ visible: false, type: 'error', title: '', message: '' });
 
   const handleLogin = async () => {
-    if (!identifier.trim() || !password) {
-      setAlertModal({
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !password) {
+      setAlertState({
         visible: true,
         type: 'warning',
-        title: 'Credentials Required',
-        message: 'Please enter your username, email, or mobile number and password.',
+        title: 'Missing Credentials',
+        message: 'Please enter your username/email and password.',
       });
       return;
     }
 
-    setSubmitting(true);
+    setLoading(true);
     try {
-      const res = await client.post('/login', {
-        identifier: identifier.trim(),
+      const { data } = await client.post('/login', {
+        identifier: cleanEmail,
         password,
       });
+      const payload = data?.data || data;
 
-      if (res.data?.success && res.data?.data?.token) {
-        await login(res.data.data.token, res.data.data.user);
-        router.replace('/(tabs)' as any);
+      if (payload?.token && payload?.user) {
+        await login(payload.token, payload.user);
+        router.replace('/(tabs)');
       } else {
-        setAlertModal({
-          visible: true,
-          type: 'error',
-          title: 'Sign In Failed',
-          message: res.data?.message || 'Invalid credentials. Please try again.',
-        });
+        throw new Error('Unexpected response from server');
       }
     } catch (err: any) {
-      setAlertModal({
+      const msg =
+        err?.response?.data?.error ||
+        'Invalid credentials. Please check your username/email and password.';
+      setAlertState({
         visible: true,
         type: 'error',
-        title: 'Sign In Failed',
-        message:
-          err.response?.data?.message ||
-          'Unable to sign in. Please check your credentials and try again.',
+        title: 'Sign-In Failed',
+        message: msg,
       });
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   };
 
   return (
     <KeyboardAvoidingView
-      style={styles.root}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
-        contentContainerStyle={[
-          styles.scroll,
-          { paddingTop: Math.max(insets.top + 16, 48), paddingBottom: insets.bottom + 24 },
-        ]}
+        contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.topRow}>
-          <TouchableOpacity
-            style={styles.backBtn}
-            onPress={() => {
-              if (router.canGoBack()) {
-                router.back();
-              } else {
-                router.replace('/(tabs)' as any);
-              }
-            }}
-          >
-            <FontAwesome name="arrow-left" size={15} color="#ffffff" />
-            <Text style={styles.backBtnText}>Back to App</Text>
-          </TouchableOpacity>
-        </View>
-
+        {/* White Card (1:1 replica of app/(public)/login/page.tsx) */}
         <View style={styles.card}>
-          <View style={styles.logoWrap}>
-            <Image
-              source={require('../assets/images/hgf_logo.png')}
-              style={styles.logoImg}
-            />
+          {/* Brand Logo */}
+          <View style={styles.brandWrap}>
+            <View style={styles.logoSquare}>
+              <Text style={styles.logoLetter}>H</Text>
+            </View>
+            <Text style={styles.welcomeTitle}>Welcome back</Text>
+            <Text style={styles.welcomeSubtitle}>Sign in to HGF Connect</Text>
           </View>
-          <Text style={styles.title}>Welcome back</Text>
-          <Text style={styles.subtitle}>Sign in to HGF Connect</Text>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Username, Email, or Mobile</Text>
-            <View style={styles.inputBox}>
-              <FontAwesome name="user-o" size={16} color="#64748b" />
-              <TextInput
-                style={styles.input}
-                placeholder="username or email@example.com"
-                placeholderTextColor="#94a3b8"
-                autoCapitalize="none"
-                autoCorrect={false}
-                value={identifier}
-                onChangeText={setIdentifier}
-              />
-            </View>
+            <Text style={styles.label}>Username or Email</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="your username or email"
+              placeholderTextColor="#94a3b8"
+              autoCapitalize="none"
+              autoCorrect={false}
+              value={email}
+              onChangeText={setEmail}
+            />
           </View>
 
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>Password</Text>
-            <View style={styles.inputBox}>
-              <FontAwesome name="lock" size={17} color="#64748b" />
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your password"
-                placeholderTextColor="#94a3b8"
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-                value={password}
-                onChangeText={setPassword}
-              />
-              <TouchableOpacity onPress={() => setShowPassword((v) => !v)}>
-                <FontAwesome
-                  name={showPassword ? 'eye-slash' : 'eye'}
-                  size={16}
-                  color="#64748b"
-                />
-              </TouchableOpacity>
-            </View>
+            <TextInput
+              style={styles.input}
+              placeholder="••••••••"
+              placeholderTextColor="#94a3b8"
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+            />
           </View>
 
+          <Text style={styles.forgotText}>
+            Forgot password?{' '}
+            <Text
+              style={styles.forgotLink}
+              onPress={() => router.push('/church?tab=ai' as any)}
+            >
+              Ask AI for help
+            </Text>{' '}
+            to retrieve your account.
+          </Text>
+
           <TouchableOpacity
-            style={[styles.signInBtn, submitting && { opacity: 0.7 }]}
+            style={[styles.signInBtn, loading && { opacity: 0.7 }]}
             onPress={handleLogin}
-            disabled={submitting}
-            activeOpacity={0.85}
+            disabled={loading}
+            activeOpacity={0.88}
           >
-            {submitting ? (
-              <ActivityIndicator size="small" color="#ffffff" />
+            {loading ? (
+              <ActivityIndicator color="#ffffff" />
             ) : (
-              <Text numberOfLines={1} adjustsFontSizeToFit style={styles.signInBtnText}>
-                Sign In
-              </Text>
+              <Text style={styles.signInBtnText}>Sign In</Text>
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.registerLinkBtn}
-            onPress={() => router.push('/register' as any)}
-            activeOpacity={0.85}
-          >
-            <Text numberOfLines={1} adjustsFontSizeToFit style={styles.registerLinkText}>
-              New to House of Grace? Create Account
+          <View style={styles.linksWrap}>
+            <Text style={styles.registerPrompt}>
+              Don't have an account?{' '}
+              <Text
+                style={styles.registerLink}
+                onPress={() => router.push('/register')}
+              >
+                Register here
+              </Text>
             </Text>
-          </TouchableOpacity>
 
-          <View style={styles.legalLinks}>
-            <Text style={styles.legalHint}>
-              By signing in, you agree to our community standards:
-            </Text>
-            <View style={styles.legalRow}>
-              <TouchableOpacity onPress={() => openLegal('/privacy')}>
-                <Text style={styles.legalLink}>Privacy Policy</Text>
-              </TouchableOpacity>
-              <Text style={styles.legalDot}>&bull;</Text>
-              <TouchableOpacity onPress={() => openLegal('/terms')}>
-                <Text style={styles.legalLink}>Terms &amp; EULA</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity onPress={() => router.back()}>
+              <Text style={styles.backHomeText}>← Back to home</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
 
       <AlertPromptModal
-        visible={alertModal.visible}
-        type={alertModal.type}
-        title={alertModal.title}
-        message={alertModal.message}
-        onClose={() => setAlertModal((prev) => ({ ...prev, visible: false }))}
+        visible={alertState.visible}
+        type={alertState.type}
+        title={alertState.title}
+        message={alertState.message}
+        onClose={() => setAlertState((prev) => ({ ...prev, visible: false }))}
       />
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
+  container: {
     flex: 1,
-    backgroundColor: '#0f2d3d',
+    backgroundColor: '#1a4a5e',
   },
-  scroll: {
+  scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 20,
     justifyContent: 'center',
-  },
-  topRow: {
-    marginBottom: 16,
-  },
-  backBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    alignSelf: 'flex-start',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-  },
-  backBtnText: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '700',
+    padding: 20,
   },
   card: {
     backgroundColor: '#ffffff',
-    borderRadius: 24,
-    padding: 24,
+    borderRadius: 20,
+    paddingVertical: 36,
+    paddingHorizontal: 28,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.25,
     shadowRadius: 24,
-    elevation: 10,
+    elevation: 8,
   },
-  logoWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 16,
-    backgroundColor: '#e0f7fb',
-    alignSelf: 'center',
+  brandWrap: {
+    alignItems: 'center',
+    marginBottom: 28,
+  },
+  logoSquare: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: '#4eb1cb',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 14,
+    marginBottom: 12,
   },
-  logoImg: {
-    width: 48,
-    height: 48,
-    resizeMode: 'contain',
+  logoLetter: {
+    color: '#ffffff',
+    fontWeight: '800',
+    fontSize: 22,
   },
-  title: {
+  welcomeTitle: {
     fontSize: 22,
     fontWeight: '800',
     color: '#0f172a',
-    textAlign: 'center',
   },
-  subtitle: {
-    fontSize: 14,
+  welcomeSubtitle: {
+    fontSize: 13.5,
     color: '#64748b',
-    textAlign: 'center',
     marginTop: 4,
-    marginBottom: 22,
   },
   fieldGroup: {
     marginBottom: 16,
   },
   label: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#334155',
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#0f172a',
     marginBottom: 6,
   },
-  inputBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+  input: {
     borderWidth: 1.5,
     borderColor: '#e2e8f0',
-    borderRadius: 12,
+    borderRadius: 10,
+    paddingVertical: 11,
     paddingHorizontal: 14,
-    height: 48,
-    backgroundColor: '#f8fafc',
-  },
-  input: {
-    flex: 1,
-    fontSize: 15,
+    fontSize: 14,
     color: '#0f172a',
   },
+  forgotText: {
+    fontSize: 12.5,
+    color: '#64748b',
+    textAlign: 'right',
+    marginTop: -6,
+    marginBottom: 18,
+  },
+  forgotLink: {
+    color: '#4eb1cb',
+    fontWeight: '600',
+  },
   signInBtn: {
-    height: 50,
-    borderRadius: 12,
-    backgroundColor: '#4EB1CB',
+    backgroundColor: '#4eb1cb',
+    borderRadius: 10,
+    paddingVertical: 13,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 6,
   },
   signInBtnText: {
     color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  registerLinkBtn: {
-    marginTop: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#bae6fd',
-    backgroundColor: '#f0f9ff',
-    alignItems: 'center',
-  },
-  registerLinkText: {
-    color: '#0e7490',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  legalLinks: {
-    marginTop: 20,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
-    alignItems: 'center',
-  },
-  legalHint: {
-    fontSize: 11,
-    color: '#94a3b8',
-    textAlign: 'center',
-    marginBottom: 6,
-  },
-  legalRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  legalLink: {
-    fontSize: 12,
     fontWeight: '700',
-    color: '#0e7490',
+    fontSize: 15,
   },
-  legalDot: {
-    color: '#cbd5e1',
+  linksWrap: {
+    alignItems: 'center',
+    marginTop: 22,
+    gap: 10,
+  },
+  registerPrompt: {
+    fontSize: 13.5,
+    color: '#64748b',
+  },
+  registerLink: {
+    color: '#4eb1cb',
+    fontWeight: '700',
+  },
+  backHomeText: {
+    fontSize: 13,
+    color: '#94a3b8',
   },
 });

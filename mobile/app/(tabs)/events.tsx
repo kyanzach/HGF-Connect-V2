@@ -4,14 +4,13 @@ import {
   Text,
   StyleSheet,
   FlatList,
+  ScrollView,
   TouchableOpacity,
   Image,
+  TextInput,
   ActivityIndicator,
   RefreshControl,
-  Modal,
-  ScrollView,
 } from 'react-native';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter } from 'expo-router';
 import client from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
@@ -20,41 +19,47 @@ import AlertPromptModal, { AlertType } from '@/components/ui/AlertPromptModal';
 interface EventItem {
   id: number;
   title: string;
-  description: string;
-  commentary?: string | null;
-  eventDate: string | null;
-  location: string;
+  description?: string | null;
   eventType: string;
+  eventDate: string;
+  endDate?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
+  location?: string | null;
+  coverPhoto?: string | null;
   status: string;
-  speaker?: string | null;
-  attendeeCount?: number;
-  isCheckedIn?: boolean;
+  rsvpCount: number;
+  myRsvp?: string | null;
 }
 
-interface CelebrantItem {
-  id: number;
-  name: string;
-  birthDay: number;
-  birthMonth: number;
-  avatar?: string | null;
-}
+const EVENT_TYPE_BADGES: Record<string, { label: string; color: string; bg: string }> = {
+  sunday_service: { label: '⛪ Sunday Service', color: '#4eb1cb', bg: '#e8f7fb' },
+  prayer_meeting: { label: '🙏 Prayer Meeting', color: '#7c3aed', bg: '#f3e8ff' },
+  bible_study: { label: '📖 Bible Study', color: '#059669', bg: '#ecfdf5' },
+  special_event: { label: '✨ Special Event', color: '#d97706', bg: '#fffbeb' },
+  grace_night: { label: '🌙 Grace Night', color: '#2563eb', bg: '#eff6ff' },
+  other: { label: '📌 Other', color: '#64748b', bg: '#f1f5f9' },
+};
 
-const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+const TYPE_FILTERS = [
+  { key: 'all', label: 'All Types' },
+  { key: 'sunday_service', label: '⛪ Sunday Service' },
+  { key: 'prayer_meeting', label: '🙏 Prayer Meeting' },
+  { key: 'bible_study', label: '📖 Bible Study' },
+  { key: 'special_event', label: '✨ Special Event' },
+  { key: 'grace_night', label: '🌙 Grace Night' },
 ];
 
 export default function EventsScreen() {
   const router = useRouter();
   const { user } = useAuth();
 
-  const [tab, setTab] = useState<'upcoming' | 'birthdays' | 'past'>('upcoming');
-  const [upcoming, setUpcoming] = useState<EventItem[]>([]);
-  const [past, setPast] = useState<EventItem[]>([]);
-  const [celebrants, setCelebrants] = useState<CelebrantItem[]>([]);
+  const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
+  const [events, setEvents] = useState<EventItem[]>([]);
+  const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
 
   const [alertModal, setAlertModal] = useState<{
     visible: boolean;
@@ -63,16 +68,23 @@ export default function EventsScreen() {
     message: string;
   }>({ visible: false, type: 'info', title: '', message: '' });
 
-  const loadData = useCallback(async () => {
+  const fetchEvents = useCallback(async () => {
     try {
-      const res = await client.get('/events');
-      if (res.data?.success) {
-        setUpcoming(res.data.data?.upcomingEvents || []);
-        setPast(res.data.data?.pastEvents || []);
-        setCelebrants(res.data.data?.celebrants || []);
-      }
+      const { data } = await client.get('/events');
+      const payload = data?.data || data;
+      const upList = (payload?.upcomingEvents || []).map((e: any) => ({
+        ...e,
+        rsvpCount: e.rsvpCount ?? e.attendeeCount ?? 0,
+        myRsvp: e.isCheckedIn ? 'going' : null,
+      }));
+      const pastList = (payload?.pastEvents || []).map((e: any) => ({
+        ...e,
+        rsvpCount: e.rsvpCount ?? e.attendeeCount ?? 0,
+        myRsvp: e.isCheckedIn ? 'going' : null,
+      }));
+      setEvents([...upList, ...pastList]);
     } catch {
-      // ignore
+      // Keep cached
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -80,278 +92,235 @@ export default function EventsScreen() {
   }, []);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    fetchEvents();
+  }, [fetchEvents]);
 
-  const handleRsvp = async (item: EventItem) => {
+  const handleRsvp = async (event: EventItem) => {
     if (!user) {
-      router.push('/login' as any);
+      router.push('/login');
       return;
     }
+
+    const nextStatus = event.myRsvp === 'going' ? 'not_going' : 'going';
+    setEvents((prev) =>
+      prev.map((e) =>
+        e.id === event.id
+          ? {
+              ...e,
+              myRsvp: nextStatus,
+              rsvpCount: Math.max(0, e.rsvpCount + (nextStatus === 'going' ? 1 : -1)),
+            }
+          : e
+      )
+    );
+
     try {
-      const res = await client.post('/events', { eventId: item.id });
-      if (res.data?.success) {
-        setAlertModal({
-          visible: true,
-          type: 'success',
-          title: 'RSVP Confirmed',
-          message: res.data.message || 'Your attendance is recorded!',
-        });
-        loadData();
-      }
-    } catch (err: any) {
-      setAlertModal({
-        visible: true,
-        type: 'error',
-        title: 'Check-In Failed',
-        message: err.response?.data?.message || 'Could not record RSVP.',
-      });
+      await client.post(`/events/${event.id}/rsvp`, { status: nextStatus });
+    } catch {
+      fetchEvents();
     }
   };
 
-  const currentMonthName = MONTHS[new Date().getMonth()];
+  const todayStr = new Date().toISOString().split('T')[0];
+  const upcomingEvents = events.filter((e) => e.eventDate.slice(0, 10) >= todayStr);
+  const pastEvents = events.filter((e) => e.eventDate.slice(0, 10) < todayStr);
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.tabRow}>
+  const filteredPast = pastEvents.filter((ev) => {
+    if (typeFilter !== 'all' && ev.eventType !== typeFilter) return false;
+    if (
+      search.trim() &&
+      !ev.title.toLowerCase().includes(search.toLowerCase()) &&
+      !(ev.location || '').toLowerCase().includes(search.toLowerCase())
+    ) {
+      return false;
+    }
+    return true;
+  });
+
+  const displayList = tab === 'upcoming' ? upcomingEvents : filteredPast;
+
+  const renderHeader = () => (
+    <View>
+      {/* Hero Banner (app/(public)/events/EventsClient.tsx) */}
+      <View style={styles.heroBanner}>
+        <Text style={styles.heroTitle}>Events</Text>
+        <Text style={styles.heroSubtitle}>Join us for worship, fellowship, and growth</Text>
+      </View>
+
+      {/* Tabs Row */}
+      <View style={styles.tabsRow}>
         <TouchableOpacity
-          style={[styles.tabPill, tab === 'upcoming' && styles.tabPillActive]}
+          style={[styles.tabBtn, tab === 'upcoming' && styles.tabBtnActive]}
           onPress={() => setTab('upcoming')}
         >
-          <Text
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            style={[styles.tabText, tab === 'upcoming' && styles.tabTextActive]}
-          >
-            Upcoming ({upcoming.length})
+          <Text style={[styles.tabBtnText, tab === 'upcoming' && styles.tabBtnTextActive]}>
+            📅 Upcoming Events
           </Text>
+          <View
+            style={[
+              styles.tabCountBadge,
+              tab === 'upcoming' ? styles.tabCountBadgeActive : styles.tabCountBadgeInactive,
+            ]}
+          >
+            <Text
+              style={[
+                styles.tabCountText,
+                tab === 'upcoming' ? { color: '#4eb1cb' } : { color: '#64748b' },
+              ]}
+            >
+              {upcomingEvents.length}
+            </Text>
+          </View>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tabPill, tab === 'birthdays' && styles.tabPillActive]}
-          onPress={() => setTab('birthdays')}
-        >
-          <Text
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            style={[styles.tabText, tab === 'birthdays' && styles.tabTextActive]}
-          >
-            Birthdays ({celebrants.length})
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.tabPill, tab === 'past' && styles.tabPillActive]}
+          style={[styles.tabBtn, tab === 'past' && styles.tabBtnActive]}
           onPress={() => setTab('past')}
         >
-          <Text
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            style={[styles.tabText, tab === 'past' && styles.tabTextActive]}
-          >
-            Past Services
+          <Text style={[styles.tabBtnText, tab === 'past' && styles.tabBtnTextActive]}>
+            📁 Past Events
           </Text>
+          <View
+            style={[
+              styles.tabCountBadge,
+              tab === 'past' ? styles.tabCountBadgeActive : styles.tabCountBadgeInactive,
+            ]}
+          >
+            <Text
+              style={[
+                styles.tabCountText,
+                tab === 'past' ? { color: '#4eb1cb' } : { color: '#64748b' },
+              ]}
+            >
+              {pastEvents.length}
+            </Text>
+          </View>
         </TouchableOpacity>
       </View>
 
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color="#4EB1CB" />
-        </View>
-      ) : tab === 'birthdays' ? (
-        <FlatList
-          data={celebrants}
-          keyExtractor={(item) => String(item.id)}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => {
-                setRefreshing(true);
-                loadData();
-              }}
-              tintColor="#4EB1CB"
-            />
-          }
-          ListHeaderComponent={
-            <View style={styles.bannerCard}>
-              <Text style={styles.bannerTitle}>{currentMonthName} Celebrants</Text>
-              <Text style={styles.bannerSub}>
-                Celebrating our active &amp; approved church family members!
-              </Text>
-            </View>
-          }
-          renderItem={({ item }) => (
-            <View style={styles.celebrantCard}>
-              <View style={styles.avatar}>
-                {item.avatar ? (
-                  <Image source={{ uri: item.avatar }} style={styles.avatarImg} />
-                ) : (
-                  <Text style={styles.avatarInitial}>
-                    {(item.name?.[0] || 'M').toUpperCase()}
+      {tab === 'past' && (
+        <View style={styles.pastFiltersWrap}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="🔍 Search past events..."
+            placeholderTextColor="#94a3b8"
+            value={search}
+            onChangeText={setSearch}
+          />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 6, paddingTop: 8 }}
+          >
+            {TYPE_FILTERS.map((tf) => {
+              const active = typeFilter === tf.key;
+              return (
+                <TouchableOpacity
+                  key={tf.key}
+                  style={[styles.typeChip, active && styles.typeChipActive]}
+                  onPress={() => setTypeFilter(tf.key)}
+                >
+                  <Text style={[styles.typeChipText, active && styles.typeChipTextActive]}>
+                    {tf.label}
                   </Text>
-                )}
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.celebrantName}>{item.name}</Text>
-                <Text style={styles.celebrantDate}>
-                  {currentMonthName} {item.birthDay}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
+    </View>
+  );
+
+  const renderEventCard = ({ item }: { item: EventItem }) => {
+    const badge = EVENT_TYPE_BADGES[item.eventType] ?? EVENT_TYPE_BADGES.other;
+    const d = new Date(item.eventDate);
+    const isGoing = item.myRsvp === 'going';
+
+    return (
+      <View style={styles.card}>
+        {item.coverPhoto ? (
+          <Image source={{ uri: item.coverPhoto }} style={styles.coverImg} resizeMode="cover" />
+        ) : (
+          <View style={[styles.coverPlaceholder, { backgroundColor: badge.bg }]}>
+            <Text style={{ fontSize: 38 }}>{badge.label.split(' ')[0]}</Text>
+          </View>
+        )}
+
+        <View style={styles.cardBody}>
+          <View style={[styles.typeBadge, { backgroundColor: badge.bg }]}>
+            <Text style={[styles.typeBadgeText, { color: badge.color }]}>{badge.label}</Text>
+          </View>
+
+          <Text style={styles.cardTitle}>{item.title}</Text>
+
+          <Text style={styles.metaLine}>
+            📅{' '}
+            {d.toLocaleDateString('en-US', {
+              weekday: 'short',
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            })}
+          </Text>
+          {item.startTime ? <Text style={styles.metaLine}>🕐 {item.startTime}</Text> : null}
+          {item.location ? <Text style={styles.metaLine}>📍 {item.location}</Text> : null}
+
+          <View style={styles.footerRow}>
+            <Text style={styles.rsvpCountText}>👥 {item.rsvpCount} attending</Text>
+            {tab === 'upcoming' && (
+              <TouchableOpacity
+                style={[styles.rsvpBtn, isGoing && styles.rsvpBtnActive]}
+                onPress={() => handleRsvp(item)}
+              >
+                <Text style={[styles.rsvpBtnText, isGoing && { color: '#ffffff' }]}>
+                  {isGoing ? '✓ Going' : 'RSVP Going'}
                 </Text>
-              </View>
-              <View style={styles.dayBadge}>
-                <FontAwesome name="birthday-cake" size={13} color="#0e7490" />
-                <Text style={styles.dayBadgeText}>Day {item.birthDay}</Text>
-              </View>
-            </View>
-          )}
-        />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      {loading && events.length === 0 ? (
+        <View style={{ flex: 1 }}>
+          {renderHeader()}
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color="#4EB1CB" />
+          </View>
+        </View>
       ) : (
         <FlatList
-          data={tab === 'upcoming' ? upcoming : past}
+          data={displayList}
           keyExtractor={(item) => String(item.id)}
+          renderItem={renderEventCard}
+          ListHeaderComponent={renderHeader()}
           contentContainerStyle={styles.listContent}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={() => {
                 setRefreshing(true);
-                loadData();
+                fetchEvents();
               }}
               tintColor="#4EB1CB"
             />
           }
           ListEmptyComponent={
-            <View style={styles.emptyBox}>
-              <FontAwesome name="calendar-o" size={32} color="#cbd5e1" />
+            <View style={styles.emptyCard}>
+              <Text style={{ fontSize: 44, marginBottom: 10 }}>📅</Text>
               <Text style={styles.emptyTitle}>
-                {tab === 'upcoming'
-                  ? 'No scheduled upcoming events'
-                  : 'No past events found'}
+                {tab === 'upcoming' ? 'No Upcoming Events' : 'No Past Events Found'}
               </Text>
-              <Text style={styles.emptySub}>
-                Join us every Sunday for Worship Service at House of Grace Fellowship!
-              </Text>
+              <Text style={styles.emptySub}>Check back soon for new events!</Text>
             </View>
           }
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.eventCard}
-              onPress={() => setSelectedEvent(item)}
-              activeOpacity={0.9}
-            >
-              <View style={styles.eventIconBox}>
-                <FontAwesome name="calendar" size={18} color="#0e7490" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.eventTitle}>{item.title}</Text>
-                <Text style={styles.eventMeta}>
-                  {item.eventDate
-                    ? new Date(item.eventDate).toLocaleDateString('en-US', {
-                        weekday: 'short',
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })
-                    : 'Date TBA'}{' '}
-                  &bull; {item.location}
-                </Text>
-                {item.speaker ? (
-                  <Text style={styles.speakerText}>Speaker: {item.speaker}</Text>
-                ) : null}
-                {item.description ? (
-                  <Text numberOfLines={2} style={styles.eventDesc}>
-                    {item.description}
-                  </Text>
-                ) : null}
-
-                <View style={styles.eventFooterRow}>
-                  <TouchableOpacity
-                    style={[
-                      styles.rsvpBtn,
-                      item.isCheckedIn && { backgroundColor: '#dcfce7' },
-                    ]}
-                    onPress={() => handleRsvp(item)}
-                  >
-                    <FontAwesome
-                      name={item.isCheckedIn ? 'check-circle' : 'calendar-check-o'}
-                      size={13}
-                      color={item.isCheckedIn ? '#15803d' : '#0e7490'}
-                    />
-                    <Text
-                      style={[
-                        styles.rsvpBtnText,
-                        item.isCheckedIn && { color: '#15803d' },
-                      ]}
-                    >
-                      {item.isCheckedIn ? 'Checked In' : 'RSVP / Check In'}
-                    </Text>
-                  </TouchableOpacity>
-
-                  {item.commentary ? (
-                    <View style={styles.notesPill}>
-                      <FontAwesome name="file-text-o" size={11} color="#475569" />
-                      <Text style={styles.notesPillText}>Sermon Notes</Text>
-                    </View>
-                  ) : null}
-                </View>
-              </View>
-            </TouchableOpacity>
-          )}
         />
       )}
-
-      {/* Event Details & Sermon Commentary Modal */}
-      <Modal
-        visible={selectedEvent !== null}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setSelectedEvent(null)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalSheet}>
-            <View style={styles.modalHeader}>
-              <Text numberOfLines={2} style={styles.modalTitle}>
-                {selectedEvent?.title}
-              </Text>
-              <TouchableOpacity onPress={() => setSelectedEvent(null)}>
-                <FontAwesome name="times" size={18} color="#64748b" />
-              </TouchableOpacity>
-            </View>
-
-            {selectedEvent ? (
-              <ScrollView style={{ maxHeight: 420 }}>
-                <Text style={styles.eventMeta}>
-                  {selectedEvent.eventDate
-                    ? new Date(selectedEvent.eventDate).toLocaleDateString('en-US', {
-                        weekday: 'long',
-                        month: 'long',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })
-                    : ''}{' '}
-                  &bull; {selectedEvent.location}
-                </Text>
-                {selectedEvent.speaker ? (
-                  <Text style={[styles.speakerText, { marginTop: 6 }]}>
-                    Speaker: {selectedEvent.speaker}
-                  </Text>
-                ) : null}
-                {selectedEvent.description ? (
-                  <Text style={[styles.eventDesc, { marginTop: 10 }]}>
-                    {selectedEvent.description}
-                  </Text>
-                ) : null}
-                {selectedEvent.commentary ? (
-                  <View style={styles.commentaryBox}>
-                    <Text style={styles.commentaryTitle}>Sermon Reflection &amp; Notes</Text>
-                    <Text style={styles.commentaryBody}>{selectedEvent.commentary}</Text>
-                  </View>
-                ) : null}
-              </ScrollView>
-            ) : null}
-          </View>
-        </View>
-      </Modal>
 
       <AlertPromptModal
         visible={alertModal.visible}
@@ -365,248 +334,163 @@ export default function EventsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
+  container: { flex: 1, backgroundColor: '#f8fafc' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 40 },
+  listContent: { paddingBottom: 32 },
+
+  heroBanner: {
+    backgroundColor: '#1a4a5e',
+    paddingVertical: 32,
+    paddingHorizontal: 20,
+    alignItems: 'center',
   },
-  tabRow: {
+  heroTitle: { fontSize: 26, fontWeight: '800', color: '#ffffff', marginBottom: 6 },
+  heroSubtitle: { fontSize: 14, color: 'rgba(255,255,255,0.75)' },
+
+  tabsRow: {
     flexDirection: 'row',
     gap: 8,
     paddingHorizontal: 14,
-    paddingVertical: 10,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
+    paddingTop: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 2,
     borderBottomColor: '#e2e8f0',
+    marginBottom: 14,
   },
-  tabPill: {
-    flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-    backgroundColor: '#f1f5f9',
-    alignItems: 'center',
-  },
-  tabPillActive: {
-    backgroundColor: '#0f2d3d',
-  },
-  tabText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#64748b',
-  },
-  tabTextActive: {
-    color: '#ffffff',
-  },
-  listContent: {
-    padding: 14,
-    paddingBottom: 32,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bannerCard: {
-    backgroundColor: '#0f2d3d',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-  },
-  bannerTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#ffffff',
-  },
-  bannerSub: {
-    fontSize: 12,
-    color: '#94a3b8',
-    marginTop: 2,
-  },
-  celebrantCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#ffffff',
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#e0f7fb',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  avatarImg: {
-    width: 42,
-    height: 42,
-  },
-  avatarInitial: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0e7490',
-  },
-  celebrantName: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#0f172a',
-  },
-  celebrantDate: {
-    fontSize: 12,
-    color: '#64748b',
-    marginTop: 1,
-  },
-  dayBadge: {
+  tabBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#f0f9ff',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    borderRadius: 10,
   },
-  dayBadgeText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#0e7490',
+  tabBtnActive: {
+    backgroundColor: '#4eb1cb',
   },
-  eventCard: {
-    flexDirection: 'row',
-    gap: 12,
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  eventIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: '#e0f7fb',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  eventTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#0f172a',
-  },
-  eventMeta: {
-    fontSize: 12,
-    color: '#64748b',
-    marginTop: 3,
-  },
-  speakerText: {
-    fontSize: 12,
+  tabBtnText: {
+    fontSize: 13.5,
     fontWeight: '700',
-    color: '#0e7490',
-    marginTop: 4,
+    color: '#64748b',
   },
-  eventDesc: {
-    fontSize: 13,
-    color: '#475569',
-    marginTop: 6,
-    lineHeight: 18,
+  tabBtnTextActive: {
+    color: '#ffffff',
   },
-  eventFooterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 10,
+  tabCountBadge: {
+    borderRadius: 99,
+    paddingHorizontal: 7,
+    paddingVertical: 1,
   },
-  rsvpBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#e0f7fb',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 999,
+  tabCountBadgeActive: {
+    backgroundColor: '#ffffff',
   },
-  rsvpBtnText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#0e7490',
+  tabCountBadgeInactive: {
+    backgroundColor: '#e2e8f0',
   },
-  notesPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#f1f5f9',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-  },
-  notesPillText: {
+  tabCountText: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#475569',
-  },
-  emptyBox: {
-    padding: 36,
-    alignItems: 'center',
-  },
-  emptyTitle: {
-    fontSize: 15,
     fontWeight: '800',
-    color: '#475569',
-    marginTop: 10,
   },
-  emptySub: {
-    fontSize: 13,
-    color: '#94a3b8',
-    textAlign: 'center',
-    marginTop: 4,
+
+  pastFiltersWrap: {
+    paddingHorizontal: 14,
+    marginBottom: 14,
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.55)',
-    justifyContent: 'flex-end',
-  },
-  modalSheet: {
+  searchInput: {
     backgroundColor: '#ffffff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
-    paddingBottom: 32,
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    fontSize: 13.5,
+    color: '#0f172a',
   },
-  modalHeader: {
+  typeChip: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 99,
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+  },
+  typeChipActive: {
+    backgroundColor: '#4eb1cb',
+    borderColor: '#4eb1cb',
+  },
+  typeChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  typeChipTextActive: {
+    color: '#ffffff',
+  },
+
+  card: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    marginHorizontal: 14,
+    marginBottom: 14,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  coverImg: { width: '100%', height: 150 },
+  coverPlaceholder: {
+    width: '100%',
+    height: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardBody: { padding: 16 },
+  typeBadge: {
+    alignSelf: 'flex-start',
+    borderRadius: 99,
+    paddingVertical: 3,
+    paddingHorizontal: 10,
+    marginBottom: 8,
+  },
+  typeBadgeText: { fontSize: 11, fontWeight: '700' },
+  cardTitle: { fontSize: 16, fontWeight: '800', color: '#0f172a', marginBottom: 8 },
+  metaLine: { fontSize: 12.5, color: '#64748b', marginBottom: 4 },
+  footerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
-    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+    paddingTop: 10,
+    marginTop: 8,
   },
-  modalTitle: {
-    flex: 1,
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#0f172a',
+  rsvpCountText: { fontSize: 12, color: '#64748b', fontWeight: '600' },
+  rsvpBtn: {
+    paddingVertical: 7,
+    paddingHorizontal: 16,
+    borderRadius: 99,
+    borderWidth: 1.5,
+    borderColor: '#4eb1cb',
   },
-  commentaryBox: {
-    backgroundColor: '#f8fafc',
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    marginTop: 14,
+  rsvpBtnActive: {
+    backgroundColor: '#4eb1cb',
   },
-  commentaryTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#0e7490',
-    marginBottom: 6,
+  rsvpBtnText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#4eb1cb',
   },
-  commentaryBody: {
-    fontSize: 13,
-    color: '#334155',
-    lineHeight: 20,
+  emptyCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    marginHorizontal: 14,
+    padding: 40,
+    alignItems: 'center',
   },
+  emptyTitle: { fontSize: 16, fontWeight: '700', color: '#334155', marginBottom: 4 },
+  emptySub: { fontSize: 13, color: '#94a3b8' },
 });

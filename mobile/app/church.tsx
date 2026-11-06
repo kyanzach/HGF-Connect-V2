@@ -17,6 +17,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import client from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
 import AlertPromptModal, { AlertType } from '@/components/ui/AlertPromptModal';
+import TopHeader from '@/components/ui/TopHeader';
 
 interface DirectoryMember {
   id: number;
@@ -61,7 +62,13 @@ export default function ChurchHubScreen() {
 
   const [activeTab, setActiveTab] = useState<
     'directory' | 'ministries' | 'quiz' | 'journal' | 'ai'
-  >((params.tab as any) || 'directory');
+  >((params.tab === 'devo' ? 'journal' : (params.tab as any)) || 'directory');
+
+  useEffect(() => {
+    if (params.tab) {
+      setActiveTab(params.tab === 'devo' ? 'journal' : (params.tab as any));
+    }
+  }, [params.tab]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [directory, setDirectory] = useState<DirectoryMember[]>([]);
@@ -192,9 +199,9 @@ export default function ChurchHubScreen() {
 
   return (
     <View style={styles.root}>
-      <View style={[styles.header, { paddingTop: topPad }]}>
+      <TopHeader />
+      <View style={{ backgroundColor: '#ffffff', paddingHorizontal: 14, paddingTop: 10, paddingBottom: 4, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
         <TouchableOpacity
-          style={styles.backBtn}
           onPress={() => {
             if (router.canGoBack()) {
               router.back();
@@ -203,14 +210,8 @@ export default function ChurchHubScreen() {
             }
           }}
         >
-          <FontAwesome name="arrow-left" size={16} color="#ffffff" />
+          <Text style={{ color: '#4EB1CB', fontSize: 15, fontWeight: '600' }}>← Back</Text>
         </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>HGF Church Hub</Text>
-          <Text style={styles.headerSub}>
-            Directory, Ministries, Quiz, Journal &amp; Grace AI
-          </Text>
-        </View>
       </View>
 
       <View style={styles.tabsBar}>
