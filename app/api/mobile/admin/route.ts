@@ -439,8 +439,8 @@ export async function GET(req: NextRequest) {
       const listings = await db.marketplaceListing.findMany({
         orderBy: { createdAt: "desc" },
         include: {
-          member: {
-            select: { id: true, firstName: true, lastName: true, isVerifiedSeller: true },
+          seller: {
+            select: { id: true, firstName: true, lastName: true, isVerified: true },
           },
         },
       });
@@ -456,10 +456,10 @@ export async function GET(req: NextRequest) {
         moderationReason: l.moderationReason || null,
         createdAt: l.createdAt.toISOString(),
         seller: {
-          id: l.member?.id || l.memberId,
-          firstName: l.member?.firstName || "Member",
-          lastName: l.member?.lastName || "",
-          isVerified: Boolean(l.member?.isVerifiedSeller),
+          id: l.seller?.id || l.memberId,
+          firstName: l.seller?.firstName || "Member",
+          lastName: l.seller?.lastName || "",
+          isVerified: Boolean(l.seller?.isVerified),
         },
       }));
 
@@ -843,10 +843,10 @@ export async function POST(req: NextRequest) {
 
     if (action === "toggle_sop_task") {
       const taskId = Number(body?.taskId);
-      const existing = await db.eventSopTask.findUnique({ where: { id: taskId } });
+      const existing = await db.multimediaSopTask.findUnique({ where: { id: taskId } });
       if (existing) {
         const nextCompleted = !existing.isCompleted;
-        await db.eventSopTask.update({
+        await db.multimediaSopTask.update({
           where: { id: taskId },
           data: {
             isCompleted: nextCompleted,
