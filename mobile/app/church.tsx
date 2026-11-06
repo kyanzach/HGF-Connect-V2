@@ -19,7 +19,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
+import { LinearGradient } from 'expo-linear-gradient';
 import client from '@/api/client';
 import TopHeader from '@/components/ui/TopHeader';
 import ConfirmModal from '@/components/ui/ConfirmModal';
@@ -170,7 +170,9 @@ export default function WebReplicaScreen() {
   const { user } = useAuth();
   const params = useLocalSearchParams<{ tab?: string; id?: string }>();
   const activePage = params.tab || 'directory';
-  const targetMemberId = params.id ? Number(params.id) : null;
+  const [selectedMemberId, setSelectedMemberId] = useState<number | null>(null);
+  const rawId = Array.isArray(params.id) ? params.id[0] : params.id;
+  const targetMemberId = rawId ? Number(rawId) : selectedMemberId;
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -187,13 +189,13 @@ export default function WebReplicaScreen() {
   const [deletePostConfirmId, setDeletePostConfirmId] = useState<number | null>(null);
   const [reactionPickerPostId, setReactionPickerPostId] = useState<number | null>(null);
   const [reactionsModalPost, setReactionsModalPost] = useState<any | null>(null);
-  const [reactionsModalTab, setReactionsModalTab] = useState<'ALL' | 'HEART' | 'PRAY' | 'HUG'>('ALL');
+  const [reactionsModalTab, setReactionsModalTab] = useState<'ALL' | 'HEART' | 'PRAY' | 'CARE'>('ALL');
   const [commentModalPost, setCommentModalPost] = useState<any | null>(null);
   const [commentsList, setCommentsList] = useState<any[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
   const [commentInput, setCommentInput] = useState('');
   const [sendingComment, setSendingComment] = useState(false);
-  const [profilePhotoSheet, setProfilePhotoSheet] = useState<'profile' | 'cover' | null>(null);
+  const [profilePhotoSheet, setProfilePhotoSheet] = useState<'avatar' | 'cover' | null>(null);
 
   // ── Directory State (app/(public)/directory/page.tsx) ──
   const [members, setMembers] = useState<DirectoryMember[]>([]);
@@ -326,6 +328,8 @@ export default function WebReplicaScreen() {
     if (activePage !== 'member' || !targetMemberId) return;
     let cancelled = false;
     setLoadingMember(true);
+    setMemberProfile(null);
+    setMemberPosts([]);
     setMemberTab('wall');
     setMemberPage(1);
     setMemberHasMore(false);
@@ -349,23 +353,19 @@ export default function WebReplicaScreen() {
           setMemberPosts(Array.isArray(mData.posts) ? mData.posts : []);
           setMemberPage(1);
           setMemberHasMore(Boolean(mData.hasMore));
-        } else {
-          const fallbackFromDir = members.find((x) => Number(x.id) === Number(targetMemberId));
-          const resolvedMember = webMemberRes || fallbackFromDir || null;
-          if (resolvedMember) {
-            setMemberProfile({
-              ...resolvedMember,
-              isOwn: user ? Number(user.id) === Number(targetMemberId) : false,
-              isAdmin: user ? ['admin', 'moderator'].includes(user.role || '') : false,
-              ministries: Array.isArray(resolvedMember.ministries)
-                ? resolvedMember.ministries.map((mm: any, idx: number) => ({
-                    id: mm.id ?? idx,
-                    ministry: mm.ministry || { id: idx, name: mm.name || String(mm) },
-                    joinedDate: mm.joinedDate || null,
-                  }))
-                : [],
-            });
-          }
+        } else if (webMemberRes) {
+          setMemberProfile({
+            ...webMemberRes,
+            isOwn: user ? Number(user.id) === Number(targetMemberId) : false,
+            isAdmin: user ? ['admin', 'moderator'].includes(user.role || '') : false,
+            ministries: Array.isArray(webMemberRes.ministries)
+              ? webMemberRes.ministries.map((mm: any, idx: number) => ({
+                  id: mm.id ?? idx,
+                  ministry: mm.ministry || { id: idx, name: mm.name || String(mm) },
+                  joinedDate: mm.joinedDate || null,
+                }))
+              : [],
+          });
           if (webPostsRes?.posts && Array.isArray(webPostsRes.posts)) {
             setMemberPosts(webPostsRes.posts);
             setMemberHasMore((webPostsRes.page ?? 1) < (webPostsRes.totalPages ?? 1));
@@ -383,7 +383,7 @@ export default function WebReplicaScreen() {
     return () => {
       cancelled = true;
     };
-  }, [activePage, targetMemberId, members, user]);
+  }, [activePage, targetMemberId, user]);
 
   const loadMoreMemberPosts = async () => {
     if (loadingMorePosts || !memberHasMore || !targetMemberId) return;
@@ -677,7 +677,13 @@ export default function WebReplicaScreen() {
             <TouchableOpacity
               style={styles.dirCardWrap}
               activeOpacity={0.85}
-              onPress={() => router.push(`/church?tab=member&id=${m.id}` as any)}
+              onPress={() => {
+                setSelectedMemberId(Number(m.id));
+                setMemberProfile(null);
+                setMemberPosts([]);
+                setLoadingMember(true);
+                router.push({ pathname: '/church', params: { tab: 'member', id: String(m.id) } } as any);
+              }}
             >
               <View style={styles.dirMemberCard}>
                 {/* Full-bleed Cover Photo + Seamless Horizontal Linear Gradient (exact replica of Directory page.tsx) */}
@@ -688,17 +694,18 @@ export default function WebReplicaScreen() {
                       style={StyleSheet.absoluteFillObject}
                       resizeMode="cover"
                     />
-                    <Svg width="100%" height="100%" style={StyleSheet.absoluteFillObject}>
-                      <Defs>
-                        <LinearGradient id={`dirGrad-${m.id}`} x1="0%" y1="0%" x2="100%" y2="0%">
-                          <Stop offset="0%" stopColor="#ffffff" stopOpacity="0.97" />
-                          <Stop offset="38%" stopColor="#ffffff" stopOpacity="0.97" />
-                          <Stop offset="65%" stopColor="#ffffff" stopOpacity="0.6" />
-                          <Stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
-                        </LinearGradient>
-                      </Defs>
-                      <Rect x="0" y="0" width="100%" height="100%" fill={`url(#dirGrad-${m.id})`} />
-                    </Svg>
+                    <LinearGradient
+                      colors={[
+                        'rgba(255,255,255,0.97)',
+                        'rgba(255,255,255,0.97)',
+                        'rgba(255,255,255,0.6)',
+                        'rgba(255,255,255,0)',
+                      ]}
+                      locations={[0, 0.38, 0.65, 1]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={StyleSheet.absoluteFillObject}
+                    />
                   </View>
                 ) : null}
 

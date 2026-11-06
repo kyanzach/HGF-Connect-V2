@@ -7,10 +7,11 @@ export default function MemberProfileRedirect() {
   const router = useRouter();
 
   useEffect(() => {
-    if (id) {
-      router.replace(`/church?tab=member&id=${id}` as any);
+    const cleanId = Array.isArray(id) ? id[0] : id;
+    if (cleanId) {
+      router.replace({ pathname: '/church', params: { tab: 'member', id: String(cleanId) } } as any);
     } else {
-      router.replace('/church?tab=directory' as any);
+      router.replace({ pathname: '/church', params: { tab: 'directory' } } as any);
     }
   }, [id, router]);
 

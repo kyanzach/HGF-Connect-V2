@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import Svg, { Path, Circle, Line, Text as SvgText, Defs, LinearGradient, Stop } from 'react-native-svg';
 import client from '@/api/client';
 import TopHeader from '@/components/ui/TopHeader';
 import ConfirmModal from '@/components/ui/ConfirmModal';
@@ -155,21 +154,7 @@ export default function AdminReplicaScreen() {
     const birthdayCelebrants: any[] = data.birthdayCelebrants || [];
     const baptismCelebrants: any[] = data.baptismCelebrants || [];
 
-    // SVG Line chart geometry
-    const chartW = 300;
-    const chartH = 140;
     const maxAtt = Math.max(...attendanceTrends.map((d) => d.count), 50);
-    const pts = attendanceTrends.map((d, idx) => {
-      const x = 28 + (idx / Math.max(attendanceTrends.length - 1, 1)) * (chartW - 44);
-      const y = chartH - 24 - (d.count / maxAtt) * (chartH - 44);
-      return { x, y, label: d.label, count: d.count };
-    });
-    const linePath = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-    const areaPath =
-      pts.length > 1
-        ? `${linePath} L ${pts[pts.length - 1].x} ${chartH - 24} L ${pts[0].x} ${chartH - 24} Z`
-        : '';
-
     const totalAge = Math.max((ageDist.Adult || 0) + (ageDist.Youth || 0) + (ageDist.Kids || 0), 1);
 
     return (
@@ -317,47 +302,38 @@ export default function AdminReplicaScreen() {
         {/* Charts Section (DashboardChartsClient.tsx replica) */}
         <View style={styles.whiteCard}>
           <Text style={styles.sectionTitle}>📈 Attendance Trends (Last 6 Weeks)</Text>
-          <View style={{ alignItems: 'center', marginTop: 8 }}>
-            <Svg width={chartW} height={chartH}>
-              <Defs>
-                <LinearGradient id="attFill" x1="0" y1="0" x2="0" y2="1">
-                  <Stop offset="0%" stopColor={PRIMARY} stopOpacity="0.28" />
-                  <Stop offset="100%" stopColor={PRIMARY} stopOpacity="0.0" />
-                </LinearGradient>
-              </Defs>
-              {[0.25, 0.5, 0.75, 1].map((r, i) => {
-                const y = chartH - 24 - r * (chartH - 44);
-                return (
-                  <Line
-                    key={i}
-                    x1={24}
-                    y1={y}
-                    x2={chartW - 12}
-                    y2={y}
-                    stroke="#f1f5f9"
-                    strokeWidth={1}
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'flex-end',
+              justifyContent: 'space-around',
+              height: 145,
+              paddingTop: 18,
+              paddingBottom: 6,
+              borderBottomWidth: 1,
+              borderBottomColor: '#f1f5f9',
+              marginTop: 8,
+            }}
+          >
+            {attendanceTrends.map((d, idx) => {
+              const barH = Math.max(12, Math.round((d.count / maxAtt) * 95));
+              return (
+                <View key={idx} style={{ alignItems: 'center', flex: 1 }}>
+                  <Text style={{ fontSize: 10.5, fontWeight: '700', color: '#0f172a', marginBottom: 4 }}>
+                    {d.count}
+                  </Text>
+                  <View
+                    style={{
+                      width: 24,
+                      height: barH,
+                      borderRadius: 6,
+                      backgroundColor: PRIMARY,
+                    }}
                   />
-                );
-              })}
-              {areaPath ? <Path d={areaPath} fill="url(#attFill)" /> : null}
-              {linePath ? (
-                <Path d={linePath} fill="none" stroke={PRIMARY} strokeWidth={2.5} />
-              ) : null}
-              {pts.map((p, idx) => (
-                <React.Fragment key={idx}>
-                  <Circle cx={p.x} cy={p.y} r={4} fill="#ffffff" stroke={PRIMARY} strokeWidth={2.5} />
-                  <SvgText
-                    x={p.x}
-                    y={chartH - 6}
-                    fontSize="10"
-                    fill="#64748b"
-                    textAnchor="middle"
-                  >
-                    {p.label}
-                  </SvgText>
-                </React.Fragment>
-              ))}
-            </Svg>
+                  <Text style={{ fontSize: 10.5, color: '#64748b', marginTop: 6 }}>{d.label}</Text>
+                </View>
+              );
+            })}
           </View>
         </View>
 
