@@ -1,3 +1,12 @@
+## [v2.80.0] — 2026-11-06
+### Added / Changed / Fixed
+- **Complete 1:1 Web-to-Mobile Sub-Pages Replica (`mobile/v1.4.0`, `v2.80.0`)**:
+  - **Notifications Dropdown (`mobile/components/ui/NotificationModal.tsx`)**: Removed the `"Test Push"` button and replicated `components/NotificationBell.tsx` 1:1 as a top-right floating card (`Notifications`, `Mark all read`, type emoji icons, unread blue dots, and `View All Notifications →`).
+  - **Member Directory (`mobile/app/church.tsx?tab=directory`, `app/api/mobile/church/route.ts`)**: Replaced the old `Directory` tab with a 100% 1:1 replica of `app/(public)/directory/page.tsx` (`👥 Community`, `486 active members`, search input, `All types ▾` / `All ages ▾` / `⭐ Complete ▾` dropdowns, horizontal ministry filter pills, and rich cover-photo Member Cards with `completenessScore` sorting, `60x60` circular avatars, `👤 Adult` / `🧒 Kids` & `📅 May 2025` pills, `#4EB1CB` ministry badges, and `✝️` favorite verses).
+  - **Sermon Resources (`mobile/app/church.tsx?tab=resources`)**: Added 100% 1:1 replica of `app/(public)/resources/page.tsx` and `ResourcesClient.tsx` (`Sermon Resources` hero, search input, `{count} Resources Available`, sermon cards with speaker/date, scrollable `📝 SERMON COMMENTARY & SPIRITUAL TAKEAWAYS` box, interactive 16:9 `📽️ SERMON SLIDES` carousel with `Slide X of N` counter, thumbnail strip, fullscreen lightbox, and slide deck download button).
+  - **StewardShop Love Gifts (`mobile/app/church.tsx?tab=love-gifts`, `mobile/app/(tabs)/stewardshop.tsx`)**: Wired StewardShop's `"❤️ Love Gifts"` button to a 100% 1:1 replica of `app/(public)/stewardshop/love-gifts/page.tsx` (`❤️ Share & Bless` hero, `❤️ What L.O.V.E. Stands For` with `L`, `O`, `V`, `E` red badges & pink philosophy callout, `How It Works` Steps 1–6, `Frequently Asked Questions`, and `Browse Marketplace →` CTA).
+  - **My Grace Blog, Share Your Devo, Quiz for Christ, HGF AI Assistant, My Listings & My Shared Links (`mobile/app/church.tsx`)**: Replaced all legacy hub tabs with standalone 1:1 replicas of `/journal`, `/devo/new`, `/quiz`, `/ai`, `/stewardshop/my-listings`, and `/stewardshop/my-shares` wrapped in `<TopHeader />` and `<BottomDock />`.
+
 ## [v2.79.1] — 2026-11-06
 ### Changed
 - **Open Quiz for Christ Participation to All Members (Non-Attendee Exemption)**:

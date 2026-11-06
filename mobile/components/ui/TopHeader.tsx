@@ -23,21 +23,21 @@ import {
 
 const PRIMARY = '#4EB1CB';
 const DARK_NAV = '#3A95AD';
-const APP_VERSION = '2.78.0';
+const APP_VERSION = '2.80.0';
 
 const NAV_LINKS = [
   { href: '/(tabs)', label: 'Home', icon: '🏠' },
   { href: '/church?tab=directory', label: 'Member Directory', icon: '👥' },
   { href: '/(tabs)/events', label: 'Events', icon: '📅' },
   { href: '/(tabs)/stewardshop', label: 'StewardShop', icon: '🤝' },
-  { href: '/church?tab=devo', label: 'Resources', icon: '📖' },
+  { href: '/church?tab=resources', label: 'Resources', icon: '📖' },
 ];
 
 export default function TopHeader() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const pathname = usePathname();
-  const globalParams = useGlobalSearchParams<{ menu?: string }>();
+  const globalParams = useGlobalSearchParams<{ menu?: string; notif?: string }>();
   const { user, logout } = useAuth();
   const [notifOpen, setNotifOpen] = useState(false);
   const [dropOpen, setDropOpen] = useState(false);
@@ -51,8 +51,9 @@ export default function TopHeader() {
 
   useEffect(() => {
     setDropOpen(globalParams?.menu === '1');
+    setNotifOpen(globalParams?.notif === '1');
     setNavOpen(false);
-  }, [pathname, globalParams?.menu]);
+  }, [pathname, globalParams?.menu, globalParams?.notif]);
 
   useEffect(() => {
     registerForPushNotificationsAsync();
@@ -277,7 +278,7 @@ export default function TopHeader() {
 
               <DropMenuItem
                 label="📝 My Grace Blog"
-                onPress={() => go('/church?tab=devo')}
+                onPress={() => go('/church?tab=journal')}
               />
               <DropMenuItem
                 label="🙏 My Prayer Request"
@@ -289,11 +290,11 @@ export default function TopHeader() {
               />
               <DropMenuItem
                 label="🤝 My Listings"
-                onPress={() => go('/(tabs)/stewardshop?category=mine')}
+                onPress={() => go('/church?tab=my-listings')}
               />
               <DropMenuItem
                 label="🫰 My Shared Links"
-                onPress={() => go('/(tabs)/stewardshop')}
+                onPress={() => go('/church?tab=my-shares')}
               />
 
               <View style={styles.hr} />

@@ -146,7 +146,7 @@ const QUICK_ACTIONS = [
   { href: '/create-post?tab=prayer', icon: '🙏', label: 'Ask for Prayer', bg: '#faf5ff' },
   { href: '/(tabs)/stewardshop', icon: '🤝', label: 'StewardShop', bg: '#f0f9ff' },
   { href: '/church?tab=directory', icon: '👥', label: 'Directory', bg: '#fce7f3' },
-  { href: '/church?tab=devo', icon: '📝', label: 'Grace Blog', bg: '#e6fffa' },
+  { href: '/church?tab=journal', icon: '📝', label: 'Grace Blog', bg: '#e6fffa' },
   { href: '/church?tab=devo', icon: '📖', label: 'Devo', bg: '#e0fdf4' },
   { href: '/church?tab=ai', icon: '💡', label: 'AI Helper', bg: '#fff7ed' },
 ];
@@ -156,7 +156,7 @@ const PUBLIC_FEATURES = [
   { icon: '🙏', title: 'Ask for Prayer', desc: 'Pray for one another', href: '/(tabs)/prayer', bg: '#f5f3ff' },
   { icon: '🤝', title: 'StewardShop', desc: 'Livelihood & L.O.V.E.', href: '/(tabs)/stewardshop', bg: '#fffbeb' },
   { icon: '👥', title: 'Directory', desc: 'Find church members', href: '/church?tab=directory', bg: '#f0fdf4' },
-  { icon: '📝', title: 'Grace Blog', desc: 'Reflections & insights', href: '/church?tab=devo', bg: '#f0f9ff' },
+  { icon: '📝', title: 'Grace Blog', desc: 'Reflections & insights', href: '/church?tab=journal', bg: '#f0f9ff' },
   { icon: '📖', title: 'Share Devo', desc: 'Write a devotional', href: '/church?tab=devo', bg: '#f0f9ff' },
   { icon: '💡', title: 'AI Helper', desc: 'Biblical encouragement', href: '/church?tab=ai', bg: '#fdf4ff' },
 ];

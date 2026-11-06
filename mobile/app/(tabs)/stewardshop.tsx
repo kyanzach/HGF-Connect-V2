@@ -208,15 +208,7 @@ export default function StewardShopScreen() {
             {user && (
               <TouchableOpacity
                 style={styles.loveGiftsBtn}
-                onPress={() =>
-                  setAlertModal({
-                    visible: true,
-                    type: 'info',
-                    title: '❤️ Love Gifts',
-                    message:
-                      'Love Gifts shared through StewardShop support fellow church members and ministry missions.',
-                  })
-                }
+                onPress={() => router.push('/church?tab=love-gifts' as any)}
                 activeOpacity={0.85}
               >
                 <Text style={styles.loveGiftsBtnText} numberOfLines={1}>
