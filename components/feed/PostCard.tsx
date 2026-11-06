@@ -181,16 +181,6 @@ export default function PostCard({ post }: PostCardProps) {
         return;
       }
 
-      // Check attendance gating
-      if (data.attended === false) {
-        setInfoModal({
-          open: true,
-          title: "Join Us in the House!",
-          message: "We missed you at our physical Sunday Service! The Quiz for Christ is a special blessing reserved for those who gather with us in person. We warmly invite you to join our next Sunday Service at the physical church to experience the fellowship, worship, and Word together.",
-        });
-        return;
-      }
-
       // Determine day number
       let targetDayNum = 1;
       if (post.type === "QUIZ_DAILY") {

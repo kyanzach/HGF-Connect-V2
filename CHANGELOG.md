@@ -1,3 +1,9 @@
+## [v2.79.1] — 2026-11-06
+### Changed
+- **Open Quiz for Christ Participation to All Members (Non-Attendee Exemption)**:
+  - Updated `GET /api/quiz/status` (`app/api/quiz/status/route.ts`) to set `attended = true` unconditionally, removing the physical Sunday Service `AttendanceRecord` requirement.
+  - Removed the "Join Us in the House!" attendance gating screen in `app/(app)/quiz/page.tsx` and the attendance check modal in `components/feed/PostCard.tsx` (`handlePlayQuiz`), allowing all members (including online/non-attendee members) to participate in Quiz for Christ.
+
 ## [v2.79.0] — 2026-11-06
 ### Added / Changed / Fixed
 - **100% Pixel-for-Pixel Web-to-Mobile UI/UX Replica (`mobile/v1.3.0`, `v2.79.0`)**:

@@ -263,6 +263,8 @@ When a page crashes or shows errors:
   - Added native `mobile/app/register.tsx` (`/api/mobile/register`), `mobile/app/church.tsx` (`/api/mobile/church` — Directory, 12 Ministries, Quiz for Christ Leaderboard, and Grace AI chat), and `mobile/app/admin.tsx` (`/api/mobile/admin` — Native Admin Control Center & UGC Moderation Queue).
 - **Phase 3 Interactive Workflows (`v2.78.0` / `mobile v1.2.0`)**:
   - Added StewardShop seller publishing (`+ Sell`), `My Listings`, In-App Buyer Inquiries, and `Mark as Sold`; Events 1-tap `RSVP / Check In` (`AttendanceRecord`) and Sermon Commentary modal; Prayer Wall `Encourage` notes (`PrayerResponse`) and `Answered` toggle; and the `Journal` SOAP Devotional tab in `mobile/app/church.tsx`.
+- **Quiz for Christ Open Participation Exemption (`v2.79.1`)**:
+  - Removed the physical church attendance gating (`AttendanceRecord` check in `/api/quiz/status`, `app/(app)/quiz/page.tsx`, and `components/feed/PostCard.tsx`) so all members—whether physically present at Sunday Service or joining online—can participate in the weekly Quiz for Christ.
 
 
 

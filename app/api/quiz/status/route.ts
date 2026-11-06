@@ -154,17 +154,8 @@ export async function GET(request: Request) {
       };
     });
 
-    // Check attendance gating if event is linked to the quiz
-    let attended = true;
-    if (quiz.eventId) {
-      const attendanceRecord = await db.attendanceRecord.findFirst({
-        where: {
-          memberId,
-          eventId: quiz.eventId,
-        },
-      });
-      attended = !!attendanceRecord;
-    }
+    // Open to all members regardless of physical church attendance (exemption enabled)
+    const attended = true;
 
     // Calculate totals
     const completedCount = submissions.length;

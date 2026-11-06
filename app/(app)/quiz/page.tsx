@@ -397,40 +397,6 @@ export default function MemberQuizPage() {
     );
   }
 
-  // Attendance Check Gating
-  if (quizStatus.active && quizStatus.attended === false) {
-    return (
-      <div style={{ minHeight: "80vh", padding: "24px 20px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#f8fafc", paddingTop: "calc(env(safe-area-inset-top) + 24px)" }}>
-        <div style={{
-          background: "white",
-          borderRadius: "24px",
-          padding: "32px 24px",
-          boxShadow: "0 10px 30px rgba(0,0,0,0.05)",
-          border: "2px solid #F3F4F6",
-          maxWidth: "420px",
-          textAlign: "center" as const,
-          display: "flex",
-          flexDirection: "column" as const,
-          alignItems: "center"
-        }}>
-          <div style={{ fontSize: "4.5rem", marginBottom: "16px" }}>🏠</div>
-          <h2 style={{ fontSize: "1.4rem", fontWeight: 800, color: "#0f172a", marginBottom: "12px" }}>
-            Join Us in the House!
-          </h2>
-          <p style={{ color: "#475569", fontSize: "0.92rem", lineHeight: 1.6, marginBottom: "24px" }}>
-            We missed you at our physical Sunday Service! The <strong>Quiz for Christ</strong> is a special blessing reserved for those who gather with us in person. We warmly invite you to join our next Sunday Service at the physical church to experience the fellowship, worship, and Word together. We can't wait to see you there!
-          </p>
-          <button
-            onClick={() => router.push("/quiz/hub")}
-            style={{ width: "100%", background: PRIMARY, color: "white", padding: "12px 24px", borderRadius: "12px", border: "none", fontWeight: 700, fontSize: "0.95rem", cursor: "pointer", boxShadow: `0 4px 14px ${PRIMARY}40`, transition: "all 0.2s" }}
-          >
-            📂 View Leaderboard & Hub
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   const { quiz, days, progress } = quizStatus;
   const showClaimBox = progress?.isWeekComplete && progress.rewardTier === "PERFECT" && progress.rewardClaim?.claimStatus === "unclaimed";
 
