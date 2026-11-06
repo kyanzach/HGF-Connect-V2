@@ -1,3 +1,16 @@
+## [v2.81.0] — 2026-11-06
+### Added / Changed / Fixed
+- **Full Member Profile Wall Post Parity, Directory Smooth SVG Gradient & Complete 14-Page Admin Suite (`mobile/v1.5.0`, `v2.81.0`)**:
+  - **Authenticated Member Profile Wall Posts & Pagination (`app/api/mobile/church/route.ts`, `mobile/app/church.tsx`, `mobile/app/member/[id].tsx`)**:
+    - Added `GET /api/mobile/church?memberId=${id}&page=${page}` returning the member's full profile + all `PUBLIC` and `MEMBERS_ONLY` wall posts (plus `PRIVATE` if viewing own profile), paginated 20 per page (`page`, `totalPages`, `hasMore`) with `author`, `_count`, `photos`, `likes` (with reactor `member` details), and `photoHistory`.
+    - Upgraded the Wall tab in `mobile/app/church.tsx` (`renderMemberProfilePage`) to carry over every `PostCard.tsx` feature from the web app: `PROFILE_PHOTO` / `COVER_PHOTO` header subtitle (`updated their profile picture` / `updated their cover photo`), post type badges (`📖 Devotional`, `📜 Bible Verse`, `🙏 Prayer`, `🙌 Testimony`, `📷 Profile Photo`, `🖼️ Cover Photo`), `•••` dropdown menu (`💬 View Comments`, `📤 Share Post`, `🗑️ Delete Post` with `ConfirmModal`), `bg:teal`/`bg:red`/`bg:mountain`/`bg:ocean` background cards, multi-photo `post.photos` horizontal scroll carousel + full-screen lightbox, `post.linkUrl` OG preview cards, `DEVO` AI caption callout, `#2d8fa8` Scripture verse card, right-aligned overlapping Reactions Summary Bubble opening the **Reactions Analytics Bottom Sheet Modal** (`All`, `❤️`, `🙏`, `🤗` tabs + clickable reactors list), 3-button Action Bar (`🤍`/`❤️`/`🙏`/`🤗` with tap & long-press `❤️ 🙏 🤗` picker, `💬` Interactive Comment Drawer Modal, `📤 Share`), Own-Profile Avatar/Cover Photo action sheet, and `Load more posts` pagination button.
+    - Enforced Rule #13 (`BottomDock` automatically hides whenever the Reactions Analytics Modal, Comment Drawer Modal, or Own-Profile Photo Sheet is open).
+  - **Directory Card Seamless SVG LinearGradient & Tie-Breaker Sort (`mobile/app/church.tsx`)**:
+    - Replaced the stepped 3-band `dirFadeBand1`/`2`/`3` overlay on Directory cards with a smooth `react-native-svg` `<LinearGradient>` (`0%` → `38%` `0.97`, `65%` `0.6`, `100%` `0`) when a cover photo exists and pure `#ffffff` when `coverUri` is null, eliminating vertical stripe artifacts.
+    - Matched `completenessScore` and alphabetical tie-breaker sorting to `app/(public)/directory/page.tsx`.
+  - **Complete 1:1 Web Admin Dashboard & 14 Admin Sub-Pages (`mobile/app/admin.tsx`, `mobile/components/admin/AdminSubPages.tsx`, `app/api/mobile/admin/route.ts`)**:
+    - Rebuilt `mobile/app/admin.tsx` with the dark `#0f172a` slide-over `AdminSidebar` (`☰ Menu` floating button + 14 items across `OVERVIEW`, `PEOPLE`, `ENGAGEMENT`, and `SYSTEM`) and all 14 admin views (`Dashboard`, `Members`, `Pending Review`, `Events`, `Ministries`, `Devo Submissions`, `Prayer Moderation`, `StewardShop`, `Love Gifts`, `SMS Settings`, `Email Templates`, `Sermon Studio`, `Quiz for Christ Admin`, and `Audit Logs`).
+
 ## [v2.80.0] — 2026-11-06
 ### Added / Changed / Fixed
 - **Complete 1:1 Web-to-Mobile Sub-Pages Replica (`mobile/v1.4.0`, `v2.80.0`)**:

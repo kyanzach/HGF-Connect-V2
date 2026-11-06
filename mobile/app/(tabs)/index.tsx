@@ -725,7 +725,7 @@ export default function FeedScreen() {
             activeOpacity={0.85}
             onPress={() => {
               if (!isQuizPost && !isChurchPost) {
-                router.push(`/member/${item.author.id}` as any);
+                router.push(`/church?tab=member&id=${item.author.id}` as any);
               }
             }}
           >
@@ -740,7 +740,16 @@ export default function FeedScreen() {
             )}
           </TouchableOpacity>
 
-          <View style={{ flex: 1 }}>
+          <TouchableOpacity
+            style={{ flex: 1 }}
+            activeOpacity={0.85}
+            disabled={isQuizPost || isChurchPost}
+            onPress={() => {
+              if (!isQuizPost && !isChurchPost) {
+                router.push(`/church?tab=member&id=${item.author.id}` as any);
+              }
+            }}
+          >
             <Text style={styles.postAuthorName} numberOfLines={1}>
               {displayAuthorName}
             </Text>
@@ -765,7 +774,7 @@ export default function FeedScreen() {
                   </>
                 )}
             </Text>
-          </View>
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.postDotsBtn}

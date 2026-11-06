@@ -14,10 +14,12 @@ import {
   Platform,
   Modal,
   Linking,
+  Share,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import client from '@/api/client';
 import TopHeader from '@/components/ui/TopHeader';
 import ConfirmModal from '@/components/ui/ConfirmModal';
@@ -54,24 +56,26 @@ function getMinistryNames(m: DirectoryMember): string[] {
 }
 
 function completenessScore(m: DirectoryMember): number {
-  let score = 0;
-  if (m.profilePicture) score += 20;
-  if (m.coverPhoto) score += 15;
-  if (m.favoriteVerse) score += 15;
-  if (m.phone) score += 10;
-  if (m.birthdate) score += 10;
-  if (m.baptismDate) score += 5;
-  if (m.address) score += 10;
-  if (m.invitedBy) score += 5;
-  if (m.familyMembers) score += 5;
-  if (getMinistryNames(m).length > 0) score += 5;
-  return score;
+  let s = 0;
+  if (m.profilePicture) s += 5;
+  if (m.coverPhoto) s += 5;
+  if (m.birthdate) s += 1;
+  if (m.baptismDate) s += 1;
+  if (m.invitedBy) s += 1;
+  if (m.familyMembers) s += 1;
+  if (m.phone) s += 1;
+  if (m.address) s += 1;
+  if (m.favoriteVerse) s += 1;
+  if (m.ageGroup) s += 1;
+  if (m.joinDate) s += 1;
+  if (getMinistryNames(m).length > 0) s += 1;
+  return s;
 }
 
 const AGE_META: Record<string, { label: string; bg: string; color: string }> = {
-  Adult: { label: '👤 Adult', bg: '#eff6ff', color: '#2563eb' },
-  Youth: { label: '🌱 Youth', bg: '#f0fdf4', color: '#16a34a' },
-  Kids: { label: '🧒 Kids', bg: '#fefce8', color: '#ca8a04' },
+  Adult: { label: '👤 Adult', bg: 'rgba(78,177,203,0.1)', color: PRIMARY },
+  Youth: { label: '🌱 Youth', bg: 'rgba(78,177,203,0.1)', color: PRIMARY },
+  Kids: { label: '🧒 Kids', bg: 'rgba(78,177,203,0.1)', color: PRIMARY },
 };
 
 // ── Resources Helpers (exact replica of app/(public)/resources/ResourcesClient.tsx) ──
@@ -164,11 +168,32 @@ export default function WebReplicaScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const params = useLocalSearchParams<{ tab?: string }>();
+  const params = useLocalSearchParams<{ tab?: string; id?: string }>();
   const activePage = params.tab || 'directory';
+  const targetMemberId = params.id ? Number(params.id) : null;
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // ── Public Member Profile State (app/(public)/member/[id]/ProfileClient.tsx) ──
+  const [memberProfile, setMemberProfile] = useState<any>(null);
+  const [memberPosts, setMemberPosts] = useState<any[]>([]);
+  const [memberTab, setMemberTab] = useState<'wall' | 'about' | 'ministries'>('wall');
+  const [loadingMember, setLoadingMember] = useState(false);
+  const [memberPage, setMemberPage] = useState(1);
+  const [memberHasMore, setMemberHasMore] = useState(false);
+  const [loadingMorePosts, setLoadingMorePosts] = useState(false);
+  const [openPostMenuId, setOpenPostMenuId] = useState<number | null>(null);
+  const [deletePostConfirmId, setDeletePostConfirmId] = useState<number | null>(null);
+  const [reactionPickerPostId, setReactionPickerPostId] = useState<number | null>(null);
+  const [reactionsModalPost, setReactionsModalPost] = useState<any | null>(null);
+  const [reactionsModalTab, setReactionsModalTab] = useState<'ALL' | 'HEART' | 'PRAY' | 'HUG'>('ALL');
+  const [commentModalPost, setCommentModalPost] = useState<any | null>(null);
+  const [commentsList, setCommentsList] = useState<any[]>([]);
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [commentInput, setCommentInput] = useState('');
+  const [sendingComment, setSendingComment] = useState(false);
+  const [profilePhotoSheet, setProfilePhotoSheet] = useState<'profile' | 'cover' | null>(null);
 
   // ── Directory State (app/(public)/directory/page.tsx) ──
   const [members, setMembers] = useState<DirectoryMember[]>([]);
@@ -296,11 +321,182 @@ export default function WebReplicaScreen() {
     loadData();
   }, [loadData]);
 
+  // Load individual member profile & wall posts when activePage === 'member'
+  useEffect(() => {
+    if (activePage !== 'member' || !targetMemberId) return;
+    let cancelled = false;
+    setLoadingMember(true);
+    setMemberTab('wall');
+    setMemberPage(1);
+    setMemberHasMore(false);
+
+    (async () => {
+      try {
+        const [mobileRes, webMemberRes, webPostsRes] = await Promise.all([
+          client.get(`/church?memberId=${targetMemberId}&page=1`).catch(() => null),
+          fetch(`https://connect.houseofgrace.ph/api/members/${targetMemberId}`)
+            .then((r) => (r.ok ? r.json() : null))
+            .catch(() => null),
+          fetch(`https://connect.houseofgrace.ph/api/posts?member=${targetMemberId}&page=1`)
+            .then((r) => (r.ok ? r.json() : null))
+            .catch(() => null),
+        ]);
+        if (cancelled) return;
+
+        const mData = mobileRes?.data?.data;
+        if (mData?.member) {
+          setMemberProfile(mData.member);
+          setMemberPosts(Array.isArray(mData.posts) ? mData.posts : []);
+          setMemberPage(1);
+          setMemberHasMore(Boolean(mData.hasMore));
+        } else {
+          const fallbackFromDir = members.find((x) => Number(x.id) === Number(targetMemberId));
+          const resolvedMember = webMemberRes || fallbackFromDir || null;
+          if (resolvedMember) {
+            setMemberProfile({
+              ...resolvedMember,
+              isOwn: user ? Number(user.id) === Number(targetMemberId) : false,
+              isAdmin: user ? ['admin', 'moderator'].includes(user.role || '') : false,
+              ministries: Array.isArray(resolvedMember.ministries)
+                ? resolvedMember.ministries.map((mm: any, idx: number) => ({
+                    id: mm.id ?? idx,
+                    ministry: mm.ministry || { id: idx, name: mm.name || String(mm) },
+                    joinedDate: mm.joinedDate || null,
+                  }))
+                : [],
+            });
+          }
+          if (webPostsRes?.posts && Array.isArray(webPostsRes.posts)) {
+            setMemberPosts(webPostsRes.posts);
+            setMemberHasMore((webPostsRes.page ?? 1) < (webPostsRes.totalPages ?? 1));
+          } else {
+            setMemberPosts([]);
+          }
+        }
+      } catch {
+        // Silent
+      } finally {
+        if (!cancelled) setLoadingMember(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activePage, targetMemberId, members, user]);
+
+  const loadMoreMemberPosts = async () => {
+    if (loadingMorePosts || !memberHasMore || !targetMemberId) return;
+    setLoadingMorePosts(true);
+    try {
+      const nextPage = memberPage + 1;
+      const res = await client.get(`/church?memberId=${targetMemberId}&page=${nextPage}`).catch(() => null);
+      const mData = res?.data?.data;
+      if (mData?.posts && Array.isArray(mData.posts)) {
+        setMemberPosts((prev) => [...prev, ...mData.posts]);
+        setMemberPage(nextPage);
+        setMemberHasMore(Boolean(mData.hasMore));
+      } else {
+        setMemberHasMore(false);
+      }
+    } catch {
+      setMemberHasMore(false);
+    } finally {
+      setLoadingMorePosts(false);
+    }
+  };
+
+  const handleMemberPostReact = async (postId: number, reactionType: string) => {
+    setReactionPickerPostId(null);
+    setMemberPosts((prev) =>
+      prev.map((p) => {
+        if (p.id !== postId) return p;
+        const currentMyReaction =
+          p.myReaction ?? p.likes?.find((l: any) => Number(l.memberId) === Number(user?.id))?.type ?? null;
+        const isRemoving = currentMyReaction === reactionType;
+        const nextMyReaction = isRemoving ? null : reactionType;
+        const currentCount = p.likeCount ?? p._count?.likes ?? (p.likes?.length || 0);
+        const nextCount = isRemoving
+          ? Math.max(0, currentCount - 1)
+          : currentMyReaction
+            ? currentCount
+            : currentCount + 1;
+        return {
+          ...p,
+          myReaction: nextMyReaction,
+          likeCount: nextCount,
+          _count: { ...(p._count || {}), likes: nextCount },
+        };
+      })
+    );
+    try {
+      await client.post(`/posts/${postId}/react`, { type: reactionType });
+    } catch {
+      // Silent
+    }
+  };
+
+  const openPostComments = async (post: any) => {
+    setOpenPostMenuId(null);
+    setCommentModalPost(post);
+    setCommentsList([]);
+    setLoadingComments(true);
+    try {
+      const res = await client.get(`/posts/${post.id}/comments`);
+      const list = res?.data?.data || res?.data?.comments || [];
+      setCommentsList(Array.isArray(list) ? list : []);
+    } catch {
+      setCommentsList([]);
+    } finally {
+      setLoadingComments(false);
+    }
+  };
+
+  const submitPostComment = async () => {
+    if (!commentModalPost || !commentInput.trim() || sendingComment) return;
+    const text = commentInput.trim();
+    setSendingComment(true);
+    try {
+      const res = await client.post(`/posts/${commentModalPost.id}/comments`, { content: text });
+      const created = res?.data?.data || res?.data?.comment || {
+        id: Date.now(),
+        content: text,
+        createdAt: new Date().toISOString(),
+        author: {
+          id: user?.id,
+          firstName: user?.firstName || 'Me',
+          lastName: user?.lastName || '',
+          profilePicture: user?.profilePicture || null,
+        },
+      };
+      setCommentsList((prev) => [...prev, created]);
+      setCommentInput('');
+      setMemberPosts((prev) =>
+        prev.map((p) =>
+          p.id === commentModalPost.id
+            ? {
+                ...p,
+                commentCount: (p.commentCount ?? p._count?.comments ?? 0) + 1,
+                _count: {
+                  ...(p._count || {}),
+                  comments: (p._count?.comments ?? p.commentCount ?? 0) + 1,
+                },
+              }
+            : p
+        )
+      );
+    } catch {
+      // Silent
+    } finally {
+      setSendingComment(false);
+    }
+  };
+
   // ═══════════════════════════════════════════════════════════════════════════
   // 1. DIRECTORY PAGE — 1:1 Replica of app/(public)/directory/page.tsx
   // ═══════════════════════════════════════════════════════════════════════════
   const renderDirectoryPage = () => {
-    const filtered = members
+    const filtered = [...members]
       .filter((m) => {
         const full = `${m.firstName || ''} ${m.lastName || ''}`.toLowerCase();
         const matchSearch = !dirSearch || full.includes(dirSearch.toLowerCase());
@@ -311,11 +507,16 @@ export default function WebReplicaScreen() {
         return matchSearch && matchType && matchAge && matchMin;
       })
       .sort((a, b) => {
-        if (sortBy === 'complete') return completenessScore(b) - completenessScore(a);
         if (sortBy === 'newest') {
-          return new Date(b.joinDate || 0).getTime() - new Date(a.joinDate || 0).getTime();
+          return (b.joinDate || '').localeCompare(a.joinDate || '');
         }
-        return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
+        if (sortBy === 'az') {
+          return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
+        }
+        const diff = completenessScore(b) - completenessScore(a);
+        return diff !== 0
+          ? diff
+          : `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
       });
 
     const typeLabel =
@@ -473,43 +674,56 @@ export default function WebReplicaScreen() {
             : null;
 
           return (
-            <View style={styles.dirCardWrap}>
+            <TouchableOpacity
+              style={styles.dirCardWrap}
+              activeOpacity={0.85}
+              onPress={() => router.push(`/church?tab=member&id=${m.id}` as any)}
+            >
               <View style={styles.dirMemberCard}>
-                {/* Right-side Cover Photo or HGF Watermark */}
-                <View style={styles.dirCoverRightWrap}>
-                  {coverUri ? (
+                {/* Full-bleed Cover Photo + Seamless Horizontal Linear Gradient (exact replica of Directory page.tsx) */}
+                {coverUri ? (
+                  <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
                     <Image
                       source={{ uri: coverUri }}
-                      style={styles.dirCoverImg}
+                      style={StyleSheet.absoluteFillObject}
                       resizeMode="cover"
                     />
-                  ) : (
-                    <View style={styles.dirWatermarkWrap}>
-                      <Image
-                        source={HGF_LOGO}
-                        style={styles.dirWatermarkImg}
-                        resizeMode="contain"
-                      />
-                    </View>
-                  )}
-                  {/* Left-to-right white gradient simulation */}
-                  <View style={styles.dirFadeBand1} />
-                  <View style={styles.dirFadeBand2} />
-                  <View style={styles.dirFadeBand3} />
-                </View>
+                    <Svg width="100%" height="100%" style={StyleSheet.absoluteFillObject}>
+                      <Defs>
+                        <LinearGradient id={`dirGrad-${m.id}`} x1="0%" y1="0%" x2="100%" y2="0%">
+                          <Stop offset="0%" stopColor="#ffffff" stopOpacity="0.97" />
+                          <Stop offset="38%" stopColor="#ffffff" stopOpacity="0.97" />
+                          <Stop offset="65%" stopColor="#ffffff" stopOpacity="0.6" />
+                          <Stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+                        </LinearGradient>
+                      </Defs>
+                      <Rect x="0" y="0" width="100%" height="100%" fill={`url(#dirGrad-${m.id})`} />
+                    </Svg>
+                  </View>
+                ) : null}
 
                 {/* Foreground Content */}
                 <View style={styles.dirCardContent}>
                   {/* Top Row: Avatar + Name + Age/Join Badges */}
                   <View style={styles.dirTopRow}>
-                    <View style={styles.dirAvatarCircle}>
+                    <View
+                      style={[
+                        styles.dirAvatarCircle,
+                        !avatarUri && {
+                          backgroundColor: 'rgba(78,177,203,0.12)',
+                          borderColor: 'rgba(78,177,203,0.22)',
+                        },
+                      ]}
+                    >
                       {avatarUri ? (
                         <Image
                           source={{ uri: avatarUri }}
                           style={styles.dirAvatarImg}
                         />
                       ) : (
-                        <Text style={styles.dirAvatarInitials}>{initials}</Text>
+                        <Text style={[styles.dirAvatarInitials, { color: PRIMARY }]}>
+                          {initials}
+                        </Text>
                       )}
                     </View>
 
@@ -519,11 +733,15 @@ export default function WebReplicaScreen() {
                       </Text>
 
                       <View style={styles.dirBadgesRow}>
-                        {ageMeta && (
+                        {ageMeta ? (
                           <View
                             style={[
                               styles.dirBadgePill,
-                              { backgroundColor: ageMeta.bg },
+                              {
+                                backgroundColor: ageMeta.bg,
+                                borderWidth: 1,
+                                borderColor: 'rgba(78,177,203,0.2)',
+                              },
                             ]}
                           >
                             <Text
@@ -533,6 +751,21 @@ export default function WebReplicaScreen() {
                               ]}
                             >
                               {ageMeta.label}
+                            </Text>
+                          </View>
+                        ) : (
+                          <View
+                            style={[
+                              styles.dirBadgePill,
+                              {
+                                backgroundColor: 'rgba(78,177,203,0.1)',
+                                borderWidth: 1,
+                                borderColor: 'rgba(78,177,203,0.2)',
+                              },
+                            ]}
+                          >
+                            <Text style={[styles.dirBadgePillText, { color: PRIMARY }]}>
+                              {(m.type || 'Member').replace(/([A-Z])/g, ' $1').trim()}
                             </Text>
                           </View>
                         )}
@@ -567,13 +800,16 @@ export default function WebReplicaScreen() {
 
                   {/* Favorite Verse */}
                   {m.favoriteVerse ? (
-                    <Text numberOfLines={2} style={styles.dirVerseText}>
-                      ✝️ &ldquo;{m.favoriteVerse}&rdquo;
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 10 }}>
+                      <Text style={{ fontSize: 13, lineHeight: 19 }}>✝️</Text>
+                      <Text numberOfLines={2} style={[styles.dirVerseText, { marginTop: 0, flex: 1 }]}>
+                        &ldquo;{m.favoriteVerse.length > 100 ? `${m.favoriteVerse.slice(0, 100)}…` : m.favoriteVerse}&rdquo;
+                      </Text>
+                    </View>
                   ) : null}
                 </View>
               </View>
-            </View>
+            </TouchableOpacity>
           );
         }}
         ListEmptyComponent={
@@ -589,6 +825,1407 @@ export default function WebReplicaScreen() {
           )
         }
       />
+    );
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 1B. MEMBER PROFILE PAGE — 1:1 Replica of app/(public)/member/[id]/ProfileClient.tsx
+  // ═══════════════════════════════════════════════════════════════════════════
+  const renderMemberProfilePage = () => {
+    if (loadingMember && !memberProfile) {
+      return (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
+          <ActivityIndicator size="large" color={PRIMARY} />
+        </View>
+      );
+    }
+
+    const m = memberProfile || members.find((x) => Number(x.id) === Number(targetMemberId));
+    if (!m) {
+      return (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
+          <Text style={{ fontSize: 40, marginBottom: 10 }}>👤</Text>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: '#475569', marginBottom: 14 }}>
+            Member Not Found
+          </Text>
+          <TouchableOpacity
+            style={{
+              backgroundColor: PRIMARY,
+              paddingHorizontal: 20,
+              paddingVertical: 10,
+              borderRadius: 999,
+            }}
+            onPress={() => router.push('/church?tab=directory' as any)}
+          >
+            <Text style={{ color: '#fff', fontWeight: '700' }}>← Back to Directory</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    const fullName = `${m.firstName || ''} ${m.lastName || ''}`.trim();
+    const initials = `${m.firstName?.[0] || ''}${m.lastName?.[0] || ''}`.toUpperCase();
+    const avatarSrc = m.profilePicture
+      ? m.profilePicture.startsWith('http')
+        ? m.profilePicture
+        : `https://connect.houseofgrace.ph/uploads/profile_pictures/${m.profilePicture}`
+      : null;
+    const coverSrc = m.coverPhoto
+      ? m.coverPhoto.startsWith('http')
+        ? m.coverPhoto
+        : `https://connect.houseofgrace.ph/uploads/cover_photos/${m.coverPhoto}`
+      : null;
+
+    const calcDuration = (joinDate?: string | null) => {
+      if (!joinDate) return '';
+      const start = new Date(joinDate);
+      const now = new Date();
+      const months =
+        (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+      if (months <= 0) return 'New member';
+      return `${months} month${months !== 1 ? 's' : ''}`;
+    };
+
+    const fmtDateLong = (d?: string | null) => {
+      if (!d) return '';
+      return new Date(d).toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      });
+    };
+
+    const fmtPostTime = (d?: string | null) => {
+      if (!d) return '';
+      const diff = Math.floor((Date.now() - new Date(d).getTime()) / 1000);
+      if (diff < 60) return 'Just now';
+      if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+      if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+      if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
+      return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    };
+
+    const dur = calcDuration(m.joinDate);
+    const minList: { id: number; ministry: { id?: number; name: string }; joinedDate?: string | null }[] =
+      Array.isArray(m.ministries)
+        ? m.ministries.map((mm: any, idx: number) => ({
+            id: mm.id ?? idx,
+            ministry: mm.ministry || { id: idx, name: mm.name || String(mm) },
+            joinedDate: mm.joinedDate || null,
+          }))
+        : [];
+    const familyArr = m.familyMembers
+      ? String(m.familyMembers)
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : [];
+    const hasContactInfo =
+      (m.email && m.showEmail) ||
+      (m.phone && m.showPhone) ||
+      (m.address && m.showAddress) ||
+      m.isAdmin ||
+      m.isOwn;
+
+    return (
+      <ScrollView
+        style={{ flex: 1, backgroundColor: '#f1f5f9' }}
+        contentContainerStyle={{ paddingBottom: 110 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              loadData();
+            }}
+            tintColor={PRIMARY}
+          />
+        }
+      >
+        {/* ── Cover Photo Banner (height: 220) ── */}
+        <TouchableOpacity
+          activeOpacity={0.92}
+          onPress={() => {
+            if (m.isOwn) {
+              setProfilePhotoSheet('cover');
+            } else if (coverSrc) {
+              setLightboxSlide(coverSrc);
+            }
+          }}
+          style={{
+            height: 220,
+            backgroundColor: '#1b647d',
+            position: 'relative',
+            overflow: 'hidden',
+          }}
+        >
+          {coverSrc ? (
+            <Image
+              source={{ uri: coverSrc }}
+              style={StyleSheet.absoluteFillObject}
+              resizeMode="cover"
+            />
+          ) : null}
+
+          {/* Top dark gradient overlay for back button legibility */}
+          <View
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 70,
+              backgroundColor: 'rgba(0,0,0,0.18)',
+            }}
+            pointerEvents="none"
+          />
+
+          {/* Top-left circular ← back button */}
+          <TouchableOpacity
+            style={{
+              position: 'absolute',
+              top: 14,
+              left: 14,
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              backgroundColor: 'rgba(15,23,42,0.52)',
+              borderWidth: 1,
+              borderColor: 'rgba(255,255,255,0.28)',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            onPress={() => router.push('/church?tab=directory' as any)}
+          >
+            <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: '800' }}>←</Text>
+          </TouchableOpacity>
+
+          {m.isOwn ? (
+            <TouchableOpacity
+              style={{
+                position: 'absolute',
+                top: 14,
+                right: 14,
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                backgroundColor: PRIMARY,
+                borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.3)',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              onPress={() => router.push('/(tabs)/profile' as any)}
+            >
+              <Text style={{ fontSize: 15 }}>✏️</Text>
+            </TouchableOpacity>
+          ) : null}
+        </TouchableOpacity>
+
+        {/* ── White Hero Card ── */}
+        <View style={{ backgroundColor: '#ffffff', paddingHorizontal: 16, paddingBottom: 16 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 12, marginTop: -44 }}>
+            {/* Overlapping 88x88 Avatar */}
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={() => {
+                if (m.isOwn) {
+                  setProfilePhotoSheet('avatar');
+                } else if (avatarSrc) {
+                  setLightboxSlide(avatarSrc);
+                }
+              }}
+              style={{
+                width: 88,
+                height: 88,
+                borderRadius: 44,
+                borderWidth: 4,
+                borderColor: '#ffffff',
+                backgroundColor: '#e0f7fb',
+                overflow: 'hidden',
+                alignItems: 'center',
+                justifyContent: 'center',
+                shadowColor: '#000',
+                shadowOpacity: 0.18,
+                shadowRadius: 10,
+                shadowOffset: { width: 0, height: 4 },
+                elevation: 5,
+              }}
+            >
+              {avatarSrc ? (
+                <Image source={{ uri: avatarSrc }} style={{ width: '100%', height: '100%' }} />
+              ) : (
+                <Text style={{ fontSize: 28, fontWeight: '900', color: PRIMARY }}>{initials}</Text>
+              )}
+            </TouchableOpacity>
+
+            {/* Name + Inline Badges */}
+            <View style={{ flex: 1, paddingBottom: 6, minWidth: 0 }}>
+              <Text
+                numberOfLines={1}
+                style={{
+                  fontSize: 18,
+                  fontWeight: '900',
+                  color: '#0f172a',
+                  marginBottom: 5,
+                  letterSpacing: -0.3,
+                }}
+              >
+                {fullName}
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5 }}>
+                {dur ? (
+                  <View
+                    style={{
+                      backgroundColor: 'rgba(78,177,203,0.12)',
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                      borderRadius: 999,
+                    }}
+                  >
+                    <Text style={{ fontSize: 10.5, fontWeight: '700', color: PRIMARY }}>
+                      📅 {dur} in HGF
+                    </Text>
+                  </View>
+                ) : null}
+                {minList.length > 0 ? (
+                  <View
+                    style={{
+                      backgroundColor: '#f1f5f9',
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                      borderRadius: 999,
+                    }}
+                  >
+                    <Text style={{ fontSize: 10.5, fontWeight: '700', color: '#64748b' }}>
+                      🤲 {minList.length} {minList.length === 1 ? 'Ministry' : 'Ministries'}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            </View>
+
+            {/* Right Pill: ✍️ Post (own) or 👤 Member */}
+            {m.isOwn ? (
+              <TouchableOpacity
+                style={{
+                  marginBottom: 6,
+                  backgroundColor: PRIMARY,
+                  paddingHorizontal: 14,
+                  paddingVertical: 7,
+                  borderRadius: 999,
+                }}
+                onPress={() => router.push('/create-post' as any)}
+              >
+                <Text style={{ color: '#ffffff', fontSize: 12.5, fontWeight: '700' }}>✍️ Post</Text>
+              </TouchableOpacity>
+            ) : (
+              <View
+                style={{
+                  marginBottom: 6,
+                  backgroundColor: 'rgba(78,177,203,0.14)',
+                  paddingHorizontal: 14,
+                  paddingVertical: 7,
+                  borderRadius: 999,
+                }}
+              >
+                <Text style={{ color: PRIMARY, fontSize: 12.5, fontWeight: '700' }}>👤 Member</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Favorite Verse Quote */}
+          {m.favoriteVerse ? (
+            <Text
+              style={{
+                fontSize: 13,
+                color: '#64748b',
+                fontStyle: 'italic',
+                lineHeight: 20,
+                marginTop: 10,
+              }}
+            >
+              &ldquo;
+              {m.favoriteVerse.length > 100
+                ? `${m.favoriteVerse.slice(0, 100)}…`
+                : m.favoriteVerse}
+              &rdquo;
+            </Text>
+          ) : null}
+        </View>
+
+        {/* ── Sticky 3-Tab Bar: 📝 Wall | ℹ️ About | 🤲 Ministries ── */}
+        <View
+          style={{
+            flexDirection: 'row',
+            backgroundColor: '#ffffff',
+            borderTopWidth: 1,
+            borderTopColor: '#f1f5f9',
+            borderBottomWidth: 1.5,
+            borderBottomColor: '#e2e8f0',
+          }}
+        >
+          {[
+            { key: 'wall' as const, icon: '📝', label: 'Wall' },
+            { key: 'about' as const, icon: 'ℹ️', label: 'About' },
+            { key: 'ministries' as const, icon: '🤲', label: 'Ministries' },
+          ].map((tab) => {
+            const isActive = memberTab === tab.key;
+            return (
+              <TouchableOpacity
+                key={tab.key}
+                style={{
+                  flex: 1,
+                  alignItems: 'center',
+                  paddingVertical: 10,
+                  borderBottomWidth: 2.5,
+                  borderBottomColor: isActive ? PRIMARY : 'transparent',
+                }}
+                onPress={() => setMemberTab(tab.key)}
+              >
+                <Text style={{ fontSize: 16, marginBottom: 2 }}>{tab.icon}</Text>
+                <Text
+                  style={{
+                    fontSize: 11.5,
+                    fontWeight: isActive ? '700' : '500',
+                    color: isActive ? PRIMARY : '#94a3b8',
+                  }}
+                >
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* ── TAB 1: WALL ── */}
+        {memberTab === 'wall' && (
+          <View style={{ padding: 12 }}>
+            {m.isOwn && (
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 10,
+                  backgroundColor: '#ffffff',
+                  borderRadius: 14,
+                  paddingHorizontal: 16,
+                  paddingVertical: 12,
+                  marginBottom: 12,
+                  borderWidth: 1.5,
+                  borderColor: '#e2e8f0',
+                }}
+                onPress={() => router.push('/create-post' as any)}
+              >
+                <Text style={{ fontSize: 18 }}>✍️</Text>
+                <Text style={{ flex: 1, color: '#94a3b8', fontSize: 14 }}>
+                  Share something with the community…
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {loadingMember ? (
+              <View style={{ padding: 36, alignItems: 'center' }}>
+                <ActivityIndicator size="large" color={PRIMARY} />
+              </View>
+            ) : memberPosts.length === 0 ? (
+              <View style={{ paddingVertical: 48, paddingHorizontal: 16, alignItems: 'center' }}>
+                <Text style={{ fontSize: 44, marginBottom: 10 }}>📭</Text>
+                <Text style={{ color: '#94a3b8', fontSize: 14.5 }}>
+                  {m.isOwn ? "You haven't posted anything yet." : 'No posts yet.'}
+                </Text>
+              </View>
+            ) : (
+              <>
+                {memberPosts.map((post: any) => {
+                  const pAuthor = post.author || m;
+                  const pName = `${pAuthor.firstName || ''} ${pAuthor.lastName || ''}`.trim();
+                  const pAvatar = pAuthor.profilePicture
+                    ? pAuthor.profilePicture.startsWith('http')
+                      ? pAuthor.profilePicture
+                      : `https://connect.houseofgrace.ph/uploads/profile_pictures/${pAuthor.profilePicture}`
+                    : avatarSrc;
+                  const pImg = post.imageUrl
+                    ? post.imageUrl.startsWith('http')
+                      ? post.imageUrl
+                      : `https://connect.houseofgrace.ph${post.imageUrl.startsWith('/') ? '' : '/'}${post.imageUrl}`
+                    : null;
+                  const extraPhotos: string[] = Array.isArray(post.photos)
+                    ? post.photos
+                        .map((ph: any) => {
+                          const raw = typeof ph === 'string' ? ph : ph?.url;
+                          if (!raw) return '';
+                          return raw.startsWith('http')
+                            ? raw
+                            : `https://connect.houseofgrace.ph${raw.startsWith('/') ? '' : '/'}${raw}`;
+                        })
+                        .filter(Boolean)
+                    : [];
+                  const allPhotos = pImg
+                    ? [pImg, ...extraPhotos.filter((u) => u !== pImg)]
+                    : extraPhotos;
+
+                  const likeCount = post.likeCount ?? post._count?.likes ?? (post.likes?.length || 0);
+                  const commentCount = post.commentCount ?? post._count?.comments ?? 0;
+                  const myReaction: string | null =
+                    post.myReaction ??
+                    post.likes?.find((l: any) => Number(l.memberId) === Number(user?.id))?.type ??
+                    null;
+
+                  const TYPE_LABELS: Record<string, string> = {
+                    DEVO: '📖 Devotional',
+                    TEXT: '',
+                    VERSE_CARD: '📜 Bible Verse',
+                    PHOTO: '',
+                    PRAYER: '🙏 Prayer',
+                    PRAISE: '🙌 Testimony',
+                    PROFILE_PHOTO: '📷 Profile Photo',
+                    COVER_PHOTO: '🖼️ Cover Photo',
+                  };
+                  const typeBadge = TYPE_LABELS[post.type] || '';
+
+                  // Background post detection (bg:teal, bg:red, bg:mountain, bg:ocean)
+                  const rawContent = String(post.content || '');
+                  const bgMatch = rawContent.match(/^\[bg:(teal|red|mountain|ocean)\]\n?([\s\S]*)$/);
+                  const bgKey = bgMatch ? bgMatch[1] : null;
+                  const cleanContent = bgMatch ? bgMatch[2] : rawContent;
+                  const BG_COLORS: Record<string, string> = {
+                    teal: '#0ea5e9',
+                    red: '#e11d48',
+                    mountain: '#0f172a',
+                    ocean: '#0369a1',
+                  };
+
+                  // Unique reaction emojis for right-aligned summary bubble
+                  const reactionTypesSet = new Set<string>();
+                  if (Array.isArray(post.likes)) {
+                    post.likes.forEach((l: any) => {
+                      if (l?.type) reactionTypesSet.add(l.type);
+                    });
+                  }
+                  if (myReaction) reactionTypesSet.add(myReaction);
+                  if (reactionTypesSet.size === 0 && likeCount > 0) reactionTypesSet.add('HEART');
+                  const REACTION_EMOJI_MAP: Record<string, string> = {
+                    HEART: '❤️',
+                    PRAY: '🙏',
+                    AMEN: '🙏',
+                    CARE: '🤗',
+                    LIKE: '❤️',
+                  };
+                  const uniqueEmojis = Array.from(reactionTypesSet)
+                    .map((t) => REACTION_EMOJI_MAP[t] || '❤️')
+                    .filter((v, i, a) => a.indexOf(v) === i)
+                    .slice(0, 3);
+
+                  const isOwnPost = user && Number(pAuthor.id ?? m.id) === Number(user.id);
+                  const canDeletePost = Boolean(isOwnPost || m.isAdmin || user?.role === 'admin' || user?.role === 'moderator');
+
+                  return (
+                    <View
+                      key={post.id}
+                      style={{
+                        backgroundColor: '#ffffff',
+                        borderRadius: 18,
+                        padding: 16,
+                        marginBottom: 12,
+                        shadowColor: '#000',
+                        shadowOpacity: 0.05,
+                        shadowRadius: 8,
+                        shadowOffset: { width: 0, height: 2 },
+                        elevation: 2,
+                        position: 'relative',
+                      }}
+                    >
+                      {/* Post Author Row */}
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'flex-start',
+                          justifyContent: 'space-between',
+                          marginBottom: 12,
+                        }}
+                      >
+                        <TouchableOpacity
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}
+                          activeOpacity={0.85}
+                          onPress={() => {
+                            if (pAuthor.id && Number(pAuthor.id) !== Number(m.id)) {
+                              router.push(`/church?tab=member&id=${pAuthor.id}` as any);
+                            }
+                          }}
+                        >
+                          <View
+                            style={{
+                              width: 42,
+                              height: 42,
+                              borderRadius: 21,
+                              backgroundColor: '#e0f7fb',
+                              overflow: 'hidden',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            {pAvatar ? (
+                              <Image
+                                source={{ uri: pAvatar }}
+                                style={{ width: '100%', height: '100%' }}
+                              />
+                            ) : (
+                              <Text style={{ fontWeight: '800', color: PRIMARY }}>{initials}</Text>
+                            )}
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ fontSize: 14.5, fontWeight: '800', color: '#0f172a', lineHeight: 19 }}>
+                              {pName}
+                              {post.type === 'PROFILE_PHOTO' ? (
+                                <Text style={{ fontWeight: '400', color: '#64748b', fontSize: 13 }}>
+                                  {' '}updated their profile picture
+                                </Text>
+                              ) : post.type === 'COVER_PHOTO' ? (
+                                <Text style={{ fontWeight: '400', color: '#64748b', fontSize: 13 }}>
+                                  {' '}updated their cover photo
+                                </Text>
+                              ) : null}
+                            </Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2, flexWrap: 'wrap' }}>
+                              <Text style={{ fontSize: 11.5, color: '#94a3b8' }}>
+                                {fmtPostTime(post.createdAt)}
+                              </Text>
+                              {typeBadge ? (
+                                <View
+                                  style={{
+                                    backgroundColor: '#e0f7fb',
+                                    paddingHorizontal: 7,
+                                    paddingVertical: 1.5,
+                                    borderRadius: 999,
+                                  }}
+                                >
+                                  <Text style={{ fontSize: 10.5, fontWeight: '700', color: '#2b91ab' }}>
+                                    {typeBadge}
+                                  </Text>
+                                </View>
+                              ) : null}
+                            </View>
+                          </View>
+                        </TouchableOpacity>
+
+                        {/* ••• Menu Button */}
+                        <TouchableOpacity
+                          style={{ paddingHorizontal: 8, paddingVertical: 4 }}
+                          onPress={() =>
+                            setOpenPostMenuId((prev) => (prev === post.id ? null : post.id))
+                          }
+                        >
+                          <Text style={{ fontSize: 18, color: '#94a3b8', fontWeight: '800' }}>•••</Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* ••• Dropdown Sheet inside PostCard */}
+                      {openPostMenuId === post.id && (
+                        <View
+                          style={{
+                            backgroundColor: '#ffffff',
+                            borderRadius: 12,
+                            borderWidth: 1,
+                            borderColor: '#e2e8f0',
+                            marginBottom: 12,
+                            overflow: 'hidden',
+                            shadowColor: '#000',
+                            shadowOpacity: 0.1,
+                            shadowRadius: 8,
+                            elevation: 4,
+                          }}
+                        >
+                          <TouchableOpacity
+                            style={{ paddingVertical: 11, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' }}
+                            onPress={() => {
+                              setOpenPostMenuId(null);
+                              openPostComments(post);
+                            }}
+                          >
+                            <Text style={{ fontSize: 13.5, fontWeight: '600', color: '#1e293b' }}>
+                              💬 View Comments
+                            </Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={{
+                              paddingVertical: 11,
+                              paddingHorizontal: 14,
+                              borderBottomWidth: canDeletePost ? 1 : 0,
+                              borderBottomColor: '#f1f5f9',
+                            }}
+                            onPress={() => {
+                              setOpenPostMenuId(null);
+                              Share.share({
+                                message: `${cleanContent ? cleanContent + '\n\n' : ''}https://connect.houseofgrace.ph/p/${post.id}`,
+                                url: `https://connect.houseofgrace.ph/p/${post.id}`,
+                              }).catch(() => {});
+                            }}
+                          >
+                            <Text style={{ fontSize: 13.5, fontWeight: '600', color: '#1e293b' }}>
+                              📤 Share Post
+                            </Text>
+                          </TouchableOpacity>
+                          {canDeletePost && (
+                            <TouchableOpacity
+                              style={{ paddingVertical: 11, paddingHorizontal: 14 }}
+                              onPress={() => {
+                                setOpenPostMenuId(null);
+                                setDeletePostConfirmId(post.id);
+                              }}
+                            >
+                              <Text style={{ fontSize: 13.5, fontWeight: '700', color: '#ef4444' }}>
+                                🗑️ Delete Post
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      )}
+
+                      {/* Background Post or Regular Post Content */}
+                      {bgKey && cleanContent ? (
+                        <View
+                          style={{
+                            backgroundColor: BG_COLORS[bgKey] || PRIMARY,
+                            borderRadius: 14,
+                            minHeight: 200,
+                            paddingVertical: 28,
+                            paddingHorizontal: 20,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            marginBottom: 12,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              color: '#ffffff',
+                              fontSize: cleanContent.length < 90 ? 20 : 16,
+                              fontWeight: '800',
+                              textAlign: 'center',
+                              lineHeight: cleanContent.length < 90 ? 28 : 24,
+                            }}
+                          >
+                            {cleanContent}
+                          </Text>
+                        </View>
+                      ) : cleanContent ? (
+                        <Text
+                          style={{
+                            fontSize: 15,
+                            color: '#1e293b',
+                            lineHeight: 23,
+                            marginBottom:
+                              allPhotos.length > 0 || post.verseText || post.linkUrl ? 12 : 8,
+                          }}
+                        >
+                          {cleanContent}
+                        </Text>
+                      ) : null}
+
+                      {/* Multi-Photo Strip or Single Photo */}
+                      {allPhotos.length === 1 ? (
+                        <TouchableOpacity
+                          activeOpacity={0.9}
+                          onPress={() => setLightboxSlide(allPhotos[0])}
+                          style={{
+                            borderRadius: 14,
+                            overflow: 'hidden',
+                            marginBottom: 12,
+                            backgroundColor: '#f8fafc',
+                          }}
+                        >
+                          <Image
+                            source={{ uri: allPhotos[0] }}
+                            style={{
+                              width: '100%',
+                              height: post.type === 'PROFILE_PHOTO' ? 300 : 260,
+                            }}
+                            resizeMode="cover"
+                          />
+                        </TouchableOpacity>
+                      ) : allPhotos.length > 1 ? (
+                        <ScrollView
+                          horizontal
+                          showsHorizontalScrollIndicator={false}
+                          contentContainerStyle={{ gap: 8, paddingBottom: 4 }}
+                          style={{ marginBottom: 12 }}
+                        >
+                          {allPhotos.map((uri, idx) => (
+                            <TouchableOpacity
+                              key={`${post.id}-ph-${idx}`}
+                              activeOpacity={0.9}
+                              onPress={() => setLightboxSlide(uri)}
+                              style={{
+                                width: 240,
+                                height: 240,
+                                borderRadius: 14,
+                                overflow: 'hidden',
+                                backgroundColor: '#f8fafc',
+                              }}
+                            >
+                              <Image
+                                source={{ uri }}
+                                style={{ width: '100%', height: '100%' }}
+                                resizeMode="cover"
+                              />
+                              <View
+                                style={{
+                                  position: 'absolute',
+                                  top: 8,
+                                  right: 8,
+                                  backgroundColor: 'rgba(15,23,42,0.65)',
+                                  paddingHorizontal: 8,
+                                  paddingVertical: 3,
+                                  borderRadius: 999,
+                                }}
+                              >
+                                <Text style={{ color: '#ffffff', fontSize: 10.5, fontWeight: '700' }}>
+                                  {idx + 1}/{allPhotos.length}
+                                </Text>
+                              </View>
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      ) : null}
+
+                      {/* Link Preview Card (post.linkUrl) */}
+                      {post.linkUrl ? (
+                        <TouchableOpacity
+                          activeOpacity={0.88}
+                          onPress={() => Linking.openURL(post.linkUrl).catch(() => {})}
+                          style={{
+                            borderWidth: 1,
+                            borderColor: '#e2e8f0',
+                            borderRadius: 12,
+                            overflow: 'hidden',
+                            backgroundColor: '#f8fafc',
+                            marginBottom: 12,
+                          }}
+                        >
+                          {post.linkImage ? (
+                            <Image
+                              source={{ uri: post.linkImage }}
+                              style={{ width: '100%', height: 150 }}
+                              resizeMode="cover"
+                            />
+                          ) : null}
+                          <View style={{ padding: 12 }}>
+                            <Text
+                              numberOfLines={1}
+                              style={{
+                                fontSize: 11,
+                                color: PRIMARY,
+                                fontWeight: '700',
+                                textTransform: 'uppercase',
+                                marginBottom: 3,
+                              }}
+                            >
+                              🔗 {(() => {
+                                try {
+                                  return new URL(post.linkUrl).hostname.replace('www.', '');
+                                } catch {
+                                  return post.linkUrl;
+                                }
+                              })()}
+                            </Text>
+                            {post.linkTitle ? (
+                              <Text
+                                numberOfLines={2}
+                                style={{
+                                  fontSize: 13.5,
+                                  fontWeight: '700',
+                                  color: '#0f172a',
+                                  marginBottom: 3,
+                                }}
+                              >
+                                {post.linkTitle}
+                              </Text>
+                            ) : null}
+                            {post.linkDesc ? (
+                              <Text
+                                numberOfLines={2}
+                                style={{ fontSize: 12, color: '#64748b', lineHeight: 17 }}
+                              >
+                                {post.linkDesc}
+                              </Text>
+                            ) : null}
+                          </View>
+                        </TouchableOpacity>
+                      ) : null}
+
+                      {/* DEVO AI Caption Callout */}
+                      {post.aiCaption && post.type === 'DEVO' ? (
+                        <View
+                          style={{
+                            backgroundColor: '#f0f9ff',
+                            borderLeftWidth: 3,
+                            borderLeftColor: PRIMARY,
+                            borderRadius: 8,
+                            paddingVertical: 8,
+                            paddingHorizontal: 12,
+                            marginBottom: 10,
+                          }}
+                        >
+                          <Text style={{ fontSize: 13, color: '#0c4a6e', lineHeight: 19 }}>
+                            ✨ {post.aiCaption}
+                          </Text>
+                        </View>
+                      ) : null}
+
+                      {/* Teal Scripture Verse Card (PostCard.tsx lines 1291-1301) */}
+                      {post.verseText ? (
+                        <View
+                          style={{
+                            backgroundColor: '#2d8fa8',
+                            borderRadius: 14,
+                            padding: 16,
+                            marginBottom: 12,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 14,
+                              fontStyle: 'italic',
+                              color: '#ffffff',
+                              lineHeight: 22,
+                              marginBottom: post.verseRef ? 8 : 0,
+                            }}
+                          >
+                            &ldquo;{post.verseText}&rdquo;
+                          </Text>
+                          {post.verseRef ? (
+                            <View
+                              style={{
+                                alignSelf: 'flex-start',
+                                backgroundColor: 'rgba(255,255,255,0.2)',
+                                paddingHorizontal: 10,
+                                paddingVertical: 3,
+                                borderRadius: 999,
+                              }}
+                            >
+                              <Text style={{ fontSize: 11.5, fontWeight: '700', color: '#ffffff' }}>
+                                — {post.verseRef}
+                              </Text>
+                            </View>
+                          ) : null}
+                        </View>
+                      ) : null}
+
+                      {/* Right-Aligned Overlapping Reactions Summary Bubble (v2.24.2 / v2.24.4) */}
+                      {likeCount > 0 && (
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            justifyContent: 'flex-end',
+                            marginBottom: 8,
+                          }}
+                        >
+                          <TouchableOpacity
+                            activeOpacity={0.8}
+                            onPress={() => {
+                              setReactionsModalTab('ALL');
+                              setReactionsModalPost(post);
+                            }}
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              backgroundColor: '#f8fafc',
+                              borderWidth: 1,
+                              borderColor: '#e2e8f0',
+                              borderRadius: 999,
+                              paddingHorizontal: 9,
+                              paddingVertical: 3.5,
+                              gap: 4,
+                            }}
+                          >
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                              {uniqueEmojis.map((em, idx) => (
+                                <Text
+                                  key={idx}
+                                  style={{ fontSize: 12.5, marginLeft: idx > 0 ? -3 : 0 }}
+                                >
+                                  {em}
+                                </Text>
+                              ))}
+                            </View>
+                            <Text style={{ fontSize: 12, fontWeight: '700', color: '#475569' }}>
+                              {likeCount}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+
+                      {/* Long-Press Floating Reaction Picker Pill (❤️ 🙏 🤗) */}
+                      {reactionPickerPostId === post.id && (
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            alignSelf: 'flex-start',
+                            backgroundColor: '#ffffff',
+                            borderRadius: 999,
+                            paddingVertical: 6,
+                            paddingHorizontal: 12,
+                            marginBottom: 8,
+                            gap: 14,
+                            borderWidth: 1,
+                            borderColor: '#e2e8f0',
+                            shadowColor: '#000',
+                            shadowOpacity: 0.15,
+                            shadowRadius: 10,
+                            shadowOffset: { width: 0, height: 4 },
+                            elevation: 6,
+                          }}
+                        >
+                          {[
+                            { type: 'HEART', emoji: '❤️', label: 'Love' },
+                            { type: 'PRAY', emoji: '🙏', label: 'Pray' },
+                            { type: 'CARE', emoji: '🤗', label: 'Care' },
+                          ].map((r) => (
+                            <TouchableOpacity
+                              key={r.type}
+                              onPress={() => handleMemberPostReact(post.id, r.type)}
+                              style={{ alignItems: 'center', paddingHorizontal: 4 }}
+                            >
+                              <Text style={{ fontSize: 24 }}>{r.emoji}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      )}
+
+                      {/* 3-Button Action Bar: 🤍/❤️/🙏/🤗 | 💬 {commentCount} | 📤 Share */}
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-around',
+                          borderTopWidth: 1,
+                          borderTopColor: '#f1f5f9',
+                          paddingTop: 8,
+                          marginTop: 2,
+                        }}
+                      >
+                        <TouchableOpacity
+                          style={{
+                            flex: 1,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            paddingVertical: 6,
+                            gap: 5,
+                          }}
+                          onPress={() =>
+                            handleMemberPostReact(post.id, myReaction || 'HEART')
+                          }
+                          onLongPress={() =>
+                            setReactionPickerPostId((prev) =>
+                              prev === post.id ? null : post.id
+                            )
+                          }
+                        >
+                          <Text style={{ fontSize: 18 }}>
+                            {myReaction ? REACTION_EMOJI_MAP[myReaction] || '❤️' : '🤍'}
+                          </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={{
+                            flex: 1,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            paddingVertical: 6,
+                            gap: 5,
+                          }}
+                          onPress={() => openPostComments(post)}
+                        >
+                          <Text style={{ fontSize: 15, color: '#64748b', fontWeight: '600' }}>
+                            💬 {commentCount > 0 ? commentCount : ''}
+                          </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={{
+                            flex: 1,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            paddingVertical: 6,
+                            gap: 5,
+                          }}
+                          onPress={() => {
+                            Share.share({
+                              message: `${cleanContent ? cleanContent + '\n\n' : ''}https://connect.houseofgrace.ph/p/${post.id}`,
+                              url: `https://connect.houseofgrace.ph/p/${post.id}`,
+                            }).catch(() => {});
+                          }}
+                        >
+                          <Text style={{ fontSize: 13.5, color: '#64748b', fontWeight: '600' }}>
+                            📤 Share
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  );
+                })}
+
+                {/* Load More Posts Button (ProfileClient.tsx lines 621-634) */}
+                {memberHasMore && (
+                  <TouchableOpacity
+                    disabled={loadingMorePosts}
+                    onPress={loadMoreMemberPosts}
+                    style={{
+                      backgroundColor: '#ffffff',
+                      borderWidth: 1.5,
+                      borderColor: '#e2e8f0',
+                      borderRadius: 999,
+                      paddingVertical: 11,
+                      paddingHorizontal: 24,
+                      alignSelf: 'center',
+                      marginVertical: 10,
+                    }}
+                  >
+                    <Text style={{ fontSize: 13.5, fontWeight: '700', color: '#475569' }}>
+                      {loadingMorePosts ? 'Loading…' : 'Load more posts'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
+          </View>
+        )}
+
+        {/* ── TAB 2: ABOUT ── */}
+        {memberTab === 'about' && (
+          <View style={{ padding: 12 }}>
+            {m.favoriteVerse ? (
+              <View
+                style={{
+                  backgroundColor: '#ffffff',
+                  borderRadius: 16,
+                  padding: 16,
+                  marginBottom: 12,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: '700',
+                    color: '#94a3b8',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.6,
+                    marginBottom: 8,
+                  }}
+                >
+                  📖 FAVORITE VERSE
+                </Text>
+                <View style={{ borderLeftWidth: 3, borderLeftColor: PRIMARY, paddingLeft: 12 }}>
+                  <Text style={{ fontSize: 14, fontStyle: 'italic', color: '#475569', lineHeight: 22 }}>
+                    &ldquo;{m.favoriteVerse}&rdquo;
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+
+            {(dur || m.joinDate) ? (
+              <View
+                style={{
+                  backgroundColor: '#ffffff',
+                  borderRadius: 16,
+                  padding: 16,
+                  marginBottom: 12,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: '700',
+                    color: '#94a3b8',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.6,
+                    marginBottom: 12,
+                  }}
+                >
+                  📅 CHURCH MEMBERSHIP
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+                  <View
+                    style={{
+                      flex: 1,
+                      backgroundColor: 'rgba(78,177,203,0.1)',
+                      borderRadius: 12,
+                      padding: 12,
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text style={{ fontSize: 18, fontWeight: '900', color: PRIMARY }}>
+                      {dur || 'New'}
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 10,
+                        fontWeight: '700',
+                        color: '#94a3b8',
+                        textTransform: 'uppercase',
+                        marginTop: 2,
+                      }}
+                    >
+                      DURATION
+                    </Text>
+                  </View>
+                  {m.joinDate ? (
+                    <View style={{ flex: 2 }}>
+                      <Text
+                        style={{
+                          fontSize: 10,
+                          fontWeight: '700',
+                          color: '#94a3b8',
+                          textTransform: 'uppercase',
+                        }}
+                      >
+                        MEMBER SINCE
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 14.5,
+                          fontWeight: '700',
+                          color: '#1e293b',
+                          marginTop: 2,
+                        }}
+                      >
+                        {fmtDateLong(m.joinDate)}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+              </View>
+            ) : null}
+
+            {(m.gender || m.birthdate || m.baptismDate || m.invitedBy) ? (
+              <View
+                style={{
+                  backgroundColor: '#ffffff',
+                  borderRadius: 16,
+                  padding: 16,
+                  marginBottom: 12,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: '700',
+                    color: '#94a3b8',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.6,
+                    marginBottom: 6,
+                  }}
+                >
+                  ℹ️ PERSONAL DETAILS
+                </Text>
+                {m.gender ? (
+                  <View style={{ flexDirection: 'row', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f8fafc' }}>
+                    <Text style={{ fontSize: 16, width: 24, textAlign: 'center' }}>🚻</Text>
+                    <View>
+                      <Text style={{ fontSize: 10, fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase' }}>GENDER</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: '#1e293b', marginTop: 2 }}>{m.gender}</Text>
+                    </View>
+                  </View>
+                ) : null}
+                {m.birthdate ? (
+                  <View style={{ flexDirection: 'row', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f8fafc' }}>
+                    <Text style={{ fontSize: 16, width: 24, textAlign: 'center' }}>🎂</Text>
+                    <View>
+                      <Text style={{ fontSize: 10, fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase' }}>BIRTHDAY</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: '#1e293b', marginTop: 2 }}>{fmtDateLong(m.birthdate)}</Text>
+                    </View>
+                  </View>
+                ) : null}
+                {m.baptismDate ? (
+                  <View style={{ flexDirection: 'row', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f8fafc' }}>
+                    <Text style={{ fontSize: 16, width: 24, textAlign: 'center' }}>🌊</Text>
+                    <View>
+                      <Text style={{ fontSize: 10, fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase' }}>BAPTISM DATE</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: '#1e293b', marginTop: 2 }}>{fmtDateLong(m.baptismDate)}</Text>
+                    </View>
+                  </View>
+                ) : null}
+                {m.invitedBy ? (
+                  <View style={{ flexDirection: 'row', gap: 12, paddingVertical: 10 }}>
+                    <Text style={{ fontSize: 16, width: 24, textAlign: 'center' }}>👥</Text>
+                    <View>
+                      <Text style={{ fontSize: 10, fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase' }}>INVITED BY</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: '#1e293b', marginTop: 2 }}>{m.invitedBy}</Text>
+                    </View>
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
+
+            {hasContactInfo ? (
+              <View
+                style={{
+                  backgroundColor: '#ffffff',
+                  borderRadius: 16,
+                  padding: 16,
+                  marginBottom: 12,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: '700',
+                    color: '#94a3b8',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.6,
+                    marginBottom: 6,
+                  }}
+                >
+                  📋 CONTACT
+                </Text>
+                {(m.showEmail || m.isAdmin || m.isOwn) && m.email ? (
+                  <View style={{ flexDirection: 'row', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f8fafc' }}>
+                    <Text style={{ fontSize: 16, width: 24, textAlign: 'center' }}>✉️</Text>
+                    <View>
+                      <Text style={{ fontSize: 10, fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase' }}>EMAIL</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: '#1e293b', marginTop: 2 }}>{m.email}</Text>
+                    </View>
+                  </View>
+                ) : null}
+                {(m.showPhone || m.isAdmin || m.isOwn) && m.phone && typeof m.phone === 'string' ? (
+                  <View style={{ flexDirection: 'row', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f8fafc' }}>
+                    <Text style={{ fontSize: 16, width: 24, textAlign: 'center' }}>📞</Text>
+                    <View>
+                      <Text style={{ fontSize: 10, fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase' }}>PHONE</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: '#1e293b', marginTop: 2 }}>{m.phone}</Text>
+                    </View>
+                  </View>
+                ) : null}
+                {(m.showAddress || m.isAdmin || m.isOwn) && m.address && typeof m.address === 'string' ? (
+                  <View style={{ flexDirection: 'row', gap: 12, paddingVertical: 10 }}>
+                    <Text style={{ fontSize: 16, width: 24, textAlign: 'center' }}>📍</Text>
+                    <View>
+                      <Text style={{ fontSize: 10, fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase' }}>ADDRESS</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: '#1e293b', marginTop: 2 }}>{m.address}</Text>
+                    </View>
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
+
+            {familyArr.length > 0 ? (
+              <View
+                style={{
+                  backgroundColor: '#ffffff',
+                  borderRadius: 16,
+                  padding: 16,
+                  marginBottom: 12,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: '700',
+                    color: '#94a3b8',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.6,
+                    marginBottom: 10,
+                  }}
+                >
+                  🏠 FAMILY MEMBERS
+                </Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                  {familyArr.map((fName, idx) => (
+                    <View
+                      key={idx}
+                      style={{
+                        backgroundColor: '#f1f5f9',
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        borderRadius: 999,
+                      }}
+                    >
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: '#475569' }}>
+                        {fName}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ) : null}
+          </View>
+        )}
+
+        {/* ── TAB 3: MINISTRIES ── */}
+        {memberTab === 'ministries' && (
+          <View style={{ padding: 12 }}>
+            {minList.length === 0 ? (
+              <View style={{ paddingVertical: 48, alignItems: 'center' }}>
+                <Text style={{ fontSize: 44, marginBottom: 10 }}>🤲</Text>
+                <Text style={{ color: '#94a3b8', fontSize: 14.5 }}>
+                  Not serving in any ministry yet.
+                </Text>
+              </View>
+            ) : (
+              <View
+                style={{
+                  backgroundColor: '#ffffff',
+                  borderRadius: 16,
+                  overflow: 'hidden',
+                }}
+              >
+                {minList.map((mm, idx) => (
+                  <View
+                    key={mm.id || idx}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 14,
+                      paddingHorizontal: 16,
+                      paddingVertical: 14,
+                      borderBottomWidth: idx < minList.length - 1 ? 1 : 0,
+                      borderBottomColor: '#f8fafc',
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 10,
+                        backgroundColor: 'rgba(78,177,203,0.12)',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Text style={{ fontSize: 20 }}>🤲</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 14.5, fontWeight: '700', color: '#1e293b' }}>
+                        {mm.ministry.name}
+                      </Text>
+                      {mm.joinedDate ? (
+                        <Text style={{ fontSize: 11.5, color: '#94a3b8', marginTop: 2 }}>
+                          Since {fmtDateLong(mm.joinedDate)}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <View
+                      style={{
+                        backgroundColor: PRIMARY,
+                        paddingHorizontal: 10,
+                        paddingVertical: 4,
+                        borderRadius: 999,
+                      }}
+                    >
+                      <Text style={{ color: '#ffffff', fontSize: 11, fontWeight: '700' }}>
+                        Active
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+      </ScrollView>
     );
   };
 
@@ -2070,6 +3707,7 @@ export default function WebReplicaScreen() {
 
       <View style={{ flex: 1 }}>
         {activePage === 'directory' && renderDirectoryPage()}
+        {activePage === 'member' && renderMemberProfilePage()}
         {activePage === 'resources' && renderResourcesPage()}
         {activePage === 'love-gifts' && renderLoveGiftsPage()}
         {activePage === 'journal' && renderJournalPage()}
@@ -2080,50 +3718,54 @@ export default function WebReplicaScreen() {
         {activePage === 'my-shares' && renderMySharesPage()}
       </View>
 
-      {/* BottomDock — Exact 5-item bar matching mobile/app/(tabs)/_layout.tsx */}
-      <View
-        style={[
-          styles.dockBar,
-          { height: 58 + Math.max(insets.bottom, 6), paddingBottom: Math.max(insets.bottom, 6) },
-        ]}
-      >
-        <TouchableOpacity
-          style={styles.dockItem}
-          onPress={() => router.push('/(tabs)')}
-        >
-          <Text style={styles.dockEmoji}>🏠</Text>
-          <Text style={styles.dockLabel}>Home</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.dockItem}
-          onPress={() => router.push('/(tabs)/prayer')}
-        >
-          <Text style={styles.dockEmoji}>🙏</Text>
-          <Text style={styles.dockLabel}>Prayer Wall</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.dockItem}
-          onPress={() => router.push('/create-post')}
-        >
-          <View style={styles.dockFab}>
-            <Text style={{ fontSize: 22 }}>✍️</Text>
+      {/* BottomDock — Exact 5-item bar matching mobile/app/(tabs)/_layout.tsx (Hidden when bottom sheets are open per Rule #13) */}
+      {reactionsModalPost === null &&
+        commentModalPost === null &&
+        profilePhotoSheet === null && (
+          <View
+            style={[
+              styles.dockBar,
+              { height: 58 + Math.max(insets.bottom, 6), paddingBottom: Math.max(insets.bottom, 6) },
+            ]}
+          >
+            <TouchableOpacity
+              style={styles.dockItem}
+              onPress={() => router.push('/(tabs)')}
+            >
+              <Text style={styles.dockEmoji}>🏠</Text>
+              <Text style={styles.dockLabel}>Home</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.dockItem}
+              onPress={() => router.push('/(tabs)/prayer')}
+            >
+              <Text style={styles.dockEmoji}>🙏</Text>
+              <Text style={styles.dockLabel}>Prayer Wall</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.dockItem}
+              onPress={() => router.push('/create-post')}
+            >
+              <View style={styles.dockFab}>
+                <Text style={{ fontSize: 22 }}>✍️</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.dockItem}
+              onPress={() => router.push('/(tabs)/stewardshop')}
+            >
+              <Text style={styles.dockEmoji}>🤝</Text>
+              <Text style={styles.dockLabel}>StewardShop</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.dockItem}
+              onPress={() => router.push('/(tabs)/profile')}
+            >
+              <Text style={styles.dockEmoji}>👤</Text>
+              <Text style={styles.dockLabel}>Me</Text>
+            </TouchableOpacity>
           </View>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.dockItem}
-          onPress={() => router.push('/(tabs)/stewardshop')}
-        >
-          <Text style={styles.dockEmoji}>🤝</Text>
-          <Text style={styles.dockLabel}>StewardShop</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.dockItem}
-          onPress={() => router.push('/(tabs)/profile')}
-        >
-          <Text style={styles.dockEmoji}>👤</Text>
-          <Text style={styles.dockLabel}>Me</Text>
-        </TouchableOpacity>
-      </View>
+        )}
 
       {/* Directory Filter Dropdown Modal */}
       <Modal
@@ -2254,6 +3896,509 @@ export default function WebReplicaScreen() {
         }}
         onCancel={() => setDeleteConfirmId(null)}
       />
+
+      {/* Delete Wall Post ConfirmModal */}
+      <ConfirmModal
+        visible={deletePostConfirmId !== null}
+        title="Delete Post"
+        message="Are you sure you want to delete this post? This action cannot be undone."
+        confirmText="Delete"
+        destructive
+        onConfirm={async () => {
+          if (!deletePostConfirmId) return;
+          const id = deletePostConfirmId;
+          setDeletePostConfirmId(null);
+          await client.post('/church', { action: 'delete_post', postId: id }).catch(() => {});
+          setMemberPosts((prev) => prev.filter((p) => p.id !== id));
+        }}
+        onCancel={() => setDeletePostConfirmId(null)}
+      />
+
+      {/* Reactions Analytics Bottom Sheet Modal (v2.24.4 / v2.24.12) */}
+      <Modal
+        visible={reactionsModalPost !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setReactionsModalPost(null)}
+      >
+        <TouchableOpacity
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(15,23,42,0.45)',
+            justifyContent: 'flex-end',
+          }}
+          activeOpacity={1}
+          onPress={() => setReactionsModalPost(null)}
+        >
+          <View
+            style={{
+              backgroundColor: '#ffffff',
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              maxHeight: '72%',
+              paddingBottom: Math.max(insets.bottom, 20),
+            }}
+            onStartShouldSetResponder={() => true}
+          >
+            {/* Drag Handle + Header */}
+            <View style={{ alignItems: 'center', paddingTop: 10, paddingBottom: 8 }}>
+              <View
+                style={{
+                  width: 40,
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: '#cbd5e1',
+                  marginBottom: 10,
+                }}
+              />
+              <View
+                style={{
+                  width: '100%',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  paddingHorizontal: 18,
+                }}
+              >
+                <Text style={{ fontSize: 16, fontWeight: '800', color: '#0f172a' }}>
+                  People who reacted
+                </Text>
+                <TouchableOpacity onPress={() => setReactionsModalPost(null)}>
+                  <Text style={{ fontSize: 18, color: '#64748b', fontWeight: '700' }}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Filter Tabs: All, ❤️, 🙏, 🤗 */}
+            {(() => {
+              const allLikes: any[] = Array.isArray(reactionsModalPost?.likes)
+                ? reactionsModalPost.likes
+                : [];
+              const heartCount = allLikes.filter(
+                (l) => !l.type || l.type === 'HEART' || l.type === 'LIKE'
+              ).length;
+              const prayCount = allLikes.filter(
+                (l) => l.type === 'PRAY' || l.type === 'AMEN'
+              ).length;
+              const careCount = allLikes.filter((l) => l.type === 'CARE').length;
+              const filteredLikes = allLikes.filter((l) => {
+                if (reactionsModalTab === 'ALL') return true;
+                if (reactionsModalTab === 'HEART')
+                  return !l.type || l.type === 'HEART' || l.type === 'LIKE';
+                if (reactionsModalTab === 'PRAY')
+                  return l.type === 'PRAY' || l.type === 'AMEN';
+                if (reactionsModalTab === 'CARE') return l.type === 'CARE';
+                return true;
+              });
+
+              return (
+                <>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      borderBottomWidth: 1,
+                      borderBottomColor: '#e2e8f0',
+                      paddingHorizontal: 16,
+                      gap: 16,
+                    }}
+                  >
+                    {[
+                      { k: 'ALL' as const, label: `All ${allLikes.length || ''}`.trim() },
+                      ...(heartCount > 0 ? [{ k: 'HEART' as const, label: `❤️ ${heartCount}` }] : []),
+                      ...(prayCount > 0 ? [{ k: 'PRAY' as const, label: `🙏 ${prayCount}` }] : []),
+                      ...(careCount > 0 ? [{ k: 'CARE' as const, label: `🤗 ${careCount}` }] : []),
+                    ].map((t) => {
+                      const active = reactionsModalTab === t.k;
+                      return (
+                        <TouchableOpacity
+                          key={t.k}
+                          onPress={() => setReactionsModalTab(t.k)}
+                          style={{
+                            paddingVertical: 10,
+                            borderBottomWidth: 2.5,
+                            borderBottomColor: active ? PRIMARY : 'transparent',
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 13.5,
+                              fontWeight: active ? '800' : '600',
+                              color: active ? PRIMARY : '#64748b',
+                            }}
+                          >
+                            {t.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+
+                  <ScrollView style={{ paddingHorizontal: 18, paddingTop: 8 }}>
+                    {filteredLikes.length === 0 ? (
+                      <View style={{ paddingVertical: 28, alignItems: 'center' }}>
+                        <Text style={{ color: '#94a3b8', fontSize: 13.5 }}>No reactions yet.</Text>
+                      </View>
+                    ) : (
+                      filteredLikes.map((item: any, idx: number) => {
+                        const rMem = item.member || {};
+                        const rName =
+                          `${rMem.firstName || ''} ${rMem.lastName || ''}`.trim() || 'Church Member';
+                        const rPic = rMem.profilePicture
+                          ? rMem.profilePicture.startsWith('http')
+                            ? rMem.profilePicture
+                            : `https://connect.houseofgrace.ph/uploads/profile_pictures/${rMem.profilePicture}`
+                          : null;
+                        const rInitials = `${(rMem.firstName || 'M')[0]}${(rMem.lastName || '')[0] || ''}`.toUpperCase();
+                        const rEmoji =
+                          item.type === 'PRAY' || item.type === 'AMEN'
+                            ? '🙏'
+                            : item.type === 'CARE'
+                              ? '🤗'
+                              : '❤️';
+
+                        return (
+                          <TouchableOpacity
+                            key={item.id ?? idx}
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: 12,
+                              paddingVertical: 10,
+                              borderBottomWidth: 1,
+                              borderBottomColor: '#f8fafc',
+                            }}
+                            onPress={() => {
+                              const mid = item.memberId || rMem.id;
+                              setReactionsModalPost(null);
+                              if (mid) {
+                                router.push(`/church?tab=member&id=${mid}` as any);
+                              }
+                            }}
+                          >
+                            <View style={{ position: 'relative' }}>
+                              <View
+                                style={{
+                                  width: 40,
+                                  height: 40,
+                                  borderRadius: 20,
+                                  backgroundColor: '#e0f7fb',
+                                  overflow: 'hidden',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                }}
+                              >
+                                {rPic ? (
+                                  <Image
+                                    source={{ uri: rPic }}
+                                    style={{ width: '100%', height: '100%' }}
+                                  />
+                                ) : (
+                                  <Text style={{ fontWeight: '800', color: PRIMARY }}>
+                                    {rInitials}
+                                  </Text>
+                                )}
+                              </View>
+                              <View
+                                style={{
+                                  position: 'absolute',
+                                  bottom: -2,
+                                  right: -2,
+                                  width: 18,
+                                  height: 18,
+                                  borderRadius: 9,
+                                  backgroundColor: '#ffffff',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  shadowColor: '#000',
+                                  shadowOpacity: 0.15,
+                                  shadowRadius: 2,
+                                }}
+                              >
+                                <Text style={{ fontSize: 11 }}>{rEmoji}</Text>
+                              </View>
+                            </View>
+                            <Text
+                              style={{
+                                fontSize: 14.5,
+                                fontWeight: '700',
+                                color: '#0f172a',
+                                flex: 1,
+                              }}
+                            >
+                              {rName}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })
+                    )}
+                  </ScrollView>
+                </>
+              );
+            })()}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Interactive Comment Drawer Bottom Sheet Modal */}
+      <Modal
+        visible={commentModalPost !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setCommentModalPost(null)}
+      >
+        <KeyboardAvoidingView
+          style={{ flex: 1, backgroundColor: 'rgba(15,23,42,0.45)', justifyContent: 'flex-end' }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View
+            style={{
+              backgroundColor: '#ffffff',
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              maxHeight: '80%',
+              paddingBottom: Math.max(insets.bottom, 14),
+            }}
+          >
+            {/* Header */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingHorizontal: 18,
+                paddingVertical: 14,
+                borderBottomWidth: 1,
+                borderBottomColor: '#f1f5f9',
+              }}
+            >
+              <Text style={{ fontSize: 16, fontWeight: '800', color: '#0f172a' }}>
+                💬 Comments ({commentsList.length})
+              </Text>
+              <TouchableOpacity onPress={() => setCommentModalPost(null)}>
+                <Text style={{ fontSize: 18, color: '#64748b', fontWeight: '700' }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Comments List */}
+            <ScrollView style={{ paddingHorizontal: 16, paddingVertical: 10, maxHeight: 380 }}>
+              {loadingComments ? (
+                <View style={{ paddingVertical: 30, alignItems: 'center' }}>
+                  <ActivityIndicator size="small" color={PRIMARY} />
+                </View>
+              ) : commentsList.length === 0 ? (
+                <View style={{ paddingVertical: 32, alignItems: 'center' }}>
+                  <Text style={{ color: '#94a3b8', fontSize: 13.5 }}>
+                    No comments yet. Be the first to encourage!
+                  </Text>
+                </View>
+              ) : (
+                commentsList.map((c: any, idx: number) => {
+                  const cAuth = c.author || c.member || {};
+                  const cName =
+                    `${cAuth.firstName || ''} ${cAuth.lastName || ''}`.trim() || 'Member';
+                  const cPic = cAuth.profilePicture
+                    ? cAuth.profilePicture.startsWith('http')
+                      ? cAuth.profilePicture
+                      : `https://connect.houseofgrace.ph/uploads/profile_pictures/${cAuth.profilePicture}`
+                    : null;
+                  const cInit = `${(cAuth.firstName || 'M')[0]}${(cAuth.lastName || '')[0] || ''}`.toUpperCase();
+
+                  return (
+                    <View
+                      key={c.id ?? idx}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'flex-start',
+                        gap: 10,
+                        marginBottom: 12,
+                      }}
+                    >
+                      <TouchableOpacity
+                        onPress={() => {
+                          if (cAuth.id) {
+                            setCommentModalPost(null);
+                            router.push(`/church?tab=member&id=${cAuth.id}` as any);
+                          }
+                        }}
+                      >
+                        <View
+                          style={{
+                            width: 34,
+                            height: 34,
+                            borderRadius: 17,
+                            backgroundColor: '#e0f7fb',
+                            overflow: 'hidden',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          {cPic ? (
+                            <Image
+                              source={{ uri: cPic }}
+                              style={{ width: '100%', height: '100%' }}
+                            />
+                          ) : (
+                            <Text style={{ fontSize: 12, fontWeight: '800', color: PRIMARY }}>
+                              {cInit}
+                            </Text>
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                      <View
+                        style={{
+                          flex: 1,
+                          backgroundColor: '#f8fafc',
+                          borderRadius: 14,
+                          paddingHorizontal: 12,
+                          paddingVertical: 8,
+                        }}
+                      >
+                        <Text style={{ fontSize: 13, fontWeight: '800', color: '#0f172a' }}>
+                          {cName}
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 13.5,
+                            color: '#334155',
+                            marginTop: 2,
+                            lineHeight: 19,
+                          }}
+                        >
+                          {c.content}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })
+              )}
+            </ScrollView>
+
+            {/* Input Row */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 8,
+                paddingHorizontal: 16,
+                paddingTop: 10,
+                borderTopWidth: 1,
+                borderTopColor: '#f1f5f9',
+              }}
+            >
+              <TextInput
+                style={{
+                  flex: 1,
+                  backgroundColor: '#f8fafc',
+                  borderWidth: 1.5,
+                  borderColor: '#e2e8f0',
+                  borderRadius: 999,
+                  paddingHorizontal: 16,
+                  paddingVertical: 9,
+                  fontSize: 14,
+                  color: '#0f172a',
+                }}
+                placeholder="Write a comment…"
+                placeholderTextColor="#94a3b8"
+                value={commentInput}
+                onChangeText={setCommentInput}
+              />
+              <TouchableOpacity
+                disabled={!commentInput.trim() || sendingComment}
+                onPress={submitPostComment}
+                style={{
+                  backgroundColor: commentInput.trim() ? PRIMARY : '#cbd5e1',
+                  paddingHorizontal: 16,
+                  paddingVertical: 9,
+                  borderRadius: 999,
+                }}
+              >
+                <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 13.5 }}>
+                  {sendingComment ? '…' : 'Send'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Own-Profile Photo Bottom Sheet Modal (ProfileClient.tsx lines 435-471) */}
+      <Modal
+        visible={profilePhotoSheet !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setProfilePhotoSheet(null)}
+      >
+        <TouchableOpacity
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(15,23,42,0.45)',
+            justifyContent: 'flex-end',
+          }}
+          activeOpacity={1}
+          onPress={() => setProfilePhotoSheet(null)}
+        >
+          <View
+            style={{
+              backgroundColor: '#ffffff',
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              paddingTop: 12,
+              paddingBottom: Math.max(insets.bottom, 20),
+              paddingHorizontal: 18,
+            }}
+          >
+            <View
+              style={{
+                width: 40,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: '#cbd5e1',
+                alignSelf: 'center',
+                marginBottom: 14,
+              }}
+            />
+            <TouchableOpacity
+              style={{
+                paddingVertical: 14,
+                borderBottomWidth: 1,
+                borderBottomColor: '#f1f5f9',
+              }}
+              onPress={() => {
+                const mode = profilePhotoSheet;
+                setProfilePhotoSheet(null);
+                if (mode === 'avatar' && memberProfile?.profilePicture) {
+                  const uri = memberProfile.profilePicture.startsWith('http')
+                    ? memberProfile.profilePicture
+                    : `https://connect.houseofgrace.ph/uploads/profile_pictures/${memberProfile.profilePicture}`;
+                  setLightboxSlide(uri);
+                } else if (mode === 'cover' && memberProfile?.coverPhoto) {
+                  const uri = memberProfile.coverPhoto.startsWith('http')
+                    ? memberProfile.coverPhoto
+                    : `https://connect.houseofgrace.ph/uploads/cover_photos/${memberProfile.coverPhoto}`;
+                  setLightboxSlide(uri);
+                }
+              }}
+            >
+              <Text style={{ fontSize: 15, fontWeight: '700', color: '#0f172a' }}>
+                {profilePhotoSheet === 'avatar' ? '👁 See profile picture' : '👁 See cover photo'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{ paddingVertical: 14 }}
+              onPress={() => {
+                setProfilePhotoSheet(null);
+                router.push('/(tabs)/profile' as any);
+              }}
+            >
+              <Text style={{ fontSize: 15, fontWeight: '700', color: PRIMARY }}>
+                {profilePhotoSheet === 'avatar'
+                  ? '📷 Choose profile picture'
+                  : '📷 Choose cover photo'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -3138,7 +5283,7 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   blogEditBtn: {
-    backgroundColor: '#eef2ff',
+    backgroundColor: '#e0f7fb',
     paddingVertical: 4,
     paddingHorizontal: 10,
     borderRadius: 6,
@@ -3146,7 +5291,7 @@ const styles = StyleSheet.create({
   blogEditBtnText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#6366f1',
+    color: PRIMARY,
   },
   blogDeleteBtn: {
     backgroundColor: '#fef2f2',

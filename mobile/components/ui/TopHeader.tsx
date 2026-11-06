@@ -23,7 +23,7 @@ import {
 
 const PRIMARY = '#4EB1CB';
 const DARK_NAV = '#3A95AD';
-const APP_VERSION = '2.80.0';
+const APP_VERSION = '2.81.0';
 
 const NAV_LINKS = [
   { href: '/(tabs)', label: 'Home', icon: '🏠' },
@@ -324,7 +324,7 @@ export default function TopHeader() {
                   <DropMenuItem
                     label="📅 Add Event"
                     danger
-                    onPress={() => go('/(tabs)/events?add=true')}
+                    onPress={() => go('/admin?page=events&add=true')}
                   />
                   <DropMenuItem
                     label="🎛️ Admin Dashboard"
@@ -332,7 +332,7 @@ export default function TopHeader() {
                   />
                   <DropMenuItem
                     label="🧠 Quiz Admin"
-                    onPress={() => go('/church?tab=quiz')}
+                    onPress={() => go('/admin?page=quiz-admin')}
                   />
                 </>
               ) : null}

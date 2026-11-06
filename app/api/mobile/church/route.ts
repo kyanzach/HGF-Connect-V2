@@ -16,6 +16,152 @@ export async function GET(req: NextRequest) {
   try {
     const viewer = await getAuthenticatedMember(req);
     const { searchParams } = new URL(req.url);
+    const memberIdParam = searchParams.get("memberId");
+
+    if (memberIdParam) {
+      const targetId = parseInt(memberIdParam, 10);
+      const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+      const limit = 20;
+      const skip = (page - 1) * limit;
+
+      if (isNaN(targetId)) {
+        return NextResponse.json({ error: "Invalid memberId" }, { status: 400 });
+      }
+      const member = await db.member.findUnique({
+        where: { id: targetId },
+        include: {
+          ministries: {
+            where: { status: "active" },
+            include: { ministry: { select: { id: true, name: true } } },
+            orderBy: { joinedDate: "asc" },
+          },
+        },
+      });
+      if (!member || member.status === "archived") {
+        return NextResponse.json({ error: "Member not found" }, { status: 404 });
+      }
+      const isOwn = viewer?.id === targetId;
+      const isAdmin = viewer ? ["admin", "moderator"].includes(viewer.role ?? "") : false;
+
+      const postWhere: any = {
+        authorId: targetId,
+        type: {
+          notIn: [
+            "QUIZ_DAILY",
+            "QUIZ_ANNOUNCEMENT",
+            "EVENT",
+            "BIRTHDAY_MONTHLY",
+            "BIRTHDAY_DAILY",
+            "QUIZ_REWARD",
+          ] as any,
+        },
+        OR: [
+          { visibility: "PUBLIC" },
+          { visibility: "MEMBERS_ONLY" },
+          ...(isOwn ? [{ visibility: "PRIVATE" as const }] : []),
+        ],
+      };
+
+      const [posts, totalPosts, photoHistory] = await Promise.all([
+        db.post.findMany({
+          where: postWhere,
+          include: {
+            author: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                profilePicture: true,
+                username: true,
+              },
+            },
+            _count: { select: { likes: true, comments: true } },
+            photos: { orderBy: { sortOrder: "asc" } },
+            likes: {
+              select: {
+                memberId: true,
+                type: true,
+                member: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    profilePicture: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: { bumpedAt: "desc" },
+          skip,
+          take: limit,
+        }),
+        db.post.count({ where: postWhere }),
+        (db as any).memberPhoto
+          ? (db as any).memberPhoto
+              .findMany({
+                where: { memberId: targetId },
+                orderBy: { createdAt: "desc" },
+              })
+              .catch(() => [])
+          : Promise.resolve([]),
+      ]);
+
+      const totalPages = Math.max(1, Math.ceil(totalPosts / limit));
+
+      return NextResponse.json(
+        JSON.parse(
+          JSON.stringify({
+            success: true,
+            data: {
+              member: {
+                id: member.id,
+                firstName: member.firstName ?? "",
+                lastName: member.lastName ?? "",
+                profilePicture: member.profilePicture ?? null,
+                coverPhoto: member.coverPhoto ?? null,
+                coverPhotoPositionX: Number(member.coverPhotoPositionX) || 50,
+                coverPhotoPositionY: Number(member.coverPhotoPositionY) || 50,
+                favoriteVerse: member.favoriteVerse ?? null,
+                joinDate: member.joinDate?.toISOString() ?? null,
+                birthdate: member.birthdate?.toISOString() ?? null,
+                baptismDate: member.baptismDate?.toISOString() ?? null,
+                invitedBy: member.invitedBy ?? null,
+                address: member.address ?? null,
+                gender: member.gender ?? null,
+                email: member.email ?? null,
+                phone: member.phone ?? null,
+                showEmail: member.showEmail ?? false,
+                showPhone: member.showPhone ?? false,
+                showAddress: member.showAddress ?? false,
+                familyMembers: member.familyMembers ?? null,
+                ministries: member.ministries.map((mm) => ({
+                  id: mm.id,
+                  ministry: mm.ministry,
+                  joinedDate: mm.joinedDate?.toISOString() ?? null,
+                })),
+                isOwn,
+                isAdmin,
+              },
+              posts: posts.map((p: any) => ({
+                ...p,
+                likeCount: p._count?.likes ?? 0,
+                commentCount: p._count?.comments ?? 0,
+                isLiked: viewer ? p.likes.some((l: any) => l.memberId === viewer.id) : false,
+                myReaction: viewer
+                  ? p.likes.find((l: any) => l.memberId === viewer.id)?.type || null
+                  : null,
+              })),
+              page,
+              totalPages,
+              hasMore: page < totalPages,
+              photoHistory,
+            },
+          })
+        )
+      );
+    }
+
     const q = (searchParams.get("q") || "").trim().toLowerCase();
 
     const [members, ministries, resources, submissions, journalEntries, latestQuiz] =
@@ -430,6 +576,26 @@ export async function POST(req: NextRequest) {
         where: { id: journalId, authorId: member.id },
       });
       return NextResponse.json({ success: true, message: "Deleted" });
+    }
+
+    if (action === "delete_post") {
+      if (!member) {
+        return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
+      }
+      const postId = Number(body?.postId);
+      if (!postId) {
+        return NextResponse.json({ success: false, message: "Invalid postId" }, { status: 400 });
+      }
+      const existing = await db.post.findUnique({ where: { id: postId } });
+      if (!existing) {
+        return NextResponse.json({ success: false, message: "Not found" }, { status: 404 });
+      }
+      const isAdmin = ["admin", "moderator"].includes(member.role ?? "");
+      if (existing.authorId !== member.id && !isAdmin) {
+        return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
+      }
+      await db.post.delete({ where: { id: postId } });
+      return NextResponse.json({ success: true, message: "Post deleted" });
     }
 
     if (action === "generate_devo_caption") {
