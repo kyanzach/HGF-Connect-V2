@@ -6,10 +6,11 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
+    const viewer = await getAuthenticatedMember(req);
     const { searchParams } = new URL(req.url);
     const q = (searchParams.get("q") || "").trim().toLowerCase();
 
-    const [members, ministries, submissions] = await Promise.all([
+    const [members, ministries, submissions, journalEntries] = await Promise.all([
       db.member.findMany({
         where: {
           status: { in: ["active", "approved"] },
@@ -70,6 +71,13 @@ export async function GET(req: NextRequest) {
           },
         })
         .catch(() => []),
+      viewer
+        ? db.journalEntry.findMany({
+            where: { authorId: viewer.id },
+            orderBy: { createdAt: "desc" },
+            take: 25,
+          })
+        : Promise.resolve([]),
     ]);
 
     // Aggregate quiz leaderboard by member
@@ -120,6 +128,14 @@ export async function GET(req: NextRequest) {
           memberCount: min._count.members,
         })),
         leaderboard,
+        journals: journalEntries.map((j) => ({
+          id: j.id,
+          title: j.title || "Daily Devotional",
+          content: j.content,
+          verseRef: j.verseRef || null,
+          mood: j.mood || "Grateful",
+          createdAt: j.createdAt.toISOString(),
+        })),
       },
     });
   } catch (err: any) {
@@ -135,6 +151,61 @@ export async function POST(req: NextRequest) {
   try {
     const member = await getAuthenticatedMember(req);
     const body = await req.json();
+    const action = String(body?.action || "ai");
+
+    if (action === "create_journal") {
+      if (!member || member.status === "pending") {
+        return NextResponse.json(
+          { success: false, message: "Please sign in to save a devotional journal entry." },
+          { status: 403 }
+        );
+      }
+      const title = String(body?.title || "Daily Devotional").trim();
+      const content = String(body?.content || "").trim();
+      const verseRef = body?.verseRef ? String(body.verseRef).trim() : null;
+      const mood = String(body?.mood || "Grateful").trim();
+      const shareToFeed = Boolean(body?.shareToFeed);
+
+      if (!content) {
+        return NextResponse.json(
+          { success: false, message: "Please write your reflection before saving." },
+          { status: 400 }
+        );
+      }
+
+      const entry = await db.journalEntry.create({
+        data: {
+          authorId: member.id,
+          title,
+          content,
+          verseRef,
+          mood,
+          visibility: shareToFeed ? "MEMBERS_ONLY" : "PRIVATE",
+          crossPosted: shareToFeed,
+        },
+      });
+
+      if (shareToFeed) {
+        await db.post.create({
+          data: {
+            authorId: member.id,
+            type: "DEVO",
+            content: `${title}\n\n${content}`,
+            verseRef,
+            visibility: "MEMBERS_ONLY",
+          },
+        });
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: { journalId: entry.id },
+        message: shareToFeed
+          ? "Devotional saved to your Journal and shared to the Community Feed!"
+          : "Saved to your private Spiritual Journal!",
+      });
+    }
+
     const prompt = String(body?.prompt || "").trim();
 
     if (!prompt) {

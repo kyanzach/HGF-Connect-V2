@@ -261,6 +261,8 @@ When a page crashes or shows errors:
 - **Phase 2 Native Feature Parity & End-to-End Expo Push (`v2.77.0` / `mobile v1.1.0`)**:
   - Added `getNotificationsModule()` in `mobile/services/notificationService.ts` to eliminate Android Expo Go SDK 53+ remote notification warnings while registering real `ExpoPushToken` tokens to `POST /api/mobile/push-token` and dispatching via `lib/notify.ts` (`https://exp.host/--/api/v2/push/send`).
   - Added native `mobile/app/register.tsx` (`/api/mobile/register`), `mobile/app/church.tsx` (`/api/mobile/church` — Directory, 12 Ministries, Quiz for Christ Leaderboard, and Grace AI chat), and `mobile/app/admin.tsx` (`/api/mobile/admin` — Native Admin Control Center & UGC Moderation Queue).
+- **Phase 3 Interactive Workflows (`v2.78.0` / `mobile v1.2.0`)**:
+  - Added StewardShop seller publishing (`+ Sell`), `My Listings`, In-App Buyer Inquiries, and `Mark as Sold`; Events 1-tap `RSVP / Check In` (`AttendanceRecord`) and Sermon Commentary modal; Prayer Wall `Encourage` notes (`PrayerResponse`) and `Answered` toggle; and the `Journal` SOAP Devotional tab in `mobile/app/church.tsx`.
 
 
 

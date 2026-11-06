@@ -15,6 +15,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import client from '@/api/client';
+import { useAuth } from '@/context/AuthContext';
+import AlertPromptModal, { AlertType } from '@/components/ui/AlertPromptModal';
 
 interface DirectoryMember {
   id: number;
@@ -42,19 +44,36 @@ interface LeaderboardEntry {
   quizzesTaken: number;
 }
 
+interface JournalItem {
+  id: number;
+  title: string;
+  content: string;
+  verseRef: string | null;
+  mood: string;
+  createdAt: string;
+}
+
 export default function ChurchHubScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { user } = useAuth();
   const params = useLocalSearchParams<{ tab?: string }>();
 
-  const [activeTab, setActiveTab] = useState<'directory' | 'ministries' | 'quiz' | 'ai'>(
-    (params.tab as any) || 'directory'
-  );
+  const [activeTab, setActiveTab] = useState<
+    'directory' | 'ministries' | 'quiz' | 'journal' | 'ai'
+  >((params.tab as any) || 'directory');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [directory, setDirectory] = useState<DirectoryMember[]>([]);
   const [ministries, setMinistries] = useState<MinistryItem[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [journals, setJournals] = useState<JournalItem[]>([]);
+
+  const [journalTitle, setJournalTitle] = useState('');
+  const [journalVerse, setJournalVerse] = useState('');
+  const [journalContent, setJournalContent] = useState('');
+  const [shareToFeed, setShareToFeed] = useState(false);
+  const [savingJournal, setSavingJournal] = useState(false);
 
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
@@ -64,6 +83,13 @@ export default function ChurchHubScreen() {
       text: 'Grace and peace! I am Grace AI, your House of Grace Fellowship assistant. Ask me for a Bible verse, daily encouragement, or prayer reflection.',
     },
   ]);
+
+  const [alertModal, setAlertModal] = useState<{
+    visible: boolean;
+    type: AlertType;
+    title: string;
+    message: string;
+  }>({ visible: false, type: 'info', title: '', message: '' });
 
   const topPad =
     Platform.OS === 'android'
@@ -78,6 +104,7 @@ export default function ChurchHubScreen() {
         setDirectory(res.data.data?.directory || []);
         setMinistries(res.data.data?.ministries || []);
         setLeaderboard(res.data.data?.leaderboard || []);
+        setJournals(res.data.data?.journals || []);
       }
     } catch {
       // ignore
@@ -89,6 +116,54 @@ export default function ChurchHubScreen() {
   useEffect(() => {
     loadHub();
   }, [loadHub]);
+
+  const handleSaveJournal = async () => {
+    if (!user) {
+      router.push('/login' as any);
+      return;
+    }
+    if (!journalContent.trim()) {
+      setAlertModal({
+        visible: true,
+        type: 'warning',
+        title: 'Reflection Required',
+        message: 'Please write your devotional or SOAP reflection before saving.',
+      });
+      return;
+    }
+    setSavingJournal(true);
+    try {
+      const res = await client.post('/church', {
+        action: 'create_journal',
+        title: journalTitle.trim() || 'Daily Devotional',
+        verseRef: journalVerse.trim() || null,
+        content: journalContent.trim(),
+        shareToFeed,
+      });
+      if (res.data?.success) {
+        setJournalTitle('');
+        setJournalVerse('');
+        setJournalContent('');
+        setShareToFeed(false);
+        loadHub(search);
+        setAlertModal({
+          visible: true,
+          type: 'success',
+          title: 'Devotional Saved',
+          message: res.data.message || 'Saved to your Spiritual Journal.',
+        });
+      }
+    } catch (err: any) {
+      setAlertModal({
+        visible: true,
+        type: 'error',
+        title: 'Save Failed',
+        message: err.response?.data?.message || 'Unable to save journal entry.',
+      });
+    } finally {
+      setSavingJournal(false);
+    }
+  };
 
   const sendAiMessage = async () => {
     if (!aiPrompt.trim() || aiLoading) return;
@@ -132,7 +207,9 @@ export default function ChurchHubScreen() {
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>HGF Church Hub</Text>
-          <Text style={styles.headerSub}>Directory, Ministries, Quiz &amp; Grace AI</Text>
+          <Text style={styles.headerSub}>
+            Directory, Ministries, Quiz, Journal &amp; Grace AI
+          </Text>
         </View>
       </View>
 
@@ -140,7 +217,8 @@ export default function ChurchHubScreen() {
         {[
           { key: 'directory', label: 'Directory', icon: 'users' },
           { key: 'ministries', label: 'Ministries', icon: 'sitemap' },
-          { key: 'quiz', label: 'Quiz Hub', icon: 'trophy' },
+          { key: 'quiz', label: 'Quiz', icon: 'trophy' },
+          { key: 'journal', label: 'Journal', icon: 'book' },
           { key: 'ai', label: 'Grace AI', icon: 'comments-o' },
         ].map((t) => {
           const active = activeTab === t.key;
@@ -153,7 +231,7 @@ export default function ChurchHubScreen() {
             >
               <FontAwesome
                 name={t.icon as any}
-                size={13}
+                size={12}
                 color={active ? '#ffffff' : '#475569'}
               />
               <Text
@@ -191,7 +269,7 @@ export default function ChurchHubScreen() {
           <ActivityIndicator size="large" color="#4EB1CB" />
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.content}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           {activeTab === 'directory' &&
             directory.map((m) => (
               <View key={m.id} style={styles.memberCard}>
@@ -277,6 +355,77 @@ export default function ChurchHubScreen() {
             </>
           )}
 
+          {activeTab === 'journal' && (
+            <View>
+              <View style={styles.journalComposer}>
+                <Text style={styles.journalCardTitle}>New SOAP Devotional</Text>
+                <TextInput
+                  style={styles.journalInput}
+                  placeholder="Title (e.g. Walking by Faith)"
+                  placeholderTextColor="#94a3b8"
+                  value={journalTitle}
+                  onChangeText={setJournalTitle}
+                />
+                <TextInput
+                  style={styles.journalInput}
+                  placeholder="Scripture Reference (e.g. Proverbs 3:5-6)"
+                  placeholderTextColor="#94a3b8"
+                  value={journalVerse}
+                  onChangeText={setJournalVerse}
+                />
+                <TextInput
+                  style={[styles.journalInput, { height: 90, textAlignVertical: 'top' }]}
+                  placeholder="Write your Scripture observation, application, and prayer..."
+                  placeholderTextColor="#94a3b8"
+                  multiline
+                  value={journalContent}
+                  onChangeText={setJournalContent}
+                />
+
+                <TouchableOpacity
+                  style={styles.shareToggleRow}
+                  onPress={() => setShareToFeed((v) => !v)}
+                >
+                  <View style={[styles.checkbox, shareToFeed && styles.checkboxActive]}>
+                    {shareToFeed ? (
+                      <FontAwesome name="check" size={11} color="#ffffff" />
+                    ) : null}
+                  </View>
+                  <Text style={styles.shareToggleText}>
+                    Also share this devotional to the Community Feed
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.saveJournalBtn, savingJournal && { opacity: 0.7 }]}
+                  onPress={handleSaveJournal}
+                  disabled={savingJournal}
+                >
+                  <Text numberOfLines={1} style={styles.saveJournalBtnText}>
+                    {savingJournal ? 'Saving...' : 'Save Devotional'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {journals.map((j) => (
+                <View key={j.id} style={styles.ministryCard}>
+                  <View style={styles.ministryIcon}>
+                    <FontAwesome name="book" size={16} color="#0e7490" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.memberName}>{j.title}</Text>
+                    {j.verseRef ? (
+                      <Text style={[styles.memberMeta, { color: '#0e7490', fontWeight: '700' }]}>
+                        {j.verseRef}
+                      </Text>
+                    ) : null}
+                    <Text style={styles.ministryDesc}>{j.content}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
           {activeTab === 'ai' && (
             <View style={styles.aiContainer}>
               {aiMessages.map((msg, i) => (
@@ -325,6 +474,14 @@ export default function ChurchHubScreen() {
           )}
         </ScrollView>
       )}
+
+      <AlertPromptModal
+        visible={alertModal.visible}
+        type={alertModal.type}
+        title={alertModal.title}
+        message={alertModal.message}
+        onClose={() => setAlertModal((prev) => ({ ...prev, visible: false }))}
+      />
     </View>
   );
 }
@@ -363,9 +520,9 @@ const styles = StyleSheet.create({
   tabsBar: {
     flexDirection: 'row',
     backgroundColor: '#ffffff',
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 10,
-    gap: 8,
+    gap: 6,
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
   },
@@ -374,9 +531,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
+    gap: 4,
     paddingVertical: 9,
-    paddingHorizontal: 6,
+    paddingHorizontal: 4,
     borderRadius: 10,
     backgroundColor: '#f1f5f9',
   },
@@ -384,7 +541,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0e7490',
   },
   tabPillText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: '#475569',
   },
@@ -558,6 +715,67 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     color: '#0e7490',
+  },
+  journalComposer: {
+    backgroundColor: '#ffffff',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginBottom: 14,
+  },
+  journalCardTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 10,
+  },
+  journalInput: {
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    fontSize: 13,
+    color: '#0f172a',
+    backgroundColor: '#f8fafc',
+    marginBottom: 10,
+  },
+  shareToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: '#94a3b8',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxActive: {
+    backgroundColor: '#4EB1CB',
+    borderColor: '#4EB1CB',
+  },
+  shareToggleText: {
+    fontSize: 12,
+    color: '#475569',
+    fontWeight: '600',
+  },
+  saveJournalBtn: {
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: '#4EB1CB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveJournalBtnText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '800',
   },
   aiContainer: {
     gap: 10,

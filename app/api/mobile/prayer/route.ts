@@ -87,6 +87,25 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const action = body?.action || "create";
 
+    if (action === "mark_answered") {
+      const prayerId = Number(body?.prayerId);
+      const existing = await db.prayerRequest.findUnique({
+        where: { id: prayerId },
+        select: { id: true, authorId: true },
+      });
+      if (!existing || (existing.authorId !== member.id && member.role !== "admin")) {
+        return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
+      }
+      await db.prayerRequest.update({
+        where: { id: prayerId },
+        data: { isAnswered: true },
+      });
+      return NextResponse.json({
+        success: true,
+        message: "Praise God! Marked as Answered Prayer.",
+      });
+    }
+
     if (action === "pray") {
       const prayerId = Number(body?.prayerId);
       if (!prayerId) {

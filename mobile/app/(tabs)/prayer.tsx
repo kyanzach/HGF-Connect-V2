@@ -50,6 +50,10 @@ export default function PrayerScreen() {
   const [requestText, setRequestText] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  const [noteTarget, setNoteTarget] = useState<PrayerItem | null>(null);
+  const [noteText, setNoteText] = useState('');
+  const [submittingNote, setSubmittingNote] = useState(false);
+
   const [alertModal, setAlertModal] = useState<{
     visible: boolean;
     type: AlertType;
@@ -98,6 +102,43 @@ export default function PrayerScreen() {
       }
     } catch {
       showAlert('error', 'Action Failed', 'Unable to record prayer right now.');
+    }
+  };
+
+  const handleSendNote = async () => {
+    if (!noteTarget || !noteText.trim()) return;
+    setSubmittingNote(true);
+    try {
+      const res = await client.post('/prayer', {
+        action: 'pray',
+        prayerId: noteTarget.id,
+        message: noteText.trim(),
+      });
+      if (res.data?.success) {
+        setNoteText('');
+        setNoteTarget(null);
+        loadPrayers();
+        showAlert('success', 'Prayer Note Sent', 'Your encouragement has been shared.');
+      }
+    } catch {
+      showAlert('error', 'Action Failed', 'Unable to post prayer note right now.');
+    } finally {
+      setSubmittingNote(false);
+    }
+  };
+
+  const handleMarkAnswered = async (item: PrayerItem) => {
+    try {
+      const res = await client.post('/prayer', {
+        action: 'mark_answered',
+        prayerId: item.id,
+      });
+      if (res.data?.success) {
+        loadPrayers();
+        showAlert('success', 'Praise God!', 'Marked as an Answered Prayer.');
+      }
+    } catch {
+      showAlert('error', 'Action Failed', 'Unable to update prayer status.');
     }
   };
 
@@ -275,6 +316,34 @@ export default function PrayerScreen() {
                     I Prayed ({item.prayerCount})
                   </Text>
                 </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.noteBtn}
+                  onPress={() => {
+                    if (!user) {
+                      router.push('/login' as any);
+                    } else {
+                      setNoteTarget(item);
+                    }
+                  }}
+                >
+                  <FontAwesome name="comment-o" size={13} color="#0e7490" />
+                  <Text numberOfLines={1} style={styles.noteBtnText}>
+                    Encourage
+                  </Text>
+                </TouchableOpacity>
+
+                {user && item.author.id === user.id && !item.isAnswered ? (
+                  <TouchableOpacity
+                    style={styles.markAnsweredBtn}
+                    onPress={() => handleMarkAnswered(item)}
+                  >
+                    <FontAwesome name="check" size={12} color="#15803d" />
+                    <Text numberOfLines={1} style={styles.markAnsweredText}>
+                      Answered
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
               </View>
             </View>
           )}
@@ -316,6 +385,48 @@ export default function PrayerScreen() {
               ) : (
                 <Text numberOfLines={1} adjustsFontSizeToFit style={styles.submitBtnText}>
                   Share Prayer Request
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      <Modal
+        visible={noteTarget !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setNoteTarget(null)}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Pray &amp; Encourage</Text>
+              <TouchableOpacity onPress={() => setNoteTarget(null)}>
+                <FontAwesome name="times" size={18} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+            <TextInput
+              style={styles.input}
+              placeholder={`Write a short prayer or encouragement for ${noteTarget?.author.name || 'this member'}...`}
+              placeholderTextColor="#94a3b8"
+              multiline
+              value={noteText}
+              onChangeText={setNoteText}
+            />
+            <TouchableOpacity
+              style={[styles.submitBtn, submittingNote && { opacity: 0.7 }]}
+              onPress={handleSendNote}
+              disabled={submittingNote}
+            >
+              {submittingNote ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <Text numberOfLines={1} style={styles.submitBtnText}>
+                  Send Prayer Note
                 </Text>
               )}
             </TouchableOpacity>
@@ -479,7 +590,37 @@ const styles = StyleSheet.create({
   },
   cardFooter: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'flex-end',
+    gap: 8,
+  },
+  noteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#e0f7fb',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+  },
+  noteBtnText: {
+    color: '#0e7490',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  markAnsweredBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#dcfce7',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+  },
+  markAnsweredText: {
+    color: '#15803d',
+    fontSize: 12,
+    fontWeight: '800',
   },
   prayBtn: {
     flexDirection: 'row',

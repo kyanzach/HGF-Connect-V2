@@ -1,3 +1,15 @@
+## [v2.78.0] — 2026-11-06
+### Added / Enhanced
+- **Phase 3 Full Interactive Web-to-Mobile Feature Parity (`mobile/v1.2.0`, `v2.78.0`)**:
+  - **Interactive StewardShop Seller & Prospect Flows (`mobile/app/(tabs)/stewardshop.tsx`, `app/api/mobile/stewardshop/route.ts`)**:
+    - Added `+ Sell` modal for approved members to publish `For Sale`, `Service`, or `For Rent` listings (`title`, `price`, `loveGiftAmount`, `locationArea`, `description`), plus `My Listings` filter pill, In-App Buyer Inquiry modal (`MarketplaceProspect` + `MarketplaceMessage` + `createNotification` / Expo Push to seller), and 1-tap `Mark Listing as Sold`.
+  - **Interactive Events RSVP, Check-In & Sermon Notes (`mobile/app/(tabs)/events.tsx`, `app/api/mobile/events/route.ts`)**:
+    - Added 1-tap `RSVP / Check In` button (`AttendanceRecord`) with `Checked In` badge on Upcoming Events and an interactive Event Details & Sermon Commentary modal.
+  - **Interactive Prayer Encouragement Notes & Answered Prayers (`mobile/app/(tabs)/prayer.tsx`, `app/api/mobile/prayer/route.ts`)**:
+    - Added `Encourage` modal to send written prayer notes (`PrayerResponse`) and 1-tap `Answered` (`Praise Report`) button for prayer request authors.
+  - **Native SOAP Devotional & Spiritual Journal (`mobile/app/church.tsx`, `app/api/mobile/church/route.ts`)**:
+    - Added the `Journal` tab in HGF Church Hub where members can write and view personal SOAP Devotionals (`JournalEntry`) with an optional 1-tap toggle to cross-post to the Community Feed (`DEVO`).
+
 ## [v2.77.0] — 2026-11-06
 ### Added / Enhanced / Fixed
 - **Phase 2 Native HGF Connect Feature Parity (`mobile/v1.1.0`, `v2.77.0`)**:
