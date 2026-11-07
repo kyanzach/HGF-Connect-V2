@@ -10,8 +10,10 @@ import {
   TextInput,
   ActivityIndicator,
   RefreshControl,
+  Modal,
+  Share,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import client from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
 import AlertPromptModal, { AlertType } from '@/components/ui/AlertPromptModal';
@@ -26,7 +28,10 @@ interface EventItem {
   startTime?: string | null;
   endTime?: string | null;
   location?: string | null;
+  speaker?: string | null;
   coverPhoto?: string | null;
+  commentary?: string | null;
+  presentationSlides?: string[];
   status: string;
   rsvpCount: number;
   myRsvp?: string | null;
@@ -34,7 +39,7 @@ interface EventItem {
 
 const EVENT_TYPE_BADGES: Record<string, { label: string; color: string; bg: string }> = {
   sunday_service: { label: '⛪ Sunday Service', color: '#4eb1cb', bg: '#e8f7fb' },
-  prayer_meeting: { label: '🙏 Prayer Meeting', color: '#7c3aed', bg: '#f3e8ff' },
+  prayer_meeting: { label: '🙏 Prayer Meeting', color: '#0284c7', bg: '#f0f9ff' },
   bible_study: { label: '📖 Bible Study', color: '#059669', bg: '#ecfdf5' },
   special_event: { label: '✨ Special Event', color: '#d97706', bg: '#fffbeb' },
   grace_night: { label: '🌙 Grace Night', color: '#2563eb', bg: '#eff6ff' },
@@ -52,6 +57,7 @@ const TYPE_FILTERS = [
 
 export default function EventsScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ eventId?: string; id?: string }>();
   const { user } = useAuth();
 
   const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
@@ -61,12 +67,57 @@ export default function EventsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Event Detail Modal
+  const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [slideIdx, setSlideIdx] = useState(0);
+
   const [alertModal, setAlertModal] = useState<{
     visible: boolean;
     type: AlertType;
     title: string;
     message: string;
   }>({ visible: false, type: 'info', title: '', message: '' });
+
+  const openEventDetail = useCallback(async (evOrId: EventItem | number) => {
+    setSlideIdx(0);
+    if (typeof evOrId === 'object') {
+      setSelectedEvent(evOrId);
+    }
+    const targetId = typeof evOrId === 'number' ? evOrId : evOrId.id;
+    setLoadingDetail(true);
+    try {
+      const { data } = await client.get(`/events?id=${targetId}`);
+      const payload = data?.data || data;
+      const ev = payload?.event || payload;
+      if (ev && ev.id) {
+        let slides: string[] = [];
+        if (Array.isArray(ev.presentationSlides)) {
+          slides = ev.presentationSlides;
+        } else if (typeof ev.presentationSlides === 'string') {
+          try {
+            slides = JSON.parse(ev.presentationSlides);
+          } catch {
+            slides = [];
+          }
+        }
+        setSelectedEvent({
+          ...ev,
+          rsvpCount: ev.rsvpCount ?? ev.attendeeCount ?? 0,
+          myRsvp: ev.isCheckedIn || ev.myRsvp === 'going' ? 'going' : null,
+          presentationSlides: slides.map((s: string) =>
+            s.startsWith('http')
+              ? s
+              : `https://connect.houseofgrace.ph${s.startsWith('/') ? '' : '/uploads/resources/'}${s}`
+          ),
+        });
+      }
+    } catch {
+      // Keep basic item
+    } finally {
+      setLoadingDetail(false);
+    }
+  }, []);
 
   const fetchEvents = useCallback(async () => {
     try {
@@ -82,14 +133,25 @@ export default function EventsScreen() {
         rsvpCount: e.rsvpCount ?? e.attendeeCount ?? 0,
         myRsvp: e.isCheckedIn ? 'going' : null,
       }));
-      setEvents([...upList, ...pastList]);
+      const all = [...upList, ...pastList];
+      setEvents(all);
+
+      const deepEventId = Number(params?.eventId || params?.id || 0);
+      if (deepEventId > 0) {
+        const found = all.find((x) => x.id === deepEventId);
+        if (found) {
+          openEventDetail(found);
+        } else {
+          openEventDetail(deepEventId);
+        }
+      }
     } catch {
       // Keep cached
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [params?.eventId, params?.id, openEventDetail]);
 
   useEffect(() => {
     fetchEvents();
@@ -101,21 +163,34 @@ export default function EventsScreen() {
       return;
     }
 
-    const nextStatus = event.myRsvp === 'going' ? 'not_going' : 'going';
+    const nextStatus = event.myRsvp === 'going' ? null : 'going';
+    const nextDelta = nextStatus === 'going' ? 1 : -1;
+
     setEvents((prev) =>
       prev.map((e) =>
         e.id === event.id
           ? {
               ...e,
               myRsvp: nextStatus,
-              rsvpCount: Math.max(0, e.rsvpCount + (nextStatus === 'going' ? 1 : -1)),
+              rsvpCount: Math.max(0, e.rsvpCount + nextDelta),
             }
           : e
       )
     );
+    if (selectedEvent && selectedEvent.id === event.id) {
+      setSelectedEvent((prev) =>
+        prev
+          ? {
+              ...prev,
+              myRsvp: nextStatus,
+              rsvpCount: Math.max(0, prev.rsvpCount + nextDelta),
+            }
+          : null
+      );
+    }
 
     try {
-      await client.post(`/events/${event.id}/rsvp`, { status: nextStatus });
+      await client.post('/events', { eventId: event.id });
     } catch {
       fetchEvents();
     }
@@ -238,7 +313,11 @@ export default function EventsScreen() {
     const isGoing = item.myRsvp === 'going';
 
     return (
-      <View style={styles.card}>
+      <TouchableOpacity
+        style={styles.card}
+        activeOpacity={0.9}
+        onPress={() => openEventDetail(item)}
+      >
         {item.coverPhoto ? (
           <Image source={{ uri: item.coverPhoto }} style={styles.coverImg} resizeMode="cover" />
         ) : (
@@ -263,24 +342,45 @@ export default function EventsScreen() {
               year: 'numeric',
             })}
           </Text>
-          {item.startTime ? <Text style={styles.metaLine}>🕐 {item.startTime}</Text> : null}
+          {item.startTime ? (
+            <Text style={styles.metaLine}>
+              🕐 {item.startTime}
+              {item.endTime ? ` – ${item.endTime}` : ''}
+            </Text>
+          ) : null}
           {item.location ? <Text style={styles.metaLine}>📍 {item.location}</Text> : null}
+          {item.speaker ? <Text style={styles.metaLine}>🎙️ Speaker: {item.speaker}</Text> : null}
 
           <View style={styles.footerRow}>
             <Text style={styles.rsvpCountText}>👥 {item.rsvpCount} attending</Text>
-            {tab === 'upcoming' && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              {tab === 'upcoming' && (
+                <TouchableOpacity
+                  style={[styles.rsvpBtn, isGoing && styles.rsvpBtnActive]}
+                  onPress={() => handleRsvp(item)}
+                >
+                  <Text style={[styles.rsvpBtnText, isGoing && { color: '#ffffff' }]}>
+                    {isGoing ? '✓ Going' : 'RSVP Going'}
+                  </Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
-                style={[styles.rsvpBtn, isGoing && styles.rsvpBtnActive]}
-                onPress={() => handleRsvp(item)}
+                style={{
+                  backgroundColor: '#f1f5f9',
+                  paddingVertical: 7,
+                  paddingHorizontal: 12,
+                  borderRadius: 99,
+                }}
+                onPress={() => openEventDetail(item)}
               >
-                <Text style={[styles.rsvpBtnText, isGoing && { color: '#ffffff' }]}>
-                  {isGoing ? '✓ Going' : 'RSVP Going'}
+                <Text style={{ fontSize: 12, fontWeight: '700', color: '#334155' }}>
+                  Details →
                 </Text>
               </TouchableOpacity>
-            )}
+            </View>
           </View>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -321,6 +421,291 @@ export default function EventsScreen() {
           }
         />
       )}
+
+      {/* Event Detail Modal (1:1 replica of app/(public)/event/[id]/page.tsx) */}
+      <Modal
+        visible={Boolean(selectedEvent)}
+        animationType="slide"
+        onRequestClose={() => setSelectedEvent(null)}
+      >
+        <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
+          <View
+            style={{
+              backgroundColor: '#1a4a5e',
+              paddingTop: 50,
+              paddingBottom: 14,
+              paddingHorizontal: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <TouchableOpacity onPress={() => setSelectedEvent(null)}>
+              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>← Back to Events</Text>
+            </TouchableOpacity>
+            {selectedEvent && (
+              <TouchableOpacity
+                onPress={() =>
+                  Share.share({
+                    message: `${selectedEvent.title} — https://connect.houseofgrace.ph/event/${selectedEvent.id}`,
+                    url: `https://connect.houseofgrace.ph/event/${selectedEvent.id}`,
+                  }).catch(() => {})
+                }
+              >
+                <Text style={{ color: '#fff', fontSize: 13.5, fontWeight: '700' }}>📤 Share</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {selectedEvent && (
+            <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+              {selectedEvent.coverPhoto ? (
+                <View style={{ backgroundColor: '#0f172a', width: '100%', height: 220 }}>
+                  <Image
+                    source={{ uri: selectedEvent.coverPhoto }}
+                    style={{ width: '100%', height: '100%' }}
+                    resizeMode="contain"
+                  />
+                </View>
+              ) : null}
+
+              <View
+                style={{
+                  backgroundColor: '#fff',
+                  margin: 14,
+                  borderRadius: 18,
+                  padding: 18,
+                  borderWidth: 1,
+                  borderColor: '#e2e8f0',
+                }}
+              >
+                {(() => {
+                  const badge =
+                    EVENT_TYPE_BADGES[selectedEvent.eventType] ?? EVENT_TYPE_BADGES.other;
+                  const isGoing = selectedEvent.myRsvp === 'going';
+                  const isUpcoming = selectedEvent.eventDate.slice(0, 10) >= todayStr;
+                  return (
+                    <>
+                      <View style={[styles.typeBadge, { backgroundColor: badge.bg }]}>
+                        <Text style={[styles.typeBadgeText, { color: badge.color }]}>
+                          {badge.label}
+                        </Text>
+                      </View>
+                      <Text
+                        style={{
+                          fontSize: 21,
+                          fontWeight: '900',
+                          color: '#0f172a',
+                          marginBottom: 12,
+                        }}
+                      >
+                        {selectedEvent.title}
+                      </Text>
+
+                      <View
+                        style={{
+                          backgroundColor: '#f8fafc',
+                          borderRadius: 12,
+                          padding: 14,
+                          gap: 8,
+                          marginBottom: 16,
+                          borderWidth: 1,
+                          borderColor: '#f1f5f9',
+                        }}
+                      >
+                        <Text style={{ fontSize: 13.5, color: '#334155', fontWeight: '600' }}>
+                          📅{' '}
+                          {new Date(selectedEvent.eventDate).toLocaleDateString('en-US', {
+                            weekday: 'long',
+                            month: 'long',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })}
+                        </Text>
+                        {selectedEvent.startTime ? (
+                          <Text style={{ fontSize: 13.5, color: '#334155', fontWeight: '600' }}>
+                            🕐 {selectedEvent.startTime}
+                            {selectedEvent.endTime ? ` – ${selectedEvent.endTime}` : ''}
+                          </Text>
+                        ) : null}
+                        {selectedEvent.location ? (
+                          <Text style={{ fontSize: 13.5, color: '#334155', fontWeight: '600' }}>
+                            📍 {selectedEvent.location}
+                          </Text>
+                        ) : null}
+                        {selectedEvent.speaker ? (
+                          <Text style={{ fontSize: 13.5, color: '#0284c7', fontWeight: '700' }}>
+                            🎙️ Speaker: {selectedEvent.speaker}
+                          </Text>
+                        ) : null}
+                        <Text style={{ fontSize: 13, color: '#64748b', fontWeight: '600' }}>
+                          👥 {selectedEvent.rsvpCount} attending
+                        </Text>
+                      </View>
+
+                      {isUpcoming && (
+                        <TouchableOpacity
+                          style={{
+                            backgroundColor: isGoing ? '#10b981' : '#4EB1CB',
+                            borderRadius: 12,
+                            paddingVertical: 13,
+                            alignItems: 'center',
+                            marginBottom: 16,
+                          }}
+                          onPress={() => handleRsvp(selectedEvent)}
+                        >
+                          <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>
+                            {isGoing ? '✓ You are Going (Tap to Cancel RSVP)' : '🙋 RSVP — I am Going'}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+
+                      {selectedEvent.description ? (
+                        <View style={{ marginBottom: 16 }}>
+                          <Text
+                            style={{
+                              fontSize: 13,
+                              fontWeight: '800',
+                              color: '#64748b',
+                              textTransform: 'uppercase',
+                              marginBottom: 6,
+                            }}
+                          >
+                            About This Event
+                          </Text>
+                          <Text style={{ fontSize: 14, color: '#334155', lineHeight: 22 }}>
+                            {selectedEvent.description}
+                          </Text>
+                        </View>
+                      ) : null}
+
+                      {loadingDetail && (
+                        <ActivityIndicator color="#4EB1CB" style={{ marginVertical: 12 }} />
+                      )}
+
+                      {selectedEvent.commentary ? (
+                        <View
+                          style={{
+                            backgroundColor: '#f0f9ff',
+                            borderRadius: 14,
+                            padding: 16,
+                            borderLeftWidth: 4,
+                            borderLeftColor: '#4EB1CB',
+                            marginBottom: 16,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 12,
+                              fontWeight: '800',
+                              color: '#0369a1',
+                              marginBottom: 6,
+                            }}
+                          >
+                            📝 SERMON COMMENTARY & SPIRITUAL TAKEAWAYS
+                          </Text>
+                          <Text style={{ fontSize: 13.5, color: '#1e293b', lineHeight: 21 }}>
+                            {selectedEvent.commentary}
+                          </Text>
+                        </View>
+                      ) : null}
+
+                      {selectedEvent.presentationSlides &&
+                      selectedEvent.presentationSlides.length > 0 ? (
+                        <View style={{ marginTop: 6 }}>
+                          <Text
+                            style={{
+                              fontSize: 12,
+                              fontWeight: '800',
+                              color: '#475569',
+                              marginBottom: 8,
+                            }}
+                          >
+                            📽️ SERMON SLIDES ({selectedEvent.presentationSlides.length} SLIDES)
+                          </Text>
+                          <View
+                            style={{
+                              backgroundColor: '#0f172a',
+                              borderRadius: 12,
+                              overflow: 'hidden',
+                              height: 210,
+                              position: 'relative',
+                            }}
+                          >
+                            <Image
+                              source={{
+                                uri: selectedEvent.presentationSlides[
+                                  slideIdx % selectedEvent.presentationSlides.length
+                                ],
+                              }}
+                              style={{ width: '100%', height: '100%' }}
+                              resizeMode="contain"
+                            />
+                          </View>
+                          {selectedEvent.presentationSlides.length > 1 && (
+                            <View
+                              style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                marginTop: 10,
+                              }}
+                            >
+                              <TouchableOpacity
+                                style={{
+                                  backgroundColor: '#e2e8f0',
+                                  paddingVertical: 7,
+                                  paddingHorizontal: 14,
+                                  borderRadius: 99,
+                                }}
+                                onPress={() =>
+                                  setSlideIdx((prev) =>
+                                    selectedEvent.presentationSlides
+                                      ? (prev - 1 + selectedEvent.presentationSlides.length) %
+                                        selectedEvent.presentationSlides.length
+                                      : 0
+                                  )
+                                }
+                              >
+                                <Text style={{ fontWeight: '700', fontSize: 12, color: '#334155' }}>
+                                  ◀ Prev Slide
+                                </Text>
+                              </TouchableOpacity>
+                              <Text style={{ fontSize: 12, fontWeight: '700', color: '#64748b' }}>
+                                Slide {(slideIdx % selectedEvent.presentationSlides.length) + 1} of{' '}
+                                {selectedEvent.presentationSlides.length}
+                              </Text>
+                              <TouchableOpacity
+                                style={{
+                                  backgroundColor: '#4EB1CB',
+                                  paddingVertical: 7,
+                                  paddingHorizontal: 14,
+                                  borderRadius: 99,
+                                }}
+                                onPress={() =>
+                                  setSlideIdx((prev) =>
+                                    selectedEvent.presentationSlides
+                                      ? (prev + 1) % selectedEvent.presentationSlides.length
+                                      : 0
+                                  )
+                                }
+                              >
+                                <Text style={{ fontWeight: '700', fontSize: 12, color: '#fff' }}>
+                                  Next Slide ▶
+                                </Text>
+                              </TouchableOpacity>
+                            </View>
+                          )}
+                        </View>
+                      ) : null}
+                    </>
+                  );
+                })()}
+              </View>
+            </ScrollView>
+          )}
+        </View>
+      </Modal>
 
       <AlertPromptModal
         visible={alertModal.visible}

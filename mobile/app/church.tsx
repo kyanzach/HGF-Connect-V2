@@ -168,8 +168,29 @@ export default function WebReplicaScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const params = useLocalSearchParams<{ tab?: string; id?: string }>();
-  const activePage = params.tab || 'directory';
+  const params = useLocalSearchParams<{
+    tab?: string;
+    page?: string;
+    id?: string;
+    quizId?: string;
+    day?: string;
+    prospectsFor?: string;
+  }>();
+  const rawTab = Array.isArray(params.tab) ? params.tab[0] : params.tab;
+  const rawPage = Array.isArray(params.page) ? params.page[0] : params.page;
+  const rawQuizId = Array.isArray(params.quizId) ? params.quizId[0] : params.quizId;
+  const rawDay = Array.isArray(params.day) ? params.day[0] : params.day;
+  const rawProspectsFor = Array.isArray(params.prospectsFor)
+    ? params.prospectsFor[0]
+    : params.prospectsFor;
+
+  const activePage =
+    rawPage ||
+    (rawTab && ['archive', 'past', 'catchup', 'leaderboard'].includes(rawTab)
+      ? 'quiz'
+      : rawTab) ||
+    (rawQuizId ? 'quiz' : 'directory');
+
   const [selectedMemberId, setSelectedMemberId] = useState<number | null>(null);
   const rawId = Array.isArray(params.id) ? params.id[0] : params.id;
   const targetMemberId = rawId ? Number(rawId) : selectedMemberId;
@@ -235,13 +256,35 @@ export default function WebReplicaScreen() {
   const [submittingDevo, setSubmittingDevo] = useState(false);
   const [devoError, setDevoError] = useState('');
 
-  // ── Quiz for Christ State (app/(app)/quiz/page.tsx) ──
+  // ── Quiz for Christ State (app/(app)/quiz/page.tsx & hub/page.tsx) ──
   const [quizStatus, setQuizStatus] = useState<any>(null);
+  const [quizHistory, setQuizHistory] = useState<any[]>([]);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
-  const [quizSubView, setQuizSubView] = useState<'main' | 'leaderboard'>('main');
+  const [selectedQuizId, setSelectedQuizId] = useState<number | null>(
+    rawQuizId ? Number(rawQuizId) : null
+  );
+  const [quizSubView, setQuizSubView] = useState<'main' | 'archive' | 'leaderboard'>(
+    rawTab === 'archive' || rawTab === 'past' || rawTab === 'catchup'
+      ? 'archive'
+      : rawTab === 'leaderboard'
+      ? 'leaderboard'
+      : 'main'
+  );
   const [quizStudyTab, setQuizStudyTab] = useState<'video' | 'slides'>('slides');
   const [quizSlideIdx, setQuizSlideIdx] = useState(0);
   const [startingCatchup, setStartingCatchup] = useState(false);
+  const [activeQuizQuestion, setActiveQuizQuestion] = useState<any | null>(null);
+  const [quizPlayerAnswer, setQuizPlayerAnswer] = useState('');
+  const [quizPlayerBlanks, setQuizPlayerBlanks] = useState<string[]>([]);
+  const [quizPlayerOrder, setQuizPlayerOrder] = useState<string[]>([]);
+  const [quizPlayerTF, setQuizPlayerTF] = useState<'TRUE' | 'FALSE' | null>(null);
+  const [quizPlayerExplanation, setQuizPlayerExplanation] = useState('');
+  const [quizPlayerShowHint, setQuizPlayerShowHint] = useState(false);
+  const [quizPlayerRevealAnswer, setQuizPlayerRevealAnswer] = useState(false);
+  const [quizPlayerSubmitting, setQuizPlayerSubmitting] = useState(false);
+  const [quizPlayerResult, setQuizPlayerResult] = useState<any | null>(null);
+  const [completedDayModal, setCompletedDayModal] = useState<any | null>(null);
+  const [myListingsFilter, setMyListingsFilter] = useState<'ALL' | 'active' | 'sold' | 'paused'>('ALL');
 
   // ── AI Helper State (app/(app)/ai/page.tsx) ──
   const [aiMessages, setAiMessages] = useState<
@@ -260,12 +303,48 @@ export default function WebReplicaScreen() {
 
   // ── StewardShop My Listings / My Shares ──
   const [myListings, setMyListings] = useState<any[]>([]);
+  const [myShares, setMyShares] = useState<any[]>([]);
+  const [sharesStats, setSharesStats] = useState<{
+    totalShares: number;
+    totalConversions: number;
+    totalEarned: number;
+    pendingAmount: number;
+    receivedAmount: number;
+  }>({
+    totalShares: 0,
+    totalConversions: 0,
+    totalEarned: 0,
+    pendingAmount: 0,
+    receivedAmount: 0,
+  });
+  const [sharesTab, setSharesTab] = useState<'pending' | 'won' | 'sold'>('pending');
+  const [prospectsModalData, setProspectsModalData] = useState<any>(null);
+  const [prospectsLoading, setProspectsLoading] = useState(false);
+  const [markSoldItem, setMarkSoldItem] = useState<any>(null);
+  const [markSoldProspects, setMarkSoldProspects] = useState<any[]>([]);
+  const [selectedWinnerProspectId, setSelectedWinnerProspectId] = useState<number | 'outside' | null>(null);
+  const [editListingModal, setEditListingModal] = useState<any>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [editOgPrice, setEditOgPrice] = useState('');
+  const [editDiscPrice, setEditDiscPrice] = useState('');
+  const [editLoveGift, setEditLoveGift] = useState('');
+  const [editLocation, setEditLocation] = useState('');
+  const [deleteListingId, setDeleteListingId] = useState<number | null>(null);
+  const [claimModalShare, setClaimModalShare] = useState<any>(null);
+  const [claimMethod, setClaimMethod] = useState<'gcash' | 'contact'>('gcash');
+  const [gcashName, setGcashName] = useState('');
+  const [gcashMobile, setGcashMobile] = useState('');
+  const [receiptModalShare, setReceiptModalShare] = useState<any>(null);
+  const [thankYouNote, setThankYouNote] = useState('');
 
   const loadData = useCallback(async () => {
     try {
+      const qIdToLoad = selectedQuizId || (rawQuizId ? Number(rawQuizId) : null);
+      const churchEndpoint = qIdToLoad ? `/church?quizId=${qIdToLoad}` : '/church';
       // Fetch both /church (mobile API) and /api/members?limit=500 (public web API for full 486 members)
-      const [churchRes, webMembersRes, webMinRes, shopRes] = await Promise.all([
-        client.get('/church').catch(() => null),
+      const [churchRes, webMembersRes, webMinRes, shopRes, sharesRes] = await Promise.all([
+        client.get(churchEndpoint).catch(() => null),
         fetch('https://connect.houseofgrace.ph/api/members?limit=500')
           .then((r) => (r.ok ? r.json() : null))
           .catch(() => null),
@@ -274,6 +353,9 @@ export default function WebReplicaScreen() {
           .catch(() => null),
         activePage === 'my-listings' || activePage === 'my-shares'
           ? client.get('/stewardshop').catch(() => null)
+          : Promise.resolve(null),
+        activePage === 'my-shares'
+          ? client.get('/stewardshop?shares=mine').catch(() => null)
           : Promise.resolve(null),
       ]);
 
@@ -299,6 +381,9 @@ export default function WebReplicaScreen() {
       if (payload.quizStatus) {
         setQuizStatus(payload.quizStatus);
       }
+      if (Array.isArray(payload.quizHistory)) {
+        setQuizHistory(payload.quizHistory);
+      }
       if (Array.isArray(payload.leaderboard)) {
         setLeaderboard(payload.leaderboard);
       }
@@ -306,10 +391,19 @@ export default function WebReplicaScreen() {
         setJournals(payload.journals);
       }
       const shopPayload = shopRes?.data?.data || shopRes?.data;
-      if (shopPayload?.listings && user) {
+      if (shopPayload?.myListings) {
+        setMyListings(shopPayload.myListings);
+      } else if (shopPayload?.listings && user) {
         setMyListings(
           shopPayload.listings.filter((l: any) => l.seller?.id === user.id)
         );
+      }
+      const shPayload = sharesRes?.data?.data || sharesRes?.data;
+      if (shPayload?.shares) {
+        setMyShares(shPayload.shares);
+      }
+      if (shPayload?.stats) {
+        setSharesStats(shPayload.stats);
       }
     } catch {
       // Silent fallback
@@ -317,11 +411,52 @@ export default function WebReplicaScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [activePage, user]);
+  }, [activePage, user, selectedQuizId, rawQuizId]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Sync URL sub-tab / quizId / day / prospectsFor deep-links
+  useEffect(() => {
+    if (rawTab === 'archive' || rawTab === 'past' || rawTab === 'catchup') {
+      setQuizSubView('archive');
+    } else if (rawTab === 'leaderboard') {
+      setQuizSubView('leaderboard');
+    } else if (rawPage === 'quiz' && !rawTab) {
+      setQuizSubView('main');
+    }
+    if (rawQuizId && Number(rawQuizId) !== selectedQuizId) {
+      setSelectedQuizId(Number(rawQuizId));
+    }
+  }, [rawTab, rawPage, rawQuizId]);
+
+  useEffect(() => {
+    if (activePage === 'quiz' && rawDay && quizStatus?.days?.length > 0 && !activeQuizQuestion) {
+      const targetDayNum = Number(rawDay);
+      const dayObj = quizStatus.days.find((d: any) => Number(d.dayNumber) === targetDayNum);
+      if (dayObj && (dayObj.status === 'available' || dayObj.status === 'today')) {
+        openQuizPlayer(dayObj);
+      } else if (dayObj && dayObj.status === 'completed') {
+        setCompletedDayModal(dayObj);
+      }
+    }
+  }, [activePage, rawDay, quizStatus]);
+
+  useEffect(() => {
+    if (activePage === 'my-listings' && rawProspectsFor) {
+      const lId = Number(rawProspectsFor);
+      if (lId) {
+        client
+          .get(`/stewardshop?prospectsFor=${lId}`)
+          .then((res) => {
+            const p = res.data?.data || res.data;
+            if (p) setProspectsModalData(p);
+          })
+          .catch(() => {});
+      }
+    }
+  }, [activePage, rawProspectsFor]);
 
   // Load individual member profile & wall posts when activePage === 'member'
   useEffect(() => {
@@ -3110,16 +3245,78 @@ export default function WebReplicaScreen() {
   );
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // 6. QUIZ FOR CHRIST (/quiz) — 1:1 Replica of app/(app)/quiz/page.tsx
+  // 6. QUIZ FOR CHRIST (/quiz & /quiz/hub) — 1:1 Replica + 5-Type QuizPlayer
   // ═══════════════════════════════════════════════════════════════════════════
-  const handleStartCatchup = async () => {
-    if (!quizStatus?.quiz?.id) return;
+  const openQuizPlayer = (dayObj: any) => {
+    setActiveQuizQuestion(dayObj);
+    setQuizPlayerResult(null);
+    setQuizPlayerAnswer('');
+    setQuizPlayerShowHint(false);
+    setQuizPlayerRevealAnswer(false);
+    setQuizPlayerTF(null);
+    setQuizPlayerExplanation('');
+    const blankCount = (String(dayObj?.questionText || '').match(/______/g) || []).length;
+    setQuizPlayerBlanks(new Array(Math.max(1, blankCount)).fill(''));
+    const opts = Array.isArray(dayObj?.options) ? [...dayObj.options] : [];
+    setQuizPlayerOrder(opts);
+  };
+
+  const handleSubmitQuizAnswer = async (explicitAnswer?: string) => {
+    if (!activeQuizQuestion || quizPlayerSubmitting) return;
+    let finalAnswer = explicitAnswer ?? quizPlayerAnswer;
+    const qType = activeQuizQuestion.type;
+    if (explicitAnswer === undefined) {
+      if (qType === 'FILL_IN_BLANKS') {
+        finalAnswer = quizPlayerBlanks.map((b) => b.trim()).join(',');
+      } else if (qType === 'SCRIPTURE_ORDERING') {
+        finalAnswer = JSON.stringify(quizPlayerOrder);
+      } else if (qType === 'TRUE_FALSE_EXPLAIN') {
+        if (!quizPlayerTF) return;
+        finalAnswer = JSON.stringify({
+          answer: quizPlayerTF,
+          explanation: quizPlayerExplanation.trim(),
+        });
+      }
+    }
+    setQuizPlayerSubmitting(true);
+    try {
+      const res = await client.post('/church', {
+        action: 'submit_quiz_answer',
+        questionId: activeQuizQuestion.questionId,
+        answer: finalAnswer,
+      });
+      const payload = res.data?.data || res.data;
+      setQuizPlayerResult({
+        isCorrect: Boolean(payload?.isCorrect),
+        score: payload?.score ?? (payload?.isCorrect ? 1 : 0),
+        feedback: payload?.feedback || (payload?.isCorrect ? 'Correct! 🎉' : 'Keep growing in the Word!'),
+        explanation: payload?.explanation || '',
+        reward: payload?.reward || null,
+      });
+      await loadData();
+    } catch (err: any) {
+      setQuizPlayerResult({
+        isCorrect: false,
+        score: 0,
+        feedback: err?.response?.data?.message || 'Could not submit answer. Please try again.',
+        explanation: '',
+      });
+    } finally {
+      setQuizPlayerSubmitting(false);
+    }
+  };
+
+  const handleStartCatchup = async (targetQuizId?: number) => {
+    const qId = targetQuizId || quizStatus?.quiz?.id;
+    if (!qId) return;
     setStartingCatchup(true);
     try {
       await client.post('/church', {
         action: 'start_catchup',
-        quizId: quizStatus.quiz.id,
+        quizId: qId,
       });
+      setSelectedQuizId(qId);
+      setQuizSubView('main');
       await loadData();
     } catch {
       // silent
@@ -3128,11 +3325,22 @@ export default function WebReplicaScreen() {
     }
   };
 
+  const DAY_LABELS_MAP: Record<number, string> = {
+    1: '🎈 Day 1 — Balloon Pop',
+    2: '✏️ Day 2 — Fill the Blanks',
+    3: '📝 Day 3 — In Your Own Words',
+    4: '🧩 Day 4 — Verse Builder',
+    5: '⚖️ Day 5 — Defend Your Faith',
+    6: '🎈 Day 6 — Scripture Trivia',
+    7: '📝 Day 7 — Heart Reflection',
+  };
+
   const renderQuizPage = () => {
     const qObj = quizStatus?.quiz;
     const days = quizStatus?.days || [];
     const slidesArray = normalizeSlides(qObj?.presentationSlides);
     const currentSlide = slidesArray[quizSlideIdx];
+    const isAdminOrPastor = user?.role === 'admin' || user?.role === 'moderator';
 
     return (
       <ScrollView
@@ -3170,15 +3378,55 @@ export default function WebReplicaScreen() {
           <TouchableOpacity
             style={styles.quizPastBtn}
             onPress={() =>
-              setQuizSubView((v) => (v === 'main' ? 'leaderboard' : 'main'))
+              setQuizSubView((v) => (v === 'archive' ? 'main' : 'archive'))
             }
           >
             <Text style={{ fontSize: 16 }}>📁</Text>
             <View>
               <Text style={styles.quizPastBtnTitle}>Past Quizzes</Text>
-              <Text style={styles.quizPastBtnSub}>Catch Up →</Text>
+              <Text style={styles.quizPastBtnSub}>
+                {quizSubView === 'archive' ? '← Active Quiz' : 'Catch Up →'}
+              </Text>
             </View>
           </TouchableOpacity>
+        </View>
+
+        {/* 3-Tab Pill Bar (Active Quiz | Past Quizzes Archive | Leaderboard) */}
+        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
+          {[
+            { key: 'main' as const, label: '🎯 Active Quiz' },
+            { key: 'archive' as const, label: `📁 Past Quizzes (${quizHistory.length})` },
+            { key: 'leaderboard' as const, label: '🏆 Leaderboard' },
+          ].map((t) => {
+            const active = quizSubView === t.key;
+            return (
+              <TouchableOpacity
+                key={t.key}
+                onPress={() => setQuizSubView(t.key)}
+                style={{
+                  flex: 1,
+                  paddingVertical: 9,
+                  paddingHorizontal: 8,
+                  borderRadius: 10,
+                  backgroundColor: active ? PRIMARY : '#ffffff',
+                  borderWidth: 1,
+                  borderColor: active ? PRIMARY : '#e2e8f0',
+                  alignItems: 'center',
+                }}
+              >
+                <Text
+                  numberOfLines={1}
+                  style={{
+                    fontSize: 12,
+                    fontWeight: '700',
+                    color: active ? '#ffffff' : '#475569',
+                  }}
+                >
+                  {t.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {quizSubView === 'leaderboard' ? (
@@ -3198,6 +3446,123 @@ export default function WebReplicaScreen() {
                 <Text style={styles.quizLeaderScore}>{row.totalScore} pts</Text>
               </View>
             ))}
+          </View>
+        ) : quizSubView === 'archive' ? (
+          <View style={styles.loveWhiteCard}>
+            <Text style={styles.loveSectionTitle}>📁 Past Quizzes & Catch-Up Archive</Text>
+            <Text style={{ fontSize: 12.5, color: '#64748b', marginBottom: 12 }}>
+              Missed a Sunday quiz? Unlock a 7-day personal Catch-Up Pass on any past sermon week to complete all 7 daily challenges and earn points!
+            </Text>
+            {quizHistory.length === 0 ? (
+              <Text style={{ color: '#94a3b8', textAlign: 'center', paddingVertical: 24 }}>
+                No past quizzes found.
+              </Text>
+            ) : (
+              quizHistory.map((week: any) => {
+                const isCompletedWeek = week.submissionsCount >= 7;
+                return (
+                  <View
+                    key={week.id}
+                    style={{
+                      borderWidth: 1,
+                      borderColor: '#e2e8f0',
+                      borderRadius: 14,
+                      padding: 14,
+                      marginBottom: 10,
+                      backgroundColor: '#f8fafc',
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 15, fontWeight: '800', color: '#0f172a' }}>
+                          {week.title}
+                        </Text>
+                        <Text style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+                          📅{' '}
+                          {week.sermonDate
+                            ? new Date(week.sermonDate).toLocaleDateString('en-PH', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                              })
+                            : ''}
+                        </Text>
+                      </View>
+                      <View
+                        style={{
+                          paddingHorizontal: 10,
+                          paddingVertical: 4,
+                          borderRadius: 999,
+                          backgroundColor: isCompletedWeek
+                            ? '#dcfce7'
+                            : week.catchupStatus === 'active'
+                            ? '#e0f2fe'
+                            : '#fef3c7',
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            fontWeight: '700',
+                            color: isCompletedWeek
+                              ? '#166534'
+                              : week.catchupStatus === 'active'
+                              ? '#0369a1'
+                              : '#92400e',
+                          }}
+                        >
+                          {isCompletedWeek
+                            ? `✅ ${week.score}/7 pts`
+                            : week.catchupStatus === 'active'
+                            ? `🎯 Catch-Up (${week.submissionsCount}/7)`
+                            : `${week.submissionsCount}/7 Played`}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+                      <TouchableOpacity
+                        style={{
+                          flex: 1,
+                          backgroundColor: PRIMARY,
+                          paddingVertical: 9,
+                          borderRadius: 10,
+                          alignItems: 'center',
+                        }}
+                        onPress={() => {
+                          setSelectedQuizId(week.id);
+                          setQuizSubView('main');
+                        }}
+                      >
+                        <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 12.5 }}>
+                          {isCompletedWeek || !week.isExpired || week.catchupStatus === 'active'
+                            ? '▶ View / Play Challenges'
+                            : '📖 View Quiz Week'}
+                        </Text>
+                      </TouchableOpacity>
+
+                      {week.isExpired && !isCompletedWeek && week.catchupStatus !== 'active' && (
+                        <TouchableOpacity
+                          style={{
+                            flex: 1,
+                            backgroundColor: '#0284c7',
+                            paddingVertical: 9,
+                            borderRadius: 10,
+                            alignItems: 'center',
+                          }}
+                          onPress={() => handleStartCatchup(week.id)}
+                          disabled={startingCatchup}
+                        >
+                          <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 12.5 }}>
+                            🎯 Start 7-Day Catch-Up
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                );
+              })
+            )}
           </View>
         ) : (
           <>
@@ -3252,7 +3617,7 @@ export default function WebReplicaScreen() {
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                     <TouchableOpacity
                       style={styles.quizStartCatchupBtn}
-                      onPress={handleStartCatchup}
+                      onPress={() => handleStartCatchup(qObj?.id)}
                       disabled={startingCatchup}
                     >
                       <Text style={styles.quizStartCatchupText}>
@@ -3263,7 +3628,7 @@ export default function WebReplicaScreen() {
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.quizViewPastOutlineBtn}
-                      onPress={() => setQuizSubView('leaderboard')}
+                      onPress={() => setQuizSubView('archive')}
                     >
                       <Text style={styles.quizViewPastOutlineText}>
                         📁 View All Past Quizzes →
@@ -3343,8 +3708,17 @@ export default function WebReplicaScreen() {
                 <TouchableOpacity
                   key={d.dayNumber}
                   style={styles.quizDayCard}
+                  activeOpacity={0.8}
                   onPress={() => {
-                    if (d.status === 'expired') handleStartCatchup();
+                    if (d.status === 'expired') {
+                      handleStartCatchup(qObj?.id);
+                    } else if (d.status === 'completed') {
+                      setCompletedDayModal(d);
+                    } else if (d.status === 'available' || d.status === 'today') {
+                      openQuizPlayer(d);
+                    } else if (isAdminOrPastor) {
+                      openQuizPlayer(d);
+                    }
                   }}
                 >
                   <View style={styles.quizDayEmojiBox}>
@@ -3379,7 +3753,9 @@ export default function WebReplicaScreen() {
                       ]}
                     >
                       {d.status === 'completed'
-                        ? '✅ Done'
+                        ? d.isCorrect
+                          ? '✅ +1 pt'
+                          : '✅ Done'
                         : d.status === 'available' || d.status === 'today'
                         ? '▶ Play'
                         : d.status === 'expired'
@@ -3392,6 +3768,707 @@ export default function WebReplicaScreen() {
             </View>
           </>
         )}
+
+        {/* ── Completed Day Feedback & Pastor's Answer Key Modal ── */}
+        <Modal
+          visible={completedDayModal !== null}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setCompletedDayModal(null)}
+        >
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(15,23,42,0.6)',
+              justifyContent: 'center',
+              padding: 20,
+            }}
+          >
+            {completedDayModal && (
+              <View
+                style={{
+                  backgroundColor: '#ffffff',
+                  borderRadius: 18,
+                  padding: 20,
+                }}
+              >
+                <Text style={{ fontSize: 17, fontWeight: '800', color: '#0f172a', marginBottom: 10 }}>
+                  {completedDayModal.label} Complete
+                </Text>
+                <View
+                  style={{
+                    alignSelf: 'flex-start',
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                    borderRadius: 8,
+                    backgroundColor: completedDayModal.isCorrect ? '#eff6ff' : '#f1f5f9',
+                    marginBottom: 10,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontWeight: '700',
+                      color: completedDayModal.isCorrect ? '#1e40af' : '#475569',
+                    }}
+                  >
+                    {completedDayModal.isCorrect
+                      ? '🏆 Correct Answer! (+1 Point)'
+                      : '💡 Opportunity to Learn'}
+                  </Text>
+                </View>
+
+                {completedDayModal.feedback ? (
+                  <View
+                    style={{
+                      backgroundColor: '#f8fafc',
+                      borderLeftWidth: 3,
+                      borderLeftColor: completedDayModal.isCorrect ? '#3b82f6' : '#94a3b8',
+                      padding: 12,
+                      borderRadius: 8,
+                      marginBottom: 12,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: '800',
+                        color: '#64748b',
+                        marginBottom: 4,
+                      }}
+                    >
+                      PASTOR&apos;S NOTES / AI FEEDBACK:
+                    </Text>
+                    <Text style={{ fontSize: 13.5, color: '#334155', lineHeight: 20 }}>
+                      &ldquo;{completedDayModal.feedback}&rdquo;
+                    </Text>
+                  </View>
+                ) : null}
+
+                {completedDayModal.correctAnswer ? (
+                  <View
+                    style={{
+                      backgroundColor: '#f0fdf4',
+                      borderLeftWidth: 3,
+                      borderLeftColor: '#16a34a',
+                      padding: 12,
+                      borderRadius: 8,
+                      marginBottom: 12,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: '800',
+                        color: '#15803d',
+                        marginBottom: 4,
+                      }}
+                    >
+                      🔑 ANSWER KEY (PASTORS & ADMINS ONLY):
+                    </Text>
+                    <Text style={{ fontSize: 13.5, fontWeight: '700', color: '#166534' }}>
+                      {completedDayModal.correctAnswer}
+                    </Text>
+                  </View>
+                ) : null}
+
+                <TouchableOpacity
+                  onPress={() => setCompletedDayModal(null)}
+                  style={{
+                    backgroundColor: PRIMARY,
+                    paddingVertical: 12,
+                    borderRadius: 12,
+                    alignItems: 'center',
+                    marginTop: 4,
+                  }}
+                >
+                  <Text style={{ color: '#ffffff', fontWeight: '800', fontSize: 14 }}>
+                    Close
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </Modal>
+
+        {/* ── Interactive 5-Type QuizPlayer Modal (1:1 Replica of components/quiz/QuizPlayer.tsx) ── */}
+        <Modal
+          visible={activeQuizQuestion !== null}
+          animationType="slide"
+          onRequestClose={() => setActiveQuizQuestion(null)}
+        >
+          <LinearGradient
+            colors={['#0a2a3a', '#134e5e', '#1a3a4a']}
+            style={{ flex: 1, paddingTop: Math.max(insets.top, 20) }}
+          >
+            {activeQuizQuestion && (
+              <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 80 }}>
+                {/* Header */}
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: 20,
+                  }}
+                >
+                  <View
+                    style={{
+                      backgroundColor: 'rgba(78,177,203,0.28)',
+                      borderWidth: 1,
+                      borderColor: 'rgba(78,177,203,0.45)',
+                      paddingHorizontal: 14,
+                      paddingVertical: 6,
+                      borderRadius: 999,
+                    }}
+                  >
+                    <Text style={{ color: '#4EB1CB', fontWeight: '700', fontSize: 13 }}>
+                      {DAY_LABELS_MAP[activeQuizQuestion.dayNumber] ||
+                        `Day ${activeQuizQuestion.dayNumber} — ${activeQuizQuestion.typeLabel}`}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => setActiveQuizQuestion(null)}
+                    style={{
+                      backgroundColor: 'rgba(255,255,255,0.15)',
+                      paddingHorizontal: 14,
+                      paddingVertical: 8,
+                      borderRadius: 8,
+                    }}
+                  >
+                    <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 14 }}>
+                      {quizPlayerResult ? 'Done' : '✕'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Result Screen */}
+                {quizPlayerResult ? (
+                  <View style={{ alignItems: 'center', marginTop: 24 }}>
+                    <Text style={{ fontSize: 60 }}>
+                      {quizPlayerResult.isCorrect ? '🎉' : '😅'}
+                    </Text>
+                    <Text
+                      style={{
+                        color: quizPlayerResult.isCorrect ? '#48BB78' : '#FC8181',
+                        fontSize: 24,
+                        fontWeight: '800',
+                        marginTop: 12,
+                      }}
+                    >
+                      {quizPlayerResult.isCorrect ? 'Correct!' : 'Not quite!'}
+                    </Text>
+                    <View
+                      style={{
+                        backgroundColor: 'rgba(255,255,255,0.08)',
+                        borderRadius: 16,
+                        padding: 20,
+                        width: '100%',
+                        marginTop: 20,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: '#e2e8f0',
+                          fontSize: 15,
+                          lineHeight: 23,
+                          textAlign: 'center',
+                        }}
+                      >
+                        {quizPlayerResult.feedback}
+                      </Text>
+                      {quizPlayerResult.explanation ? (
+                        <Text
+                          style={{
+                            color: '#cbd5e1',
+                            fontSize: 13.5,
+                            marginTop: 12,
+                            lineHeight: 20,
+                            textAlign: 'center',
+                          }}
+                        >
+                          💡 {quizPlayerResult.explanation}
+                        </Text>
+                      ) : null}
+                    </View>
+
+                    {quizPlayerResult.reward && (
+                      <View
+                        style={{
+                          backgroundColor: 'rgba(78,177,203,0.16)',
+                          borderWidth: 2,
+                          borderColor: 'rgba(78,177,203,0.55)',
+                          borderRadius: 16,
+                          padding: 18,
+                          width: '100%',
+                          marginTop: 16,
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Text style={{ color: '#4EB1CB', fontSize: 17, fontWeight: '800' }}>
+                          🏆 Week Complete! Score: {quizPlayerResult.reward.totalScore}/7
+                        </Text>
+                        <Text
+                          style={{
+                            color: '#e2e8f0',
+                            fontSize: 13.5,
+                            marginTop: 6,
+                            textAlign: 'center',
+                          }}
+                        >
+                          {quizPlayerResult.reward.tier === 'PERFECT'
+                            ? 'PERFECT SCORE! Claim your Christian statement t-shirt! 🎽'
+                            : quizPlayerResult.reward.tier === 'PARTICIPANT'
+                            ? 'Keep growing in the Word! Every quiz makes you stronger. 🙏'
+                            : '🎁 Prize: TBA — to be announced this Sunday!'}
+                        </Text>
+                      </View>
+                    )}
+
+                    <TouchableOpacity
+                      onPress={() => setActiveQuizQuestion(null)}
+                      style={{
+                        backgroundColor: PRIMARY,
+                        paddingVertical: 15,
+                        paddingHorizontal: 44,
+                        borderRadius: 14,
+                        marginTop: 28,
+                      }}
+                    >
+                      <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: '800' }}>
+                        Continue →
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View>
+                    {/* Question Text */}
+                    <Text
+                      style={{
+                        color: '#ffffff',
+                        fontSize: 18,
+                        fontWeight: '700',
+                        textAlign: 'center',
+                        lineHeight: 27,
+                        marginVertical: 16,
+                      }}
+                    >
+                      {activeQuizQuestion.type === 'SCRIPTURE_ORDERING'
+                        ? 'Arrange these parts in the correct order:'
+                        : activeQuizQuestion.questionText}
+                    </Text>
+
+                    {/* Hint Button */}
+                    {activeQuizQuestion.hint ? (
+                      <View style={{ alignItems: 'center', marginBottom: 14 }}>
+                        <TouchableOpacity
+                          onPress={() => setQuizPlayerShowHint((v) => !v)}
+                        >
+                          <Text style={{ color: '#FBD38D', fontSize: 13.5, fontWeight: '600' }}>
+                            {quizPlayerShowHint ? 'Hide hint' : '💡 Need a hint?'}
+                          </Text>
+                        </TouchableOpacity>
+                        {quizPlayerShowHint && (
+                          <View
+                            style={{
+                              backgroundColor: 'rgba(251,211,141,0.12)',
+                              borderWidth: 1,
+                              borderColor: 'rgba(251,211,141,0.35)',
+                              borderRadius: 12,
+                              padding: 12,
+                              marginTop: 8,
+                              width: '100%',
+                            }}
+                          >
+                            <Text style={{ color: '#FBD38D', fontSize: 13, textAlign: 'center' }}>
+                              💡 {activeQuizQuestion.hint}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    ) : null}
+
+                    {/* Pastor / Admin Answer Key Reveal */}
+                    {isAdminOrPastor && activeQuizQuestion.correctAnswer ? (
+                      <View style={{ alignItems: 'center', marginBottom: 14 }}>
+                        <TouchableOpacity
+                          onPress={() => setQuizPlayerRevealAnswer((v) => !v)}
+                          style={{
+                            backgroundColor: 'rgba(72,187,120,0.2)',
+                            borderWidth: 1,
+                            borderColor: 'rgba(72,187,120,0.45)',
+                            paddingHorizontal: 12,
+                            paddingVertical: 6,
+                            borderRadius: 999,
+                          }}
+                        >
+                          <Text style={{ color: '#9AE6B4', fontSize: 12, fontWeight: '700' }}>
+                            {quizPlayerRevealAnswer
+                              ? '🙈 Hide Answer Key'
+                              : '🔑 Pastor/Admin: Reveal Answer'}
+                          </Text>
+                        </TouchableOpacity>
+                        {quizPlayerRevealAnswer && (
+                          <View
+                            style={{
+                              backgroundColor: 'rgba(72,187,120,0.15)',
+                              borderRadius: 10,
+                              padding: 10,
+                              marginTop: 8,
+                              width: '100%',
+                            }}
+                          >
+                            <Text style={{ color: '#9AE6B4', fontSize: 12.5, textAlign: 'center', fontWeight: '700' }}>
+                              Answer: {activeQuizQuestion.correctAnswer}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    ) : null}
+
+                    {/* 1. MULTIPLE_CHOICE (Balloon Pop) */}
+                    {activeQuizQuestion.type === 'MULTIPLE_CHOICE' && (
+                      <View style={{ gap: 12, marginTop: 8 }}>
+                        {(activeQuizQuestion.options || []).map((opt: string, idx: number) => {
+                          const colors = ['#FF6B6B', '#4EB1CB', '#0284c7', '#48BB78'];
+                          return (
+                            <TouchableOpacity
+                              key={idx}
+                              disabled={quizPlayerSubmitting}
+                              onPress={() => handleSubmitQuizAnswer(opt)}
+                              style={{
+                                backgroundColor: colors[idx % 4],
+                                borderRadius: 20,
+                                paddingVertical: 20,
+                                paddingHorizontal: 18,
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  color: '#ffffff',
+                                  fontSize: 15.5,
+                                  fontWeight: '700',
+                                  textAlign: 'center',
+                                }}
+                              >
+                                🎈 {opt}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    )}
+
+                    {/* 2. FILL_IN_BLANKS */}
+                    {activeQuizQuestion.type === 'FILL_IN_BLANKS' && (
+                      <View style={{ gap: 12, marginTop: 8 }}>
+                        {quizPlayerBlanks.map((val, bIdx) => (
+                          <View key={bIdx}>
+                            <Text style={{ color: '#cbd5e1', fontSize: 12.5, marginBottom: 6 }}>
+                              Blank #{bIdx + 1}:
+                            </Text>
+                            <TextInput
+                              value={val}
+                              onChangeText={(txt) => {
+                                const next = [...quizPlayerBlanks];
+                                next[bIdx] = txt;
+                                setQuizPlayerBlanks(next);
+                              }}
+                              placeholder={`Type missing word #${bIdx + 1}...`}
+                              placeholderTextColor="rgba(255,255,255,0.4)"
+                              style={{
+                                backgroundColor: 'rgba(78,177,203,0.15)',
+                                borderWidth: 2,
+                                borderColor: PRIMARY,
+                                borderRadius: 12,
+                                color: '#ffffff',
+                                fontSize: 15,
+                                paddingHorizontal: 14,
+                                paddingVertical: 12,
+                              }}
+                            />
+                          </View>
+                        ))}
+                        <TouchableOpacity
+                          disabled={
+                            quizPlayerSubmitting ||
+                            quizPlayerBlanks.some((b) => !b.trim())
+                          }
+                          onPress={() => handleSubmitQuizAnswer()}
+                          style={{
+                            backgroundColor: PRIMARY,
+                            borderRadius: 14,
+                            paddingVertical: 15,
+                            alignItems: 'center',
+                            marginTop: 12,
+                            opacity:
+                              quizPlayerSubmitting ||
+                              quizPlayerBlanks.some((b) => !b.trim())
+                                ? 0.5
+                                : 1,
+                          }}
+                        >
+                          <Text style={{ color: '#ffffff', fontSize: 15.5, fontWeight: '800' }}>
+                            {quizPlayerSubmitting ? 'Checking...' : 'Submit Answer'}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+
+                    {/* 3. SHORT_ANSWER (Essay with AI Grading) */}
+                    {activeQuizQuestion.type === 'SHORT_ANSWER' && (
+                      <View style={{ marginTop: 8 }}>
+                        <View
+                          style={{
+                            backgroundColor: 'rgba(78,177,203,0.12)',
+                            borderWidth: 1,
+                            borderColor: 'rgba(78,177,203,0.35)',
+                            borderRadius: 12,
+                            padding: 12,
+                            marginBottom: 14,
+                          }}
+                        >
+                          <Text style={{ color: '#4EB1CB', fontSize: 12.5, lineHeight: 18 }}>
+                            📝 Answer in your own words. Bisaya, Tagalog, or English — all are accepted! We use AI to understand the meaning of your answer.
+                          </Text>
+                        </View>
+                        <TextInput
+                          value={quizPlayerAnswer}
+                          onChangeText={(t) => setQuizPlayerAnswer(t.slice(0, 500))}
+                          placeholder="Type your reflection here (minimum 20 characters)..."
+                          placeholderTextColor="rgba(255,255,255,0.4)"
+                          multiline
+                          style={{
+                            backgroundColor: 'rgba(255,255,255,0.08)',
+                            borderWidth: 2,
+                            borderColor: 'rgba(78,177,203,0.35)',
+                            borderRadius: 12,
+                            color: '#ffffff',
+                            fontSize: 15,
+                            padding: 14,
+                            minHeight: 120,
+                            textAlignVertical: 'top',
+                          }}
+                        />
+                        <Text style={{ color: '#94a3b8', fontSize: 12, marginTop: 6 }}>
+                          {quizPlayerAnswer.length}/500 characters{' '}
+                          {quizPlayerAnswer.trim().length < 20 ? '(minimum 20)' : ''}
+                        </Text>
+                        <TouchableOpacity
+                          disabled={
+                            quizPlayerSubmitting ||
+                            quizPlayerAnswer.trim().length < 20
+                          }
+                          onPress={() => handleSubmitQuizAnswer()}
+                          style={{
+                            backgroundColor: PRIMARY,
+                            borderRadius: 14,
+                            paddingVertical: 15,
+                            alignItems: 'center',
+                            marginTop: 16,
+                            opacity:
+                              quizPlayerSubmitting ||
+                              quizPlayerAnswer.trim().length < 20
+                                ? 0.5
+                                : 1,
+                          }}
+                        >
+                          <Text style={{ color: '#ffffff', fontSize: 15.5, fontWeight: '800' }}>
+                            {quizPlayerSubmitting
+                              ? 'AI is reviewing your answer...'
+                              : 'Submit Answer'}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+
+                    {/* 4. SCRIPTURE_ORDERING (Verse Builder) */}
+                    {activeQuizQuestion.type === 'SCRIPTURE_ORDERING' && (
+                      <View style={{ marginTop: 8 }}>
+                        {quizPlayerOrder.map((seg, idx) => (
+                          <View
+                            key={`${idx}-${seg}`}
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: 10,
+                              backgroundColor: 'rgba(255,255,255,0.08)',
+                              borderWidth: 1,
+                              borderColor: 'rgba(255,255,255,0.15)',
+                              borderRadius: 12,
+                              padding: 12,
+                              marginBottom: 10,
+                            }}
+                          >
+                            <View style={{ gap: 4 }}>
+                              <TouchableOpacity
+                                disabled={idx === 0}
+                                onPress={() => {
+                                  if (idx === 0) return;
+                                  const next = [...quizPlayerOrder];
+                                  const [moved] = next.splice(idx, 1);
+                                  next.splice(idx - 1, 0, moved);
+                                  setQuizPlayerOrder(next);
+                                }}
+                                style={{ paddingHorizontal: 6, paddingVertical: 2 }}
+                              >
+                                <Text
+                                  style={{
+                                    color: idx === 0 ? '#475569' : '#4EB1CB',
+                                    fontSize: 15,
+                                    fontWeight: '800',
+                                  }}
+                                >
+                                  ▲
+                                </Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                disabled={idx === quizPlayerOrder.length - 1}
+                                onPress={() => {
+                                  if (idx >= quizPlayerOrder.length - 1) return;
+                                  const next = [...quizPlayerOrder];
+                                  const [moved] = next.splice(idx, 1);
+                                  next.splice(idx + 1, 0, moved);
+                                  setQuizPlayerOrder(next);
+                                }}
+                                style={{ paddingHorizontal: 6, paddingVertical: 2 }}
+                              >
+                                <Text
+                                  style={{
+                                    color:
+                                      idx === quizPlayerOrder.length - 1
+                                        ? '#475569'
+                                        : '#4EB1CB',
+                                    fontSize: 15,
+                                    fontWeight: '800',
+                                  }}
+                                >
+                                  ▼
+                                </Text>
+                              </TouchableOpacity>
+                            </View>
+                            <View
+                              style={{
+                                width: 26,
+                                height: 26,
+                                borderRadius: 13,
+                                backgroundColor: 'rgba(78,177,203,0.25)',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
+                              <Text style={{ color: '#4EB1CB', fontWeight: '800', fontSize: 12 }}>
+                                {idx + 1}
+                              </Text>
+                            </View>
+                            <Text style={{ flex: 1, color: '#e2e8f0', fontSize: 14, lineHeight: 20 }}>
+                              {seg}
+                            </Text>
+                          </View>
+                        ))}
+                        <TouchableOpacity
+                          disabled={quizPlayerSubmitting}
+                          onPress={() => handleSubmitQuizAnswer()}
+                          style={{
+                            backgroundColor: PRIMARY,
+                            borderRadius: 14,
+                            paddingVertical: 15,
+                            alignItems: 'center',
+                            marginTop: 12,
+                          }}
+                        >
+                          <Text style={{ color: '#ffffff', fontSize: 15.5, fontWeight: '800' }}>
+                            {quizPlayerSubmitting ? 'Checking order...' : 'Submit Order'}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+
+                    {/* 5. TRUE_FALSE_EXPLAIN */}
+                    {activeQuizQuestion.type === 'TRUE_FALSE_EXPLAIN' && (
+                      <View style={{ marginTop: 8 }}>
+                        <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>
+                          {(['TRUE', 'FALSE'] as const).map((choice) => {
+                            const selected = quizPlayerTF === choice;
+                            const isTrue = choice === 'TRUE';
+                            return (
+                              <TouchableOpacity
+                                key={choice}
+                                onPress={() => setQuizPlayerTF(choice)}
+                                style={{
+                                  flex: 1,
+                                  paddingVertical: 18,
+                                  borderRadius: 16,
+                                  alignItems: 'center',
+                                  backgroundColor: selected
+                                    ? isTrue
+                                      ? '#38A169'
+                                      : '#E53E3E'
+                                    : isTrue
+                                    ? 'rgba(72,187,120,0.15)'
+                                    : 'rgba(252,129,129,0.15)',
+                                  borderWidth: 2,
+                                  borderColor: selected
+                                    ? '#ffffff'
+                                    : isTrue
+                                    ? 'rgba(72,187,120,0.35)'
+                                    : 'rgba(252,129,129,0.35)',
+                                }}
+                              >
+                                <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: '800' }}>
+                                  {isTrue ? '✅ TRUE' : '❌ FALSE'}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                        {quizPlayerTF && (
+                          <>
+                            <TextInput
+                              value={quizPlayerExplanation}
+                              onChangeText={(t) => setQuizPlayerExplanation(t.slice(0, 500))}
+                              placeholder="Explain why in your own words (Bisaya, Tagalog, or English)..."
+                              placeholderTextColor="rgba(255,255,255,0.4)"
+                              multiline
+                              style={{
+                                backgroundColor: 'rgba(255,255,255,0.08)',
+                                borderWidth: 2,
+                                borderColor: 'rgba(78,177,203,0.35)',
+                                borderRadius: 12,
+                                color: '#ffffff',
+                                fontSize: 14.5,
+                                padding: 14,
+                                minHeight: 100,
+                                textAlignVertical: 'top',
+                              }}
+                            />
+                            <TouchableOpacity
+                              disabled={quizPlayerSubmitting}
+                              onPress={() => handleSubmitQuizAnswer()}
+                              style={{
+                                backgroundColor: PRIMARY,
+                                borderRadius: 14,
+                                paddingVertical: 15,
+                                alignItems: 'center',
+                                marginTop: 16,
+                              }}
+                            >
+                              <Text style={{ color: '#ffffff', fontSize: 15.5, fontWeight: '800' }}>
+                                {quizPlayerSubmitting ? 'AI is reviewing...' : 'Submit Answer'}
+                              </Text>
+                            </TouchableOpacity>
+                          </>
+                        )}
+                      </View>
+                    )}
+                  </View>
+                )}
+              </ScrollView>
+            )}
+          </LinearGradient>
+        </Modal>
       </ScrollView>
     );
   };
@@ -3566,65 +4643,826 @@ export default function WebReplicaScreen() {
   // ═══════════════════════════════════════════════════════════════════════════
   // 8. MY LISTINGS & MY SHARED LINKS — 1:1 Replicas
   // ═══════════════════════════════════════════════════════════════════════════
-  const renderMyListingsPage = () => (
-    <ScrollView contentContainerStyle={{ paddingBottom: 110 }}>
-      <View style={{ backgroundColor: PRIMARY, padding: 16 }}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={{ color: '#ffffff', fontSize: 14, marginBottom: 4 }}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={{ color: '#ffffff', fontSize: 18, fontWeight: '800' }}>
-          📦 My Listings
-        </Text>
-        <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12, marginTop: 2 }}>
-          Manage your stewardshop listings and view prospects
-        </Text>
-      </View>
+  const openProspectsModal = async (listingId: number) => {
+    setProspectsLoading(true);
+    try {
+      const res = await client.get(`/stewardshop?prospectsFor=${listingId}`);
+      const payload = res.data?.data || res.data;
+      setProspectsModalData(payload);
+    } catch {
+      // silent
+    } finally {
+      setProspectsLoading(false);
+    }
+  };
 
-      <View style={{ padding: 16 }}>
-        <View style={styles.sellerQuoteBanner}>
-          <Text style={styles.sellerQuoteText}>
-            ✝️ &ldquo;Whoever walks in integrity walks securely.&rdquo;
-          </Text>
-          <Text style={styles.sellerQuoteRef}>— Proverbs 10:9</Text>
-        </View>
+  const openMarkSoldModal = async (item: any) => {
+    setMarkSoldItem(item);
+    setSelectedWinnerProspectId(null);
+    try {
+      const res = await client.get(`/stewardshop?prospectsFor=${item.id}`);
+      const payload = res.data?.data || res.data;
+      setMarkSoldProspects(payload?.prospects || []);
+    } catch {
+      setMarkSoldProspects([]);
+    }
+  };
 
-        <View style={{ alignItems: 'flex-end', marginBottom: 14 }}>
-          <TouchableOpacity
-            style={styles.newListingPill}
-            onPress={() => router.push('/(tabs)/stewardshop')}
-          >
-            <Text style={styles.newListingPillText}>+ New Listing</Text>
+  const handleConfirmMarkSold = async () => {
+    if (!markSoldItem) return;
+    try {
+      await client.post('/stewardshop', {
+        action: 'mark_sold',
+        listingId: markSoldItem.id,
+        winnerProspectId:
+          selectedWinnerProspectId === 'outside' ? null : selectedWinnerProspectId,
+      });
+      setMarkSoldItem(null);
+      await loadData();
+    } catch {
+      // silent
+    }
+  };
+
+  const handleListingAction = async (
+    listingId: number,
+    subAction: 'pause' | 'activate' | 'delete' | 'edit',
+    extra?: any
+  ) => {
+    try {
+      await client.post('/stewardshop', {
+        action: 'listing_action',
+        listingId,
+        subAction,
+        ...extra,
+      });
+      setEditListingModal(null);
+      setDeleteListingId(null);
+      await loadData();
+    } catch {
+      // silent
+    }
+  };
+
+  const handleUpdateProspectStatus = async (prospectId: number, status: string) => {
+    try {
+      await client.post('/stewardshop', {
+        action: 'update_prospect_status',
+        prospectId,
+        status,
+      });
+      if (prospectsModalData?.listing?.id) {
+        openProspectsModal(prospectsModalData.listing.id);
+      }
+      await loadData();
+    } catch {
+      // silent
+    }
+  };
+
+  const handlePayLoveGift = async (shareId: number, ref: string) => {
+    try {
+      await client.post('/stewardshop', {
+        action: 'pay_love_gift',
+        shareId,
+        gcashRef: ref || 'Sent',
+      });
+      if (prospectsModalData?.listing?.id) {
+        openProspectsModal(prospectsModalData.listing.id);
+      }
+      await loadData();
+    } catch {
+      // silent
+    }
+  };
+
+  const handleSubmitClaimLoveGift = async () => {
+    if (!claimModalShare) return;
+    try {
+      await client.post('/stewardshop', {
+        action: 'claim_love_gift',
+        shareId: claimModalShare.id,
+        method: claimMethod,
+        gcashName: gcashName.trim(),
+        gcashMobile: gcashMobile.trim(),
+      });
+      setClaimModalShare(null);
+      await loadData();
+    } catch {
+      // silent
+    }
+  };
+
+  const handleConfirmReceipt = async () => {
+    if (!receiptModalShare) return;
+    try {
+      await client.post('/stewardshop', {
+        action: 'confirm_receipt',
+        shareId: receiptModalShare.id,
+        thankYouNote: thankYouNote.trim(),
+      });
+      setReceiptModalShare(null);
+      setThankYouNote('');
+      await loadData();
+    } catch {
+      // silent
+    }
+  };
+
+  const renderMyListingsPage = () => {
+    const filteredMyListings = myListings.filter((item) => {
+      if (myListingsFilter === 'ALL') return true;
+      return String(item.status || 'active').toLowerCase() === myListingsFilter;
+    });
+
+    return (
+      <ScrollView contentContainerStyle={{ paddingBottom: 110 }}>
+        <View style={{ backgroundColor: PRIMARY, padding: 16 }}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Text style={{ color: '#ffffff', fontSize: 14, marginBottom: 4 }}>← Back</Text>
           </TouchableOpacity>
+          <Text style={{ color: '#ffffff', fontSize: 18, fontWeight: '800' }}>
+            📦 My Listings
+          </Text>
+          <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12, marginTop: 2 }}>
+            Manage your StewardShop listings, prospects, and Love Gifts
+          </Text>
         </View>
 
-        {myListings.length === 0 ? (
-          <View style={{ alignItems: 'center', paddingVertical: 40 }}>
-            <Text style={{ fontSize: 44, marginBottom: 10 }}>📭</Text>
-            <Text style={{ fontWeight: '600', color: '#64748b', marginBottom: 12 }}>
-              No listings yet
+        <View style={{ padding: 16 }}>
+          <View style={styles.sellerQuoteBanner}>
+            <Text style={styles.sellerQuoteText}>
+              ✝️ &ldquo;Whoever walks in integrity walks securely.&rdquo;
             </Text>
+            <Text style={styles.sellerQuoteRef}>— Proverbs 10:9</Text>
+          </View>
+
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 14,
+              gap: 8,
+            }}
+          >
+            <View style={{ flexDirection: 'row', gap: 6, flex: 1, flexWrap: 'wrap' }}>
+              {[
+                { key: 'ALL' as const, label: `All (${myListings.length})` },
+                { key: 'active' as const, label: '🟢 Active' },
+                { key: 'sold' as const, label: '🏷️ Sold' },
+                { key: 'paused' as const, label: '⏸ Paused' },
+              ].map((tab) => {
+                const active = myListingsFilter === tab.key;
+                return (
+                  <TouchableOpacity
+                    key={tab.key}
+                    onPress={() => setMyListingsFilter(tab.key)}
+                    style={{
+                      paddingHorizontal: 10,
+                      paddingVertical: 6,
+                      borderRadius: 999,
+                      backgroundColor: active ? PRIMARY : '#ffffff',
+                      borderWidth: 1,
+                      borderColor: active ? PRIMARY : '#e2e8f0',
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 11.5,
+                        fontWeight: '700',
+                        color: active ? '#ffffff' : '#475569',
+                      }}
+                    >
+                      {tab.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
             <TouchableOpacity
               style={styles.newListingPill}
               onPress={() => router.push('/(tabs)/stewardshop')}
             >
-              <Text style={styles.newListingPillText}>Post Your First Listing</Text>
+              <Text style={styles.newListingPillText}>+ New Listing</Text>
             </TouchableOpacity>
           </View>
-        ) : (
-          myListings.map((item) => (
-            <View key={item.id} style={styles.loveWhiteCard}>
-              <Text style={{ fontWeight: '700', fontSize: 15, color: '#1e293b' }}>
-                {item.title}
+
+          {filteredMyListings.length === 0 ? (
+            <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+              <Text style={{ fontSize: 44, marginBottom: 10 }}>📭</Text>
+              <Text style={{ fontWeight: '600', color: '#64748b', marginBottom: 12 }}>
+                No listings found
               </Text>
-              <Text style={{ fontWeight: '800', fontSize: 14, color: PRIMARY, marginTop: 4 }}>
-                {item.price ? `₱${Number(item.price).toLocaleString()}` : 'Free'}
-              </Text>
+              <TouchableOpacity
+                style={styles.newListingPill}
+                onPress={() => router.push('/(tabs)/stewardshop')}
+              >
+                <Text style={styles.newListingPillText}>Post Your First Listing</Text>
+              </TouchableOpacity>
             </View>
-          ))
-        )}
-      </View>
-    </ScrollView>
-  );
+          ) : (
+            filteredMyListings.map((item) => {
+              const firstPhoto = item.photos?.[0]?.photoPath
+                ? `https://connect.houseofgrace.ph/uploads/marketplace/${item.photos[0].photoPath}`
+                : item.image
+                ? item.image.startsWith('http')
+                  ? item.image
+                  : `https://connect.houseofgrace.ph${item.image}`
+                : null;
+              const statusStr = String(item.status || 'active').toLowerCase();
+              const prospectsCount = item._count?.prospects ?? item.prospectsCount ?? 0;
+              const sharesCount = item._count?.shares ?? item.sharesCount ?? 0;
+
+              return (
+                <View key={item.id} style={styles.loveWhiteCard}>
+                  <View style={{ flexDirection: 'row', gap: 12 }}>
+                    {firstPhoto ? (
+                      <Image
+                        source={{ uri: firstPhoto }}
+                        style={{ width: 74, height: 74, borderRadius: 12, backgroundColor: '#f1f5f9' }}
+                      />
+                    ) : (
+                      <View
+                        style={{
+                          width: 74,
+                          height: 74,
+                          borderRadius: 12,
+                          backgroundColor: '#f1f5f9',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Text style={{ fontSize: 26 }}>📦</Text>
+                      </View>
+                    )}
+
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <Text
+                          numberOfLines={1}
+                          style={{ flex: 1, fontWeight: '800', fontSize: 15, color: '#0f172a' }}
+                        >
+                          {item.title}
+                        </Text>
+                        <View
+                          style={{
+                            paddingHorizontal: 8,
+                            paddingVertical: 3,
+                            borderRadius: 999,
+                            backgroundColor:
+                              statusStr === 'sold'
+                                ? '#fee2e2'
+                                : statusStr === 'paused'
+                                ? '#fef3c7'
+                                : '#dcfce7',
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 10.5,
+                              fontWeight: '800',
+                              color:
+                                statusStr === 'sold'
+                                  ? '#dc2626'
+                                  : statusStr === 'paused'
+                                  ? '#b45309'
+                                  : '#166534',
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            {statusStr}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                        <Text style={{ fontWeight: '800', fontSize: 14.5, color: PRIMARY }}>
+                          {item.discountedPrice
+                            ? `₱${Number(item.discountedPrice).toLocaleString()}`
+                            : item.ogPrice || item.price
+                            ? `₱${Number(item.ogPrice || item.price).toLocaleString()}`
+                            : 'Free / Blessing'}
+                        </Text>
+                        {Number(item.loveGiftAmount) > 0 && (
+                          <Text style={{ fontSize: 11.5, color: '#dc2626', fontWeight: '700' }}>
+                            ❤️ ₱{Number(item.loveGiftAmount).toLocaleString()} Love Gift
+                          </Text>
+                        )}
+                      </View>
+
+                      <View style={{ flexDirection: 'row', gap: 12, marginTop: 6 }}>
+                        <Text style={{ fontSize: 11.5, color: '#64748b' }}>
+                          👁 {item.views || 0} views
+                        </Text>
+                        <Text style={{ fontSize: 11.5, color: '#64748b' }}>
+                          🔗 {sharesCount} shares
+                        </Text>
+                        <Text style={{ fontSize: 11.5, color: '#0284c7', fontWeight: '700' }}>
+                          👥 {prospectsCount} prospects
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Action Buttons */}
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      flexWrap: 'wrap',
+                      gap: 8,
+                      marginTop: 12,
+                      paddingTop: 10,
+                      borderTopWidth: 1,
+                      borderTopColor: '#f1f5f9',
+                    }}
+                  >
+                    <TouchableOpacity
+                      onPress={() => openProspectsModal(item.id)}
+                      style={{
+                        backgroundColor: '#eff6ff',
+                        paddingHorizontal: 11,
+                        paddingVertical: 7,
+                        borderRadius: 8,
+                      }}
+                    >
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: '#1d4ed8' }}>
+                        👥 Prospects ({prospectsCount})
+                      </Text>
+                    </TouchableOpacity>
+
+                    {statusStr !== 'sold' && (
+                      <TouchableOpacity
+                        onPress={() => openMarkSoldModal(item)}
+                        style={{
+                          backgroundColor: '#dcfce7',
+                          paddingHorizontal: 11,
+                          paddingVertical: 7,
+                          borderRadius: 8,
+                        }}
+                      >
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: '#166534' }}>
+                          💰 Mark Sold
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+
+                    {statusStr !== 'sold' && (
+                      <TouchableOpacity
+                        onPress={() =>
+                          handleListingAction(
+                            item.id,
+                            statusStr === 'paused' ? 'activate' : 'pause'
+                          )
+                        }
+                        style={{
+                          backgroundColor: '#f1f5f9',
+                          paddingHorizontal: 11,
+                          paddingVertical: 7,
+                          borderRadius: 8,
+                        }}
+                      >
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: '#475569' }}>
+                          {statusStr === 'paused' ? '▶ Resume' : '⏸ Pause'}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+
+                    <TouchableOpacity
+                      onPress={() => {
+                        setEditListingModal(item);
+                        setEditTitle(item.title || '');
+                        setEditDesc(item.description || '');
+                        setEditOgPrice(item.ogPrice ? String(item.ogPrice) : '');
+                        setEditDiscPrice(
+                          item.discountedPrice ? String(item.discountedPrice) : ''
+                        );
+                        setEditLoveGift(
+                          item.loveGiftAmount ? String(item.loveGiftAmount) : ''
+                        );
+                        setEditLocation(item.locationArea || '');
+                      }}
+                      style={{
+                        backgroundColor: '#f1f5f9',
+                        paddingHorizontal: 11,
+                        paddingVertical: 7,
+                        borderRadius: 8,
+                      }}
+                    >
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: '#334155' }}>
+                        ✏️ Edit
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => setDeleteListingId(item.id)}
+                      style={{
+                        backgroundColor: '#fef2f2',
+                        paddingHorizontal: 11,
+                        paddingVertical: 7,
+                        borderRadius: 8,
+                      }}
+                    >
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: '#dc2626' }}>
+                        🗑 Delete
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              );
+            })
+          )}
+        </View>
+
+        {/* ── Prospects & Love Gift Hub Modal ── */}
+        <Modal
+          visible={prospectsModalData !== null}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setProspectsModalData(null)}
+        >
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(15,23,42,0.55)',
+              justifyContent: 'flex-end',
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: '#ffffff',
+                borderTopLeftRadius: 22,
+                borderTopRightRadius: 22,
+                padding: 20,
+                maxHeight: '85%',
+              }}
+            >
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 12,
+                }}
+              >
+                <Text style={{ fontSize: 17, fontWeight: '800', color: '#0f172a' }}>
+                  👥 Prospects & Love Gift Hub
+                </Text>
+                <TouchableOpacity onPress={() => setProspectsModalData(null)}>
+                  <Text style={{ fontSize: 18, color: '#64748b', fontWeight: '700' }}>✕</Text>
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView>
+                {prospectsLoading ? (
+                  <ActivityIndicator size="large" color={PRIMARY} style={{ marginVertical: 30 }} />
+                ) : (prospectsModalData?.prospects || []).length === 0 ? (
+                  <Text style={{ color: '#94a3b8', textAlign: 'center', paddingVertical: 28 }}>
+                    No prospects have unlocked this listing yet.
+                  </Text>
+                ) : (
+                  (prospectsModalData?.prospects || []).map((pr: any) => (
+                    <View
+                      key={pr.id}
+                      style={{
+                        borderWidth: 1,
+                        borderColor: '#e2e8f0',
+                        borderRadius: 14,
+                        padding: 14,
+                        marginBottom: 10,
+                        backgroundColor: '#f8fafc',
+                      }}
+                    >
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text style={{ fontWeight: '800', fontSize: 15, color: '#0f172a' }}>
+                          {pr.prospectName}
+                        </Text>
+                        <View
+                          style={{
+                            paddingHorizontal: 8,
+                            paddingVertical: 3,
+                            borderRadius: 999,
+                            backgroundColor:
+                              pr.actionType === 'contact' ? '#fef3c7' : '#e0f2fe',
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 11,
+                              fontWeight: '700',
+                              color: pr.actionType === 'contact' ? '#b45309' : '#0369a1',
+                            }}
+                          >
+                            {pr.actionType === 'contact' ? '🤝 Contacter' : '💬 Prospect'}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <Text style={{ fontSize: 13, color: '#475569', marginTop: 4 }}>
+                        📱 {pr.prospectMobile} • Code: {pr.couponCode}
+                      </Text>
+                      {pr.sharerName && (
+                        <Text style={{ fontSize: 12, color: '#dc2626', fontWeight: '700', marginTop: 2 }}>
+                          🔗 Referred by {pr.sharerName}
+                        </Text>
+                      )}
+
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+                        <TouchableOpacity
+                          onPress={() => Linking.openURL(`tel:${pr.prospectMobile}`)}
+                          style={{
+                            backgroundColor: PRIMARY,
+                            paddingHorizontal: 10,
+                            paddingVertical: 6,
+                            borderRadius: 8,
+                          }}
+                        >
+                          <Text style={{ color: '#ffffff', fontSize: 11.5, fontWeight: '700' }}>
+                            📞 Call
+                          </Text>
+                        </TouchableOpacity>
+                        {(['pending', 'contacted', 'sold'] as const).map((st) => (
+                          <TouchableOpacity
+                            key={st}
+                            onPress={() => handleUpdateProspectStatus(pr.id, st)}
+                            style={{
+                              backgroundColor:
+                                pr.status === st ? '#0f172a' : '#e2e8f0',
+                              paddingHorizontal: 10,
+                              paddingVertical: 6,
+                              borderRadius: 8,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                color: pr.status === st ? '#ffffff' : '#475569',
+                                fontSize: 11.5,
+                                fontWeight: '700',
+                                textTransform: 'capitalize',
+                              }}
+                            >
+                              {st}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+                  ))
+                )}
+
+                {/* Pending Love Gift Payouts */}
+                {(prospectsModalData?.claims || []).map((cl: any) => (
+                  <View
+                    key={cl.id}
+                    style={{
+                      borderWidth: 1.5,
+                      borderColor: '#fecaca',
+                      backgroundColor: '#fef2f2',
+                      borderRadius: 14,
+                      padding: 14,
+                      marginTop: 8,
+                    }}
+                  >
+                    <Text style={{ fontWeight: '800', color: '#991b1b', fontSize: 14 }}>
+                      ❤️ Love Gift Claim: ₱{Number(cl.loveGiftAmount || 0).toLocaleString()}
+                    </Text>
+                    <Text style={{ fontSize: 12.5, color: '#7f1d1d', marginTop: 4 }}>
+                      Sharer: {cl.sharerName} • Status: {cl.loveGiftStatus}
+                    </Text>
+                    {cl.gcashName || cl.gcashMobile ? (
+                      <Text style={{ fontSize: 12.5, color: '#991b1b', fontWeight: '700', marginTop: 4 }}>
+                        GCash: {cl.gcashName} ({cl.gcashMobile})
+                      </Text>
+                    ) : null}
+                    {cl.loveGiftStatus === 'claimed' && (
+                      <TouchableOpacity
+                        onPress={() => handlePayLoveGift(cl.id, 'GCash Sent')}
+                        style={{
+                          backgroundColor: '#dc2626',
+                          paddingVertical: 9,
+                          borderRadius: 10,
+                          alignItems: 'center',
+                          marginTop: 10,
+                        }}
+                      >
+                        <Text style={{ color: '#ffffff', fontWeight: '800', fontSize: 12.5 }}>
+                          💸 Mark Love Gift as Paid
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+
+        {/* ── Mark as Sold Modal ── */}
+        <Modal
+          visible={markSoldItem !== null}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setMarkSoldItem(null)}
+        >
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(15,23,42,0.55)',
+              justifyContent: 'center',
+              padding: 20,
+            }}
+          >
+            {markSoldItem && (
+              <View style={{ backgroundColor: '#ffffff', borderRadius: 18, padding: 20 }}>
+                <Text style={{ fontSize: 17, fontWeight: '800', color: '#0f172a', marginBottom: 6 }}>
+                  💰 Mark &ldquo;{markSoldItem.title}&rdquo; as Sold
+                </Text>
+                <Text style={{ fontSize: 13, color: '#64748b', marginBottom: 14 }}>
+                  Select which prospect bought this item (if referred by a sharer, they will unlock their Love Gift!):
+                </Text>
+
+                {markSoldProspects.map((pr: any) => (
+                  <TouchableOpacity
+                    key={pr.id}
+                    onPress={() => setSelectedWinnerProspectId(pr.id)}
+                    style={{
+                      padding: 12,
+                      borderRadius: 10,
+                      borderWidth: 1.5,
+                      borderColor:
+                        selectedWinnerProspectId === pr.id ? PRIMARY : '#e2e8f0',
+                      backgroundColor:
+                        selectedWinnerProspectId === pr.id
+                          ? 'rgba(78,177,203,0.1)'
+                          : '#ffffff',
+                      marginBottom: 8,
+                    }}
+                  >
+                    <Text style={{ fontWeight: '700', color: '#0f172a' }}>
+                      {pr.prospectName} ({pr.prospectMobile})
+                    </Text>
+                    {pr.sharerName && (
+                      <Text style={{ fontSize: 11.5, color: '#dc2626', marginTop: 2 }}>
+                        🔗 Referred by {pr.sharerName}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                ))}
+
+                <TouchableOpacity
+                  onPress={() => setSelectedWinnerProspectId('outside')}
+                  style={{
+                    padding: 12,
+                    borderRadius: 10,
+                    borderWidth: 1.5,
+                    borderColor:
+                      selectedWinnerProspectId === 'outside' ? PRIMARY : '#e2e8f0',
+                    backgroundColor:
+                      selectedWinnerProspectId === 'outside'
+                        ? 'rgba(78,177,203,0.1)'
+                        : '#ffffff',
+                    marginBottom: 14,
+                  }}
+                >
+                  <Text style={{ fontWeight: '700', color: '#475569' }}>
+                    Sold to someone outside StewardShop
+                  </Text>
+                </TouchableOpacity>
+
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <TouchableOpacity
+                    onPress={() => setMarkSoldItem(null)}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 11,
+                      borderRadius: 10,
+                      backgroundColor: '#f1f5f9',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text style={{ fontWeight: '700', color: '#475569' }}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={handleConfirmMarkSold}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 11,
+                      borderRadius: 10,
+                      backgroundColor: '#16a34a',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text style={{ fontWeight: '800', color: '#ffffff' }}>Confirm Sold</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </View>
+        </Modal>
+
+        {/* ── Edit Listing Modal ── */}
+        <Modal
+          visible={editListingModal !== null}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setEditListingModal(null)}
+        >
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(15,23,42,0.55)',
+              justifyContent: 'center',
+              padding: 20,
+            }}
+          >
+            {editListingModal && (
+              <View style={{ backgroundColor: '#ffffff', borderRadius: 18, padding: 20 }}>
+                <Text style={{ fontSize: 17, fontWeight: '800', color: '#0f172a', marginBottom: 12 }}>
+                  ✏️ Edit Listing
+                </Text>
+                <TextInput
+                  value={editTitle}
+                  onChangeText={setEditTitle}
+                  placeholder="Title"
+                  style={[styles.devoTextarea, { minHeight: 44, marginBottom: 10 }]}
+                />
+                <TextInput
+                  value={editDesc}
+                  onChangeText={setEditDesc}
+                  placeholder="Description"
+                  multiline
+                  style={[styles.devoTextarea, { minHeight: 80, marginBottom: 10 }]}
+                />
+                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
+                  <TextInput
+                    value={editOgPrice}
+                    onChangeText={setEditOgPrice}
+                    placeholder="Regular Price ₱"
+                    keyboardType="numeric"
+                    style={[styles.devoTextarea, { flex: 1, minHeight: 44 }]}
+                  />
+                  <TextInput
+                    value={editDiscPrice}
+                    onChangeText={setEditDiscPrice}
+                    placeholder="Discounted ₱"
+                    keyboardType="numeric"
+                    style={[styles.devoTextarea, { flex: 1, minHeight: 44 }]}
+                  />
+                </View>
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 6 }}>
+                  <TouchableOpacity
+                    onPress={() => setEditListingModal(null)}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 11,
+                      borderRadius: 10,
+                      backgroundColor: '#f1f5f9',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text style={{ fontWeight: '700', color: '#475569' }}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() =>
+                      handleListingAction(editListingModal.id, 'edit', {
+                        title: editTitle,
+                        description: editDesc,
+                        ogPrice: editOgPrice ? Number(editOgPrice) : null,
+                        discountedPrice: editDiscPrice ? Number(editDiscPrice) : null,
+                        loveGiftAmount: editLoveGift ? Number(editLoveGift) : 0,
+                        locationArea: editLocation,
+                      })
+                    }
+                    style={{
+                      flex: 1,
+                      paddingVertical: 11,
+                      borderRadius: 10,
+                      backgroundColor: PRIMARY,
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text style={{ fontWeight: '800', color: '#ffffff' }}>Save Changes</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </View>
+        </Modal>
+
+        <ConfirmModal
+          visible={deleteListingId !== null}
+          title="Delete Listing"
+          message="Are you sure you want to delete this StewardShop listing?"
+          confirmText="Delete"
+          onCancel={() => setDeleteListingId(null)}
+          onConfirm={() => {
+            if (deleteListingId) handleListingAction(deleteListingId, 'delete');
+          }}
+        />
+      </ScrollView>
+    );
+  };
 
   const renderMySharesPage = () => (
     <ScrollView contentContainerStyle={{ paddingBottom: 110 }}>
@@ -3647,10 +5485,10 @@ export default function WebReplicaScreen() {
         </Text>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           {[
-            { label: 'Total Earned', val: '₱0' },
-            { label: 'Pending', val: '₱0' },
-            { label: 'Received', val: '₱0' },
-            { label: 'Sales', val: '0' },
+            { label: 'Total Earned', val: `₱${Number(sharesStats.totalEarned || 0).toLocaleString()}` },
+            { label: 'Pending', val: `₱${Number(sharesStats.pendingAmount || 0).toLocaleString()}` },
+            { label: 'Received', val: `₱${Number(sharesStats.receivedAmount || 0).toLocaleString()}` },
+            { label: 'Sales', val: String(sharesStats.totalConversions || 0) },
           ].map((stat) => (
             <View
               key={stat.label}
@@ -3664,7 +5502,7 @@ export default function WebReplicaScreen() {
               <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 10 }}>
                 {stat.label}
               </Text>
-              <Text style={{ color: '#ffffff', fontWeight: '800', fontSize: 16 }}>
+              <Text style={{ color: '#ffffff', fontWeight: '800', fontSize: 15 }}>
                 {stat.val}
               </Text>
             </View>
@@ -3681,30 +5519,260 @@ export default function WebReplicaScreen() {
           <Text style={styles.sharerQuoteRef}>— Colossians 3:23</Text>
         </View>
 
-        <View style={{ alignItems: 'center', paddingVertical: 40 }}>
-          <Text style={{ fontSize: 44, marginBottom: 10 }}>🔗</Text>
-          <Text style={{ fontWeight: '600', color: '#64748b', marginBottom: 6 }}>
-            No shares yet
-          </Text>
-          <Text
-            style={{
-              fontSize: 13,
-              color: '#94a3b8',
-              textAlign: 'center',
-              marginBottom: 16,
-            }}
-          >
-            Browse StewardShop and tap &ldquo;Get My Share Link&rdquo; on listings you&apos;d
-            like to promote!
-          </Text>
-          <TouchableOpacity
-            style={styles.loveBrowseBtn}
-            onPress={() => router.push('/(tabs)/stewardshop')}
-          >
-            <Text style={styles.loveBrowseBtnText}>Browse StewardShop</Text>
-          </TouchableOpacity>
-        </View>
+        {myShares.length === 0 ? (
+          <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+            <Text style={{ fontSize: 44, marginBottom: 10 }}>🔗</Text>
+            <Text style={{ fontWeight: '600', color: '#64748b', marginBottom: 6 }}>
+              No shares yet
+            </Text>
+            <Text
+              style={{
+                fontSize: 13,
+                color: '#94a3b8',
+                textAlign: 'center',
+                marginBottom: 16,
+              }}
+            >
+              Browse StewardShop and tap &ldquo;Get My Share Link&rdquo; on listings you&apos;d
+              like to promote!
+            </Text>
+            <TouchableOpacity
+              style={styles.loveBrowseBtn}
+              onPress={() => router.push('/(tabs)/stewardshop')}
+            >
+              <Text style={styles.loveBrowseBtnText}>Browse StewardShop</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          myShares.map((sh: any) => {
+            const shareUrl = `https://connect.houseofgrace.ph/s/${sh.shareCode}`;
+            const status = sh.loveGiftStatus || 'none';
+            return (
+              <View key={sh.id} style={styles.loveWhiteCard}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontWeight: '800', fontSize: 15, color: '#0f172a' }}>
+                      {sh.listing?.title || 'StewardShop Listing'}
+                    </Text>
+                    <Text style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+                      👁 {sh.clicks || 0} clicks • 👥 {sh.prospectsCount || 0} prospects
+                    </Text>
+                  </View>
+                  {Number(sh.loveGiftAmount) > 0 && (
+                    <View
+                      style={{
+                        backgroundColor: '#fef2f2',
+                        paddingHorizontal: 10,
+                        paddingVertical: 4,
+                        borderRadius: 999,
+                      }}
+                    >
+                      <Text style={{ fontSize: 11.5, fontWeight: '800', color: '#dc2626' }}>
+                        ❤️ ₱{Number(sh.loveGiftAmount).toLocaleString()}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+                  <TouchableOpacity
+                    onPress={() =>
+                      Share.share({
+                        message: `Check out "${sh.listing?.title}" on HGF StewardShop: ${shareUrl}`,
+                      })
+                    }
+                    style={{
+                      backgroundColor: '#f1f5f9',
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
+                      borderRadius: 8,
+                    }}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#334155' }}>
+                      📤 Share Link ({sh.shareCode})
+                    </Text>
+                  </TouchableOpacity>
+
+                  {status === 'pending' && (
+                    <TouchableOpacity
+                      onPress={() => {
+                        setClaimModalShare(sh);
+                        setClaimMethod('gcash');
+                      }}
+                      style={{
+                        backgroundColor: '#16a34a',
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                        borderRadius: 8,
+                      }}
+                    >
+                      <Text style={{ fontSize: 12, fontWeight: '800', color: '#ffffff' }}>
+                        🎉 Claim Love Gift
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {status === 'paid' && (
+                    <TouchableOpacity
+                      onPress={() => {
+                        setReceiptModalShare(sh);
+                        setThankYouNote('');
+                      }}
+                      style={{
+                        backgroundColor: '#0284c7',
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                        borderRadius: 8,
+                      }}
+                    >
+                      <Text style={{ fontSize: 12, fontWeight: '800', color: '#ffffff' }}>
+                        💸 Paid — Confirm Receipt!
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {status === 'completed' && (
+                    <View
+                      style={{
+                        backgroundColor: '#dcfce7',
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                        borderRadius: 8,
+                      }}
+                    >
+                      <Text style={{ fontSize: 12, fontWeight: '800', color: '#166534' }}>
+                        ✅ Love Gift Received
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            );
+          })
+        )}
       </View>
+
+      {/* ── Claim Love Gift Modal ── */}
+      <Modal
+        visible={claimModalShare !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setClaimModalShare(null)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(15,23,42,0.55)',
+            justifyContent: 'center',
+            padding: 20,
+          }}
+        >
+          {claimModalShare && (
+            <View style={{ backgroundColor: '#ffffff', borderRadius: 18, padding: 20 }}>
+              <Text style={{ fontSize: 17, fontWeight: '800', color: '#0f172a', marginBottom: 8 }}>
+                🎉 Claim Your Love Gift
+              </Text>
+              <TextInput
+                value={gcashName}
+                onChangeText={setGcashName}
+                placeholder="GCash Account Name"
+                style={[styles.devoTextarea, { minHeight: 44, marginBottom: 10 }]}
+              />
+              <TextInput
+                value={gcashMobile}
+                onChangeText={setGcashMobile}
+                placeholder="GCash Mobile Number (09XXXXXXXXX)"
+                keyboardType="phone-pad"
+                style={[styles.devoTextarea, { minHeight: 44, marginBottom: 14 }]}
+              />
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <TouchableOpacity
+                  onPress={() => setClaimModalShare(null)}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 11,
+                    borderRadius: 10,
+                    backgroundColor: '#f1f5f9',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text style={{ fontWeight: '700', color: '#475569' }}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleSubmitClaimLoveGift}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 11,
+                    borderRadius: 10,
+                    backgroundColor: '#dc2626',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text style={{ fontWeight: '800', color: '#ffffff' }}>Submit Claim</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </View>
+      </Modal>
+
+      {/* ── Confirm Receipt Modal ── */}
+      <Modal
+        visible={receiptModalShare !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setReceiptModalShare(null)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(15,23,42,0.55)',
+            justifyContent: 'center',
+            padding: 20,
+          }}
+        >
+          {receiptModalShare && (
+            <View style={{ backgroundColor: '#ffffff', borderRadius: 18, padding: 20 }}>
+              <Text style={{ fontSize: 17, fontWeight: '800', color: '#0f172a', marginBottom: 8 }}>
+                🙌 Confirm Love Gift Receipt
+              </Text>
+              <TextInput
+                value={thankYouNote}
+                onChangeText={setThankYouNote}
+                placeholder="Send a short thank-you note to the seller..."
+                multiline
+                style={[styles.devoTextarea, { minHeight: 80, marginBottom: 14 }]}
+              />
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <TouchableOpacity
+                  onPress={() => setReceiptModalShare(null)}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 11,
+                    borderRadius: 10,
+                    backgroundColor: '#f1f5f9',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text style={{ fontWeight: '700', color: '#475569' }}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleConfirmReceipt}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 11,
+                    borderRadius: 10,
+                    backgroundColor: '#16a34a',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text style={{ fontWeight: '800', color: '#ffffff' }}>Confirm Received</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </View>
+      </Modal>
     </ScrollView>
   );
 

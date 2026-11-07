@@ -4,10 +4,12 @@ import { getAuthenticatedMember } from "@/lib/mobileAuth";
 import {
   getQuizDayForDate,
   isQuizWeekExpired,
+  canAccessDay,
   QUIZ_DAYS,
   QUIZ_TYPE_LABELS,
   REWARD_DISPLAY,
   getRewardTier,
+  gradeEssay,
 } from "@/lib/quiz-helpers";
 
 export const dynamic = "force-dynamic";
@@ -163,8 +165,10 @@ export async function GET(req: NextRequest) {
     }
 
     const q = (searchParams.get("q") || "").trim().toLowerCase();
+    const quizIdParam = searchParams.get("quizId");
+    const requestedQuizId = quizIdParam ? parseInt(quizIdParam, 10) : null;
 
-    const [members, ministries, resources, submissions, journalEntries, latestQuiz] =
+    const [members, ministries, resources, submissions, journalEntries, latestQuiz, allQuizzes] =
       await Promise.all([
         db.member.findMany({
           where: {
@@ -238,7 +242,7 @@ export async function GET(req: NextRequest) {
         }),
         (db as any).quizSubmission
           .findMany({
-            take: 250,
+            take: 500,
             orderBy: { score: "desc" },
             include: {
               member: {
@@ -262,7 +266,10 @@ export async function GET(req: NextRequest) {
           : Promise.resolve([]),
         db.sermonQuiz
           .findFirst({
-            where: { status: { in: ["published", "completed"] } },
+            where:
+              requestedQuizId && !isNaN(requestedQuizId)
+                ? { id: requestedQuizId, status: { in: ["published", "completed"] } }
+                : { status: { in: ["published", "completed"] } },
             orderBy: { sermonDate: "desc" },
             include: {
               questions: {
@@ -275,6 +282,7 @@ export async function GET(req: NextRequest) {
                   options: true,
                   hint: true,
                   correctAnswer: true,
+                  explanation: true,
                 },
               },
               rewardItems: true,
@@ -282,7 +290,82 @@ export async function GET(req: NextRequest) {
             },
           })
           .catch(() => null),
+        db.sermonQuiz
+          .findMany({
+            where: { status: { in: ["published", "completed"] } },
+            orderBy: { sermonDate: "desc" },
+            include: {
+              rewards: {
+                where: { memberId: viewer?.id || 0 },
+                select: {
+                  totalScore: true,
+                  rewardTier: true,
+                  claimStatus: true,
+                },
+              },
+              submissions: {
+                where: { memberId: viewer?.id || 0 },
+                select: {
+                  isCorrect: true,
+                },
+              },
+              catchupSessions: {
+                where: { memberId: viewer?.id || 0 },
+                select: {
+                  id: true,
+                  startedAt: true,
+                  expiresAt: true,
+                  isCompleted: true,
+                },
+              },
+            },
+          })
+          .catch(() => []),
       ]);
+
+    const mostRecentQuizId = allQuizzes[0]?.id ?? latestQuiz?.id ?? null;
+
+    // Build quizHistory (identical to /api/quiz/history)
+    const quizHistory = (allQuizzes || []).map((qz: any) => {
+      const reward = qz.rewards?.[0];
+      const played = (qz.submissions?.length || 0) > 0;
+      const submissionsCount = qz.submissions?.length || 0;
+      const isExpired = isQuizWeekExpired(qz.sermonDate);
+      const catchup = qz.catchupSessions?.[0] || null;
+      let catchupStatus: "none" | "active" | "completed" | "expired" = "none";
+      if (catchup) {
+        if (catchup.isCompleted || submissionsCount >= 7) {
+          catchupStatus = "completed";
+        } else if (new Date() < catchup.expiresAt) {
+          catchupStatus = "active";
+        } else {
+          catchupStatus = "expired";
+        }
+      }
+      const score = reward
+        ? reward.totalScore
+        : (qz.submissions || []).filter((s: any) => s.isCorrect).length;
+      let tier = reward?.rewardTier || null;
+      if (played && !tier) {
+        if (score >= 7) tier = "PERFECT";
+        else if (score >= 6) tier = "EXCELLENT";
+        else if (score >= 4) tier = "GOOD";
+        else tier = "PARTICIPANT";
+      }
+      return {
+        id: qz.id,
+        title: qz.title,
+        sermonDate: qz.sermonDate.toISOString(),
+        status: qz.status,
+        played,
+        score,
+        tier,
+        submissionsCount,
+        isExpired,
+        catchupStatus,
+        catchupExpiresAt: catchup ? catchup.expiresAt.toISOString() : null,
+      };
+    });
 
     // Build quizStatus for the authenticated viewer (identical to /api/quiz/status)
     let quizStatus: any = { active: false };
@@ -290,6 +373,7 @@ export async function GET(req: NextRequest) {
       const memberId = viewer?.id || 0;
       const isAdminOrPastor =
         viewer?.role === "admin" || viewer?.role === "moderator";
+      const isActiveQuiz = mostRecentQuizId ? latestQuiz.id === mostRecentQuizId : true;
 
       const userSubs = memberId
         ? await db.quizSubmission.findMany({
@@ -358,6 +442,7 @@ export async function GET(req: NextRequest) {
           isCorrect: sub?.isCorrect ?? null,
           feedback: sub?.aiFeedback ?? null,
           correctAnswer: isAdminOrPastor ? q.correctAnswer : null,
+          explanation: isAdminOrPastor ? (q as any).explanation || null : null,
         };
       });
 
@@ -366,10 +451,25 @@ export async function GET(req: NextRequest) {
       const isWeekComplete = completedCount >= 7;
       const rewardTier = isWeekComplete ? getRewardTier(totalScore) : null;
 
+      let rewardClaim = null;
+      if (isWeekComplete && memberId) {
+        rewardClaim = await db.quizReward
+          .findUnique({
+            where: { quizId_memberId: { quizId: latestQuiz.id, memberId } },
+            select: {
+              rewardTier: true,
+              claimStatus: true,
+              claimDetails: true,
+              totalScore: true,
+            },
+          })
+          .catch(() => null);
+      }
+
       quizStatus = {
         active: true,
         attended: true,
-        isActiveQuiz: true,
+        isActiveQuiz,
         isExpired,
         isCatchup: isCatchupActive,
         catchupExpiresAt: catchupSession?.expiresAt
@@ -405,7 +505,7 @@ export async function GET(req: NextRequest) {
           isWeekComplete,
           rewardTier,
           rewardDisplay: rewardTier ? { ...REWARD_DISPLAY[rewardTier] } : null,
-          rewardClaim: null,
+          rewardClaim: rewardClaim ? JSON.parse(JSON.stringify(rewardClaim)) : null,
         },
       };
     }
@@ -472,6 +572,7 @@ export async function GET(req: NextRequest) {
         })),
         resources: JSON.parse(JSON.stringify(resources)),
         quizStatus,
+        quizHistory,
         leaderboard,
         journals: journalEntries.map((j) => ({
           id: j.id,
@@ -703,6 +804,271 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         success: true,
         data: { expiresAt: expiresAt.toISOString() },
+      });
+    }
+
+    if (action === "submit_quiz_answer") {
+      if (!member) {
+        return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
+      }
+      const questionId = Number(body?.questionId);
+      const answer = body?.answer;
+      if (!questionId || answer === undefined || answer === null) {
+        return NextResponse.json(
+          { success: false, message: "questionId and answer required" },
+          { status: 400 }
+        );
+      }
+
+      const question = await db.quizQuestion.findUnique({
+        where: { id: questionId },
+        include: { quiz: true },
+      });
+      if (!question) {
+        return NextResponse.json({ success: false, message: "Question not found" }, { status: 404 });
+      }
+      if (!["published", "completed"].includes(question.quiz.status)) {
+        return NextResponse.json({ success: false, message: "Quiz not active" }, { status: 400 });
+      }
+
+      let isCatchup = false;
+      let catchupSession = null;
+
+      if (isQuizWeekExpired(question.quiz.sermonDate)) {
+        catchupSession = await db.quizCatchupSession.findUnique({
+          where: { quizId_memberId: { quizId: question.quiz.id, memberId: member.id } },
+        });
+        if (catchupSession && !catchupSession.isCompleted && new Date() < catchupSession.expiresAt) {
+          isCatchup = true;
+        } else {
+          return NextResponse.json(
+            { success: false, message: "This quiz week has ended. Start a 7-Day Catch-Up Pass first!" },
+            { status: 403 }
+          );
+        }
+      }
+
+      if (!isCatchup) {
+        const quizRelativeDay = getQuizDayForDate(question.quiz.sermonDate);
+        const currentDay = Math.min(Math.max(quizRelativeDay, 0), 7);
+        if (!canAccessDay(question.dayNumber, currentDay)) {
+          return NextResponse.json(
+            { success: false, message: "This day's quiz is not available yet" },
+            { status: 403 }
+          );
+        }
+      }
+
+      const existing = await db.quizSubmission.findUnique({
+        where: { questionId_memberId: { questionId, memberId: member.id } },
+      });
+      if (existing) {
+        return NextResponse.json({
+          success: true,
+          data: {
+            alreadySubmitted: true,
+            isCorrect: existing.isCorrect,
+            score: existing.score,
+            feedback: existing.aiFeedback || "Already submitted",
+            explanation: question.explanation || "",
+          },
+        });
+      }
+
+      let isCorrect = false;
+      let aiFeedback: string | null = null;
+      const userAnswer = String(answer).trim();
+
+      switch (question.questionType) {
+        case "MULTIPLE_CHOICE": {
+          isCorrect = userAnswer.toLowerCase() === question.correctAnswer.toLowerCase();
+          aiFeedback = isCorrect
+            ? "Correct! 🎉"
+            : `The correct answer was: ${question.correctAnswer}`;
+          break;
+        }
+        case "FILL_IN_BLANKS": {
+          const expectedParts = question.correctAnswer
+            .split(",")
+            .map((s) => s.trim().toLowerCase());
+          const userParts = userAnswer.split(",").map((s) => s.trim().toLowerCase());
+          isCorrect =
+            expectedParts.length === userParts.length &&
+            expectedParts.every((exp, i) => userParts[i] === exp);
+          aiFeedback = isCorrect
+            ? "Perfect! You filled in the blanks correctly! ✏️"
+            : `The correct answer was: ${question.correctAnswer}`;
+          break;
+        }
+        case "SHORT_ANSWER": {
+          const grading = await gradeEssay(
+            question.questionText,
+            question.correctAnswer,
+            userAnswer
+          );
+          isCorrect = grading.isCorrect;
+          aiFeedback = grading.feedback;
+          break;
+        }
+        case "SCRIPTURE_ORDERING": {
+          const correctOrder = question.correctAnswer
+            .split(" | ")
+            .map((s) => s.trim().toLowerCase());
+          let userOrder: string[];
+          try {
+            userOrder = JSON.parse(userAnswer).map((s: string) => s.trim().toLowerCase());
+          } catch {
+            userOrder = userAnswer.split(" | ").map((s) => s.trim().toLowerCase());
+          }
+          const normalize = (str: string) => str.replace(/[^\p{L}\p{N}]/gu, "").toLowerCase();
+          const cleanCorrect = correctOrder.map(normalize);
+          const cleanUser = userOrder.map(normalize);
+          isCorrect =
+            cleanCorrect.length === cleanUser.length &&
+            cleanCorrect.every((c, i) => cleanUser[i] === c);
+          aiFeedback = isCorrect
+            ? "You arranged the verse perfectly! 🧩"
+            : "Not quite the right order. Keep studying the Word!";
+          break;
+        }
+        case "TRUE_FALSE_EXPLAIN": {
+          let userTF: string;
+          let userExplanation: string;
+          try {
+            const parsed = JSON.parse(userAnswer);
+            userTF = String(parsed.answer).toUpperCase();
+            userExplanation = String(parsed.explanation || "");
+          } catch {
+            userTF = userAnswer.toUpperCase().startsWith("TRUE") ? "TRUE" : "FALSE";
+            userExplanation = userAnswer;
+          }
+          const tfCorrect = userTF === question.correctAnswer.toUpperCase();
+          if (!tfCorrect) {
+            isCorrect = false;
+            aiFeedback = `The statement was actually ${question.correctAnswer}. ${
+              question.explanation || ""
+            }`;
+          } else if (userExplanation.length < 10) {
+            isCorrect = true;
+            aiFeedback =
+              "Correct! Though a more detailed explanation would strengthen your understanding.";
+          } else {
+            const grading = await gradeEssay(
+              `Why is this statement ${question.correctAnswer}? "${question.questionText}"`,
+              question.explanation || question.correctAnswer,
+              userExplanation
+            );
+            isCorrect = true;
+            aiFeedback = grading.feedback;
+          }
+          break;
+        }
+      }
+
+      const score = isCorrect ? 1 : 0;
+
+      await db.quizSubmission.create({
+        data: {
+          quizId: question.quiz.id,
+          questionId,
+          memberId: member.id,
+          answer: userAnswer,
+          isCorrect,
+          score,
+          aiFeedback,
+        },
+      });
+
+      const totalSubmissions = await db.quizSubmission.count({
+        where: { quizId: question.quiz.id, memberId: member.id },
+      });
+
+      if (catchupSession && totalSubmissions >= 7) {
+        await db.quizCatchupSession.update({
+          where: { id: catchupSession.id },
+          data: { isCompleted: true },
+        });
+      }
+
+      let reward = null;
+      if (totalSubmissions === 7) {
+        const totalScoreAgg = await db.quizSubmission.aggregate({
+          _sum: { score: true },
+          where: { quizId: question.quiz.id, memberId: member.id },
+        });
+        const finalScore = totalScoreAgg._sum.score || 0;
+        const tier = getRewardTier(finalScore);
+
+        const existingReward = await db.quizReward.findUnique({
+          where: { quizId_memberId: { quizId: question.quiz.id, memberId: member.id } },
+        });
+
+        if (!existingReward) {
+          await db.quizReward.create({
+            data: {
+              quizId: question.quiz.id,
+              memberId: member.id,
+              totalScore: finalScore,
+              rewardTier: tier,
+            },
+          });
+
+          await db.notification.create({
+            data: {
+              memberId: member.id,
+              type: "quiz_reward",
+              title:
+                tier === "PERFECT"
+                  ? "🏆 PERFECT SCORE! Claim your reward!"
+                  : tier === "PARTICIPANT"
+                  ? "🙏 Quiz for Christ complete!"
+                  : "🎁 You earned a prize this week!",
+              body:
+                tier === "PERFECT"
+                  ? "You aced all 7 days! Tap to claim your Christian statement t-shirt."
+                  : tier === "PARTICIPANT"
+                  ? `You scored ${finalScore}/7. Keep growing in the Word!`
+                  : `You scored ${finalScore}/7! Your prize will be announced this Sunday. 🎁`,
+              link: "/quiz",
+            },
+          });
+
+          reward = { totalScore: finalScore, tier };
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          isCorrect,
+          score,
+          feedback: aiFeedback,
+          explanation: question.explanation || "",
+          reward,
+        },
+      });
+    }
+
+    if (action === "claim_quiz_reward") {
+      if (!member) {
+        return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
+      }
+      const quizId = Number(body?.quizId);
+      const tShirtSize = String(body?.tShirtSize || "").trim();
+      const phone = String(body?.phone || "").trim();
+      if (!quizId) {
+        return NextResponse.json({ success: false, message: "Quiz ID required" }, { status: 400 });
+      }
+      await db.quizReward.updateMany({
+        where: { quizId, memberId: member.id },
+        data: {
+          claimStatus: "claimed",
+          claimDetails: { tShirtSize, phone },
+        },
+      });
+      return NextResponse.json({
+        success: true,
+        message: "Reward claimed! We will notify you on Sunday.",
       });
     }
 

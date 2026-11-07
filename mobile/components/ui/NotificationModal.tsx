@@ -110,6 +110,125 @@ export default function NotificationModal({
     }
   };
 
+  const resolveNotificationRoute = (n: NotificationItem): string => {
+    const rawLink = String(n.link || '').trim();
+    const titleLower = String(n.title || '').toLowerCase();
+    const bodyLower = String(n.message || n.body || '').toLowerCase();
+
+    // Parse query params from rawLink if present
+    let pathname = rawLink;
+    const queryMap: Record<string, string> = {};
+    const qIdx = rawLink.indexOf('?');
+    if (qIdx !== -1) {
+      pathname = rawLink.slice(0, qIdx);
+      const qStr = rawLink.slice(qIdx + 1).split('#')[0];
+      qStr.split('&').forEach((pair) => {
+        const [k, v] = pair.split('=');
+        if (k) queryMap[decodeURIComponent(k)] = decodeURIComponent(v || '');
+      });
+    }
+
+    // 1. Feed / Post / Comment deep-links (/feed?post=123 or /?post=123)
+    if (queryMap.post || pathname === '/feed') {
+      const postId = queryMap.post || '';
+      const isCommentNotif =
+        n.type === 'new_comment' ||
+        n.type === 'comment_reply' ||
+        titleLower.includes('comment') ||
+        titleLower.includes('replied');
+      if (postId) {
+        return `/(tabs)?post=${postId}${isCommentNotif ? '&openComments=1' : ''}`;
+      }
+      return '/(tabs)';
+    }
+
+    // 2. Prayer Wall deep-links (/prayer?highlight=45, /prayer/45, /prayer?mine=true)
+    const prayerPathMatch = pathname.match(/^\/prayer\/(\d+)/);
+    if (
+      pathname.startsWith('/prayer') ||
+      n.type === 'prayer' ||
+      n.type === 'prayer_response' ||
+      titleLower.includes('prayed for')
+    ) {
+      const highlightId =
+        queryMap.highlight || queryMap.pray || (prayerPathMatch ? prayerPathMatch[1] : '');
+      if (queryMap.mine === 'true') return '/(tabs)/prayer?mine=true';
+      if (highlightId) return `/(tabs)/prayer?highlight=${highlightId}`;
+      return '/(tabs)/prayer';
+    }
+
+    // 3. Quiz for Christ deep-links (/quiz, /quiz/hub?tab=archive&quizId=6, Day N)
+    if (
+      pathname.startsWith('/quiz') ||
+      n.type?.startsWith('quiz_') ||
+      titleLower.includes('quiz') ||
+      bodyLower.includes('catch-up archive')
+    ) {
+      const quizId = queryMap.quizId || '';
+      const dayMatch = String(n.title || '').match(/Day\s+(\d+)/i);
+      const dayNum = queryMap.day || (dayMatch ? dayMatch[1] : '');
+      const isArchive =
+        queryMap.tab === 'archive' ||
+        queryMap.tab === 'past' ||
+        queryMap.tab === 'catchup' ||
+        pathname.includes('/quiz/hub') ||
+        titleLower.includes('catch-up');
+      const paramsList: string[] = ['page=quiz'];
+      if (isArchive) paramsList.push('tab=archive');
+      else if (queryMap.tab === 'leaderboard') paramsList.push('tab=leaderboard');
+      if (quizId) paramsList.push(`quizId=${quizId}`);
+      if (dayNum && !isArchive) paramsList.push(`day=${dayNum}`);
+      return `/church?${paramsList.join('&')}`;
+    }
+
+    // 4. StewardShop deep-links (/stewardshop/my-listings/21/prospects, /stewardshop/my-shares, /stewardshop/21)
+    const prospectsMatch = pathname.match(/^\/stewardshop\/my-listings\/(\d+)\/prospects/);
+    if (prospectsMatch) {
+      return `/church?page=my-listings&prospectsFor=${prospectsMatch[1]}`;
+    }
+    if (pathname.startsWith('/stewardshop/my-listings')) {
+      return '/church?page=my-listings';
+    }
+    if (pathname.startsWith('/stewardshop/my-shares')) {
+      return '/church?page=my-shares';
+    }
+    if (pathname.startsWith('/stewardshop/love-gifts')) {
+      return '/church?page=love-gifts';
+    }
+    const listingIdMatch = pathname.match(/^\/stewardshop\/(\d+)/);
+    if (listingIdMatch || queryMap.id) {
+      const lId = listingIdMatch ? listingIdMatch[1] : queryMap.id;
+      return `/(tabs)/stewardshop?id=${lId}`;
+    }
+    if (pathname.startsWith('/stewardshop') || n.type?.startsWith('marketplace_')) {
+      return '/(tabs)/stewardshop';
+    }
+
+    // 5. Events deep-links (/event/66, /events)
+    const eventMatch = pathname.match(/^\/events?\/(\d+)/);
+    if (eventMatch || queryMap.eventId) {
+      const evId = eventMatch ? eventMatch[1] : queryMap.eventId;
+      return `/(tabs)/events?eventId=${evId}`;
+    }
+    if (pathname.startsWith('/event')) {
+      return '/(tabs)/events';
+    }
+
+    // 6. Member profile (/member/12)
+    const memberMatch = pathname.match(/^\/member\/(\d+)/);
+    if (memberMatch) {
+      return `/member/${memberMatch[1]}`;
+    }
+
+    // 7. Resources / Journal / Directory / Admin
+    if (pathname.startsWith('/resources')) return '/church?page=resources';
+    if (pathname.startsWith('/journal')) return '/church?page=journal';
+    if (pathname.startsWith('/directory')) return '/church?page=directory';
+    if (pathname.startsWith('/admin')) return '/admin';
+
+    return '/(tabs)';
+  };
+
   const handlePressItem = (n: NotificationItem) => {
     const isRead = n.is_read ?? n.isRead ?? false;
     if (!isRead) {
@@ -122,13 +241,8 @@ export default function NotificationModal({
       client.post('/notifications', { id: n.id }).catch(() => {});
     }
     onClose();
-    if (n.type?.startsWith('quiz_')) {
-      router.push('/church?tab=quiz' as any);
-    } else if (n.type?.startsWith('marketplace_')) {
-      router.push('/(tabs)/stewardshop');
-    } else {
-      router.push('/(tabs)');
-    }
+    const targetRoute = resolveNotificationRoute(n);
+    router.push(targetRoute as any);
   };
 
   return (

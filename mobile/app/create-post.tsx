@@ -22,7 +22,7 @@ import client from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
 
 const PRIMARY = '#4EB1CB';
-const PURPLE = '#7c3aed';
+const PURPLE = '#0284c7';
 
 const PRIMARY_TABS = [
   { value: 'thoughts', icon: '✍️', label: 'Thoughts' },
@@ -73,6 +73,68 @@ export default function CreatePostScreen() {
   const [showVisModal, setShowVisModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  // AI Rewriter State (Cebuano | Taglish | English)
+  const [showAiLangPicker, setShowAiLangPicker] = useState(false);
+  const [aiRewriting, setAiRewriting] = useState(false);
+  const [preAiContent, setPreAiContent] = useState<string | null>(null);
+
+  // Automatic URL Link Preview State
+  const [linkPreview, setLinkPreview] = useState<{
+    url: string;
+    title?: string | null;
+    description?: string | null;
+    image?: string | null;
+  } | null>(null);
+  const [dismissedUrl, setDismissedUrl] = useState<string | null>(null);
+
+  const handleContentChange = (txt: string) => {
+    setContent(txt);
+    const urlMatch = txt.match(/https?:\/\/[^\s]+/i);
+    if (urlMatch) {
+      const detectedUrl = urlMatch[0];
+      if (detectedUrl !== dismissedUrl && linkPreview?.url !== detectedUrl) {
+        client
+          .get(`/feed?checkMetadataUrl=${encodeURIComponent(detectedUrl)}`)
+          .then((res) => {
+            const meta = res.data?.data || res.data;
+            if (meta && (meta.title || meta.description || meta.image)) {
+              setLinkPreview({
+                url: detectedUrl,
+                title: meta.title || detectedUrl,
+                description: meta.description || null,
+                image: meta.image || null,
+              });
+            }
+          })
+          .catch(() => {});
+      }
+    }
+  };
+
+  const handleAiRewrite = async (language: 'Cebuano' | 'Taglish' | 'English') => {
+    if (!content.trim() || aiRewriting) return;
+    setAiRewriting(true);
+    setError('');
+    try {
+      const { data } = await client.post('/feed', {
+        action: 'improve_text',
+        text: content.trim(),
+        language,
+        type: activeTab,
+      });
+      const improved = data?.data?.improved || data?.improved;
+      if (improved) {
+        setPreAiContent(content);
+        setContent(improved);
+        setShowAiLangPicker(false);
+      }
+    } catch {
+      setError('Could not rewrite text right now. Please try again.');
+    } finally {
+      setAiRewriting(false);
+    }
+  };
 
   const handlePickPhotos = async () => {
     try {
@@ -151,6 +213,10 @@ export default function CreatePostScreen() {
         imageUrl: activeTab === 'thoughts' && selectedBg ? selectedBg : null,
         visibility,
         photos: uploadedPaths,
+        linkUrl: linkPreview?.url || null,
+        linkTitle: linkPreview?.title || null,
+        linkDescription: linkPreview?.description || null,
+        linkImage: linkPreview?.image || null,
       });
 
       router.replace('/(tabs)' as any);
@@ -181,7 +247,7 @@ export default function CreatePostScreen() {
         <View style={[isColoredBg && styles.coloredTextWrap]}>
           <TextInput
             value={content}
-            onChangeText={setContent}
+            onChangeText={handleContentChange}
             placeholder={
               activeTab === 'prayer'
                 ? 'Share your prayer request with the community...'
@@ -197,6 +263,125 @@ export default function CreatePostScreen() {
             ]}
           />
         </View>
+
+        {/* ✨ Make it better with AI (Cebuano | Taglish | English) */}
+        {content.trim().length > 5 && (
+          <View style={{ paddingHorizontal: 14, paddingBottom: 10 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+              <TouchableOpacity
+                onPress={() => setShowAiLangPicker((v) => !v)}
+                disabled={aiRewriting}
+                style={{
+                  backgroundColor: isColoredBg ? 'rgba(255,255,255,0.22)' : '#e0f2fe',
+                  borderWidth: 1,
+                  borderColor: isColoredBg ? 'rgba(255,255,255,0.4)' : '#bae6fd',
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 999,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: '700',
+                    color: isColoredBg ? '#ffffff' : '#0284c7',
+                  }}
+                >
+                  {aiRewriting ? '✨ Rewriting...' : '✨ Make it better with AI'}
+                </Text>
+              </TouchableOpacity>
+
+              {preAiContent !== null && (
+                <TouchableOpacity
+                  onPress={() => {
+                    setContent(preAiContent);
+                    setPreAiContent(null);
+                  }}
+                  style={{
+                    backgroundColor: '#f1f5f9',
+                    paddingHorizontal: 10,
+                    paddingVertical: 6,
+                    borderRadius: 999,
+                  }}
+                >
+                  <Text style={{ fontSize: 11.5, fontWeight: '600', color: '#475569' }}>
+                    ↩️ Undo AI rewrite
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {showAiLangPicker && !aiRewriting && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
+                <Text
+                  style={{
+                    fontSize: 11.5,
+                    color: isColoredBg ? '#ffffff' : '#64748b',
+                    fontWeight: '600',
+                  }}
+                >
+                  Rewrite in:
+                </Text>
+                {(['Cebuano', 'Taglish', 'English'] as const).map((lang) => (
+                  <TouchableOpacity
+                    key={lang}
+                    onPress={() => handleAiRewrite(lang)}
+                    style={{
+                      backgroundColor: PRIMARY,
+                      paddingHorizontal: 11,
+                      paddingVertical: 5,
+                      borderRadius: 999,
+                    }}
+                  >
+                    <Text style={{ fontSize: 11.5, fontWeight: '700', color: '#ffffff' }}>
+                      {lang}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Automatic URL Link Preview Card */}
+        {linkPreview && (
+          <View
+            style={{
+              marginHorizontal: 14,
+              marginBottom: 10,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: '#e2e8f0',
+              backgroundColor: '#f8fafc',
+              padding: 10,
+              position: 'relative',
+            }}
+          >
+            <TouchableOpacity
+              onPress={() => {
+                setDismissedUrl(linkPreview.url);
+                setLinkPreview(null);
+              }}
+              style={{
+                position: 'absolute',
+                top: 6,
+                right: 8,
+                zIndex: 2,
+                padding: 4,
+              }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: '800', color: '#64748b' }}>✕</Text>
+            </TouchableOpacity>
+            <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: '700', color: '#0f172a', paddingRight: 20 }}>
+              🔗 {linkPreview.title || linkPreview.url}
+            </Text>
+            {linkPreview.description ? (
+              <Text numberOfLines={2} style={{ fontSize: 11.5, color: '#64748b', marginTop: 3 }}>
+                {linkPreview.description}
+              </Text>
+            ) : null}
+          </View>
+        )}
 
         {/* Bottom control row: Aa background picker & 😊 emoji picker */}
         <View

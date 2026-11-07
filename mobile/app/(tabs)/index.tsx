@@ -15,6 +15,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Share,
+  Linking,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import client from '@/api/client';
@@ -31,9 +32,14 @@ interface FeedPost {
   title?: string | null;
   content: string;
   imageUrl?: string | null;
+  aiCaption?: string | null;
   verseRef?: string | null;
   verseText?: string | null;
   eventId?: number | null;
+  linkUrl?: string | null;
+  linkTitle?: string | null;
+  linkDesc?: string | null;
+  linkImage?: string | null;
   visibility?: string;
   images: string[];
   createdAt: string;
@@ -107,7 +113,7 @@ const DAILY_VERSES = [
 const TYPE_LABELS: Record<string, { label: string; color: string; icon: string }> = {
   TEXT: { label: 'Reflection', color: '#6c757d', icon: '✍️' },
   DEVO: { label: 'Devotional', color: '#4EB1CB', icon: '📖' },
-  VERSE_CARD: { label: 'Bible Verse', color: '#805AD5', icon: '📜' },
+  VERSE_CARD: { label: 'Bible Verse', color: '#0284c7', icon: '📜' },
   PRAYER: { label: 'Prayer', color: '#E67E22', icon: '🙏' },
   PRAISE: { label: 'Testimony', color: '#27AE60', icon: '🙌' },
   EVENT: { label: 'Event', color: '#E74C3C', icon: '📅' },
@@ -178,18 +184,37 @@ function getAvatarUrl(pic?: string | null): string | null {
 
 export default function FeedScreen() {
   const router = useRouter();
-  const searchParams = useLocalSearchParams<{ menu?: string; slide?: string }>();
+  const searchParams = useLocalSearchParams<{
+    menu?: string;
+    slide?: string;
+    post?: string;
+    openComments?: string;
+  }>();
   const { user } = useAuth();
 
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [carousel, setCarousel] = useState<CarouselData>({});
   const [slideIdx, setSlideIdx] = useState(0);
+  const [highlightedPostId, setHighlightedPostId] = useState<number | null>(null);
+  const [translatedPostIds, setTranslatedPostIds] = useState<Record<number, boolean>>({});
+  const [lightboxState, setLightboxState] = useState<{
+    images: string[];
+    index: number;
+  } | null>(null);
 
   useEffect(() => {
     if (searchParams?.menu === '1' || searchParams?.slide === '1') {
       setSlideIdx(1);
     }
   }, [searchParams?.menu, searchParams?.slide]);
+
+  useEffect(() => {
+    if (searchParams?.post) {
+      const targetId = Number(searchParams.post);
+      if (targetId > 0) setHighlightedPostId(targetId);
+    }
+  }, [searchParams?.post]);
+
   const [blockedAuthorIds, setBlockedAuthorIds] = useState<number[]>([]);
   const [stats, setStats] = useState({ memberCount: 472, upcomingCount: 0, ministryCount: 12 });
   const [loading, setLoading] = useState(true);
@@ -205,9 +230,13 @@ export default function FeedScreen() {
   const [commentText, setCommentText] = useState('');
   const [sendingComment, setSendingComment] = useState(false);
 
-  // Post ••• Menu & Moderation
+  // Post ••• Menu & Moderation + Owner Edit/Delete
   const [moderationPost, setModerationPost] = useState<FeedPost | null>(null);
   const [confirmBlockOpen, setConfirmBlockOpen] = useState(false);
+  const [confirmDeletePostOpen, setConfirmDeletePostOpen] = useState(false);
+  const [editingPost, setEditingPost] = useState<FeedPost | null>(null);
+  const [editPostText, setEditPostText] = useState('');
+  const [savingPostEdit, setSavingPostEdit] = useState(false);
 
   const [alertModal, setAlertModal] = useState<{
     visible: boolean;
@@ -221,10 +250,20 @@ export default function FeedScreen() {
 
   const fetchFeed = useCallback(async () => {
     try {
-      const { data } = await client.get('/feed?limit=25');
+      const postQuery = searchParams?.post ? `&post=${encodeURIComponent(searchParams.post)}` : '';
+      const { data } = await client.get(`/feed?limit=25${postQuery}`);
       const payload = data?.data || data;
       if (payload?.posts) {
         setPosts(payload.posts);
+        if (searchParams?.post && searchParams?.openComments === '1') {
+          const targetId = Number(searchParams.post);
+          const found = payload.posts.find((p: FeedPost) => p.id === targetId);
+          if (found) {
+            setTimeout(() => {
+              openComments(found);
+            }, 250);
+          }
+        }
       }
       if (payload?.stats) {
         setStats(payload.stats);
@@ -241,7 +280,7 @@ export default function FeedScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [searchParams?.post, searchParams?.openComments]);
 
   useEffect(() => {
     fetchFeed();
@@ -380,7 +419,57 @@ export default function FeedScreen() {
     }
   };
 
-  const visiblePosts = posts.filter((p) => !blockedAuthorIds.includes(p.author.id));
+  const handleSaveEditPost = async () => {
+    if (!editingPost || !editPostText.trim()) return;
+    setSavingPostEdit(true);
+    try {
+      await client.post('/feed', {
+        action: 'edit_post',
+        postId: editingPost.id,
+        content: editPostText.trim(),
+      });
+      setPosts((prev) =>
+        prev.map((p) => (p.id === editingPost.id ? { ...p, content: editPostText.trim() } : p))
+      );
+      setEditingPost(null);
+      setEditPostText('');
+    } catch (err: any) {
+      setAlertModal({
+        visible: true,
+        type: 'error',
+        title: 'Update Failed',
+        message: err?.response?.data?.error || 'Unable to update post.',
+      });
+    } finally {
+      setSavingPostEdit(false);
+    }
+  };
+
+  const handleConfirmDeletePost = async () => {
+    if (!moderationPost) return;
+    const target = moderationPost;
+    setConfirmDeletePostOpen(false);
+    setModerationPost(null);
+    try {
+      await client.post('/feed', { action: 'delete_post', postId: target.id });
+      setPosts((prev) => prev.filter((p) => p.id !== target.id));
+    } catch (err: any) {
+      setAlertModal({
+        visible: true,
+        type: 'error',
+        title: 'Delete Failed',
+        message: err?.response?.data?.error || 'Unable to delete post.',
+      });
+    }
+  };
+
+  const rawVisiblePosts = posts.filter((p) => !blockedAuthorIds.includes(p.author.id));
+  const visiblePosts = highlightedPostId
+    ? [
+        ...rawVisiblePosts.filter((p) => p.id === highlightedPostId),
+        ...rawVisiblePosts.filter((p) => p.id !== highlightedPostId),
+      ]
+    : rawVisiblePosts;
 
   // Render Logged-In Header (HeroCarousel + 8-Icon Quick Action Bar + "Community Feed" Header)
   const renderLoggedInHeader = () => {
@@ -453,7 +542,7 @@ export default function FeedScreen() {
               </Text>
               <TouchableOpacity
                 style={styles.quizCatchupBtn}
-                onPress={() => router.push('/church?tab=quiz' as any)}
+                onPress={() => router.push('/church?page=quiz' as any)}
                 activeOpacity={0.88}
               >
                 <Text style={styles.quizCatchupBtnText}>Catch Up Now →</Text>
@@ -479,7 +568,11 @@ export default function FeedScreen() {
               <View style={[styles.heroBtnRow, { marginTop: 10 }]}>
                 <TouchableOpacity
                   style={styles.heroPrimaryPill}
-                  onPress={() => router.push('/(tabs)/events')}
+                  onPress={() =>
+                    router.push(
+                      `/(tabs)/events?eventId=${carousel.upcomingEvent?.id || ''}` as any
+                    )
+                  }
                 >
                   <Text style={styles.heroPrimaryPillText}>View Event →</Text>
                 </TouchableOpacity>
@@ -500,7 +593,11 @@ export default function FeedScreen() {
               <View style={styles.heroBtnRow}>
                 <TouchableOpacity
                   style={styles.heroPrimaryPill}
-                  onPress={() => router.push('/(tabs)/prayer')}
+                  onPress={() =>
+                    router.push(
+                      `/(tabs)/prayer?highlight=${carousel.prayerSpotlight?.id || ''}` as any
+                    )
+                  }
                 >
                   <Text style={styles.heroPrimaryPillText}>🙏 Join in Prayer</Text>
                 </TouchableOpacity>
@@ -553,6 +650,34 @@ export default function FeedScreen() {
             ))}
           </ScrollView>
         </View>
+
+        {/* Highlighted Deep-Linked Post Banner */}
+        {highlightedPostId && (
+          <View
+            style={{
+              marginHorizontal: 14,
+              marginTop: 10,
+              backgroundColor: '#f0f9ff',
+              borderRadius: 12,
+              paddingVertical: 10,
+              paddingHorizontal: 14,
+              borderWidth: 1,
+              borderColor: '#bae6fd',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#0369a1' }}>
+              📌 Viewing linked post #{highlightedPostId}
+            </Text>
+            <TouchableOpacity onPress={() => setHighlightedPostId(null)}>
+              <Text style={{ fontSize: 12, fontWeight: '800', color: '#0284c7' }}>
+                Clear Highlight ✕
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Feed Section Header */}
         <View style={styles.feedSectionHeader}>
@@ -715,9 +840,32 @@ export default function FeedScreen() {
 
     const myEmoji = REACTIONS.find((r) => r.type === item.myReaction)?.emoji;
     const isBgPost = Boolean(item.imageUrl && item.imageUrl.startsWith('bg:'));
+    const isHighlighted = highlightedPostId === item.id;
+    const showEnglishTranslation = Boolean(translatedPostIds[item.id] && item.aiCaption);
+
+    const prayerMatch = item.content?.match(/\[prayer:(\d+)\]/);
+    const linkedPrayerId = prayerMatch ? Number(prayerMatch[1]) : null;
+    const eventMatch = item.content?.match(/\[event:(\d+)\]/);
+    const linkedEventId = eventMatch ? Number(eventMatch[1]) : item.eventId || null;
+
+    const cleanDisplayContent = (
+      showEnglishTranslation && item.aiCaption ? item.aiCaption : item.content || ''
+    )
+      .replace(/\[prayer:\d+\]/g, '')
+      .replace(/\[event:\d+\]/g, '')
+      .trim();
 
     return (
-      <View style={styles.postCard}>
+      <View
+        style={[
+          styles.postCard,
+          isHighlighted && {
+            borderWidth: 2,
+            borderColor: '#4EB1CB',
+            backgroundColor: '#f0f9ff',
+          },
+        ]}
+      >
         {/* Author Header */}
         <View style={styles.postHeaderRow}>
           <TouchableOpacity
@@ -867,12 +1015,31 @@ export default function FeedScreen() {
           <TouchableOpacity
             style={styles.eventPostCard}
             activeOpacity={0.9}
-            onPress={() => router.push('/(tabs)/events')}
+            onPress={() =>
+              router.push(
+                linkedEventId
+                  ? (`/(tabs)/events?eventId=${linkedEventId}` as any)
+                  : '/(tabs)/events'
+              )
+            }
           >
+            {item.images && item.images.length > 0 && (
+              <Image
+                source={{ uri: item.images[0] }}
+                style={{
+                  width: '100%',
+                  height: 170,
+                  borderRadius: 10,
+                  marginBottom: 10,
+                  backgroundColor: '#e2e8f0',
+                }}
+                resizeMode="cover"
+              />
+            )}
             <Text style={styles.eventPostTitle}>
-              {item.title || item.content.split('\n')[0]}
+              {item.title || cleanDisplayContent.split('\n')[0]}
             </Text>
-            {item.content
+            {cleanDisplayContent
               .split('\n')
               .slice(1)
               .filter(Boolean)
@@ -893,7 +1060,7 @@ export default function FeedScreen() {
               imageStyle={{ borderRadius: 14 }}
             >
               <View style={styles.bgPostOverlay}>
-                <Text style={styles.bgPostText}>{item.content}</Text>
+                <Text style={styles.bgPostText}>{cleanDisplayContent}</Text>
               </View>
             </ImageBackground>
           ) : (
@@ -905,11 +1072,40 @@ export default function FeedScreen() {
                 },
               ]}
             >
-              <Text style={styles.bgPostText}>{item.content}</Text>
+              <Text style={styles.bgPostText}>{cleanDisplayContent}</Text>
             </View>
           )
         ) : (
-          <Text style={styles.postBodyText}>{item.content}</Text>
+          <View>
+            <Text style={styles.postBodyText}>{cleanDisplayContent}</Text>
+            {/* AI Translation Toggle for PRAISE / Testimony posts */}
+            {item.aiCaption ? (
+              <TouchableOpacity
+                style={{
+                  alignSelf: 'flex-start',
+                  backgroundColor: '#f0f9ff',
+                  borderWidth: 1,
+                  borderColor: '#bae6fd',
+                  borderRadius: 99,
+                  paddingVertical: 5,
+                  paddingHorizontal: 12,
+                  marginBottom: 10,
+                }}
+                onPress={() =>
+                  setTranslatedPostIds((prev) => ({
+                    ...prev,
+                    [item.id]: !prev[item.id],
+                  }))
+                }
+              >
+                <Text style={{ fontSize: 11.5, fontWeight: '700', color: '#0284c7' }}>
+                  {showEnglishTranslation
+                    ? '🌐 Show Original Bisaya/Taglish'
+                    : '🌐 View English Translation'}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
         )}
 
         {/* Standard Verse Card (for non-birthday posts) */}
@@ -924,22 +1120,146 @@ export default function FeedScreen() {
           </View>
         ) : null}
 
-        {/* Photos Grid */}
+        {/* Link Preview Card (OpenGraph) */}
+        {item.linkUrl ? (
+          <TouchableOpacity
+            style={{
+              borderWidth: 1,
+              borderColor: '#e2e8f0',
+              borderRadius: 12,
+              overflow: 'hidden',
+              backgroundColor: '#f8fafc',
+              marginBottom: 12,
+            }}
+            activeOpacity={0.88}
+            onPress={() => Linking.openURL(item.linkUrl!).catch(() => {})}
+          >
+            {item.linkImage ? (
+              <Image
+                source={{ uri: item.linkImage }}
+                style={{ width: '100%', height: 150, backgroundColor: '#e2e8f0' }}
+                resizeMode="cover"
+              />
+            ) : null}
+            <View style={{ padding: 12 }}>
+              <Text
+                style={{ fontSize: 10, fontWeight: '700', color: '#64748b', marginBottom: 2 }}
+                numberOfLines={1}
+              >
+                🔗 {item.linkUrl.replace(/^https?:\/\//i, '').split('/')[0]}
+              </Text>
+              {item.linkTitle ? (
+                <Text
+                  style={{ fontSize: 13.5, fontWeight: '800', color: '#0f172a', marginBottom: 3 }}
+                  numberOfLines={2}
+                >
+                  {item.linkTitle}
+                </Text>
+              ) : null}
+              {item.linkDesc ? (
+                <Text style={{ fontSize: 12, color: '#475569' }} numberOfLines={2}>
+                  {item.linkDesc}
+                </Text>
+              ) : null}
+            </View>
+          </TouchableOpacity>
+        ) : null}
+
+        {/* Photos Grid (Single or Multi-Photo + Lightbox) */}
         {item.images && item.images.length > 0 && !isBgPost && item.type !== 'EVENT' ? (
           <View style={{ marginBottom: 12 }}>
-            <Image
-              source={{ uri: item.images[0] }}
-              style={styles.postPhotoSingle}
-              resizeMode="cover"
-            />
+            {item.images.length === 1 ? (
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() => setLightboxState({ images: item.images, index: 0 })}
+              >
+                <Image
+                  source={{ uri: item.images[0] }}
+                  style={styles.postPhotoSingle}
+                  resizeMode="cover"
+                />
+              </TouchableOpacity>
+            ) : (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                {item.images.slice(0, 4).map((imgUrl, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    activeOpacity={0.9}
+                    onPress={() => setLightboxState({ images: item.images, index: idx })}
+                    style={{
+                      width: '48.5%',
+                      height: 155,
+                      borderRadius: 10,
+                      overflow: 'hidden',
+                      position: 'relative',
+                    }}
+                  >
+                    <Image
+                      source={{ uri: imgUrl }}
+                      style={{ width: '100%', height: '100%' }}
+                      resizeMode="cover"
+                    />
+                    {idx === 3 && item.images.length > 4 && (
+                      <View
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          backgroundColor: 'rgba(15,23,42,0.6)',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Text style={{ color: '#fff', fontSize: 18, fontWeight: '900' }}>
+                          +{item.images.length - 4}
+                        </Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </View>
         ) : null}
+
+        {/* Prayer Post CTA Button */}
+        {item.type === 'PRAYER' && (
+          <TouchableOpacity
+            style={{
+              backgroundColor: '#fff7ed',
+              borderWidth: 1,
+              borderColor: '#fed7aa',
+              borderRadius: 12,
+              paddingVertical: 10,
+              paddingHorizontal: 14,
+              marginBottom: 12,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+            }}
+            onPress={() =>
+              router.push(
+                linkedPrayerId
+                  ? (`/(tabs)/prayer?pray=${linkedPrayerId}` as any)
+                  : '/(tabs)/prayer'
+              )
+            }
+            activeOpacity={0.85}
+          >
+            <Text style={{ fontSize: 13, fontWeight: '800', color: '#ea580c' }}>
+              🙏 Pray Now on Prayer Wall →
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {/* Quiz CTA Button */}
         {(item.type === 'QUIZ_ANNOUNCEMENT' || item.type === 'QUIZ_DAILY') && (
           <TouchableOpacity
             style={styles.quizPostCtaBtn}
-            onPress={() => router.push('/church?tab=quiz' as any)}
+            onPress={() => router.push('/church?page=quiz' as any)}
             activeOpacity={0.88}
           >
             <Text style={styles.quizPostCtaText}>
@@ -1200,6 +1520,37 @@ export default function FeedScreen() {
           <View style={styles.modalSheet}>
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>Post Options</Text>
+
+            {user &&
+              moderationPost &&
+              (Number(user.id) === Number(moderationPost.author.id) ||
+                user.role === 'admin' ||
+                user.role === 'moderator') && (
+                <>
+                  <TouchableOpacity
+                    style={styles.sheetOptionRow}
+                    onPress={() => {
+                      const target = moderationPost;
+                      setModerationPost(null);
+                      if (target) {
+                        setEditingPost(target);
+                        setEditPostText(target.content);
+                      }
+                    }}
+                  >
+                    <Text style={styles.sheetOptionText}>✏️ Edit Post</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.sheetOptionRow}
+                    onPress={() => setConfirmDeletePostOpen(true)}
+                  >
+                    <Text style={[styles.sheetOptionText, { color: '#ef4444' }]}>
+                      🗑️ Delete Post
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
+
             <TouchableOpacity
               style={styles.sheetOptionRow}
               onPress={() => {
@@ -1216,17 +1567,187 @@ export default function FeedScreen() {
             >
               <Text style={styles.sheetOptionText}>🚩 Report Post</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.sheetOptionRow, { borderBottomWidth: 0 }]}
-              onPress={() => setConfirmBlockOpen(true)}
-            >
-              <Text style={[styles.sheetOptionText, { color: '#ef4444' }]}>
-                🚫 Block {moderationPost?.author.name}
-              </Text>
-            </TouchableOpacity>
+            {(!user || Number(user.id) !== Number(moderationPost?.author.id)) && (
+              <TouchableOpacity
+                style={[styles.sheetOptionRow, { borderBottomWidth: 0 }]}
+                onPress={() => setConfirmBlockOpen(true)}
+              >
+                <Text style={[styles.sheetOptionText, { color: '#ef4444' }]}>
+                  🚫 Block {moderationPost?.author.name}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* Edit Post Modal */}
+      <Modal
+        visible={Boolean(editingPost)}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setEditingPost(null)}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalBackdrop}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHandle} />
+            <View style={[styles.modalHeaderRow, { marginBottom: 12 }]}>
+              <Text style={styles.modalTitle}>✏️ Edit Post</Text>
+              <TouchableOpacity onPress={() => setEditingPost(null)}>
+                <Text style={{ fontSize: 18, color: '#64748b', fontWeight: '700' }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <TextInput
+              style={{
+                borderWidth: 1,
+                borderColor: '#cbd5e1',
+                borderRadius: 12,
+                padding: 12,
+                minHeight: 110,
+                textAlignVertical: 'top',
+                fontSize: 14,
+                color: '#0f172a',
+                backgroundColor: '#f8fafc',
+                marginBottom: 14,
+              }}
+              multiline
+              value={editPostText}
+              onChangeText={setEditPostText}
+              placeholder="Update your post..."
+            />
+            <TouchableOpacity
+              style={{
+                backgroundColor: '#4EB1CB',
+                borderRadius: 12,
+                paddingVertical: 13,
+                alignItems: 'center',
+              }}
+              onPress={handleSaveEditPost}
+              disabled={savingPostEdit}
+            >
+              {savingPostEdit ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>
+                  Save Changes
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Fullscreen Photo Lightbox Modal */}
+      <Modal
+        visible={Boolean(lightboxState)}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLightboxState(null)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.92)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          <TouchableOpacity
+            style={{
+              position: 'absolute',
+              top: 52,
+              right: 20,
+              zIndex: 10,
+              backgroundColor: 'rgba(255,255,255,0.2)',
+              width: 38,
+              height: 38,
+              borderRadius: 19,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            onPress={() => setLightboxState(null)}
+          >
+            <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800' }}>✕</Text>
+          </TouchableOpacity>
+          {lightboxState && (
+            <>
+              <Image
+                source={{ uri: lightboxState.images[lightboxState.index] }}
+                style={{ width: '94%', height: '72%' }}
+                resizeMode="contain"
+              />
+              {lightboxState.images.length > 1 && (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 20,
+                    marginTop: 18,
+                  }}
+                >
+                  <TouchableOpacity
+                    style={{
+                      backgroundColor: 'rgba(255,255,255,0.2)',
+                      paddingHorizontal: 16,
+                      paddingVertical: 8,
+                      borderRadius: 99,
+                    }}
+                    onPress={() =>
+                      setLightboxState((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              index:
+                                (prev.index - 1 + prev.images.length) % prev.images.length,
+                            }
+                          : null
+                      )
+                    }
+                  >
+                    <Text style={{ color: '#fff', fontWeight: '700' }}>← Prev</Text>
+                  </TouchableOpacity>
+                  <Text style={{ color: '#fff', fontWeight: '700' }}>
+                    {lightboxState.index + 1} / {lightboxState.images.length}
+                  </Text>
+                  <TouchableOpacity
+                    style={{
+                      backgroundColor: 'rgba(255,255,255,0.2)',
+                      paddingHorizontal: 16,
+                      paddingVertical: 8,
+                      borderRadius: 99,
+                    }}
+                    onPress={() =>
+                      setLightboxState((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              index: (prev.index + 1) % prev.images.length,
+                            }
+                          : null
+                      )
+                    }
+                  >
+                    <Text style={{ color: '#fff', fontWeight: '700' }}>Next →</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </>
+          )}
+        </View>
+      </Modal>
+
+      <ConfirmModal
+        visible={confirmDeletePostOpen}
+        title="Delete Post?"
+        message="Are you sure you want to permanently delete this post?"
+        confirmText="Delete Post"
+        destructive
+        onConfirm={handleConfirmDeletePost}
+        onCancel={() => setConfirmDeletePostOpen(false)}
+      />
 
       <ConfirmModal
         visible={confirmBlockOpen}

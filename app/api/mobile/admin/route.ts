@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getAuthenticatedMember } from "@/lib/mobileAuth";
+import { notifyAllMembers, createNotification } from "@/lib/notify";
+import { sendSms } from "@/lib/sms";
 import bcrypt from "bcryptjs";
 
 export const dynamic = "force-dynamic";
@@ -295,32 +297,33 @@ export async function GET(req: NextRequest) {
         }),
       ]);
 
+      const formattedHistory = historyMembers.map((m) => ({
+        id: m.id,
+        kind: "registration",
+        name: `${m.firstName} ${m.lastName}`.trim(),
+        firstName: m.firstName,
+        lastName: m.lastName,
+        email: m.email,
+        phone: m.phone,
+        memberType: m.type,
+        ageGroup: m.ageGroup,
+        address: m.address,
+        invitedBy: m.invitedBy,
+        status: m.status,
+        createdAt: m.createdAt,
+        updatedAt: m.updatedAt,
+        details: { ministries: m.ministries.map((mm) => mm.ministry.name) },
+      }));
+
       return NextResponse.json({
         success: true,
         data: {
           pending: JSON.parse(JSON.stringify(pending)),
+          pendingMembers: JSON.parse(JSON.stringify(pending)),
           pendingMinistries: JSON.parse(JSON.stringify(pendingMinistries)),
-          historyItems: JSON.parse(
-            JSON.stringify(
-              historyMembers.map((m) => ({
-                id: m.id,
-                kind: "registration",
-                name: `${m.firstName} ${m.lastName}`.trim(),
-                firstName: m.firstName,
-                lastName: m.lastName,
-                email: m.email,
-                phone: m.phone,
-                memberType: m.type,
-                ageGroup: m.ageGroup,
-                address: m.address,
-                invitedBy: m.invitedBy,
-                status: m.status,
-                createdAt: m.createdAt,
-                updatedAt: m.updatedAt,
-                details: { ministries: m.ministries.map((mm) => mm.ministry.name) },
-              }))
-            )
-          ),
+          ministryRequests: JSON.parse(JSON.stringify(pendingMinistries)),
+          historyItems: JSON.parse(JSON.stringify(formattedHistory)),
+          reviewHistory: JSON.parse(JSON.stringify(formattedHistory)),
         },
       });
     }
@@ -328,11 +331,79 @@ export async function GET(req: NextRequest) {
     if (page === "events") {
       const events = await db.event.findMany({
         orderBy: [{ eventDate: "desc" }],
-        include: { creator: { select: { firstName: true, lastName: true } } },
+        include: {
+          creator: { select: { firstName: true, lastName: true } },
+          _count: { select: { attendance: true } },
+        },
       });
       return NextResponse.json({
         success: true,
         data: { events: JSON.parse(JSON.stringify(events)) },
+      });
+    }
+
+    if (page === "event-analytics") {
+      const eventId = Number(searchParams.get("eventId"));
+      if (!eventId) {
+        return NextResponse.json({ success: false, message: "Missing eventId" }, { status: 400 });
+      }
+      const ev = await db.event.findUnique({
+        where: { id: eventId },
+        include: {
+          creator: { select: { firstName: true, lastName: true } },
+          attendance: {
+            include: {
+              member: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  type: true,
+                  ageGroup: true,
+                  phone: true,
+                  profilePicture: true,
+                  joinDate: true,
+                  _count: { select: { attendance: true } },
+                },
+              },
+            },
+            orderBy: { attendanceTime: "asc" },
+          },
+        },
+      });
+      if (!ev) {
+        return NextResponse.json({ success: false, message: "Event not found" }, { status: 404 });
+      }
+      const attendees = ev.attendance.map((a) => ({
+        id: a.id,
+        memberId: a.memberId,
+        name: a.member ? `${a.member.firstName} ${a.member.lastName}`.trim() : (a as any).guestName || "Guest",
+        type: a.member?.type || "NewFriend",
+        ageGroup: a.member?.ageGroup || "Adult",
+        phone: a.member?.phone || null,
+        totalVisits: a.member?._count?.attendance || 1,
+        checkInTime: a.attendanceTime ? a.attendanceTime.toISOString() : null,
+        notes: a.notes || null,
+      }));
+      const adults = attendees.filter((a) => a.ageGroup === "Adult").length;
+      const youth = attendees.filter((a) => a.ageGroup === "Youth").length;
+      const kids = attendees.filter((a) => a.ageGroup === "Kids").length;
+      const firstTimers = attendees.filter((a) => a.totalVisits <= 1 || a.type === "NewFriend").length;
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          event: JSON.parse(JSON.stringify(ev)),
+          stats: {
+            total: attendees.length,
+            adults,
+            youth,
+            kids,
+            firstTimers,
+            regulars: Math.max(0, attendees.length - firstTimers),
+          },
+          attendees,
+        },
       });
     }
 
@@ -653,7 +724,63 @@ export async function POST(req: NextRequest) {
       if (body.type) data.type = body.type;
       if (body.ageGroup) data.ageGroup = body.ageGroup;
       if (body.role) data.role = body.role;
-      await db.member.update({ where: { id: targetId }, data });
+      if (Object.keys(data).length > 0) {
+        await db.member.update({ where: { id: targetId }, data });
+      }
+      if (Array.isArray(body.ministryIds)) {
+        const minIds = body.ministryIds.map((id: any) => Number(id)).filter((id: number) => !isNaN(id));
+        await db.memberMinistry.deleteMany({ where: { memberId: targetId } });
+        for (const minId of minIds) {
+          await db.memberMinistry.create({
+            data: {
+              memberId: targetId,
+              ministryId: minId,
+              status: "active",
+              approvedAt: new Date(),
+            },
+          });
+        }
+      }
+      return NextResponse.json({ success: true });
+    }
+
+    if (
+      action === "approve_member" ||
+      action === "reject_member" ||
+      action === "revert_member" ||
+      action === "cancel_member" ||
+      action === "review_member"
+    ) {
+      const targetId = Number(body?.memberId || body?.id);
+      const sub =
+        action === "approve_member"
+          ? "approve"
+          : action === "reject_member"
+          ? "reject"
+          : action === "revert_member"
+          ? "revert"
+          : action === "cancel_member"
+          ? "cancel"
+          : String(body?.subAction || "approve");
+
+      if (sub === "approve") {
+        await db.member.update({
+          where: { id: targetId },
+          data: { status: "approved", statusChangedAt: new Date() },
+        });
+      } else if (sub === "revert") {
+        await db.member.update({
+          where: { id: targetId },
+          data: { status: "pending", statusChangedAt: new Date() },
+        });
+      } else if (sub === "inactive") {
+        await db.member.update({
+          where: { id: targetId },
+          data: { status: "inactive", statusChangedAt: new Date() },
+        });
+      } else if (sub === "reject" || sub === "cancel" || sub === "delete") {
+        await db.member.delete({ where: { id: targetId } });
+      }
       return NextResponse.json({ success: true });
     }
 
@@ -738,25 +865,69 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    if (action === "save_event") {
-      const { id, title, description, eventDate, startTime, endTime, location, eventType, status, speaker, commentary } =
-        body;
-      const startDateTime = new Date(`1970-01-01T${startTime || "09:00"}:00Z`);
-      const endDateTime = endTime ? new Date(`1970-01-01T${endTime}:00Z`) : null;
-      if (id) {
+    if (action === "save_event" || action === "create_event" || action === "update_event") {
+      const id = body?.id || body?.eventId;
+      const title = String(body?.title || "").trim();
+      const description = body?.description ? String(body.description).trim() : null;
+      const eventDate = body?.eventDate || body?.date;
+      const rawStart = String(body?.startTime || "09:00").trim();
+      const rawEnd = body?.endTime ? String(body.endTime).trim() : null;
+      const location = body?.location ? String(body.location).trim() : "House of Grace Fellowship";
+      const rawType = String(body?.eventType || body?.type || "sunday_service").toLowerCase();
+      const typeMap: Record<string, string> = {
+        sunday_service: "sunday_service",
+        sundayservice: "sunday_service",
+        prayer_meeting: "prayer_meeting",
+        prayermeeting: "prayer_meeting",
+        bible_study: "bible_study",
+        biblestudy: "bible_study",
+        special_event: "special_event",
+        specialevent: "special_event",
+        youthfellowship: "special_event",
+        grace_night: "grace_night",
+        gracenight: "grace_night",
+        other: "other",
+        outreach: "other",
+      };
+      const normalizedType = typeMap[rawType.replace(/[^a-z_]/g, "")] || "sunday_service";
+      const status = ["scheduled", "completed", "cancelled"].includes(String(body?.status || "").toLowerCase())
+        ? String(body.status).toLowerCase()
+        : "scheduled";
+      const speaker = body?.speaker ? String(body.speaker).trim() : null;
+      const commentary = body?.commentary ? String(body.commentary).trim() : null;
+      const coverPhoto =
+        body?.coverPhoto !== undefined
+          ? body.coverPhoto
+            ? String(body.coverPhoto)
+                .replace(/^https?:\/\/[^/]+\/uploads\/events\//, "")
+                .replace(/^\/uploads\/events\//, "")
+            : null
+          : undefined;
+
+      const parseTimeStr = (t: string) => {
+        if (!t) return new Date("1970-01-01T09:00:00Z");
+        if (t.includes("T")) return new Date(t);
+        const clean = t.slice(0, 5);
+        return new Date(`1970-01-01T${clean}:00Z`);
+      };
+      const startDateTime = parseTimeStr(rawStart);
+      const endDateTime = rawEnd ? parseTimeStr(rawEnd) : null;
+
+      if (id && action !== "create_event") {
         const updated = await db.event.update({
           where: { id: Number(id) },
           data: {
             title,
-            description: description || null,
+            description,
             eventDate: new Date(eventDate),
             startTime: startDateTime,
             endTime: endDateTime,
-            location: location || null,
-            eventType: eventType || "sunday_service",
-            status: status || "scheduled",
-            speaker: speaker || null,
-            commentary: commentary || null,
+            location,
+            eventType: normalizedType as any,
+            status: status as any,
+            speaker,
+            commentary,
+            ...(coverPhoto !== undefined ? { coverPhoto } : {}),
           },
         });
         return NextResponse.json({ success: true, event: JSON.parse(JSON.stringify(updated)) });
@@ -764,24 +935,48 @@ export async function POST(req: NextRequest) {
         const created = await db.event.create({
           data: {
             title,
-            description: description || null,
+            description,
             eventDate: new Date(eventDate),
             startTime: startDateTime,
             endTime: endDateTime,
-            location: location || null,
-            eventType: eventType || "sunday_service",
-            status: status || "scheduled",
-            speaker: speaker || null,
-            commentary: commentary || null,
+            location,
+            eventType: normalizedType as any,
+            status: status as any,
+            speaker,
+            commentary,
+            coverPhoto: coverPhoto || null,
             createdBy: member.id,
           },
         });
+
+        // Create corresponding EVENT post on community feed just like web app
+        await db.post
+          .create({
+            data: {
+              authorId: member.id,
+              type: "EVENT",
+              content: `📅 New Event: ${title}\n[event:${created.id}]`,
+              imageUrl: coverPhoto ? `/uploads/events/${coverPhoto}` : null,
+              visibility: "PUBLIC",
+            },
+          })
+          .catch(() => {});
+
+        notifyAllMembers({
+          actorId: member.id,
+          type: "general",
+          title: `📅 New Event: ${title}`,
+          body: `${title} at ${location || "House of Grace Fellowship"}`,
+          link: `/event/${created.id}`,
+        }).catch(() => {});
+
         return NextResponse.json({ success: true, event: JSON.parse(JSON.stringify(created)) });
       }
     }
 
     if (action === "delete_event") {
-      await db.event.delete({ where: { id: Number(body?.id) } });
+      const targetId = Number(body?.id || body?.eventId);
+      await db.event.delete({ where: { id: targetId } });
       return NextResponse.json({ success: true });
     }
 
@@ -852,6 +1047,129 @@ export async function POST(req: NextRequest) {
             isCompleted: nextCompleted,
             completedAt: nextCompleted ? new Date() : null,
             completedById: nextCompleted ? member.id : null,
+          },
+        });
+      }
+      return NextResponse.json({ success: true });
+    }
+
+    if (action === "send_sms") {
+      const memberIds: number[] = Array.isArray(body?.memberIds) ? body.memberIds.map(Number) : [];
+      const message = String(body?.message || "").trim();
+      if (!memberIds.length || !message) {
+        return NextResponse.json({ success: false, message: "Missing recipients or message" }, { status: 400 });
+      }
+      const recipients = await db.member.findMany({
+        where: {
+          id: { in: memberIds },
+          phone: { not: null },
+          NOT: [{ firstName: "HGF" }, { phone: "09000000000" }],
+          ageGroup: { not: "Kids" },
+        },
+        select: { id: true, firstName: true, lastName: true, phone: true },
+      });
+      const seenPhones = new Set<string>();
+      let sent = 0;
+      for (const r of recipients) {
+        if (!r.phone || seenPhones.has(r.phone)) continue;
+        seenPhones.add(r.phone);
+        try {
+          await sendSms(r.phone, message);
+          await db.smsLog.create({
+            data: {
+              memberId: r.id,
+              phoneNumber: r.phone,
+              message,
+              status: "Sent",
+            },
+          });
+          sent++;
+        } catch (err: any) {
+          await db.smsLog.create({
+            data: {
+              memberId: r.id,
+              phoneNumber: r.phone,
+              message,
+              status: "Failed",
+              errorMessage: err?.message || "Gateway error",
+            },
+          });
+        }
+      }
+      return NextResponse.json({ success: true, sent });
+    }
+
+    if (action === "birthday_demo") {
+      const type = body?.type === "monthly" ? "monthly" : "daily";
+      const targetMemberId = body?.memberId ? Number(body.memberId) : null;
+      if (type === "daily" && targetMemberId) {
+        const cel = await db.member.findUnique({ where: { id: targetMemberId } });
+        if (cel) {
+          const payload = {
+            memberId: cel.id,
+            name: `${cel.firstName} ${cel.lastName}`.trim(),
+            date: cel.birthdate ? new Date(cel.birthdate).toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: "UTC" }) : "Today",
+            message: `🎉 Wishing a very Happy and Blessed Birthday to our dear ${cel.firstName}! 🎂🎈\n\nOn this special day, we praise God for the gift of your life and the unique blessing you are to our church family. May the Lord guide your steps, keep you in His perfect peace, and shower you with His abundant grace in this new year of your life!\n\nWe celebrate you today on behalf of your family here at House of Grace Fellowship! ❤️`,
+            verseText: "The Lord bless you and keep you; the Lord make his face shine on you and be gracious to you.",
+            verseRef: "Numbers 6:24-25",
+          };
+          await db.post.create({
+            data: {
+              authorId: member.id,
+              type: "BIRTHDAY_DAILY",
+              content: JSON.stringify(payload),
+              visibility: "PUBLIC",
+            },
+          });
+        }
+      } else {
+        const now = new Date();
+        const curMonth = now.getMonth() + 1;
+        const monthName = now.toLocaleDateString("en-US", { month: "long" });
+        const allWithBirthdays = await db.member.findMany({
+          where: { status: { in: ["active", "approved"] }, birthdate: { not: null } },
+          select: { id: true, firstName: true, lastName: true, birthdate: true },
+        });
+        const celebrants = allWithBirthdays
+          .filter((m) => m.birthdate && new Date(m.birthdate).getUTCMonth() + 1 === curMonth)
+          .map((m) => ({
+            id: m.id,
+            name: `${m.firstName} ${m.lastName}`.trim(),
+            day: new Date(m.birthdate!).getUTCDate(),
+          }))
+          .sort((a, b) => a.day - b.day);
+        await db.post.create({
+          data: {
+            authorId: member.id,
+            type: "BIRTHDAY_MONTHLY",
+            content: JSON.stringify({ month: monthName, celebrants }),
+            visibility: "PUBLIC",
+          },
+        });
+      }
+      return NextResponse.json({ success: true });
+    }
+
+    if (action === "announce_quiz_rewards") {
+      const rewardTier = String(body?.rewardTier || "PERFECT");
+      const title = String(body?.title || "").trim();
+      const description = String(body?.description || "").trim();
+      const latestQuiz = await db.sermonQuiz.findFirst({ orderBy: { sermonDate: "desc" } });
+      if (latestQuiz && title) {
+        await db.quizRewardItem.create({
+          data: {
+            quizId: latestQuiz.id,
+            rewardTier: rewardTier as any,
+            title,
+            description: description || null,
+          },
+        });
+        await db.post.create({
+          data: {
+            authorId: member.id,
+            type: "TEXT",
+            content: `🎁 QUIZ FOR CHRIST REWARD ANNOUNCEMENT!\n\n🏆 Tier: ${rewardTier}\n🎁 Prize: ${title}${description ? `\n\n${description}` : ""}\n\nJoin this week's Quiz for Christ and test your knowledge of Sunday's message! 🧠✨`,
+            visibility: "PUBLIC",
           },
         });
       }

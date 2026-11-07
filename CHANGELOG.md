@@ -1,3 +1,20 @@
+## [v2.82.0] — 2026-11-07
+### Added / Changed / Fixed
+- **Complete 1:1 Web-to-Mobile Feature & Deep-Link Parity Across All Core Modules (`mobile/v1.6.0`, `v2.82.0`)**:
+  - **Universal Notification & Deep-Link Router (`mobile/components/ui/NotificationModal.tsx`, `mobile/app/church.tsx`, `mobile/app/(tabs)/index.tsx`, `mobile/app/(tabs)/prayer.tsx`, `mobile/app/(tabs)/stewardshop.tsx`, `mobile/app/(tabs)/events.tsx`)**:
+    - Implemented `resolveNotificationRoute(n)` in `NotificationModal.tsx` to parse all web notification links (`/feed?post=ID`, `/prayer?highlight=ID`, `/prayer/ID`, `/quiz?quizId=N&day=D`, `/quiz/hub?tab=archive&quizId=N`, `/stewardshop/my-listings/ID/prospects`, `/stewardshop/my-shares`, `/stewardshop/ID`, `/event/ID`, `/member/ID`), preserving query parameters (`openComments=1`, `day=N`, `tab=archive`, `prospectsFor=ID`) and routing directly to the target screen, modal, or player.
+    - Fixed `mobile/app/church.tsx` to read both `params.page` and `params.tab` so deep-links to `/church?page=quiz`, `/church?page=my-listings`, and `/church?page=my-shares` open the exact target view instead of falling back to Directory.
+  - **Quiz for Christ Interactive 5-Type Player, Archive & Leaderboard (`mobile/app/church.tsx`, `app/api/mobile/church/route.ts`)**:
+    - Added the 3-tab Quiz switcher (`🎯 Active Quiz`, `📁 Past Quizzes`, `🏆 Leaderboard`), Past Quizzes & Catch-Up Archive cards, Completed Day Feedback & Pastor's Answer Key Modal, and the native **Interactive 5-Type QuizPlayer Modal** supporting `MULTIPLE_CHOICE` (Balloon Pop), `FILL_IN_BLANKS`, `SHORT_ANSWER` (AI-graded essay), `SCRIPTURE_ORDERING` (Verse Builder with `▲`/`▼` reordering), and `TRUE_FALSE_EXPLAIN`.
+  - **StewardShop Marketplace, My Listings, Prospects Hub & Love Gifts Pipeline (`mobile/app/(tabs)/stewardshop.tsx`, `mobile/app/church.tsx`, `app/api/mobile/stewardshop/route.ts`, `lib/notify.ts`)**:
+    - Replicated full StewardShop Browse, Price Range filter, Listing Detail Modal, Prospect Gate & Coupon Reveal Card, `❤️ Share & Bless` referral link generator, `✨ AI Enhance` for listing titles/descriptions, My Listings management (`Mark as Sold Modal`, `Prospects & Love Gift Hub Modal`, `Edit Listing Modal`), and My Shared Links Love Gift claim & receipt confirmation pipeline.
+  - **Prayer Wall, Community Feed, Composer & Public Events Parity (`mobile/app/(tabs)/prayer.tsx`, `mobile/app/(tabs)/index.tsx`, `mobile/app/create-post.tsx`, `mobile/app/(tabs)/events.tsx`, `app/api/mobile/prayer/route.ts`, `app/api/mobile/feed/route.ts`, `app/api/mobile/events/route.ts`)**:
+    - Upgraded Prayer Wall with `?mine=true` ("My Prayer Requests" vs "Prayer Wall"), `?highlight=ID` & `?pray=ID` deep-linking, `PrayCommitModal`, **Prayer Detail Modal (`🙏 Who's Praying`)**, and owner inline controls (`🎉 Mark Answered`, `✏️ Edit`, `🗑️ Delete`).
+    - Upgraded Community Feed & Composer with `?post=ID&openComments=1` deep-linking, `aiCaption` translation toggle on `PRAISE` posts, `[prayer:ID]` `🙏 Pray Now on Prayer Wall →` CTA, `[event:ID]` & Quiz feed card deep-links, OpenGraph `linkUrl` preview cards, `✨ Make it better with AI` (`Cebuano`/`Taglish`/`English`), and owner inline Edit/Delete.
+    - Upgraded Public Events (`/(tabs)/events.tsx`) with `?eventId=ID` deep-linking, 1-tap RSVP (`POST /api/mobile/events`), and the full **Event Detail Modal** (16:9 cover photo, speaker, attendance count, description, sermon commentary, and presentation slides).
+  - **Admin Events Cover Upload, Speaker Pills, Analytics & Review History (`mobile/app/admin.tsx`, `mobile/components/admin/AdminSubPages.tsx`, `app/api/mobile/admin/route.ts`)**:
+    - Upgraded Admin Events with Cover Photo upload (`/posts/upload?folder=events`), 1-tap primary speaker pills, and the **Event Attendance Analytics Modal**; upgraded Admin Pending Review (`Registrations`, `Ministries`, `History`) and Members ministry multi-select.
+
 ## [v2.81.0] — 2026-11-06
 ### Added / Changed / Fixed
 - **Full Member Profile Wall Post Parity, Directory Smooth SVG Gradient & Complete 14-Page Admin Suite (`mobile/v1.5.0`, `v2.81.0`)**:

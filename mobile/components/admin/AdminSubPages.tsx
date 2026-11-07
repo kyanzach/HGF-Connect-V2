@@ -58,7 +58,7 @@ export function LifeGroupView({
   });
 
   const assignLeader = async (regId: number, leaderId: number | null) => {
-    await api.post('/api/mobile/admin', {
+    await api.post('/admin', {
       action: 'update_lifegroup',
       id: regId,
       assignedLeaderId: leaderId,
@@ -67,7 +67,7 @@ export function LifeGroupView({
   };
 
   const deleteReg = async (regId: number) => {
-    await api.post('/api/mobile/admin', { action: 'delete_lifegroup', id: regId });
+    await api.post('/admin', { action: 'delete_lifegroup', id: regId });
     onRefresh();
   };
 
@@ -293,7 +293,7 @@ export function TestimoniesView({ data, onRefresh }: { data: any; onRefresh: () 
   const filtered = catFilter ? testimonies.filter((t) => t.category === catFilter) : testimonies;
 
   const toggleRead = async (id: number, current: boolean) => {
-    await api.post('/api/mobile/admin', {
+    await api.post('/admin', {
       action: 'toggle_testimony_read',
       id,
       readByAnnouncer: !current,
@@ -380,7 +380,7 @@ export function TestimoniesView({ data, onRefresh }: { data: any; onRefresh: () 
           <View style={{ backgroundColor: '#f0fdfa', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#ccfbf1' }}>
             <Text style={[styles.upperSmall, { color: '#0f766e' }]}>AI TRANSLATION</Text>
             <Text style={{ fontSize: 14, color: '#115e59', lineHeight: 20, marginTop: 4 }}>
-              {t.translatedContent || 'No translation available.'}
+              {t.englishTranslation || t.translatedContent || 'No translation available.'}
             </Text>
           </View>
         </View>
@@ -416,7 +416,7 @@ export function MinistriesView({ data, onRefresh }: { data: any; onRefresh: () =
 
   const save = async () => {
     if (!name.trim()) return;
-    await api.post('/api/mobile/admin', {
+    await api.post('/admin', {
       action: 'save_ministry',
       id: editing?.id,
       name: name.trim(),
@@ -428,7 +428,7 @@ export function MinistriesView({ data, onRefresh }: { data: any; onRefresh: () =
   };
 
   const toggleStatus = async (m: any) => {
-    await api.post('/api/mobile/admin', {
+    await api.post('/admin', {
       action: 'save_ministry',
       id: m.id,
       name: m.name,
@@ -538,7 +538,7 @@ export function MinistriesView({ data, onRefresh }: { data: any; onRefresh: () =
 }
 
 // ── 4. SEND CUSTOM SMS (/admin/send-sms) & SMS LOGS (/admin/sms) ───
-export function SendSmsView({ data }: { data: any }) {
+export function SendSmsView({ data }: { data: any; onRefresh?: () => void }) {
   const members: any[] = data?.members || [];
   const [selected, setSelected] = useState<number[]>([]);
   const [filter, setFilter] = useState('all');
@@ -567,7 +567,7 @@ export function SendSmsView({ data }: { data: any }) {
     if (selected.length === 0 || !message.trim()) return;
     setSending(true);
     try {
-      await api.post('/api/sms/send', { memberIds: selected, message });
+      await api.post('/admin', { action: 'send_sms', memberIds: selected, message });
       setResultMsg(`✅ Queued SMS to ${selected.length} member(s).`);
       setSelected([]);
       setMessage('');
@@ -684,7 +684,7 @@ export function SendSmsView({ data }: { data: any }) {
   );
 }
 
-export function SmsLogsView({ data }: { data: any }) {
+export function SmsLogsView({ data }: { data: any; onRefresh?: () => void }) {
   const logs: any[] = data?.logs || [];
   const [tab, setTab] = useState<'logs' | 'reminder_verses' | 'birthday_sms'>('logs');
   const [search, setSearch] = useState('');
@@ -839,7 +839,7 @@ export function StewardShopAdminView({ data, onRefresh }: { data: any; onRefresh
   });
 
   const toggleVerify = async (sellerId: number, current: boolean) => {
-    await api.post('/api/mobile/admin', {
+    await api.post('/admin', {
       action: 'moderate_listing',
       sellerId,
       isVerified: !current,
@@ -848,7 +848,7 @@ export function StewardShopAdminView({ data, onRefresh }: { data: any; onRefresh
   };
 
   const togglePrivate = async (listingId: number, current: boolean) => {
-    await api.post('/api/mobile/admin', {
+    await api.post('/admin', {
       action: 'moderate_listing',
       listingId,
       isPrivate: !current,
@@ -986,7 +986,7 @@ export function ChurchSettingsView({ data, onRefresh }: { data: any; onRefresh: 
 
   const save = async () => {
     setSaving(true);
-    await api.post('/api/mobile/admin', { action: 'save_church_settings', settings });
+    await api.post('/admin', { action: 'save_church_settings', settings });
     setSaving(false);
     setSaved(true);
     onRefresh();
@@ -1063,7 +1063,7 @@ export function UsersRolesView({ data, onRefresh }: { data: any; onRefresh: () =
     : users;
 
   const changeRole = async (memberId: number, role: string) => {
-    await api.post('/api/mobile/admin', { action: 'update_member', memberId, role });
+    await api.post('/admin', { action: 'update_member', memberId, role });
     onRefresh();
   };
 
@@ -1130,7 +1130,7 @@ export function UsersRolesView({ data, onRefresh }: { data: any; onRefresh: () =
 }
 
 // ── 8. BIRTHDAYS ADMIN (/admin/birthdays) ──────────────────────────
-export function BirthdaysAdminView({ data }: { data: any }) {
+export function BirthdaysAdminView({ data }: { data: any; onRefresh?: () => void }) {
   const members: any[] = data?.members || [];
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -1155,7 +1155,7 @@ export function BirthdaysAdminView({ data }: { data: any }) {
 
   const postDemo = async (type: 'monthly' | 'daily', memberId?: number) => {
     try {
-      await api.post('/api/admin/birthdays/demo', { type, memberId });
+      await api.post('/admin', { action: 'birthday_demo', type, memberId });
       setNotif('🎉 Birthday announcement posted to the community feed!');
     } catch {
       setNotif('🎉 Triggered birthday announcement!');
@@ -1256,7 +1256,7 @@ export function MultimediaAdminView({ data, onRefresh }: { data: any; onRefresh:
   const pct = tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0;
 
   const toggleTask = async (taskId: number) => {
-    await api.post('/api/mobile/admin', { action: 'toggle_sop_task', taskId });
+    await api.post('/admin', { action: 'toggle_sop_task', taskId });
     onRefresh();
   };
 
@@ -1442,7 +1442,7 @@ export function QuizAdminView({ data, onRefresh }: { data: any; onRefresh: () =>
         eventId: events[0]?.id || null,
         youtubeUrl: youtubeUrl || null,
       });
-      setStatusMsg(`✅ Generated 7-day quiz: "${res?.title || 'Weekly Quiz'}"`);
+      setStatusMsg(`✅ Generated 7-day quiz: "${(res as any)?.data?.title || (res as any)?.title || 'Weekly Quiz'}"`);
       onRefresh();
     } catch (e: any) {
       setStatusMsg(`⚠️ ${e?.message || 'Provide sermon notes or YouTube CC to generate.'}`);
@@ -1454,7 +1454,8 @@ export function QuizAdminView({ data, onRefresh }: { data: any; onRefresh: () =>
   const handleAnnounceReward = async () => {
     if (!rewardTitle.trim()) return;
     try {
-      await api.post('/api/quiz/rewards/announce', {
+      await api.post('/admin', {
+        action: 'announce_quiz_rewards',
         rewardTier,
         title: rewardTitle,
         description: rewardDescription,

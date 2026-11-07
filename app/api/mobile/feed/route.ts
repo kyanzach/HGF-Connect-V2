@@ -5,6 +5,7 @@ import { notifyAllMembers } from "@/lib/notify";
 import { PostType } from "@prisma/client";
 import { getQuizDayForDate, isQuizWeekExpired } from "@/lib/quiz-helpers";
 import { APP_VERSION } from "@/lib/version";
+import { callOpenAI } from "@/lib/ai";
 
 export const dynamic = "force-dynamic";
 
@@ -29,49 +30,85 @@ export async function GET(req: NextRequest) {
   try {
     const member = await getAuthenticatedMember(req);
     const { searchParams } = new URL(req.url);
-    const limit = Math.min(Number(searchParams.get("limit") || 25), 50);
+    const checkMetadataUrl = searchParams.get("checkMetadataUrl");
+    if (checkMetadataUrl) {
+      try {
+        const res = await fetch(checkMetadataUrl, {
+          headers: { "User-Agent": "Mozilla/5.0 (compatible; HGFConnectBot/1.0)" },
+          signal: AbortSignal.timeout(4500),
+        });
+        const html = await res.text();
+        const getMeta = (prop: string) => {
+          const m =
+            html.match(new RegExp(`<meta[^>]+(?:property|name)=["']${prop}["'][^>]+content=["']([^"']+)["']`, "i")) ||
+            html.match(new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${prop}["']`, "i"));
+          return m ? m[1] : null;
+        };
+        const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+        const title = getMeta("og:title") || getMeta("twitter:title") || (titleMatch ? titleMatch[1].trim() : null);
+        const description = getMeta("og:description") || getMeta("twitter:description") || getMeta("description") || null;
+        const image = getMeta("og:image") || getMeta("twitter:image") || null;
+        return NextResponse.json({
+          success: true,
+          data: { url: checkMetadataUrl, title, description, image },
+        });
+      } catch {
+        return NextResponse.json({ success: false, data: null });
+      }
+    }
 
-    const [posts, upcomingEvent, activePrayer, latestQuiz] = await Promise.all([
+    const limit = Math.min(Number(searchParams.get("limit") || 25), 50);
+    const targetPostId = Number(searchParams.get("post") || 0);
+
+    const postInclude = {
+      author: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          username: true,
+          role: true,
+          profilePicture: true,
+        },
+      },
+      photos: {
+        orderBy: { sortOrder: "asc" as const },
+        select: { id: true, photoPath: true, sortOrder: true },
+      },
+      likes: {
+        select: {
+          memberId: true,
+          type: true,
+          member: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              profilePicture: true,
+            },
+          },
+        },
+      },
+      _count: {
+        select: { comments: true, likes: true },
+      },
+    };
+
+    const [rawPosts, targetPost, upcomingEvent, activePrayer, latestQuiz] = await Promise.all([
       db.post.findMany({
         where: {
           visibility: member ? { in: ["PUBLIC", "MEMBERS_ONLY"] } : "PUBLIC",
         },
         orderBy: [{ bumpedAt: "desc" }, { createdAt: "desc" }],
         take: limit,
-        include: {
-          author: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              username: true,
-              role: true,
-              profilePicture: true,
-            },
-          },
-          photos: {
-            orderBy: { sortOrder: "asc" },
-            select: { id: true, photoPath: true, sortOrder: true },
-          },
-          likes: {
-            select: {
-              memberId: true,
-              type: true,
-              member: {
-                select: {
-                  id: true,
-                  firstName: true,
-                  lastName: true,
-                  profilePicture: true,
-                },
-              },
-            },
-          },
-          _count: {
-            select: { comments: true, likes: true },
-          },
-        },
+        include: postInclude,
       }),
+      targetPostId > 0
+        ? db.post.findUnique({
+            where: { id: targetPostId },
+            include: postInclude,
+          })
+        : Promise.resolve(null),
       db.event.findFirst({
         where: { eventDate: { gte: new Date() }, status: "scheduled" },
         orderBy: [{ eventDate: "asc" }, { startTime: "asc" }],
@@ -91,6 +128,11 @@ export async function GET(req: NextRequest) {
         },
       }),
     ]);
+
+    const posts =
+      targetPost && !rawPosts.some((p) => p.id === targetPost.id)
+        ? [targetPost, ...rawPosts]
+        : rawPosts;
 
     // Enrich BIRTHDAY_DAILY, BIRTHDAY_MONTHLY, and EVENT posts just like /api/posts
     const memberIds: number[] = [];
@@ -399,15 +441,74 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
+    const action = String(body?.action || "");
+
+    // 1. AI Improve Text (Cebuano / Taglish / English)
+    if (action === "improve_text") {
+      const text = String(body?.text || "").trim();
+      const language = String(body?.language || "English");
+      const postMode = String(body?.mode || "thoughts");
+      if (!text) {
+        return NextResponse.json({ success: false, message: "No text to improve." }, { status: 400 });
+      }
+      const systemPrompt = `You are a warm, encouraging Christian writing assistant for House of Grace Fellowship in General Santos City, Philippines. Rewrite the user's ${postMode} post in natural, heartfelt ${language}. Preserve the original personal meaning and authenticity while improving clarity, grammar, and warmth. Keep it concise and return ONLY the rewritten text with no quotes or preamble.`;
+      const improved = await callOpenAI({
+        systemPrompt,
+        userPrompt: text,
+        maxTokens: 350,
+        temperature: 0.7,
+      });
+      return NextResponse.json({
+        success: true,
+        data: { improved: improved.replace(/^["']|["']$/g, "").trim() },
+      });
+    }
+
+    // 2. Delete Post
+    if (action === "delete_post") {
+      const postId = Number(body?.postId);
+      const existing = await db.post.findUnique({
+        where: { id: postId },
+        select: { id: true, authorId: true },
+      });
+      if (!existing || (existing.authorId !== member.id && member.role !== "admin" && member.role !== "moderator")) {
+        return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
+      }
+      await db.post.delete({ where: { id: postId } });
+      return NextResponse.json({ success: true, message: "Post deleted." });
+    }
+
+    // 3. Edit Post
+    if (action === "edit_post") {
+      const postId = Number(body?.postId);
+      const newContent = String(body?.content || "").trim();
+      const existing = await db.post.findUnique({
+        where: { id: postId },
+        select: { id: true, authorId: true },
+      });
+      if (!existing || (existing.authorId !== member.id && member.role !== "admin" && member.role !== "moderator")) {
+        return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
+      }
+      const updated = await db.post.update({
+        where: { id: postId },
+        data: { content: newContent },
+      });
+      return NextResponse.json({ success: true, data: { content: updated.content }, message: "Post updated." });
+    }
+
     const content = String(body?.content || "").trim();
     const type =
       body?.type === "PRAYER" || body?.type === "PRAISE" || body?.type === "DEVO"
         ? body.type
         : "TEXT";
     const imageUrl = body?.imageUrl ? String(body.imageUrl).trim() : null;
-    const aiCaption = body?.aiCaption ? String(body.aiCaption).trim() : null;
+    let aiCaption = body?.aiCaption ? String(body.aiCaption).trim() : null;
     const verseRef = body?.verseRef ? String(body.verseRef).trim() : null;
     const verseText = body?.verseText ? String(body.verseText).trim() : null;
+    const linkUrl = body?.linkUrl ? String(body.linkUrl).trim() : null;
+    const linkTitle = body?.linkTitle ? String(body.linkTitle).trim() : null;
+    const linkDesc = body?.linkDesc ? String(body.linkDesc).trim() : null;
+    const linkImage = body?.linkImage ? String(body.linkImage).trim() : null;
     const visibility =
       body?.visibility === "PUBLIC" || body?.visibility === "PRIVATE"
         ? body.visibility
@@ -427,26 +528,83 @@ export async function POST(req: NextRequest) {
         data: {
           authorId: member.id,
           request: content,
-          visibility,
+          visibility: visibility === "PUBLIC" ? "PUBLIC" : "MEMBERS_ONLY",
         },
       });
     }
+
+    // If PRAISE (Testimony), also create the Testimony record and auto-translate if needed
+    if (type === "PRAISE" && content) {
+      try {
+        const aiResultRaw = await callOpenAI({
+          systemPrompt:
+            'Analyze this Christian testimony. Return valid JSON ONLY with keys: {"englishTranslation": "English translation if written in Cebuano/Tagalog/Taglish, or empty string if already English", "category": "Healing|Provision|Salvation|Family|Breakthrough|General", "tags": "comma,separated,tags"}',
+          userPrompt: content,
+          maxTokens: 280,
+          temperature: 0.3,
+        });
+        const cleaned = aiResultRaw.replace(/```json|```/g, "").trim();
+        const parsed = JSON.parse(cleaned);
+        if (parsed.englishTranslation && parsed.englishTranslation.trim() && parsed.englishTranslation.trim() !== content) {
+          aiCaption = parsed.englishTranslation.trim();
+        }
+        await db.testimony.create({
+          data: {
+            memberId: member.id,
+            content,
+            translatedContent: aiCaption || null,
+            category: parsed.category || "General",
+            tags: parsed.tags || null,
+            ...(photos.length > 0 && {
+              photos: {
+                create: photos.map((photoPath: string, idx: number) => ({
+                  photoPath: photoPath
+                    .replace("https://connect.houseofgrace.ph/uploads/posts/", "")
+                    .replace(/^\/uploads\/posts\//, ""),
+                  sortOrder: idx,
+                })),
+              },
+            }),
+          },
+        });
+      } catch {
+        await db.testimony
+          .create({
+            data: {
+              memberId: member.id,
+              content,
+            },
+          })
+          .catch(() => {});
+      }
+    }
+
+    const finalContent =
+      type === "PRAYER" && prayerRequestVal
+        ? `[prayer:${prayerRequestVal.id}] ${content}`
+        : content || null;
 
     const post = await db.post.create({
       data: {
         authorId: member.id,
         type,
-        content: content || null,
+        content: finalContent,
         imageUrl,
         aiCaption: prayerRequestVal ? String(prayerRequestVal.id) : aiCaption,
         verseRef,
         verseText,
+        linkUrl,
+        linkTitle,
+        linkDesc,
+        linkImage,
         visibility,
         photos:
           photos.length > 0
             ? {
                 create: photos.map((photoPath: string, index: number) => ({
-                  photoPath,
+                  photoPath: photoPath
+                    .replace("https://connect.houseofgrace.ph/uploads/posts/", "")
+                    .replace(/^\/uploads\/posts\//, ""),
                   sortOrder: index,
                 })),
               }

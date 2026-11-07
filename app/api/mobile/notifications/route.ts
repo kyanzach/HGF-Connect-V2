@@ -56,10 +56,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
     }
 
-    await db.notification.updateMany({
-      where: { memberId: member.id, isRead: false },
-      data: { isRead: true },
-    });
+    const body = await req.json().catch(() => ({}));
+    const singleId = body?.id ? Number(body.id) : null;
+
+    if (singleId) {
+      await db.notification.updateMany({
+        where: { id: singleId, memberId: member.id },
+        data: { isRead: true },
+      });
+    } else {
+      await db.notification.updateMany({
+        where: { memberId: member.id, isRead: false },
+        data: { isRead: true },
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (err: any) {

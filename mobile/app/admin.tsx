@@ -11,11 +11,13 @@ import {
   Modal,
   Image,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import client from '@/api/client';
 import TopHeader from '@/components/ui/TopHeader';
 import ConfirmModal from '@/components/ui/ConfirmModal';
+import AlertPromptModal, { AlertType } from '@/components/ui/AlertPromptModal';
 import { useAuth } from '@/context/AuthContext';
 import {
   LifeGroupView,
@@ -35,6 +37,22 @@ const PRIMARY = '#4EB1CB';
 const SIDEBAR_BG = '#0f172a';
 const HGF_LOGO = require('../assets/images/HGF-icon-v1.0.png');
 
+const PRIMARY_SPEAKERS = [
+  { label: 'Ptr. Jun', value: 'Ptr. Jun Baltazar' },
+  { label: 'Ptr. Manny', value: 'Ptr. Manny Asilom' },
+  { label: 'Bro. Bonvie', value: 'Bro. Bonvie' },
+  { label: 'Bro. Dodz', value: 'Bro. Dodz' },
+];
+
+const EVENT_TYPE_OPTIONS = [
+  { key: 'sunday_service', label: '⛪ Sunday Service' },
+  { key: 'prayer_meeting', label: '🙏 Prayer Meeting' },
+  { key: 'bible_study', label: '📖 Bible Study' },
+  { key: 'special_event', label: '✨ Special Event' },
+  { key: 'grace_night', label: '🌙 Grace Night' },
+  { key: 'other', label: '📌 Other' },
+];
+
 const NAV_ITEMS = [
   { page: 'dashboard', label: 'Dashboard', icon: '📊', roles: ['admin', 'moderator'] },
   { page: 'members', label: 'Members', icon: '👥', roles: ['admin', 'moderator', 'usher'] },
@@ -46,6 +64,7 @@ const NAV_ITEMS = [
   { page: 'send-sms', label: 'Send SMS', icon: '📤', roles: ['admin', 'moderator'] },
   { page: 'sms', label: 'SMS & Logs', icon: '💬', roles: ['admin', 'moderator'] },
   { page: 'stewardshop', label: 'StewardShop', icon: '🛒', roles: ['admin', 'moderator'] },
+  { page: 'quiz-admin', label: 'Quiz Admin', icon: '🧠', roles: ['admin', 'moderator'] },
   { page: 'church-settings', label: 'Church Settings', icon: '⛪', roles: ['admin'] },
   { page: 'users', label: 'Users & Roles', icon: '🔑', roles: ['admin'] },
   { page: 'birthdays', label: 'Birthdays', icon: '🎂', roles: ['admin', 'moderator'] },
@@ -55,7 +74,7 @@ const NAV_ITEMS = [
 export default function AdminReplicaScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { user, signOut } = useAuth();
+  const { user, logout } = useAuth();
   const params = useLocalSearchParams<{ page?: string; add?: string }>();
 
   const [activePage, setActivePage] = useState<string>(params.page || 'dashboard');
@@ -72,7 +91,16 @@ export default function AdminReplicaScreen() {
   const [memAge, setMemAge] = useState('');
   const [addMemberOpen, setAddMemberOpen] = useState(false);
   const [editMember, setEditMember] = useState<any>(null);
-  const [memForm, setMemForm] = useState({
+  const [memForm, setMemForm] = useState<{
+    firstName: string;
+    lastName: string;
+    phone: string;
+    email: string;
+    type: string;
+    ageGroup: string;
+    status: string;
+    ministryIds: number[];
+  }>({
     firstName: '',
     lastName: '',
     phone: '',
@@ -80,13 +108,18 @@ export default function AdminReplicaScreen() {
     type: 'GrowingFriend',
     ageGroup: 'Adult',
     status: 'active',
+    ministryIds: [],
   });
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'member' | 'event'; id: number; name: string } | null>(null);
+
+  // Review sub-state
+  const [reviewTab, setReviewTab] = useState<'registrations' | 'ministries' | 'history'>('registrations');
 
   // Events sub-state
   const [evTab, setEvTab] = useState<'upcoming' | 'past'>('upcoming');
   const [addEventOpen, setAddEventOpen] = useState(params.add === 'true');
   const [editEvent, setEditEvent] = useState<any>(null);
+  const [uploadingCover, setUploadingCover] = useState(false);
   const [evForm, setEvForm] = useState({
     title: '',
     description: '',
@@ -94,9 +127,20 @@ export default function AdminReplicaScreen() {
     startTime: '09:00',
     endTime: '11:30',
     location: "Bro's Cafe, 2nd Floor, Gen. Luna St., Davao City",
-    type: 'SundayService',
+    eventType: 'sunday_service',
     speaker: '',
+    coverPhoto: '',
   });
+  const [analyticsEvent, setAnalyticsEvent] = useState<any>(null);
+  const [analyticsData, setAnalyticsData] = useState<any>(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+
+  const [alertModal, setAlertModal] = useState<{
+    visible: boolean;
+    type: AlertType;
+    title: string;
+    message: string;
+  }>({ visible: false, type: 'info', title: '', message: '' });
 
   useEffect(() => {
     if (params.page) setActivePage(params.page);
@@ -397,7 +441,8 @@ export default function AdminReplicaScreen() {
                       {ev.title}
                     </Text>
                     <Text style={styles.eventSubText}>
-                      {ev.type?.replace(/([A-Z])/g, ' $1').trim()} · {ev._count?.attendances ?? 0} attending
+                      {(ev.eventType || ev.type || 'Event').replace(/_/g, ' ')} ·{' '}
+                      {ev._count?.attendance ?? ev._count?.attendances ?? 0} attending
                     </Text>
                   </View>
                 </View>
@@ -484,6 +529,7 @@ export default function AdminReplicaScreen() {
   // ── 2. MEMBERS VIEW (app/admin/members/AdminMembersClient.tsx) ─────────────
   const renderMembersView = () => {
     const allMembers: any[] = data.members || [];
+    const allMinistries: any[] = data.ministries || [];
     const filtered = allMembers.filter((m) => {
       const q = memSearch.toLowerCase();
       if (
@@ -517,8 +563,37 @@ export default function AdminReplicaScreen() {
         setAddMemberOpen(false);
         setEditMember(null);
         fetchPageData('members');
-      } catch {
-        // Silent
+      } catch (err: any) {
+        setAlertModal({
+          visible: true,
+          type: 'error',
+          title: 'Save Failed',
+          message: err?.response?.data?.error || 'Could not save member.',
+        });
+      }
+    };
+
+    const handleResetPassword = async (memberId: number, name: string) => {
+      try {
+        const res = await client.post('/admin', {
+          action: 'reset_password',
+          memberId,
+        });
+        setAlertModal({
+          visible: true,
+          type: 'success',
+          title: 'Password Reset',
+          message:
+            res.data?.message ||
+            `Temporary password for ${name} has been generated and sent via SMS.`,
+        });
+      } catch (err: any) {
+        setAlertModal({
+          visible: true,
+          type: 'error',
+          title: 'Reset Failed',
+          message: err?.response?.data?.error || 'Unable to reset password.',
+        });
       }
     };
 
@@ -544,6 +619,7 @@ export default function AdminReplicaScreen() {
                 type: 'GrowingFriend',
                 ageGroup: 'Adult',
                 status: 'active',
+                ministryIds: [],
               });
               setAddMemberOpen(true);
             }}
@@ -624,6 +700,11 @@ export default function AdminReplicaScreen() {
                 style={styles.smallEditBtn}
                 onPress={() => {
                   setEditMember(m);
+                  const existingMinIds = Array.isArray(m.ministries)
+                    ? m.ministries
+                        .map((x: any) => Number(x.ministryId || x.ministry?.id || x.id))
+                        .filter(Boolean)
+                    : [];
                   setMemForm({
                     firstName: m.firstName || '',
                     lastName: m.lastName || '',
@@ -632,6 +713,7 @@ export default function AdminReplicaScreen() {
                     type: m.type || 'GrowingFriend',
                     ageGroup: m.ageGroup || 'Adult',
                     status: m.status || 'active',
+                    ministryIds: existingMinIds,
                   });
                   setAddMemberOpen(true);
                 }}
@@ -657,7 +739,10 @@ export default function AdminReplicaScreen() {
         {/* Add/Edit Member Modal */}
         <Modal visible={addMemberOpen} transparent animationType="slide">
           <View style={styles.modalBackdrop}>
-            <View style={styles.modalCard}>
+            <ScrollView
+              style={{ maxHeight: '88%', width: '100%' }}
+              contentContainerStyle={styles.modalCard}
+            >
               <Text style={styles.modalTitle}>
                 {editMember ? '✏️ Edit Member' : '➕ Add New Member'}
               </Text>
@@ -675,7 +760,7 @@ export default function AdminReplicaScreen() {
               />
               <TextInput
                 style={styles.modalInput}
-                placeholder="Phone (+639...)"
+                placeholder="Phone (09...)"
                 value={memForm.phone}
                 onChangeText={(t) => setMemForm((p) => ({ ...p, phone: t }))}
               />
@@ -685,7 +770,123 @@ export default function AdminReplicaScreen() {
                 value={memForm.email}
                 onChangeText={(t) => setMemForm((p) => ({ ...p, email: t }))}
               />
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+
+              {/* Type Selector */}
+              <Text style={{ fontSize: 12, fontWeight: '700', color: '#475569', marginBottom: 6 }}>
+                Member Type
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+                {['FamilyMember', 'GrowingFriend', 'NewFriend'].map((tp) => (
+                  <TouchableOpacity
+                    key={tp}
+                    style={[
+                      styles.filterChip,
+                      memForm.type === tp && styles.filterChipActive,
+                    ]}
+                    onPress={() => setMemForm((p) => ({ ...p, type: tp }))}
+                  >
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        memForm.type === tp && styles.filterChipTextActive,
+                      ]}
+                    >
+                      {tp}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Age Group Selector */}
+              <Text style={{ fontSize: 12, fontWeight: '700', color: '#475569', marginBottom: 6 }}>
+                Age Group
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 6, marginBottom: 12 }}>
+                {['Adult', 'Youth', 'Kids'].map((ag) => (
+                  <TouchableOpacity
+                    key={ag}
+                    style={[
+                      styles.filterChip,
+                      memForm.ageGroup === ag && styles.filterChipActive,
+                    ]}
+                    onPress={() => setMemForm((p) => ({ ...p, ageGroup: ag }))}
+                  >
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        memForm.ageGroup === ag && styles.filterChipTextActive,
+                      ]}
+                    >
+                      {ag}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Ministries Assignment */}
+              {allMinistries.length > 0 && (
+                <>
+                  <Text
+                    style={{ fontSize: 12, fontWeight: '700', color: '#475569', marginBottom: 6 }}
+                  >
+                    Ministries ({memForm.ministryIds.length} selected)
+                  </Text>
+                  <View
+                    style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}
+                  >
+                    {allMinistries.map((min: any) => {
+                      const selected = memForm.ministryIds.includes(min.id);
+                      return (
+                        <TouchableOpacity
+                          key={min.id}
+                          style={[styles.filterChip, selected && styles.filterChipActive]}
+                          onPress={() =>
+                            setMemForm((p) => ({
+                              ...p,
+                              ministryIds: selected
+                                ? p.ministryIds.filter((id) => id !== min.id)
+                                : [...p.ministryIds, min.id],
+                            }))
+                          }
+                        >
+                          <Text
+                            style={[
+                              styles.filterChipText,
+                              selected && styles.filterChipTextActive,
+                            ]}
+                          >
+                            {min.name}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </>
+              )}
+
+              {editMember && (
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: '#fef3c7',
+                    paddingVertical: 10,
+                    borderRadius: 10,
+                    alignItems: 'center',
+                    marginBottom: 10,
+                  }}
+                  onPress={() =>
+                    handleResetPassword(
+                      editMember.id,
+                      `${editMember.firstName} ${editMember.lastName}`
+                    )
+                  }
+                >
+                  <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#92400e' }}>
+                    🔑 Reset Password & Send via SMS
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 6 }}>
                 <TouchableOpacity
                   style={[styles.outlineBtn, { flex: 1, alignItems: 'center' }]}
                   onPress={() => {
@@ -702,7 +903,7 @@ export default function AdminReplicaScreen() {
                   <Text style={styles.primaryBtnText}>Save Member</Text>
                 </TouchableOpacity>
               </View>
-            </View>
+            </ScrollView>
           </View>
         </Modal>
       </ScrollView>
@@ -711,13 +912,40 @@ export default function AdminReplicaScreen() {
 
   // ── 3. REVIEW PENDING VIEW (app/admin/review/AdminReviewClient.tsx) ────────
   const renderReviewView = () => {
-    const pendingList: any[] = data.pendingMembers || [];
+    const pendingList: any[] = data.pending || data.pendingMembers || [];
+    const ministryRequests: any[] = data.ministryRequests || [];
+    const reviewHistory: any[] = data.reviewHistory || [];
 
-    const handleDecision = async (memberId: number, decision: 'approve' | 'reject') => {
+    const handleDecision = async (
+      memberId: number,
+      decision: 'approve' | 'reject' | 'revert' | 'cancel'
+    ) => {
+      try {
+        const actionMap = {
+          approve: 'approve_member',
+          reject: 'reject_member',
+          revert: 'revert_member',
+          cancel: 'cancel_member',
+        };
+        await client.post('/admin', {
+          action: actionMap[decision],
+          memberId,
+        });
+        fetchPageData('review');
+      } catch {
+        // Silent
+      }
+    };
+
+    const handleMinistryRequestDecision = async (
+      memberMinistryId: number,
+      decision: 'approve' | 'reject'
+    ) => {
       try {
         await client.post('/admin', {
-          action: decision === 'approve' ? 'approve_member' : 'reject_member',
-          memberId,
+          action: decision === 'approve' ? 'approve_ministry_req' : 'reject_ministry_req',
+          id: memberMinistryId,
+          memberMinistryId,
         });
         fetchPageData('review');
       } catch {
@@ -730,46 +958,167 @@ export default function AdminReplicaScreen() {
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: 16, paddingTop: 58, paddingBottom: 110 }}
       >
-        <Text style={styles.dashTitle}>⏳ Review Pending ({pendingList.length})</Text>
-        <Text style={[styles.dashSub, { marginBottom: 16 }]}>
-          Approve or reject new member registrations
+        <Text style={styles.dashTitle}>
+          ⏳ Review Pending ({pendingList.length + ministryRequests.length})
+        </Text>
+        <Text style={[styles.dashSub, { marginBottom: 14 }]}>
+          Approve or reject registrations and ministry join requests
         </Text>
 
-        {pendingList.length === 0 ? (
-          <View style={[styles.whiteCard, { alignItems: 'center', paddingVertical: 40 }]}>
-            <Text style={{ fontSize: 40, marginBottom: 8 }}>🎉</Text>
-            <Text style={{ fontSize: 16, fontWeight: '800', color: '#0f172a' }}>
-              All Caught Up!
-            </Text>
-            <Text style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>
-              There are no pending registrations waiting for review.
-            </Text>
-          </View>
-        ) : (
-          pendingList.map((m) => (
-            <View key={m.id} style={styles.whiteCard}>
-              <Text style={{ fontSize: 16, fontWeight: '800', color: '#0f172a' }}>
-                {m.firstName} {m.lastName}
+        {/* 3 Review Sub-Tabs */}
+        <View style={{ flexDirection: 'row', gap: 6, marginBottom: 16 }}>
+          {[
+            { key: 'registrations', label: `📝 Registrations (${pendingList.length})` },
+            { key: 'ministries', label: `⛪ Ministries (${ministryRequests.length})` },
+            { key: 'history', label: `📜 History (${reviewHistory.length})` },
+          ].map((tb) => (
+            <TouchableOpacity
+              key={tb.key}
+              style={[
+                styles.filterChip,
+                reviewTab === tb.key && styles.filterChipActive,
+              ]}
+              onPress={() => setReviewTab(tb.key as any)}
+            >
+              <Text
+                style={[
+                  styles.filterChipText,
+                  reviewTab === tb.key && styles.filterChipTextActive,
+                ]}
+              >
+                {tb.label}
               </Text>
-              <Text style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>
-                📞 {m.phone || 'No phone'} · ✉️ {m.email || 'No email'}
-              </Text>
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
-                <TouchableOpacity
-                  style={[styles.primaryBtn, { backgroundColor: '#10b981', flex: 1, alignItems: 'center' }]}
-                  onPress={() => handleDecision(m.id, 'approve')}
-                >
-                  <Text style={styles.primaryBtnText}>✅ Approve</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.primaryBtn, { backgroundColor: '#ef4444', flex: 1, alignItems: 'center' }]}
-                  onPress={() => handleDecision(m.id, 'reject')}
-                >
-                  <Text style={styles.primaryBtnText}>✕ Reject</Text>
-                </TouchableOpacity>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {reviewTab === 'registrations' && (
+          <>
+            {pendingList.length === 0 ? (
+              <View style={[styles.whiteCard, { alignItems: 'center', paddingVertical: 40 }]}>
+                <Text style={{ fontSize: 40, marginBottom: 8 }}>🎉</Text>
+                <Text style={{ fontSize: 16, fontWeight: '800', color: '#0f172a' }}>
+                  All Caught Up!
+                </Text>
+                <Text style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>
+                  There are no pending registrations waiting for review.
+                </Text>
               </View>
-            </View>
-          ))
+            ) : (
+              pendingList.map((m) => (
+                <View key={m.id} style={styles.whiteCard}>
+                  <Text style={{ fontSize: 16, fontWeight: '800', color: '#0f172a' }}>
+                    {m.firstName} {m.lastName}
+                  </Text>
+                  <Text style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>
+                    📞 {m.phone || 'No phone'} · ✉️ {m.email || 'No email'}
+                  </Text>
+                  {m.invitedBy ? (
+                    <Text style={{ fontSize: 12, color: '#0284c7', marginTop: 4 }}>
+                      🤝 Invited by: {m.invitedBy}
+                    </Text>
+                  ) : null}
+                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+                    <TouchableOpacity
+                      style={[
+                        styles.primaryBtn,
+                        { backgroundColor: '#10b981', flex: 1, alignItems: 'center' },
+                      ]}
+                      onPress={() => handleDecision(m.id, 'approve')}
+                    >
+                      <Text style={styles.primaryBtnText}>✅ Approve</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.primaryBtn,
+                        { backgroundColor: '#ef4444', flex: 1, alignItems: 'center' },
+                      ]}
+                      onPress={() => handleDecision(m.id, 'reject')}
+                    >
+                      <Text style={styles.primaryBtnText}>✕ Reject</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))
+            )}
+          </>
+        )}
+
+        {reviewTab === 'ministries' && (
+          <>
+            {ministryRequests.length === 0 ? (
+              <View style={[styles.whiteCard, { alignItems: 'center', paddingVertical: 40 }]}>
+                <Text style={{ fontSize: 36, marginBottom: 8 }}>⛪</Text>
+                <Text style={{ fontSize: 15, fontWeight: '800', color: '#0f172a' }}>
+                  No Pending Ministry Requests
+                </Text>
+              </View>
+            ) : (
+              ministryRequests.map((req: any) => (
+                <View key={req.id} style={styles.whiteCard}>
+                  <Text style={{ fontSize: 15, fontWeight: '800', color: '#0f172a' }}>
+                    {req.member?.firstName} {req.member?.lastName}
+                  </Text>
+                  <Text style={{ fontSize: 13, color: '#0284c7', fontWeight: '700', marginTop: 2 }}>
+                    Wants to join: {req.ministry?.name}
+                  </Text>
+                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+                    <TouchableOpacity
+                      style={[
+                        styles.primaryBtn,
+                        { backgroundColor: '#10b981', flex: 1, alignItems: 'center' },
+                      ]}
+                      onPress={() => handleMinistryRequestDecision(req.id, 'approve')}
+                    >
+                      <Text style={styles.primaryBtnText}>✅ Approve</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.primaryBtn,
+                        { backgroundColor: '#ef4444', flex: 1, alignItems: 'center' },
+                      ]}
+                      onPress={() => handleMinistryRequestDecision(req.id, 'reject')}
+                    >
+                      <Text style={styles.primaryBtnText}>✕ Decline</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))
+            )}
+          </>
+        )}
+
+        {reviewTab === 'history' && (
+          <>
+            {reviewHistory.map((h: any) => (
+              <View key={h.id} style={styles.whiteCard}>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '800', color: '#0f172a' }}>
+                      {h.firstName} {h.lastName}
+                    </Text>
+                    <Text style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+                      Status: {h.status} · 📞 {h.phone || 'N/A'}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.smallEditBtn}
+                    onPress={() => handleDecision(h.id, 'revert')}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#0284c7' }}>
+                      ↩️ Revert to Pending
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+          </>
         )}
       </ScrollView>
     );
@@ -778,30 +1127,91 @@ export default function AdminReplicaScreen() {
   // ── 4. EVENTS ADMIN VIEW (app/admin/events/AdminEventsClient.tsx) ──────────
   const renderEventsView = () => {
     const eventsList: any[] = data.events || [];
-    const now = new Date();
+    const todayStr = new Date().toISOString().slice(0, 10);
     const shownEvents = eventsList.filter((e) =>
-      evTab === 'upcoming' ? new Date(e.eventDate) >= now : new Date(e.eventDate) < now
+      evTab === 'upcoming'
+        ? String(e.eventDate).slice(0, 10) >= todayStr
+        : String(e.eventDate).slice(0, 10) < todayStr
     );
 
-    const saveEvent = async () => {
+    const handlePickEventCover = async () => {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) return;
+      const picked = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.85,
+      });
+      if (picked.canceled || !picked.assets?.[0]) return;
+      const asset = picked.assets[0];
+      setUploadingCover(true);
       try {
-        if (editEvent) {
-          await client.post('/admin', {
-            action: 'update_event',
-            eventId: editEvent.id,
-            ...evForm,
-          });
-        } else {
-          await client.post('/admin', {
-            action: 'create_event',
-            ...evForm,
-          });
+        const fd = new FormData();
+        fd.append('photos', {
+          uri: asset.uri,
+          name: asset.fileName || `event_${Date.now()}.jpg`,
+          type: asset.mimeType || 'image/jpeg',
+        } as any);
+        const res = await client.post('/posts/upload?folder=events', fd, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        const uploadedPath = res.data?.paths?.[0] || res.data?.filenames?.[0] || '';
+        const filenameOnly = uploadedPath.split('/').pop() || uploadedPath;
+        if (filenameOnly) {
+          setEvForm((p) => ({ ...p, coverPhoto: filenameOnly }));
         }
+      } catch {
+        setAlertModal({
+          visible: true,
+          type: 'error',
+          title: 'Upload Failed',
+          message: 'Could not upload event cover photo.',
+        });
+      } finally {
+        setUploadingCover(false);
+      }
+    };
+
+    const openEventAnalytics = async (ev: any) => {
+      setAnalyticsEvent(ev);
+      setAnalyticsData(null);
+      setLoadingAnalytics(true);
+      try {
+        const res = await client.get(`/admin?page=event-analytics&eventId=${ev.id}`);
+        setAnalyticsData(res.data?.data || res.data);
+      } catch {
+        // Silent
+      } finally {
+        setLoadingAnalytics(false);
+      }
+    };
+
+    const saveEvent = async () => {
+      if (!evForm.title.trim()) {
+        setAlertModal({
+          visible: true,
+          type: 'warning',
+          title: 'Title Required',
+          message: 'Please enter an event title.',
+        });
+        return;
+      }
+      try {
+        await client.post('/admin', {
+          action: editEvent ? 'update_event' : 'create_event',
+          eventId: editEvent?.id,
+          id: editEvent?.id,
+          ...evForm,
+        });
         setAddEventOpen(false);
         setEditEvent(null);
         fetchPageData('events');
-      } catch {
-        // Silent
+      } catch (err: any) {
+        setAlertModal({
+          visible: true,
+          type: 'error',
+          title: 'Save Failed',
+          message: err?.response?.data?.error || 'Could not save event.',
+        });
       }
     };
 
@@ -819,6 +1229,17 @@ export default function AdminReplicaScreen() {
             style={styles.primaryBtn}
             onPress={() => {
               setEditEvent(null);
+              setEvForm({
+                title: '',
+                description: '',
+                eventDate: new Date().toISOString().slice(0, 10),
+                startTime: '09:00',
+                endTime: '11:30',
+                location: "Bro's Cafe, 2nd Floor, Gen. Luna St., Davao City",
+                eventType: 'sunday_service',
+                speaker: '',
+                coverPhoto: '',
+              });
               setAddEventOpen(true);
             }}
           >
@@ -840,73 +1261,212 @@ export default function AdminReplicaScreen() {
           ))}
         </View>
 
-        {shownEvents.map((ev) => (
-          <View key={ev.id} style={styles.whiteCard}>
-            <Text style={{ fontSize: 16, fontWeight: '800', color: '#0f172a' }}>{ev.title}</Text>
-            <Text style={{ fontSize: 12.5, color: '#64748b', marginTop: 4 }}>
-              📅 {new Date(ev.eventDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · 👥 {ev._count?.attendances ?? 0} attending
-            </Text>
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
-              <TouchableOpacity
-                style={styles.smallEditBtn}
-                onPress={() => {
-                  setEditEvent(ev);
-                  setEvForm({
-                    title: ev.title || '',
-                    description: ev.description || '',
-                    eventDate: ev.eventDate ? String(ev.eventDate).slice(0, 10) : '',
-                    startTime: '09:00',
-                    endTime: '11:30',
-                    location: ev.location || '',
-                    type: ev.type || 'SundayService',
-                    speaker: ev.speaker || '',
-                  });
-                  setAddEventOpen(true);
-                }}
-              >
-                <Text style={{ fontSize: 12, fontWeight: '700', color: PRIMARY }}>✏️ Edit</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.smallEditBtn, { backgroundColor: '#fef2f2' }]}
-                onPress={() => setDeleteTarget({ type: 'event', id: ev.id, name: ev.title })}
-              >
-                <Text style={{ fontSize: 12, fontWeight: '700', color: '#ef4444' }}>🗑️ Delete</Text>
-              </TouchableOpacity>
+        {shownEvents.map((ev) => {
+          const attCount = ev._count?.attendance ?? ev._count?.attendances ?? 0;
+          return (
+            <View key={ev.id} style={styles.whiteCard}>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: '#0f172a' }}>{ev.title}</Text>
+              <Text style={{ fontSize: 12.5, color: '#64748b', marginTop: 4 }}>
+                📅{' '}
+                {new Date(ev.eventDate).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}{' '}
+                · 👥 {attCount} attending
+                {ev.speaker ? ` · 🎙️ ${ev.speaker}` : ''}
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+                <TouchableOpacity
+                  style={[styles.smallEditBtn, { backgroundColor: '#f0f9ff' }]}
+                  onPress={() => openEventAnalytics(ev)}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#0284c7' }}>
+                    📊 Attendance ({attCount})
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.smallEditBtn}
+                  onPress={() => {
+                    setEditEvent(ev);
+                    setEvForm({
+                      title: ev.title || '',
+                      description: ev.description || '',
+                      eventDate: ev.eventDate ? String(ev.eventDate).slice(0, 10) : '',
+                      startTime: '09:00',
+                      endTime: '11:30',
+                      location: ev.location || '',
+                      eventType: ev.eventType || ev.type || 'sunday_service',
+                      speaker: ev.speaker || '',
+                      coverPhoto: ev.coverPhoto || '',
+                    });
+                    setAddEventOpen(true);
+                  }}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: PRIMARY }}>✏️ Edit</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.smallEditBtn, { backgroundColor: '#fef2f2' }]}
+                  onPress={() => setDeleteTarget({ type: 'event', id: ev.id, name: ev.title })}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#ef4444' }}>
+                    🗑️ Delete
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        ))}
+          );
+        })}
 
         {/* Add/Edit Event Modal */}
         <Modal visible={addEventOpen} transparent animationType="slide">
           <View style={styles.modalBackdrop}>
-            <View style={styles.modalCard}>
+            <ScrollView
+              style={{ maxHeight: '90%', width: '100%' }}
+              contentContainerStyle={styles.modalCard}
+            >
               <Text style={styles.modalTitle}>
                 {editEvent ? '✏️ Edit Event' : '📅 Add New Event'}
               </Text>
+
+              {/* Event Type Pills */}
+              <Text style={{ fontSize: 12, fontWeight: '700', color: '#475569', marginBottom: 6 }}>
+                Event Type
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ marginBottom: 12 }}
+              >
+                {EVENT_TYPE_OPTIONS.map((opt) => (
+                  <TouchableOpacity
+                    key={opt.key}
+                    style={[
+                      styles.filterChip,
+                      evForm.eventType === opt.key && styles.filterChipActive,
+                    ]}
+                    onPress={() => setEvForm((p) => ({ ...p, eventType: opt.key }))}
+                  >
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        evForm.eventType === opt.key && styles.filterChipTextActive,
+                      ]}
+                    >
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
               <TextInput
                 style={styles.modalInput}
                 placeholder="Event Title"
                 value={evForm.title}
                 onChangeText={(t) => setEvForm((p) => ({ ...p, title: t }))}
               />
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <TextInput
+                  style={[styles.modalInput, { flex: 1.2 }]}
+                  placeholder="Date (YYYY-MM-DD)"
+                  value={evForm.eventDate}
+                  onChangeText={(t) => setEvForm((p) => ({ ...p, eventDate: t }))}
+                />
+                <TextInput
+                  style={[styles.modalInput, { flex: 0.9 }]}
+                  placeholder="Start (09:00)"
+                  value={evForm.startTime}
+                  onChangeText={(t) => setEvForm((p) => ({ ...p, startTime: t }))}
+                />
+                <TextInput
+                  style={[styles.modalInput, { flex: 0.9 }]}
+                  placeholder="End (11:30)"
+                  value={evForm.endTime}
+                  onChangeText={(t) => setEvForm((p) => ({ ...p, endTime: t }))}
+                />
+              </View>
+
+              {/* Speaker + 1-Tap Primary Speaker Pills */}
+              <Text style={{ fontSize: 12, fontWeight: '700', color: '#475569', marginBottom: 6 }}>
+                Speaker (Tap quick-select or type below)
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                {PRIMARY_SPEAKERS.map((sp) => (
+                  <TouchableOpacity
+                    key={sp.value}
+                    style={[
+                      styles.filterChip,
+                      evForm.speaker === sp.value && styles.filterChipActive,
+                    ]}
+                    onPress={() => setEvForm((p) => ({ ...p, speaker: sp.value }))}
+                  >
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        evForm.speaker === sp.value && styles.filterChipTextActive,
+                      ]}
+                    >
+                      🎙️ {sp.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
               <TextInput
                 style={styles.modalInput}
-                placeholder="Date (YYYY-MM-DD)"
-                value={evForm.eventDate}
-                onChangeText={(t) => setEvForm((p) => ({ ...p, eventDate: t }))}
-              />
-              <TextInput
-                style={styles.modalInput}
-                placeholder="Speaker (optional)"
+                placeholder="Speaker Name (optional)"
                 value={evForm.speaker}
                 onChangeText={(t) => setEvForm((p) => ({ ...p, speaker: t }))}
               />
+
               <TextInput
                 style={styles.modalInput}
                 placeholder="Location"
                 value={evForm.location}
                 onChangeText={(t) => setEvForm((p) => ({ ...p, location: t }))}
               />
+
+              {/* Cover Photo Upload */}
+              <View style={{ marginBottom: 12 }}>
+                <TouchableOpacity
+                  style={{
+                    borderWidth: 1.5,
+                    borderStyle: 'dashed',
+                    borderColor: PRIMARY,
+                    borderRadius: 12,
+                    paddingVertical: 12,
+                    alignItems: 'center',
+                    backgroundColor: '#f0f9ff',
+                  }}
+                  onPress={handlePickEventCover}
+                  disabled={uploadingCover}
+                >
+                  {uploadingCover ? (
+                    <ActivityIndicator color={PRIMARY} size="small" />
+                  ) : (
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#0284c7' }}>
+                      🖼️ {evForm.coverPhoto ? 'Change Cover Photo' : 'Upload Cover Photo'}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+                {evForm.coverPhoto ? (
+                  <Image
+                    source={{
+                      uri: evForm.coverPhoto.startsWith('http')
+                        ? evForm.coverPhoto
+                        : `https://connect.houseofgrace.ph/uploads/events/${evForm.coverPhoto}`,
+                    }}
+                    style={{
+                      width: '100%',
+                      height: 120,
+                      borderRadius: 10,
+                      marginTop: 8,
+                      backgroundColor: '#0f172a',
+                    }}
+                    resizeMode="contain"
+                  />
+                ) : null}
+              </View>
+
               <TextInput
                 style={[styles.modalInput, { minHeight: 68 }]}
                 placeholder="Description"
@@ -931,6 +1491,118 @@ export default function AdminReplicaScreen() {
                   <Text style={styles.primaryBtnText}>Save Event</Text>
                 </TouchableOpacity>
               </View>
+            </ScrollView>
+          </View>
+        </Modal>
+
+        {/* Event Attendance Analytics Modal */}
+        <Modal
+          visible={Boolean(analyticsEvent)}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setAnalyticsEvent(null)}
+        >
+          <View style={styles.modalBackdrop}>
+            <View style={[styles.modalCard, { maxHeight: '85%' }]}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 12,
+                }}
+              >
+                <Text style={styles.modalTitle} numberOfLines={1}>
+                  📊 {analyticsEvent?.title}
+                </Text>
+                <TouchableOpacity onPress={() => setAnalyticsEvent(null)}>
+                  <Text style={{ fontSize: 18, fontWeight: '800', color: '#64748b' }}>✕</Text>
+                </TouchableOpacity>
+              </View>
+
+              {loadingAnalytics ? (
+                <ActivityIndicator color={PRIMARY} style={{ marginVertical: 30 }} />
+              ) : analyticsData ? (
+                <ScrollView>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      gap: 8,
+                      marginBottom: 14,
+                    }}
+                  >
+                    <View
+                      style={{
+                        flex: 1,
+                        backgroundColor: '#f0f9ff',
+                        padding: 12,
+                        borderRadius: 12,
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Text style={{ fontSize: 20, fontWeight: '900', color: '#0284c7' }}>
+                        {analyticsData.totalAttended ?? analyticsData.attendees?.length ?? 0}
+                      </Text>
+                      <Text style={{ fontSize: 11, color: '#64748b', fontWeight: '700' }}>
+                        Checked In
+                      </Text>
+                    </View>
+                    <View
+                      style={{
+                        flex: 1,
+                        backgroundColor: '#ecfdf5',
+                        padding: 12,
+                        borderRadius: 12,
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Text style={{ fontSize: 20, fontWeight: '900', color: '#059669' }}>
+                        {analyticsData.firstTimersCount ?? 0}
+                      </Text>
+                      <Text style={{ fontSize: 11, color: '#64748b', fontWeight: '700' }}>
+                        First Timers
+                      </Text>
+                    </View>
+                  </View>
+
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontWeight: '800',
+                      color: '#0f172a',
+                      marginBottom: 8,
+                    }}
+                  >
+                    ✅ Attendees ({(analyticsData.attendees || []).length})
+                  </Text>
+                  {(analyticsData.attendees || []).map((att: any, idx: number) => {
+                    const m = att.member || att;
+                    return (
+                      <View
+                        key={m.id || idx}
+                        style={{
+                          paddingVertical: 8,
+                          borderBottomWidth: 1,
+                          borderBottomColor: '#f1f5f9',
+                          flexDirection: 'row',
+                          justifyContent: 'space-between',
+                        }}
+                      >
+                        <Text style={{ fontSize: 13.5, fontWeight: '700', color: '#1e293b' }}>
+                          {m.firstName} {m.lastName}
+                        </Text>
+                        <Text style={{ fontSize: 12, color: '#64748b' }}>
+                          {m.ageGroup || 'Adult'}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </ScrollView>
+              ) : (
+                <Text style={{ color: '#64748b', textAlign: 'center', paddingVertical: 20 }}>
+                  No attendance records found.
+                </Text>
+              )}
             </View>
           </View>
         </Modal>
@@ -1158,7 +1830,7 @@ export default function AdminReplicaScreen() {
                 style={styles.sidebarSignOutBtn}
                 onPress={async () => {
                   setSidebarOpen(false);
-                  await signOut();
+                  await logout();
                   router.replace('/login');
                 }}
               >
@@ -1198,6 +1870,14 @@ export default function AdminReplicaScreen() {
           fetchPageData(activePage);
         }}
         onCancel={() => setDeleteTarget(null)}
+      />
+
+      <AlertPromptModal
+        visible={alertModal.visible}
+        type={alertModal.type}
+        title={alertModal.title}
+        message={alertModal.message}
+        onClose={() => setAlertModal((prev) => ({ ...prev, visible: false }))}
       />
     </View>
   );

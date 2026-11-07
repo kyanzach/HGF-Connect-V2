@@ -12,6 +12,11 @@ import path from "path";
 type NotifType =
   | "marketplace_prospect"
   | "marketplace_sale"
+  | "love_gift_earned"
+  | "love_gift_sold"
+  | "love_gift_claim"
+  | "love_gift_paid"
+  | "love_gift_received"
   | "general"
   | "new_post"
   | "new_comment"
