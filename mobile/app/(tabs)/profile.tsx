@@ -528,7 +528,7 @@ export default function MeScreen() {
       <Modal
         visible={editOpen}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setEditOpen(false)}
       >
         <KeyboardAvoidingView
@@ -769,7 +769,7 @@ export default function MeScreen() {
       <Modal
         visible={settingsOpen}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setSettingsOpen(false)}
       >
         <View style={styles.modalBackdrop}>
@@ -1072,14 +1072,17 @@ const styles = StyleSheet.create({
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.5)',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
+    paddingHorizontal: 18,
   },
   modalSheet: {
     backgroundColor: '#ffffff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderRadius: 22,
     padding: 20,
-    paddingBottom: 34,
+    shadowColor: '#000',
+    shadowOpacity: 0.16,
+    shadowRadius: 16,
+    elevation: 8,
   },
   modalTitle: { fontSize: 17, fontWeight: '800', color: '#0f172a', marginBottom: 14 },
   fieldLabel: { fontSize: 12, fontWeight: '700', color: '#64748b', marginBottom: 4 },

@@ -25,7 +25,8 @@ import TopHeader from '@/components/ui/TopHeader';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import { useAuth } from '@/context/AuthContext';
 import { SkeletonDirectoryLoading, SkeletonProfileLoading } from '@/components/ui/SkeletonPulse';
-import InlineCommentThread from '@/components/ui/InlineCommentThread';
+import InlineCommentThread, { InlineReactionsPanel } from '@/components/ui/InlineCommentThread';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 const PRIMARY = '#4EB1CB';
 const HGF_LOGO = require('../assets/images/HGF-icon-v1.0.png');
@@ -1912,7 +1913,7 @@ export default function WebReplicaScreen() {
                         </View>
                       ) : null}
 
-                      {/* Right-Aligned Overlapping Reactions Summary Bubble (v2.24.2 / v2.24.4) */}
+                      {/* Right-Aligned Overlapping Reactions Summary Bubble (Inline Toggle — Zero Bottom Slider) */}
                       {likeCount > 0 && (
                         <View
                           style={{
@@ -1925,18 +1926,24 @@ export default function WebReplicaScreen() {
                             activeOpacity={0.8}
                             onPress={() => {
                               setReactionsModalTab('ALL');
-                              setReactionsModalPost(post);
+                              setReactionsModalPost((prev: any) =>
+                                prev?.id === post.id ? null : post
+                              );
                             }}
                             style={{
                               flexDirection: 'row',
                               alignItems: 'center',
-                              backgroundColor: '#f8fafc',
+                              backgroundColor:
+                                reactionsModalPost?.id === post.id
+                                  ? 'rgba(78,177,203,0.14)'
+                                  : '#f8fafc',
                               borderWidth: 1,
-                              borderColor: '#e2e8f0',
+                              borderColor:
+                                reactionsModalPost?.id === post.id ? PRIMARY : '#e2e8f0',
                               borderRadius: 999,
-                              paddingHorizontal: 9,
-                              paddingVertical: 3.5,
-                              gap: 4,
+                              paddingHorizontal: 10,
+                              paddingVertical: 4,
+                              gap: 5,
                             }}
                           >
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -1949,12 +1956,26 @@ export default function WebReplicaScreen() {
                                 </Text>
                               ))}
                             </View>
-                            <Text style={{ fontSize: 12, fontWeight: '700', color: '#475569' }}>
+                            <Text
+                              style={{
+                                fontSize: 12,
+                                fontWeight: '700',
+                                color:
+                                  reactionsModalPost?.id === post.id ? PRIMARY : '#475569',
+                              }}
+                            >
                               {likeCount}
                             </Text>
                           </TouchableOpacity>
                         </View>
                       )}
+
+                      {/* Inline Expandable Reactions Panel (Replaces Outdated Bottom-Up Slider) */}
+                      <InlineReactionsPanel
+                        visible={reactionsModalPost?.id === post.id}
+                        likes={post.likes || []}
+                        onClose={() => setReactionsModalPost(null)}
+                      />
 
                       {/* Long-Press Floating Reaction Picker Pill (❤️ 🙏 🤗) */}
                       {reactionPickerPostId === post.id && (
@@ -1993,16 +2014,17 @@ export default function WebReplicaScreen() {
                         </View>
                       )}
 
-                      {/* 3-Button Action Bar: 🤍/❤️/🙏/🤗 | 💬 {commentCount} | 📤 Share */}
+                      {/* Modern 3-Button Action Bar */}
                       <View
                         style={{
                           flexDirection: 'row',
                           alignItems: 'center',
-                          justifyContent: 'space-around',
+                          justifyContent: 'space-between',
                           borderTopWidth: 1,
                           borderTopColor: '#f1f5f9',
                           paddingTop: 8,
                           marginTop: 2,
+                          gap: 8,
                         }}
                       >
                         <TouchableOpacity
@@ -2011,8 +2033,12 @@ export default function WebReplicaScreen() {
                             flexDirection: 'row',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            paddingVertical: 6,
-                            gap: 5,
+                            paddingVertical: 7,
+                            borderRadius: 999,
+                            backgroundColor: myReaction
+                              ? 'rgba(225,29,72,0.08)'
+                              : '#f8fafc',
+                            gap: 6,
                           }}
                           onPress={() =>
                             handleMemberPostReact(post.id, myReaction || 'HEART')
@@ -2023,8 +2049,21 @@ export default function WebReplicaScreen() {
                             )
                           }
                         >
-                          <Text style={{ fontSize: 18 }}>
-                            {myReaction ? REACTION_EMOJI_MAP[myReaction] || '❤️' : '🤍'}
+                          {myReaction ? (
+                            <Text style={{ fontSize: 15 }}>
+                              {REACTION_EMOJI_MAP[myReaction] || '❤️'}
+                            </Text>
+                          ) : (
+                            <FontAwesome name="heart-o" size={15} color="#64748b" />
+                          )}
+                          <Text
+                            style={{
+                              fontSize: 13,
+                              fontWeight: '700',
+                              color: myReaction ? '#e11d48' : '#64748b',
+                            }}
+                          >
+                            {likeCount > 0 ? likeCount : 'Love'}
                           </Text>
                         </TouchableOpacity>
 
@@ -2034,23 +2073,28 @@ export default function WebReplicaScreen() {
                             flexDirection: 'row',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            paddingVertical: 6,
-                            gap: 5,
+                            paddingVertical: 7,
+                             gap: 6,
                             backgroundColor: expandedWallCommentPostIds[post.id]
-                              ? 'rgba(78,177,203,0.1)'
-                              : 'transparent',
-                            borderRadius: 8,
+                              ? 'rgba(78,177,203,0.14)'
+                              : '#f8fafc',
+                            borderRadius: 999,
                           }}
                           onPress={() => openPostComments(post)}
                         >
+                          <FontAwesome
+                            name="comment-o"
+                            size={15}
+                            color={expandedWallCommentPostIds[post.id] ? PRIMARY : '#64748b'}
+                          />
                           <Text
                             style={{
-                              fontSize: 15,
+                              fontSize: 13,
                               color: expandedWallCommentPostIds[post.id] ? PRIMARY : '#64748b',
-                              fontWeight: expandedWallCommentPostIds[post.id] ? '700' : '600',
+                              fontWeight: '700',
                             }}
                           >
-                            💬 {commentCount > 0 ? commentCount : ''}
+                            {commentCount > 0 ? commentCount : 'Comment'}
                           </Text>
                         </TouchableOpacity>
 
@@ -2060,8 +2104,10 @@ export default function WebReplicaScreen() {
                             flexDirection: 'row',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            paddingVertical: 6,
-                            gap: 5,
+                            paddingVertical: 7,
+                            borderRadius: 999,
+                            backgroundColor: '#f8fafc',
+                            gap: 6,
                           }}
                           onPress={() => {
                             Share.share({
@@ -2070,8 +2116,9 @@ export default function WebReplicaScreen() {
                             }).catch(() => {});
                           }}
                         >
-                          <Text style={{ fontSize: 13.5, color: '#64748b', fontWeight: '600' }}>
-                            📤 Share
+                          <FontAwesome name="share" size={14} color="#64748b" />
+                          <Text style={{ fontSize: 13, color: '#64748b', fontWeight: '700' }}>
+                            Share
                           </Text>
                         </TouchableOpacity>
                       </View>
@@ -3992,7 +4039,7 @@ export default function WebReplicaScreen() {
         {/* ── Interactive 5-Type QuizPlayer Modal (1:1 Replica of components/quiz/QuizPlayer.tsx) ── */}
         <Modal
           visible={activeQuizQuestion !== null}
-          animationType="slide"
+          animationType="fade"
           onRequestClose={() => setActiveQuizQuestion(null)}
         >
           <LinearGradient
@@ -5177,21 +5224,21 @@ export default function WebReplicaScreen() {
         <Modal
           visible={prospectsModalData !== null}
           transparent
-          animationType="slide"
+          animationType="fade"
           onRequestClose={() => setProspectsModalData(null)}
         >
           <View
             style={{
               flex: 1,
               backgroundColor: 'rgba(15,23,42,0.55)',
-              justifyContent: 'flex-end',
+              justifyContent: 'center',
+              padding: 18,
             }}
           >
             <View
               style={{
                 backgroundColor: '#ffffff',
-                borderTopLeftRadius: 22,
-                borderTopRightRadius: 22,
+                borderRadius: 22,
                 padding: 20,
                 maxHeight: '85%',
               }}
@@ -5463,7 +5510,7 @@ export default function WebReplicaScreen() {
         <Modal
           visible={editListingModal !== null}
           transparent
-          animationType="slide"
+          animationType="fade"
           onRequestClose={() => setEditListingModal(null)}
         >
           <View
@@ -6087,425 +6134,19 @@ export default function WebReplicaScreen() {
         onCancel={() => setDeletePostConfirmId(null)}
       />
 
-      {/* Reactions Analytics Bottom Sheet Modal (v2.24.4 / v2.24.12) */}
-      <Modal
-        visible={reactionsModalPost !== null}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setReactionsModalPost(null)}
-      >
-        <TouchableOpacity
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(15,23,42,0.45)',
-            justifyContent: 'flex-end',
-          }}
-          activeOpacity={1}
-          onPress={() => setReactionsModalPost(null)}
-        >
-          <View
-            style={{
-              backgroundColor: '#ffffff',
-              borderTopLeftRadius: 24,
-              borderTopRightRadius: 24,
-              maxHeight: '72%',
-              paddingBottom: Math.max(insets.bottom, 20),
-            }}
-            onStartShouldSetResponder={() => true}
-          >
-            {/* Drag Handle + Header */}
-            <View style={{ alignItems: 'center', paddingTop: 10, paddingBottom: 8 }}>
-              <View
-                style={{
-                  width: 40,
-                  height: 4,
-                  borderRadius: 2,
-                  backgroundColor: '#cbd5e1',
-                  marginBottom: 10,
-                }}
-              />
-              <View
-                style={{
-                  width: '100%',
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  paddingHorizontal: 18,
-                }}
-              >
-                <Text style={{ fontSize: 16, fontWeight: '800', color: '#0f172a' }}>
-                  People who reacted
-                </Text>
-                <TouchableOpacity onPress={() => setReactionsModalPost(null)}>
-                  <Text style={{ fontSize: 18, color: '#64748b', fontWeight: '700' }}>✕</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Filter Tabs: All, ❤️, 🙏, 🤗 */}
-            {(() => {
-              const allLikes: any[] = Array.isArray(reactionsModalPost?.likes)
-                ? reactionsModalPost.likes
-                : [];
-              const heartCount = allLikes.filter(
-                (l) => !l.type || l.type === 'HEART' || l.type === 'LIKE'
-              ).length;
-              const prayCount = allLikes.filter(
-                (l) => l.type === 'PRAY' || l.type === 'AMEN'
-              ).length;
-              const careCount = allLikes.filter((l) => l.type === 'CARE').length;
-              const filteredLikes = allLikes.filter((l) => {
-                if (reactionsModalTab === 'ALL') return true;
-                if (reactionsModalTab === 'HEART')
-                  return !l.type || l.type === 'HEART' || l.type === 'LIKE';
-                if (reactionsModalTab === 'PRAY')
-                  return l.type === 'PRAY' || l.type === 'AMEN';
-                if (reactionsModalTab === 'CARE') return l.type === 'CARE';
-                return true;
-              });
-
-              return (
-                <>
-                  <View
-                    style={{
-                      flexDirection: 'row',
-                      borderBottomWidth: 1,
-                      borderBottomColor: '#e2e8f0',
-                      paddingHorizontal: 16,
-                      gap: 16,
-                    }}
-                  >
-                    {[
-                      { k: 'ALL' as const, label: `All ${allLikes.length || ''}`.trim() },
-                      ...(heartCount > 0 ? [{ k: 'HEART' as const, label: `❤️ ${heartCount}` }] : []),
-                      ...(prayCount > 0 ? [{ k: 'PRAY' as const, label: `🙏 ${prayCount}` }] : []),
-                      ...(careCount > 0 ? [{ k: 'CARE' as const, label: `🤗 ${careCount}` }] : []),
-                    ].map((t) => {
-                      const active = reactionsModalTab === t.k;
-                      return (
-                        <TouchableOpacity
-                          key={t.k}
-                          onPress={() => setReactionsModalTab(t.k)}
-                          style={{
-                            paddingVertical: 10,
-                            borderBottomWidth: 2.5,
-                            borderBottomColor: active ? PRIMARY : 'transparent',
-                          }}
-                        >
-                          <Text
-                            style={{
-                              fontSize: 13.5,
-                              fontWeight: active ? '800' : '600',
-                              color: active ? PRIMARY : '#64748b',
-                            }}
-                          >
-                            {t.label}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-
-                  <ScrollView style={{ paddingHorizontal: 18, paddingTop: 8 }}>
-                    {filteredLikes.length === 0 ? (
-                      <View style={{ paddingVertical: 28, alignItems: 'center' }}>
-                        <Text style={{ color: '#94a3b8', fontSize: 13.5 }}>No reactions yet.</Text>
-                      </View>
-                    ) : (
-                      filteredLikes.map((item: any, idx: number) => {
-                        const rMem = item.member || {};
-                        const rName =
-                          `${rMem.firstName || ''} ${rMem.lastName || ''}`.trim() || 'Church Member';
-                        const rPic = rMem.profilePicture
-                          ? rMem.profilePicture.startsWith('http')
-                            ? rMem.profilePicture
-                            : `https://connect.houseofgrace.ph/uploads/profile_pictures/${rMem.profilePicture}`
-                          : null;
-                        const rInitials = `${(rMem.firstName || 'M')[0]}${(rMem.lastName || '')[0] || ''}`.toUpperCase();
-                        const rEmoji =
-                          item.type === 'PRAY' || item.type === 'AMEN'
-                            ? '🙏'
-                            : item.type === 'CARE'
-                              ? '🤗'
-                              : '❤️';
-
-                        return (
-                          <TouchableOpacity
-                            key={item.id ?? idx}
-                            style={{
-                              flexDirection: 'row',
-                              alignItems: 'center',
-                              gap: 12,
-                              paddingVertical: 10,
-                              borderBottomWidth: 1,
-                              borderBottomColor: '#f8fafc',
-                            }}
-                            onPress={() => {
-                              const mid = item.memberId || rMem.id;
-                              setReactionsModalPost(null);
-                              if (mid) {
-                                router.push(`/church?tab=member&id=${mid}` as any);
-                              }
-                            }}
-                          >
-                            <View style={{ position: 'relative' }}>
-                              <View
-                                style={{
-                                  width: 40,
-                                  height: 40,
-                                  borderRadius: 20,
-                                  backgroundColor: '#e0f7fb',
-                                  overflow: 'hidden',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                }}
-                              >
-                                {rPic ? (
-                                  <Image
-                                    source={{ uri: rPic }}
-                                    style={{ width: '100%', height: '100%' }}
-                                  />
-                                ) : (
-                                  <Text style={{ fontWeight: '800', color: PRIMARY }}>
-                                    {rInitials}
-                                  </Text>
-                                )}
-                              </View>
-                              <View
-                                style={{
-                                  position: 'absolute',
-                                  bottom: -2,
-                                  right: -2,
-                                  width: 18,
-                                  height: 18,
-                                  borderRadius: 9,
-                                  backgroundColor: '#ffffff',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  shadowColor: '#000',
-                                  shadowOpacity: 0.15,
-                                  shadowRadius: 2,
-                                }}
-                              >
-                                <Text style={{ fontSize: 11 }}>{rEmoji}</Text>
-                              </View>
-                            </View>
-                            <Text
-                              style={{
-                                fontSize: 14.5,
-                                fontWeight: '700',
-                                color: '#0f172a',
-                                flex: 1,
-                              }}
-                            >
-                              {rName}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })
-                    )}
-                  </ScrollView>
-                </>
-              );
-            })()}
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
-      {/* Interactive Comment Drawer Bottom Sheet Modal */}
-      <Modal
-        visible={commentModalPost !== null}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setCommentModalPost(null)}
-      >
-        <KeyboardAvoidingView
-          style={{ flex: 1, backgroundColor: 'rgba(15,23,42,0.45)', justifyContent: 'flex-end' }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-          <View
-            style={{
-              backgroundColor: '#ffffff',
-              borderTopLeftRadius: 24,
-              borderTopRightRadius: 24,
-              maxHeight: '80%',
-              paddingBottom: Math.max(insets.bottom, 14),
-            }}
-          >
-            {/* Header */}
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingHorizontal: 18,
-                paddingVertical: 14,
-                borderBottomWidth: 1,
-                borderBottomColor: '#f1f5f9',
-              }}
-            >
-              <Text style={{ fontSize: 16, fontWeight: '800', color: '#0f172a' }}>
-                💬 Comments ({commentsList.length})
-              </Text>
-              <TouchableOpacity onPress={() => setCommentModalPost(null)}>
-                <Text style={{ fontSize: 18, color: '#64748b', fontWeight: '700' }}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Comments List */}
-            <ScrollView style={{ paddingHorizontal: 16, paddingVertical: 10, maxHeight: 380 }}>
-              {loadingComments ? (
-                <View style={{ paddingVertical: 30, alignItems: 'center' }}>
-                  <ActivityIndicator size="small" color={PRIMARY} />
-                </View>
-              ) : commentsList.length === 0 ? (
-                <View style={{ paddingVertical: 32, alignItems: 'center' }}>
-                  <Text style={{ color: '#94a3b8', fontSize: 13.5 }}>
-                    No comments yet. Be the first to encourage!
-                  </Text>
-                </View>
-              ) : (
-                commentsList.map((c: any, idx: number) => {
-                  const cAuth = c.author || c.member || {};
-                  const cName =
-                    `${cAuth.firstName || ''} ${cAuth.lastName || ''}`.trim() || 'Member';
-                  const cPic = cAuth.profilePicture
-                    ? cAuth.profilePicture.startsWith('http')
-                      ? cAuth.profilePicture
-                      : `https://connect.houseofgrace.ph/uploads/profile_pictures/${cAuth.profilePicture}`
-                    : null;
-                  const cInit = `${(cAuth.firstName || 'M')[0]}${(cAuth.lastName || '')[0] || ''}`.toUpperCase();
-
-                  return (
-                    <View
-                      key={c.id ?? idx}
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'flex-start',
-                        gap: 10,
-                        marginBottom: 12,
-                      }}
-                    >
-                      <TouchableOpacity
-                        onPress={() => {
-                          if (cAuth.id) {
-                            setCommentModalPost(null);
-                            router.push(`/church?tab=member&id=${cAuth.id}` as any);
-                          }
-                        }}
-                      >
-                        <View
-                          style={{
-                            width: 34,
-                            height: 34,
-                            borderRadius: 17,
-                            backgroundColor: '#e0f7fb',
-                            overflow: 'hidden',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          {cPic ? (
-                            <Image
-                              source={{ uri: cPic }}
-                              style={{ width: '100%', height: '100%' }}
-                            />
-                          ) : (
-                            <Text style={{ fontSize: 12, fontWeight: '800', color: PRIMARY }}>
-                              {cInit}
-                            </Text>
-                          )}
-                        </View>
-                      </TouchableOpacity>
-                      <View
-                        style={{
-                          flex: 1,
-                          backgroundColor: '#f8fafc',
-                          borderRadius: 14,
-                          paddingHorizontal: 12,
-                          paddingVertical: 8,
-                        }}
-                      >
-                        <Text style={{ fontSize: 13, fontWeight: '800', color: '#0f172a' }}>
-                          {cName}
-                        </Text>
-                        <Text
-                          style={{
-                            fontSize: 13.5,
-                            color: '#334155',
-                            marginTop: 2,
-                            lineHeight: 19,
-                          }}
-                        >
-                          {c.content}
-                        </Text>
-                      </View>
-                    </View>
-                  );
-                })
-              )}
-            </ScrollView>
-
-            {/* Input Row */}
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 8,
-                paddingHorizontal: 16,
-                paddingTop: 10,
-                borderTopWidth: 1,
-                borderTopColor: '#f1f5f9',
-              }}
-            >
-              <TextInput
-                style={{
-                  flex: 1,
-                  backgroundColor: '#f8fafc',
-                  borderWidth: 1.5,
-                  borderColor: '#e2e8f0',
-                  borderRadius: 999,
-                  paddingHorizontal: 16,
-                  paddingVertical: 9,
-                  fontSize: 14,
-                  color: '#0f172a',
-                }}
-                placeholder="Write a comment…"
-                placeholderTextColor="#94a3b8"
-                value={commentInput}
-                onChangeText={setCommentInput}
-              />
-              <TouchableOpacity
-                disabled={!commentInput.trim() || sendingComment}
-                onPress={submitPostComment}
-                style={{
-                  backgroundColor: commentInput.trim() ? PRIMARY : '#cbd5e1',
-                  paddingHorizontal: 16,
-                  paddingVertical: 9,
-                  borderRadius: 999,
-                }}
-              >
-                <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 13.5 }}>
-                  {sendingComment ? '…' : 'Send'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* Own-Profile Photo Bottom Sheet Modal (ProfileClient.tsx lines 435-471) */}
+      {/* Own-Profile Photo Centered Popover Modal */}
       <Modal
         visible={profilePhotoSheet !== null}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setProfilePhotoSheet(null)}
       >
         <TouchableOpacity
           style={{
             flex: 1,
-            backgroundColor: 'rgba(15,23,42,0.45)',
-            justifyContent: 'flex-end',
+            backgroundColor: 'rgba(15,23,42,0.5)',
+            justifyContent: 'center',
+            paddingHorizontal: 24,
           }}
           activeOpacity={1}
           onPress={() => setProfilePhotoSheet(null)}
@@ -6513,23 +6154,15 @@ export default function WebReplicaScreen() {
           <View
             style={{
               backgroundColor: '#ffffff',
-              borderTopLeftRadius: 24,
-              borderTopRightRadius: 24,
-              paddingTop: 12,
-              paddingBottom: Math.max(insets.bottom, 20),
+              borderRadius: 20,
+              paddingVertical: 10,
               paddingHorizontal: 18,
+              shadowColor: '#000',
+              shadowOpacity: 0.15,
+              shadowRadius: 16,
+              elevation: 8,
             }}
           >
-            <View
-              style={{
-                width: 40,
-                height: 4,
-                borderRadius: 2,
-                backgroundColor: '#cbd5e1',
-                alignSelf: 'center',
-                marginBottom: 14,
-              }}
-            />
             <TouchableOpacity
               style={{
                 paddingVertical: 14,

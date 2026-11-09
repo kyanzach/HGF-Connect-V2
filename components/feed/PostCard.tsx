@@ -1300,48 +1300,161 @@ export default function PostCard({ post }: PostCardProps) {
           </div>
         )}
 
-        {/* Reactions Summary row */}
+        {/* Reactions Summary row + Inline Expandable Reactions Panel (Zero Bottom Slider) */}
         {likeCount > 0 && (() => {
           const distinctTypes = Array.from(new Set(reactions.map((r: any) => r.type || "HEART")));
           return (
-            <div 
-              onClick={() => setShowReactionsModal(true)}
-              style={{ 
-                display: "flex", 
-                alignItems: "center", 
-                justifyContent: "flex-end",
-                gap: "8px", 
-                padding: "0.5rem 1rem", 
-                cursor: "pointer",
-                userSelect: "none"
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center" }}>
-                {distinctTypes.map((type: any, i) => (
-                  <div 
-                    key={type} 
-                    style={{
-                      width: "20px",
-                      height: "20px",
-                      borderRadius: "50%",
-                      background: "white",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: "0.85rem",
-                      marginLeft: i > 0 ? "-6px" : "0",
-                      zIndex: 3 - i,
-                      boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
-                      border: "1px solid #f1f5f9"
-                    }}
-                  >
-                    {REACTION_EMOJIS[type] || "❤️"}
+            <div style={{ padding: "0.25rem 1rem 0.5rem" }}>
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <div 
+                  onClick={() => setShowReactionsModal((prev) => !prev)}
+                  style={{ 
+                    display: "inline-flex", 
+                    alignItems: "center", 
+                    gap: "6px", 
+                    padding: "4px 10px",
+                    borderRadius: "999px",
+                    background: showReactionsModal ? `${PRIMARY}18` : "#f8fafc",
+                    border: `1px solid ${showReactionsModal ? PRIMARY : "#e2e8f0"}`,
+                    cursor: "pointer",
+                    userSelect: "none",
+                    transition: "all 0.15s ease"
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center" }}>
+                    {distinctTypes.map((type: any, i) => (
+                      <div 
+                        key={type} 
+                        style={{
+                          width: "18px",
+                          height: "18px",
+                          borderRadius: "50%",
+                          background: "white",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "0.8rem",
+                          marginLeft: i > 0 ? "-5px" : "0",
+                          zIndex: 3 - i,
+                        }}
+                      >
+                        {REACTION_EMOJIS[type] || "❤️"}
+                      </div>
+                    ))}
                   </div>
-                ))}
+                  <span style={{ fontSize: "0.78rem", color: showReactionsModal ? PRIMARY : "#475569", fontWeight: 700 }}>
+                    {likeCount}
+                  </span>
+                </div>
               </div>
-              <span style={{ fontSize: "0.78rem", color: "#64748b", fontWeight: 600 }}>
-                {likeCount}
-              </span>
+
+              {showReactionsModal && (
+                <div
+                  style={{
+                    marginTop: "8px",
+                    background: "#f8fafc",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "14px",
+                    padding: "10px 12px",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px", gap: "6px", flexWrap: "wrap" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                      {["ALL", "HEART", "PRAY", "HUG"].map((tab) => {
+                        const count = tab === "ALL" ? reactions.length : reactions.filter(r => r.type === tab).length;
+                        if (count === 0 && tab !== "ALL") return null;
+                        const isActive = activeReactionTab === tab;
+                        const label = tab === "ALL" ? "All" : REACTION_EMOJIS[tab];
+                        return (
+                          <button
+                            key={tab}
+                            onClick={() => setActiveReactionTab(tab)}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              background: isActive ? PRIMARY : "#ffffff",
+                              border: `1px solid ${isActive ? PRIMARY : "#e2e8f0"}`,
+                              borderRadius: "999px",
+                              padding: "4px 10px",
+                              fontSize: "0.75rem",
+                              fontWeight: 700,
+                              color: isActive ? "#ffffff" : "#64748b",
+                              cursor: "pointer",
+                              whiteSpace: "nowrap"
+                            }}
+                          >
+                            <span>{label}</span>
+                            <span>{count}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <button
+                      onClick={() => setShowReactionsModal(false)}
+                      style={{
+                        background: "#e2e8f0",
+                        border: "none",
+                        borderRadius: "50%",
+                        width: 22,
+                        height: 22,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        fontSize: "0.7rem",
+                        fontWeight: 700,
+                        color: "#64748b",
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                    {reactions
+                      .filter(r => activeReactionTab === "ALL" || r.type === activeReactionTab)
+                      .map((r: any) => {
+                        const initials = `${r.member?.firstName?.[0] ?? ""}${r.member?.lastName?.[0] ?? ""}`.toUpperCase();
+                        const fullName = `${r.member?.firstName ?? ""} ${r.member?.lastName ?? ""}`.trim();
+                        return (
+                          <div
+                            key={r.memberId}
+                            onClick={() => {
+                              window.location.href = `/member/${r.memberId}`;
+                            }}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "7px",
+                              background: "#ffffff",
+                              border: "1px solid #e2e8f0",
+                              borderRadius: "999px",
+                              padding: "4px 10px 4px 5px",
+                              cursor: "pointer",
+                            }}
+                          >
+                            <div style={{ width: 24, height: 24, borderRadius: "50%", background: `${PRIMARY}20`, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+                              {r.member?.profilePicture ? (
+                                <img src={`/uploads/profile_pictures/${r.member.profilePicture}`} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                              ) : (
+                                <span style={{ color: PRIMARY, fontSize: "0.65rem", fontWeight: 800 }}>
+                                  {initials}
+                                </span>
+                              )}
+                              <div style={{ position: "absolute", bottom: -2, right: -2, background: "white", borderRadius: "50%", width: 13, height: 13, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.55rem", boxShadow: "0 1px 2px rgba(0,0,0,0.15)" }}>
+                                {REACTION_EMOJIS[r.type] || "❤️"}
+                              </div>
+                            </div>
+                            <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#0f172a" }}>
+                              {fullName}
+                            </span>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
             </div>
           );
         })()}
@@ -1509,128 +1622,6 @@ export default function PostCard({ post }: PostCardProps) {
           src={activeLightboxImg}
           onClose={() => setActiveLightboxImg(null)}
         />
-      )}
-
-      {/* Reactions Analytics Modal */}
-      {showReactionsModal && (
-        <>
-          {/* Backdrop */}
-          <div 
-            onClick={() => setShowReactionsModal(false)}
-            style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 30000,
-              background: "rgba(0,0,0,0.5)",
-              backdropFilter: "blur(4px)",
-              WebkitBackdropFilter: "blur(4px)"
-            }}
-          />
-          {/* Modal Container */}
-          <div
-            style={{
-              position: "fixed",
-              bottom: 0,
-              left: "50%",
-              transform: "translateX(-50%)",
-              width: "100%",
-              maxWidth: "480px",
-              background: "white",
-              borderRadius: "24px 24px 0 0",
-              boxShadow: "0 -8px 30px rgba(0,0,0,0.2)",
-              zIndex: 30001,
-              padding: "1rem 0 calc(1.5rem + env(safe-area-inset-bottom, 0px))",
-              maxHeight: "75vh",
-              display: "flex",
-              flexDirection: "column"
-            }}
-          >
-            {/* Handle bar */}
-            <div style={{ width: 40, height: 4, background: "#e2e8f0", borderRadius: 999, margin: "0 auto 12px" }} />
-            
-            {/* Title / Header */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 1.25rem 0.5rem" }}>
-              <span style={{ fontSize: "1rem", fontWeight: 800, color: "#0f172a" }}>Reactions</span>
-              <button 
-                onClick={() => setShowReactionsModal(false)}
-                style={{ background: "#f1f5f9", border: "none", borderRadius: "50%", width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: "0.85rem", fontWeight: 700, color: "#64748b" }}
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Reactions Tabs */}
-            <div style={{ display: "flex", gap: "8px", padding: "0.5rem 1.25rem", borderBottom: "1px solid #f1f5f9", overflowX: "auto" }}>
-              {["ALL", "HEART", "PRAY", "HUG"].map((tab) => {
-                const count = tab === "ALL" ? reactions.length : reactions.filter(r => r.type === tab).length;
-                if (count === 0 && tab !== "ALL") return null;
-                const isActive = activeReactionTab === tab;
-                const label = tab === "ALL" ? "All" : REACTION_EMOJIS[tab];
-                return (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveReactionTab(tab)}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "4px",
-                      background: isActive ? `${PRIMARY}15` : "none",
-                      border: "none",
-                      borderRadius: "16px",
-                      padding: "6px 12px",
-                      fontSize: "0.82rem",
-                      fontWeight: 700,
-                      color: isActive ? PRIMARY : "#64748b",
-                      cursor: "pointer",
-                      whiteSpace: "nowrap"
-                    }}
-                  >
-                    <span>{label}</span>
-                    <span>{count}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Reactors list */}
-            <div style={{ flex: 1, overflowY: "auto", padding: "0.5rem 1.25rem" }}>
-              {reactions
-                .filter(r => activeReactionTab === "ALL" || r.type === activeReactionTab)
-                .map((r: any) => {
-                  const initials = `${r.member?.firstName?.[0] ?? ""}${r.member?.lastName?.[0] ?? ""}`.toUpperCase();
-                  const fullName = `${r.member?.firstName ?? ""} ${r.member?.lastName ?? ""}`;
-                  return (
-                    <div 
-                      key={r.memberId} 
-                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #f8fafc" }}
-                      onClick={() => {
-                        setShowReactionsModal(false);
-                        window.location.href = `/member/${r.memberId}`;
-                      }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}>
-                        <div style={{ width: 36, height: 36, borderRadius: "50%", background: `${PRIMARY}20`, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
-                          {r.member?.profilePicture ? (
-                            <img src={`/uploads/profile_pictures/${r.member.profilePicture}`} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                          ) : (
-                            <span style={{ color: PRIMARY, fontSize: "0.8rem", fontWeight: 700 }}>
-                              {initials}
-                            </span>
-                          )}
-                          <div style={{ position: "absolute", bottom: -2, right: -2, background: "white", borderRadius: "50%", width: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.65rem", boxShadow: "0 1px 2px rgba(0,0,0,0.15)" }}>
-                            {REACTION_EMOJIS[r.type] || "❤️"}
-                          </div>
-                        </div>
-                        <span style={{ fontSize: "0.88rem", fontWeight: 600, color: "#1e293b" }}>
-                          {fullName}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
-          </div>
-        </>
       )}
 
       <style>{`

@@ -424,7 +424,7 @@ export default function EventsScreen() {
       {/* Event Detail Modal (1:1 replica of app/(public)/event/[id]/page.tsx) */}
       <Modal
         visible={Boolean(selectedEvent)}
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setSelectedEvent(null)}
       >
         <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>

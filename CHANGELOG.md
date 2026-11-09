@@ -1,3 +1,15 @@
+## [v2.83.1] — 2026-11-09
+### Added / Changed / Fixed
+- **Zero Bottom-Up Sliders — Modern Inline Reactions Panel, Curved Thread Connectors & Pill Action Bar (`mobile/v1.7.1`, `v2.83.1`)**:
+  - **Inline Expandable Reactions Panel (`mobile/components/ui/InlineCommentThread.tsx`, `mobile/app/church.tsx`, `mobile/app/(tabs)/index.tsx`, `components/feed/PostCard.tsx`)**:
+    - Eliminated the bottom-up slide modal (`animationType="slide"` / `justifyContent: 'flex-end'`) for `"People who reacted"` across Member Profile Wall, Community Feed, and Web `PostCard.tsx`.
+    - Tapping `[❤️ 🙏 1]` now smoothly unfolds an **Inline Reactions Card** right inside the post card with segmented filter pills (`All 1`, `❤️ 1`, `🙏`, `🤗`), a close button (`✕`), and clickable reactor chips (`[Avatar + mini reaction badge] Full Name ›`) that navigate directly to the reactor's profile.
+  - **Upgraded 2026 Facebook/Instagram Inline Comment Thread & Pill Action Bar (`mobile/components/ui/InlineCommentThread.tsx`, `mobile/app/church.tsx`, `mobile/app/(tabs)/index.tsx`)**:
+    - Removed the outdated `"No comments yet. Share an encouraging word!"` empty block and boxy grey button highlight; added 1-tap quick encouragement chips (`Amen! 🙏`, `Praise God! 🙌`, `Praying for you ❤️`, `God bless! ✨`), a sleek `#F0F2F5` pill composer with paper-plane send icon (`FontAwesome name="paper-plane"`), floating corner reaction badges (`❤️ 1`) on comment bubbles, and curved vertical/elbow thread connector lines (`╰──`) linking parent comments to nested replies and the inline reply box.
+    - Upgraded the 3-Button Post Action Bar (`Love` | `Comment` | `Share`) to modern rounded pills with `FontAwesome` vector icons (`heart-o`, `comment-o`, `share`).
+  - **Eliminated All Remaining `animationType="slide"` Bottom-Up Drawers (`mobile/app/(tabs)/prayer.tsx`, `mobile/app/(tabs)/profile.tsx`, `mobile/app/(tabs)/stewardshop.tsx`, `mobile/app/(tabs)/events.tsx`, `mobile/app/admin.tsx`)**:
+    - Replaced all remaining `animationType="slide"` and bottom-anchored `justifyContent: 'flex-end'` sheets across the mobile app with `animationType="fade"` and centered floating modal cards (`justifyContent: 'center'`, `borderRadius: 22`).
+
 ## [v2.83.0] — 2026-11-09
 ### Added / Changed / Fixed
 - **Inline Facebook/Instagram-Style Threaded Comments, Reactions Analytics Parity, Shimmer Skeleton Loaders & Balanced Member Hero UX (`mobile/v1.7.0`, `v2.83.0`)**:

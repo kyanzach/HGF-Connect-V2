@@ -847,7 +847,7 @@ export default function StewardShopScreen() {
          ═══════════════════════════════════════════════════════════════════ */}
       <Modal
         visible={Boolean(selectedItem)}
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setSelectedItem(null)}
       >
         {selectedItem && (
@@ -1354,7 +1354,7 @@ export default function StewardShopScreen() {
       <Modal
         visible={gateModalOpen}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setGateModalOpen(false)}
       >
         <KeyboardAvoidingView
@@ -1500,7 +1500,7 @@ export default function StewardShopScreen() {
          ═══════════════════════════════════════════════════════════════════ */}
       <Modal
         visible={createOpen}
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setCreateOpen(false)}
       >
         <KeyboardAvoidingView
@@ -2773,22 +2773,20 @@ const styles = StyleSheet.create({
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.5)',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
+    paddingHorizontal: 18,
   },
   modalSheet: {
     backgroundColor: '#ffffff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderRadius: 22,
     padding: 20,
-    paddingBottom: 36,
+    shadowColor: '#000',
+    shadowOpacity: 0.16,
+    shadowRadius: 16,
+    elevation: 8,
   },
   modalHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#cbd5e1',
-    alignSelf: 'center',
-    marginBottom: 16,
+    display: 'none',
   },
   detailTitle: {
     fontSize: 18,

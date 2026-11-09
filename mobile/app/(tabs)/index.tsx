@@ -23,7 +23,8 @@ import { useAuth } from '@/context/AuthContext';
 import AlertPromptModal, { AlertType } from '@/components/ui/AlertPromptModal';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import { SkeletonFeedLoading } from '@/components/ui/SkeletonPulse';
-import InlineCommentThread from '@/components/ui/InlineCommentThread';
+import InlineCommentThread, { InlineReactionsPanel } from '@/components/ui/InlineCommentThread';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 const MOUNTAIN_BG = require('../../assets/images/mountain.png');
 const OCEAN_BG = require('../../assets/images/ocean.png');
@@ -1316,50 +1317,68 @@ export default function FeedScreen() {
             CARE: '🤗',
           };
           return (
-            <TouchableOpacity
-              activeOpacity={0.75}
-              onPress={() => {
-                setReactionsModalPost(item);
-                setReactionsModalTab('ALL');
-              }}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'flex-end',
-                gap: 6,
-                paddingVertical: 6,
-                paddingHorizontal: 2,
-              }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                {distinctTypes.map((t, i) => (
-                  <View
-                    key={t}
+            <View style={{ marginBottom: 4 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 6 }}>
+                <TouchableOpacity
+                  activeOpacity={0.75}
+                  onPress={() => {
+                    setReactionsModalTab('ALL');
+                    setReactionsModalPost((prev) => (prev?.id === item.id ? null : item));
+                  }}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 5,
+                    paddingVertical: 4,
+                    paddingHorizontal: 10,
+                    borderRadius: 999,
+                    backgroundColor:
+                      reactionsModalPost?.id === item.id
+                        ? 'rgba(78,177,203,0.14)'
+                        : '#f8fafc',
+                    borderWidth: 1,
+                    borderColor:
+                      reactionsModalPost?.id === item.id ? '#4EB1CB' : '#e2e8f0',
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    {distinctTypes.map((t, i) => (
+                      <View
+                        key={t}
+                        style={{
+                          width: 18,
+                          height: 18,
+                          borderRadius: 9,
+                          backgroundColor: '#ffffff',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginLeft: i > 0 ? -4 : 0,
+                          zIndex: 3 - i,
+                        }}
+                      >
+                        <Text style={{ fontSize: 11 }}>{emojiMap[t] || '❤️'}</Text>
+                      </View>
+                    ))}
+                  </View>
+                  <Text
                     style={{
-                      width: 20,
-                      height: 20,
-                      borderRadius: 10,
-                      backgroundColor: '#ffffff',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginLeft: i > 0 ? -5 : 0,
-                      zIndex: 3 - i,
-                      borderWidth: 1,
-                      borderColor: '#f1f5f9',
-                      shadowColor: '#000',
-                      shadowOpacity: 0.12,
-                      shadowRadius: 2,
-                      elevation: 1,
+                      fontSize: 12,
+                      color: reactionsModalPost?.id === item.id ? '#4EB1CB' : '#475569',
+                      fontWeight: '700',
                     }}
                   >
-                    <Text style={{ fontSize: 11 }}>{emojiMap[t] || '❤️'}</Text>
-                  </View>
-                ))}
+                    {item.likeCount}
+                  </Text>
+                </TouchableOpacity>
               </View>
-              <Text style={{ fontSize: 12.5, color: '#64748b', fontWeight: '600' }}>
-                {item.likeCount}
-              </Text>
-            </TouchableOpacity>
+
+              {/* Inline Expandable Reactions Panel (Zero Bottom-Up Slider) */}
+              <InlineReactionsPanel
+                visible={reactionsModalPost?.id === item.id}
+                likes={item.likes || []}
+                onClose={() => setReactionsModalPost(null)}
+              />
+            </View>
           );
         })()}
 
@@ -1381,12 +1400,16 @@ export default function FeedScreen() {
           </View>
         )}
 
-        {/* Bottom Action Bar (components/feed/PostCard.tsx) */}
+        {/* Modern 3-Button Action Bar */}
         <View style={styles.postActionBar}>
           <TouchableOpacity
             style={[
               styles.postActionBtn,
-              item.myReaction ? styles.postActionBtnActive : null,
+              {
+                flex: 1,
+                justifyContent: 'center',
+                backgroundColor: item.myReaction ? 'rgba(225,29,72,0.08)' : '#f8fafc',
+              },
             ]}
             onPress={() => handleReact(item, item.myReaction || 'HEART')}
             onLongPress={() =>
@@ -1394,34 +1417,59 @@ export default function FeedScreen() {
             }
             activeOpacity={0.75}
           >
-            <Text style={{ fontSize: 18 }}>{myEmoji || '🤍'}</Text>
+            {myEmoji ? (
+              <Text style={{ fontSize: 15 }}>{myEmoji}</Text>
+            ) : (
+              <FontAwesome name="heart-o" size={15} color="#64748b" />
+            )}
+            <Text
+              style={[
+                styles.postActionText,
+                item.myReaction ? { color: '#e11d48', fontWeight: '700' } : null,
+              ]}
+            >
+              {item.likeCount > 0 ? item.likeCount : 'Love'}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[
               styles.postActionBtn,
-              expandedCommentPostIds[item.id] ? styles.postActionBtnActive : null,
+              {
+                flex: 1,
+                justifyContent: 'center',
+                backgroundColor: expandedCommentPostIds[item.id]
+                  ? 'rgba(78,177,203,0.14)'
+                  : '#f8fafc',
+              },
             ]}
             onPress={() => openComments(item)}
             activeOpacity={0.75}
           >
-            <Text style={{ fontSize: 16 }}>💬</Text>
+            <FontAwesome
+              name="comment-o"
+              size={15}
+              color={expandedCommentPostIds[item.id] ? '#4EB1CB' : '#64748b'}
+            />
             <Text
               style={[
                 styles.postActionText,
                 expandedCommentPostIds[item.id] ? { color: '#4EB1CB', fontWeight: '700' } : null,
               ]}
             >
-              {item.commentCount}
+              {item.commentCount > 0 ? item.commentCount : 'Comment'}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.postActionBtn, { marginLeft: 'auto' }]}
+            style={[
+              styles.postActionBtn,
+              { flex: 1, justifyContent: 'center', backgroundColor: '#f8fafc' },
+            ]}
             onPress={() => handleSharePost(item)}
             activeOpacity={0.75}
           >
-            <Text style={{ fontSize: 15 }}>📤</Text>
+            <FontAwesome name="share" size={14} color="#64748b" />
             <Text style={styles.postActionText}>Share</Text>
           </TouchableOpacity>
         </View>
@@ -1519,185 +1567,7 @@ export default function FeedScreen() {
         />
       )}
 
-      {/* Who-Reacted Analytics Modal (1:1 with components/feed/PostCard.tsx) */}
-      <Modal
-        visible={Boolean(reactionsModalPost)}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setReactionsModalPost(null)}
-      >
-        <TouchableOpacity
-          style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={() => setReactionsModalPost(null)}
-        >
-          <TouchableOpacity
-            activeOpacity={1}
-            style={[styles.modalSheet, { maxHeight: '75%' }]}
-          >
-            <View style={styles.modalHandle} />
-            <View style={styles.modalHeaderRow}>
-              <Text style={styles.modalTitle}>Reactions</Text>
-              <TouchableOpacity
-                onPress={() => setReactionsModalPost(null)}
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 14,
-                  backgroundColor: '#f1f5f9',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Text style={{ fontSize: 14, color: '#64748b', fontWeight: '700' }}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Filter Tabs: All | ❤️ | 🙏 | 🤗 */}
-            <View
-              style={{
-                flexDirection: 'row',
-                gap: 8,
-                paddingVertical: 10,
-                borderBottomWidth: 1,
-                borderBottomColor: '#f1f5f9',
-              }}
-            >
-              {(['ALL', 'HEART', 'PRAY', 'HUG'] as const).map((tab) => {
-                const postReactions = reactionsModalPost?.likes || [];
-                const count =
-                  tab === 'ALL'
-                    ? postReactions.length
-                    : postReactions.filter(
-                        (r) =>
-                          r.type === tab || (tab === 'HUG' && r.type === 'CARE')
-                      ).length;
-                if (count === 0 && tab !== 'ALL') return null;
-                const isActive = reactionsModalTab === tab;
-                const emojiMap: Record<string, string> = {
-                  ALL: 'All',
-                  HEART: '❤️',
-                  PRAY: '🙏',
-                  HUG: '🤗',
-                };
-                return (
-                  <TouchableOpacity
-                    key={tab}
-                    onPress={() => setReactionsModalTab(tab)}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 4,
-                      backgroundColor: isActive ? 'rgba(78,177,203,0.14)' : 'transparent',
-                      borderRadius: 16,
-                      paddingHorizontal: 12,
-                      paddingVertical: 6,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 13,
-                        fontWeight: '700',
-                        color: isActive ? '#4EB1CB' : '#64748b',
-                      }}
-                    >
-                      {emojiMap[tab]} {count}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {/* Reactors List */}
-            <ScrollView style={{ marginTop: 6 }} showsVerticalScrollIndicator={false}>
-              {(reactionsModalPost?.likes || [])
-                .filter(
-                  (r) =>
-                    reactionsModalTab === 'ALL' ||
-                    r.type === reactionsModalTab ||
-                    (reactionsModalTab === 'HUG' && r.type === 'CARE')
-                )
-                .map((r, idx) => {
-                  const first = r.member?.firstName || '';
-                  const last = r.member?.lastName || '';
-                  const fullName = `${first} ${last}`.trim() || 'Church Member';
-                  const initials = `${first[0] || ''}${last[0] || ''}`.toUpperCase() || 'M';
-                  const avatarUri = getAvatarUrl(r.member?.avatar || r.member?.profilePicture);
-                  const badgeEmoji =
-                    r.type === 'PRAY' ? '🙏' : r.type === 'HUG' || r.type === 'CARE' ? '🤗' : '❤️';
-                  return (
-                    <TouchableOpacity
-                      key={`${r.memberId}-${idx}`}
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        paddingVertical: 10,
-                        borderBottomWidth: 1,
-                        borderBottomColor: '#f8fafc',
-                      }}
-                      onPress={() => {
-                        setReactionsModalPost(null);
-                        if (r.memberId) {
-                          router.push(`/church?tab=member&id=${r.memberId}` as any);
-                        }
-                      }}
-                    >
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                        <View
-                          style={{
-                            width: 38,
-                            height: 38,
-                            borderRadius: 19,
-                            backgroundColor: 'rgba(78,177,203,0.18)',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            position: 'relative',
-                          }}
-                        >
-                          {avatarUri ? (
-                            <Image
-                              source={{ uri: avatarUri }}
-                              style={{ width: 38, height: 38, borderRadius: 19 }}
-                            />
-                          ) : (
-                            <Text style={{ color: '#4EB1CB', fontSize: 13, fontWeight: '800' }}>
-                              {initials}
-                            </Text>
-                          )}
-                          <View
-                            style={{
-                              position: 'absolute',
-                              bottom: -2,
-                              right: -2,
-                              width: 17,
-                              height: 17,
-                              borderRadius: 9,
-                              backgroundColor: '#ffffff',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              shadowColor: '#000',
-                              shadowOpacity: 0.15,
-                              shadowRadius: 2,
-                              elevation: 2,
-                            }}
-                          >
-                            <Text style={{ fontSize: 10 }}>{badgeEmoji}</Text>
-                          </View>
-                        </View>
-                        <Text style={{ fontSize: 14, fontWeight: '700', color: '#1e293b' }}>
-                          {fullName}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-            </ScrollView>
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
-
-      {/* Post ••• Action Sheet */}
+      {/* Post ••• Action Sheet (Centered Popover Card) */}
       <Modal
         visible={Boolean(moderationPost)}
         transparent
@@ -1710,8 +1580,7 @@ export default function FeedScreen() {
           onPress={() => setModerationPost(null)}
         >
           <View style={styles.modalSheet}>
-            <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>Post Options</Text>
+            <Text style={[styles.modalTitle, { marginBottom: 8 }]}>Post Options</Text>
 
             {user &&
               moderationPost &&
@@ -1773,11 +1642,11 @@ export default function FeedScreen() {
         </TouchableOpacity>
       </Modal>
 
-      {/* Edit Post Modal */}
+      {/* Edit Post Modal (Centered Floating Card) */}
       <Modal
         visible={Boolean(editingPost)}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setEditingPost(null)}
       >
         <KeyboardAvoidingView
@@ -1785,9 +1654,8 @@ export default function FeedScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <View style={styles.modalSheet}>
-            <View style={styles.modalHandle} />
             <View style={[styles.modalHeaderRow, { marginBottom: 12 }]}>
-              <Text style={styles.modalTitle}>✏️ Edit Post</Text>
+              <Text style={styles.modalTitle}>Edit Post</Text>
               <TouchableOpacity onPress={() => setEditingPost(null)}>
                 <Text style={{ fontSize: 18, color: '#64748b', fontWeight: '700' }}>✕</Text>
               </TouchableOpacity>
@@ -2786,22 +2654,20 @@ const styles = StyleSheet.create({
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.5)',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
   },
   modalSheet: {
     backgroundColor: '#ffffff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderRadius: 22,
     padding: 20,
-    paddingBottom: 34,
+    shadowColor: '#000',
+    shadowOpacity: 0.16,
+    shadowRadius: 16,
+    elevation: 8,
   },
   modalHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#cbd5e1',
-    alignSelf: 'center',
-    marginBottom: 14,
+    display: 'none',
   },
   modalHeaderRow: {
     flexDirection: 'row',

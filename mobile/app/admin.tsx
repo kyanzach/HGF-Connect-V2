@@ -737,7 +737,7 @@ export default function AdminReplicaScreen() {
         ))}
 
         {/* Add/Edit Member Modal */}
-        <Modal visible={addMemberOpen} transparent animationType="slide">
+        <Modal visible={addMemberOpen} transparent animationType="fade">
           <View style={styles.modalBackdrop}>
             <ScrollView
               style={{ maxHeight: '88%', width: '100%' }}
@@ -1319,7 +1319,7 @@ export default function AdminReplicaScreen() {
         })}
 
         {/* Add/Edit Event Modal */}
-        <Modal visible={addEventOpen} transparent animationType="slide">
+        <Modal visible={addEventOpen} transparent animationType="fade">
           <View style={styles.modalBackdrop}>
             <ScrollView
               style={{ maxHeight: '90%', width: '100%' }}
@@ -1499,7 +1499,7 @@ export default function AdminReplicaScreen() {
         <Modal
           visible={Boolean(analyticsEvent)}
           transparent
-          animationType="slide"
+          animationType="fade"
           onRequestClose={() => setAnalyticsEvent(null)}
         >
           <View style={styles.modalBackdrop}>

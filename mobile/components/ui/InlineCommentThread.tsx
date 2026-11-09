@@ -7,7 +7,9 @@ import {
   Image,
   TextInput,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter } from 'expo-router';
 import client from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
@@ -49,6 +51,150 @@ export interface ThreadedCommentItem {
   replies: ReplyItem[];
 }
 
+export interface InlineReactionItem {
+  id?: number;
+  memberId?: number;
+  type?: string;
+  member?: {
+    id?: number;
+    firstName?: string;
+    lastName?: string;
+    profilePicture?: string | null;
+    avatar?: string | null;
+  };
+}
+
+interface InlineReactionsPanelProps {
+  visible: boolean;
+  likes: InlineReactionItem[];
+  onClose: () => void;
+}
+
+export function InlineReactionsPanel({ visible, likes, onClose }: InlineReactionsPanelProps) {
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState<'ALL' | 'HEART' | 'PRAY' | 'CARE'>('ALL');
+
+  if (!visible) return null;
+
+  const allLikes = Array.isArray(likes) ? likes : [];
+  const heartCount = allLikes.filter(
+    (l) => !l.type || l.type === 'HEART' || l.type === 'LIKE'
+  ).length;
+  const prayCount = allLikes.filter((l) => l.type === 'PRAY' || l.type === 'AMEN').length;
+  const careCount = allLikes.filter((l) => l.type === 'CARE' || l.type === 'HUG').length;
+
+  const filtered = allLikes.filter((l) => {
+    if (activeTab === 'ALL') return true;
+    if (activeTab === 'HEART') return !l.type || l.type === 'HEART' || l.type === 'LIKE';
+    if (activeTab === 'PRAY') return l.type === 'PRAY' || l.type === 'AMEN';
+    if (activeTab === 'CARE') return l.type === 'CARE' || l.type === 'HUG';
+    return true;
+  });
+
+  const tabs: Array<{ key: 'ALL' | 'HEART' | 'PRAY' | 'CARE'; label: string; count: number }> = [
+    { key: 'ALL', label: 'All', count: allLikes.length },
+    ...(heartCount > 0 ? [{ key: 'HEART' as const, label: '❤️', count: heartCount }] : []),
+    ...(prayCount > 0 ? [{ key: 'PRAY' as const, label: '🙏', count: prayCount }] : []),
+    ...(careCount > 0 ? [{ key: 'CARE' as const, label: '🤗', count: careCount }] : []),
+  ];
+
+  return (
+    <View style={styles.reactionsInlineCard}>
+      {/* Top Filter Pills + Close */}
+      <View style={styles.reactionsHeaderRow}>
+        <View style={styles.reactionsFilterRow}>
+          {tabs.map((t) => {
+            const isActive = activeTab === t.key;
+            return (
+              <TouchableOpacity
+                key={t.key}
+                onPress={() => setActiveTab(t.key)}
+                activeOpacity={0.8}
+                style={[
+                  styles.reactionFilterPill,
+                  isActive && styles.reactionFilterPillActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.reactionFilterPillText,
+                    isActive && styles.reactionFilterPillTextActive,
+                  ]}
+                >
+                  {t.label} {t.count}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        <TouchableOpacity
+          onPress={onClose}
+          style={styles.reactionInlineCloseBtn}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <FontAwesome name="times" size={12} color="#64748b" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Reactors Horizontal/Wrap Strip */}
+      <View style={styles.reactorsChipWrap}>
+        {filtered.map((item, idx) => {
+          const rMem = item.member || {};
+          const fullName =
+            `${rMem.firstName || ''} ${rMem.lastName || ''}`.trim() || 'Church Member';
+          const initials =
+            `${(rMem.firstName || 'M')[0]}${(rMem.lastName || '')[0] || ''}`.toUpperCase();
+          const rawPic = rMem.avatar || rMem.profilePicture;
+          const avatarUri = rawPic
+            ? rawPic.startsWith('http')
+              ? rawPic
+              : rawPic.startsWith('/uploads/')
+              ? `https://connect.houseofgrace.ph${rawPic}`
+              : `https://connect.houseofgrace.ph/uploads/profile_pictures/${rawPic}`
+            : null;
+          const badgeEmoji =
+            item.type === 'PRAY' || item.type === 'AMEN'
+              ? '🙏'
+              : item.type === 'CARE' || item.type === 'HUG'
+              ? '🤗'
+              : '❤️';
+          const targetId = item.memberId || rMem.id;
+
+          return (
+            <TouchableOpacity
+              key={`${targetId || idx}-${idx}`}
+              style={styles.reactorChip}
+              activeOpacity={0.8}
+              onPress={() => {
+                if (targetId) {
+                  router.push(`/church?tab=member&id=${targetId}` as any);
+                }
+              }}
+            >
+              <View style={styles.reactorAvatarWrap}>
+                {avatarUri ? (
+                  <Image source={{ uri: avatarUri }} style={styles.reactorAvatarImg} />
+                ) : (
+                  <View style={styles.reactorAvatarFallback}>
+                    <Text style={styles.reactorAvatarInitials}>{initials}</Text>
+                  </View>
+                )}
+                <View style={styles.reactorMiniBadge}>
+                  <Text style={{ fontSize: 9 }}>{badgeEmoji}</Text>
+                </View>
+              </View>
+              <Text style={styles.reactorChipName} numberOfLines={1}>
+                {fullName}
+              </Text>
+              <FontAwesome name="angle-right" size={12} color="#94a3b8" />
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 interface InlineCommentThreadProps {
   postId: number;
   postAuthorId: number;
@@ -59,7 +205,7 @@ interface InlineCommentThreadProps {
 
 function timeAgoShort(dateStr: string): string {
   const s = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
-  if (s < 60) return 'just now';
+  if (s < 60) return 'Just now';
   if (s < 3600) return `${Math.floor(s / 60)}m`;
   if (s < 86400) return `${Math.floor(s / 3600)}h`;
   return `${Math.floor(s / 86400)}d`;
@@ -109,6 +255,13 @@ function resolveMentions(text: string, authorMap: Record<string, number>): numbe
   return Array.from(ids);
 }
 
+const QUICK_ENCOURAGEMENTS = [
+  'Amen! 🙏',
+  'Praise God! 🙌',
+  'Praying for you ❤️',
+  'God bless! ✨',
+];
+
 export default function InlineCommentThread({
   postId,
   postAuthorId,
@@ -125,6 +278,7 @@ export default function InlineCommentThread({
   const [loading, setLoading] = useState(false);
   const [mainText, setMainText] = useState('');
   const [submittingMain, setSubmittingMain] = useState(false);
+  const mainInputRef = useRef<TextInput>(null);
 
   // Inline Reply state: opens right under the parent comment thread being replied to
   const [replyTo, setReplyTo] = useState<{ parentId: number; authorName: string } | null>(null);
@@ -201,17 +355,18 @@ export default function InlineCommentThread({
     }, 100);
   };
 
-  const handleSubmitMainComment = async () => {
-    if (!mainText.trim() || submittingMain) return;
+  const handleSubmitMainComment = async (customText?: string) => {
+    const textToSend = (customText ?? mainText).trim();
+    if (!textToSend || submittingMain) return;
     if (!user) {
       router.push('/login');
       return;
     }
     setSubmittingMain(true);
     try {
-      const mentionedMemberIds = resolveMentions(mainText, authorMap);
+      const mentionedMemberIds = resolveMentions(textToSend, authorMap);
       const { data } = await client.post(`/posts/${postId}/comments`, {
-        content: mainText.trim(),
+        content: textToSend,
         parentId: null,
         mentionedMemberIds,
       });
@@ -219,7 +374,7 @@ export default function InlineCommentThread({
       const created = payload?.comment || {
         id: payload?.commentId || Date.now(),
         postId,
-        content: mainText.trim(),
+        content: textToSend,
         createdAt: new Date().toISOString(),
         isPinned: false,
         likeCount: 0,
@@ -243,7 +398,7 @@ export default function InlineCommentThread({
           replies: [],
         },
       ]);
-      setMainText('');
+      if (!customText) setMainText('');
       onCommentCountChange?.(1);
     } finally {
       setSubmittingMain(false);
@@ -334,31 +489,29 @@ export default function InlineCommentThread({
         };
       })
     );
+
     try {
-      await client.post(`/posts/${postId}/comments`, { action: 'like', commentId });
+      await client.post(`/posts/${postId}/comments`, {
+        action: 'like',
+        commentId,
+      });
     } catch {
-      // Revert or refresh silently
+      loadComments();
     }
   };
 
   const handleTogglePin = async (commentId: number, currentlyPinned: boolean) => {
     if (!user) return;
-    const nextPin = !currentlyPinned;
+    const nextPinned = !currentlyPinned;
     setComments((prev) =>
-      prev
-        .map((c) => ({
-          ...c,
-          isPinned: c.id === commentId ? nextPin : nextPin ? false : c.isPinned,
-        }))
-        .sort(
-          (a, b) =>
-            (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0) ||
-            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-        )
+      prev.map((c) => ({
+        ...c,
+        isPinned: c.id === commentId ? nextPinned : false,
+      }))
     );
     try {
       await client.post(`/posts/${postId}/comments`, {
-        action: currentlyPinned ? 'unpin' : 'pin',
+        action: nextPinned ? 'pin' : 'unpin',
         commentId,
       });
     } catch {
@@ -368,354 +521,478 @@ export default function InlineCommentThread({
 
   const handleConfirmDelete = async () => {
     if (!commentToDelete) return;
-    const targetId = commentToDelete;
     setDeleting(true);
+    const targetId = commentToDelete;
     try {
       await client.post(`/posts/${postId}/comments`, {
         action: 'delete',
         commentId: targetId,
       });
-      const isTop = comments.some((c) => c.id === targetId);
-      if (isTop) {
-        const targetObj = comments.find((c) => c.id === targetId);
-        const removedCount = 1 + (targetObj?.replies?.length || 0);
-        setComments((prev) => prev.filter((c) => c.id !== targetId));
-        onCommentCountChange?.(-removedCount);
-      } else {
-        setComments((prev) =>
-          prev.map((c) => ({
-            ...c,
-            replies: (c.replies || []).filter((r) => r.id !== targetId),
-          }))
-        );
-        onCommentCountChange?.(-1);
-      }
+      let removedCount = 1;
+      setComments((prev) => {
+        const parentTarget = prev.find((c) => c.id === targetId);
+        if (parentTarget) {
+          removedCount = 1 + (parentTarget.replies?.length || 0);
+          return prev.filter((c) => c.id !== targetId);
+        }
+        return prev.map((c) => ({
+          ...c,
+          replies: (c.replies || []).filter((r) => r.id !== targetId),
+        }));
+      });
+      onCommentCountChange?.(-removedCount);
     } finally {
       setDeleting(false);
       setCommentToDelete(null);
     }
   };
 
-  const renderFormattedContent = (text: string) => {
+  const renderRichContent = (text: string) => {
     const names = Object.keys(authorMap).sort((a, b) => b.length - a.length);
-    if (names.length === 0) {
+    if (!names.length) {
       return <Text style={styles.commentBodyText}>{text}</Text>;
     }
     const escaped = names.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-    const regex = new RegExp(`@(${escaped.join('|')})`, 'g');
-    const parts: React.ReactNode[] = [];
-    let last = 0;
-    let m: RegExpExecArray | null;
-    let key = 0;
-    while ((m = regex.exec(text)) !== null) {
-      if (m.index > last) {
-        parts.push(
-          <Text key={`t-${key++}`} style={styles.commentBodyText}>
-            {text.slice(last, m.index)}
-          </Text>
-        );
-      }
-      const matchedName = m[1];
-      const targetMemberId = authorMap[matchedName];
-      parts.push(
-        <Text
-          key={`m-${key++}`}
-          style={styles.mentionText}
-          onPress={() => {
-            if (targetMemberId) {
-              router.push(`/church?tab=member&id=${targetMemberId}` as any);
-            }
-          }}
-        >
-          @{matchedName}
-        </Text>
-      );
-      last = m.index + m[0].length;
-    }
-    if (last < text.length) {
-      parts.push(
-        <Text key={`t-${key++}`} style={styles.commentBodyText}>
-          {text.slice(last)}
-        </Text>
-      );
-    }
-    return <Text style={styles.commentBodyText}>{parts}</Text>;
-  };
-
-  const renderBubble = (
-    item: ThreadedCommentItem | ReplyItem,
-    parentCommentId: number,
-    isReply = false
-  ) => {
-    const authorName = getAuthorDisplayName(item.author);
-    const avatarUrl = getAuthorAvatarUrl(item.author);
-    const initials = authorName
-      .split(' ')
-      .map((w) => w[0])
-      .join('')
-      .slice(0, 2)
-      .toUpperCase();
-    const isPinned = !isReply && Boolean((item as ThreadedCommentItem).isPinned);
-    const isHighlighted = highlightCommentId === item.id;
-    const isOwn = currentUserId !== null && Number(item.author?.id) === currentUserId;
-    const isPostOwner = currentUserId !== null && Number(postAuthorId) === currentUserId;
-    const canDelete = isOwn || isPostOwner || isAdmin;
-    const canPin = !isReply && (isPostOwner || isAdmin);
-    const avatarSize = isReply ? 26 : 32;
-
+    const regex = new RegExp(`(@(?:${escaped.join('|')}))`, 'g');
+    const parts = text.split(regex);
     return (
-      <View
-        key={item.id}
-        style={[
-          styles.bubbleRow,
-          isReply && { marginBottom: 8 },
-        ]}
-      >
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={() => {
-            if (item.author?.id) {
-              router.push(`/church?tab=member&id=${item.author.id}` as any);
+      <Text style={styles.commentBodyText}>
+        {parts.map((part, idx) => {
+          if (part.startsWith('@')) {
+            const nameKey = part.slice(1);
+            const targetId = authorMap[nameKey];
+            if (targetId) {
+              return (
+                <Text
+                  key={idx}
+                  style={styles.mentionText}
+                  onPress={() => router.push(`/church?tab=member&id=${targetId}` as any)}
+                >
+                  {part}
+                </Text>
+              );
             }
-          }}
-          style={[
-            styles.avatarCircle,
-            { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 },
-          ]}
-        >
-          {avatarUrl ? (
-            <Image
-              source={{ uri: avatarUrl }}
-              style={{ width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }}
-            />
-          ) : (
-            <Text style={[styles.avatarInitials, { fontSize: isReply ? 10 : 12 }]}>
-              {initials || 'M'}
-            </Text>
-          )}
-        </TouchableOpacity>
-
-        <View style={{ flex: 1 }}>
-          {isPinned && (
-            <Text style={styles.pinnedBadgeText}>📌 Pinned comment</Text>
-          )}
-          <View
-            style={[
-              styles.bubbleBox,
-              isPinned && styles.bubbleBoxPinned,
-              isHighlighted && styles.bubbleBoxHighlighted,
-            ]}
-          >
-            <TouchableOpacity
-              activeOpacity={0.75}
-              onPress={() => {
-                if (item.author?.id) {
-                  router.push(`/church?tab=member&id=${item.author.id}` as any);
-                }
-              }}
-            >
-              <Text style={styles.authorNameText}>{authorName}</Text>
-            </TouchableOpacity>
-            {renderFormattedContent(item.content)}
-          </View>
-
-          {/* Compact Facebook/Instagram Action Row under bubble */}
-          <View style={styles.actionRow}>
-            <Text style={styles.timeText}>{timeAgoShort(item.createdAt)}</Text>
-
-            <TouchableOpacity
-              onPress={() => handleToggleLike(item.id, item.isLiked)}
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-              style={styles.actionBtn}
-            >
-              <Text
-                style={[
-                  styles.actionText,
-                  item.isLiked && { color: '#ef4444', fontWeight: '800' },
-                ]}
-              >
-                {item.isLiked ? '❤️' : 'Like'}
-                {item.likeCount > 0 ? ` ${item.likeCount}` : ''}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => handleOpenReply(item.author, parentCommentId)}
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-              style={styles.actionBtn}
-            >
-              <Text style={styles.actionText}>Reply</Text>
-            </TouchableOpacity>
-
-            {canPin && (
-              <TouchableOpacity
-                onPress={() => handleTogglePin(item.id, isPinned)}
-                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                style={styles.actionBtn}
-              >
-                <Text style={styles.actionText}>{isPinned ? 'Unpin' : 'Pin'}</Text>
-              </TouchableOpacity>
-            )}
-
-            {canDelete && (
-              <TouchableOpacity
-                onPress={() => setCommentToDelete(item.id)}
-                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                style={styles.actionBtn}
-              >
-                <Text style={[styles.actionText, { color: '#ef4444' }]}>Delete</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-      </View>
+          }
+          return <Text key={idx}>{part}</Text>;
+        })}
+      </Text>
     );
   };
 
   if (!isOpen) return null;
 
-  const myAvatarUrl = getAuthorAvatarUrl({
-    id: currentUserId || 0,
-    profilePicture: user?.profilePicture,
+  const sortedComments = [...comments].sort((a, b) => {
+    if (a.isPinned && !b.isPinned) return -1;
+    if (!a.isPinned && b.isPinned) return 1;
+    return 0;
   });
-  const myInitials = (user?.firstName?.[0] || user?.fullName?.[0] || 'Y').toUpperCase();
+
+  const canPinOnPost =
+    currentUserId !== null && (currentUserId === Number(postAuthorId) || isAdmin);
+
+  const myAvatarUrl = user?.profilePicture
+    ? user.profilePicture.startsWith('http')
+      ? user.profilePicture
+      : user.profilePicture.startsWith('/uploads/')
+      ? `https://connect.houseofgrace.ph${user.profilePicture}`
+      : `https://connect.houseofgrace.ph/uploads/profile_pictures/${user.profilePicture}`
+    : null;
+  const myInitials = (user?.firstName?.[0] || 'M').toUpperCase();
 
   return (
-    <View style={styles.container}>
-      {loading ? (
-        <View style={{ paddingVertical: 8, gap: 10 }}>
+    <View style={styles.threadContainer}>
+      {/* Skeleton Shimmer while loading */}
+      {loading && comments.length === 0 ? (
+        <View style={{ gap: 10, paddingVertical: 6 }}>
           {[1, 2].map((i) => (
-            <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
-              <SkeletonCircle size={30} />
+            <View key={i} style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
+              <SkeletonCircle size={32} />
               <View style={{ flex: 1, gap: 5 }}>
-                <SkeletonBox width="75%" height={42} borderRadius={14} />
-                <SkeletonBox width={90} height={10} borderRadius={5} />
+                <SkeletonBox width="72%" height={44} borderRadius={16} />
               </View>
             </View>
           ))}
         </View>
-      ) : comments.length === 0 ? (
-        <Text style={styles.emptyText}>No comments yet. Share an encouraging word!</Text>
       ) : (
-        <View style={{ marginBottom: 6 }}>
-          {comments.map((comment) => {
-            const isReplyingHere = replyTo?.parentId === comment.id;
+        <View style={styles.commentsList}>
+          {sortedComments.map((c) => {
+            const authorName = getAuthorDisplayName(c.author);
+            const avatarUrl = getAuthorAvatarUrl(c.author);
+            const initials = (authorName[0] || 'M').toUpperCase();
+            const canDeleteComment =
+              currentUserId !== null &&
+              (currentUserId === Number(c.author?.id) ||
+                currentUserId === Number(postAuthorId) ||
+                isAdmin);
+            const isHighlighted = highlightCommentId && Number(highlightCommentId) === c.id;
+            const isReplyingHere = replyTo?.parentId === c.id;
+            const hasRepliesOrReplyBox =
+              (c.replies && c.replies.length > 0) || isReplyingHere;
+
             return (
-              <View key={comment.id} style={{ marginBottom: 4 }}>
-                {/* Top-Level Comment */}
-                {renderBubble(comment, comment.id, false)}
-
-                {/* Indented Replies Thread */}
-                {(comment.replies || []).length > 0 && (
-                  <View style={styles.repliesContainer}>
-                    {comment.replies.map((reply) => renderBubble(reply, comment.id, true))}
+              <View key={c.id} style={styles.commentGroup}>
+                {/* Pinned Indicator */}
+                {c.isPinned && (
+                  <View style={styles.pinnedBadgeRow}>
+                    <FontAwesome name="thumb-tack" size={11} color="#0284c7" />
+                    <Text style={styles.pinnedBadgeText}>Pinned comment</Text>
                   </View>
                 )}
 
-                {/* Inline Reply Input Box — opens right inside this specific comment thread! */}
-                {isReplyingHere && (
-                  <View style={styles.inlineReplyBox}>
-                    <View style={styles.replyingHeaderRow}>
-                      <Text style={styles.replyingToLabel}>
-                        ↩ Replying to {replyTo.authorName}
-                      </Text>
-                      <TouchableOpacity
-                        onPress={() => {
-                          setReplyTo(null);
-                          setReplyText('');
-                        }}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      >
-                        <Text style={styles.cancelReplyText}>Cancel</Text>
-                      </TouchableOpacity>
-                    </View>
-                    <View style={styles.composerRow}>
-                      <TextInput
-                        ref={replyInputRef}
-                        style={styles.replyInput}
-                        placeholder={`Reply to ${replyTo.authorName}...`}
-                        placeholderTextColor="#94a3b8"
-                        value={replyText}
-                        onChangeText={setReplyText}
-                        multiline
-                      />
-                      <TouchableOpacity
+                {/* Parent Comment Row */}
+                <View style={styles.commentRow}>
+                  {/* Left Column: Avatar + Vertical Thread Spine if replies exist */}
+                  <View style={styles.avatarColumn}>
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      onPress={() => {
+                        if (c.author?.id) {
+                          router.push(`/church?tab=member&id=${c.author.id}` as any);
+                        }
+                      }}
+                    >
+                      {avatarUrl ? (
+                        <Image source={{ uri: avatarUrl }} style={styles.commentAvatar} />
+                      ) : (
+                        <View style={styles.commentAvatarFallback}>
+                          <Text style={styles.commentAvatarInitials}>{initials}</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                    {hasRepliesOrReplyBox && <View style={styles.threadVerticalSpine} />}
+                  </View>
+
+                  {/* Right Column: Bubble + Meta + Nested Replies + Inline Reply Composer */}
+                  <View style={{ flex: 1 }}>
+                    <View style={{ alignSelf: 'flex-start', maxWidth: '100%', position: 'relative' }}>
+                      <View
                         style={[
-                          styles.sendCircleBtn,
-                          !replyText.trim() && styles.sendCircleBtnDisabled,
+                          styles.commentBubble,
+                          c.isPinned && styles.commentBubblePinned,
+                          isHighlighted ? styles.commentBubbleHighlight : null,
                         ]}
-                        disabled={!replyText.trim() || submittingReply}
-                        onPress={() => handleSubmitReply(comment.id)}
                       >
-                        {submittingReply ? (
-                          <ActivityIndicator size="small" color="#ffffff" />
-                        ) : (
-                          <Text style={styles.sendCircleBtnText}>↑</Text>
-                        )}
-                      </TouchableOpacity>
+                        <TouchableOpacity
+                          activeOpacity={0.8}
+                          onPress={() => {
+                            if (c.author?.id) {
+                              router.push(`/church?tab=member&id=${c.author.id}` as any);
+                            }
+                          }}
+                        >
+                          <Text style={styles.commentAuthorName}>{authorName}</Text>
+                        </TouchableOpacity>
+                        {renderRichContent(c.content)}
+                      </View>
+
+                      {/* Floating Corner Reaction Pill (Facebook/Instagram style) */}
+                      {c.likeCount > 0 && (
+                        <TouchableOpacity
+                          onPress={() => handleToggleLike(c.id, c.isLiked)}
+                          style={styles.floatingCommentLikePill}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={{ fontSize: 10 }}>❤️</Text>
+                          {c.likeCount > 1 && (
+                            <Text style={styles.floatingCommentLikeCount}>{c.likeCount}</Text>
+                          )}
+                        </TouchableOpacity>
+                      )}
                     </View>
+
+                    {/* Comment Action Row: 2h · Like · Reply · Pin · Delete */}
+                    <View style={styles.commentMetaRow}>
+                      <Text style={styles.commentTimeText}>{timeAgoShort(c.createdAt)}</Text>
+
+                      <TouchableOpacity
+                        onPress={() => handleToggleLike(c.id, c.isLiked)}
+                        style={styles.metaActionBtn}
+                      >
+                        <Text
+                          style={[
+                            styles.metaActionText,
+                            c.isLiked && { color: '#e11d48', fontWeight: '800' },
+                          ]}
+                        >
+                          Like
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        onPress={() => handleOpenReply(c.author, c.id)}
+                        style={styles.metaActionBtn}
+                      >
+                        <Text
+                          style={[
+                            styles.metaActionText,
+                            isReplyingHere && { color: PRIMARY, fontWeight: '800' },
+                          ]}
+                        >
+                          Reply
+                        </Text>
+                      </TouchableOpacity>
+
+                      {canPinOnPost && (
+                        <TouchableOpacity
+                          onPress={() => handleTogglePin(c.id, Boolean(c.isPinned))}
+                          style={styles.metaActionBtn}
+                        >
+                          <Text
+                            style={[
+                              styles.metaActionText,
+                              c.isPinned && { color: PRIMARY, fontWeight: '800' },
+                            ]}
+                          >
+                            {c.isPinned ? 'Unpin' : 'Pin'}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+
+                      {canDeleteComment && (
+                        <TouchableOpacity
+                          onPress={() => setCommentToDelete(c.id)}
+                          style={styles.metaActionBtn}
+                        >
+                          <Text style={[styles.metaActionText, { color: '#94a3b8' }]}>Delete</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+
+                    {/* Nested Replies with Curved Thread Connector (╰──) */}
+                    {c.replies && c.replies.length > 0 && (
+                      <View style={styles.repliesListWrap}>
+                        {c.replies.map((r) => {
+                          const rName = getAuthorDisplayName(r.author);
+                          const rAvatar = getAuthorAvatarUrl(r.author);
+                          const rInit = (rName[0] || 'M').toUpperCase();
+                          const canDeleteReply =
+                            currentUserId !== null &&
+                            (currentUserId === Number(r.author?.id) ||
+                              currentUserId === Number(postAuthorId) ||
+                              isAdmin);
+
+                          return (
+                            <View key={r.id} style={styles.replyItemRow}>
+                              {/* Curved L-Connector from Parent Spine */}
+                              <View style={styles.curvedBranchElbow} />
+
+                              <TouchableOpacity
+                                activeOpacity={0.8}
+                                onPress={() => {
+                                  if (r.author?.id) {
+                                    router.push(`/church?tab=member&id=${r.author.id}` as any);
+                                  }
+                                }}
+                              >
+                                {rAvatar ? (
+                                  <Image source={{ uri: rAvatar }} style={styles.replyAvatar} />
+                                ) : (
+                                  <View style={styles.replyAvatarFallback}>
+                                    <Text style={styles.replyAvatarInitials}>{rInit}</Text>
+                                  </View>
+                                )}
+                              </TouchableOpacity>
+
+                              <View style={{ flex: 1 }}>
+                                <View style={{ alignSelf: 'flex-start', maxWidth: '100%', position: 'relative' }}>
+                                  <View style={styles.replyBubble}>
+                                    <TouchableOpacity
+                                      activeOpacity={0.8}
+                                      onPress={() => {
+                                        if (r.author?.id) {
+                                          router.push(`/church?tab=member&id=${r.author.id}` as any);
+                                        }
+                                      }}
+                                    >
+                                      <Text style={styles.replyAuthorName}>{rName}</Text>
+                                    </TouchableOpacity>
+                                    {renderRichContent(r.content)}
+                                  </View>
+
+                                  {r.likeCount > 0 && (
+                                    <TouchableOpacity
+                                      onPress={() => handleToggleLike(r.id, r.isLiked)}
+                                      style={styles.floatingCommentLikePill}
+                                      activeOpacity={0.8}
+                                    >
+                                      <Text style={{ fontSize: 9.5 }}>❤️</Text>
+                                      {r.likeCount > 1 && (
+                                        <Text style={styles.floatingCommentLikeCount}>{r.likeCount}</Text>
+                                      )}
+                                    </TouchableOpacity>
+                                  )}
+                                </View>
+
+                                <View style={styles.commentMetaRow}>
+                                  <Text style={styles.commentTimeText}>
+                                    {timeAgoShort(r.createdAt)}
+                                  </Text>
+
+                                  <TouchableOpacity
+                                    onPress={() => handleToggleLike(r.id, r.isLiked)}
+                                    style={styles.metaActionBtn}
+                                  >
+                                    <Text
+                                      style={[
+                                        styles.metaActionText,
+                                        r.isLiked && { color: '#e11d48', fontWeight: '800' },
+                                      ]}
+                                    >
+                                      Like
+                                    </Text>
+                                  </TouchableOpacity>
+
+                                  <TouchableOpacity
+                                    onPress={() => handleOpenReply(r.author, c.id)}
+                                    style={styles.metaActionBtn}
+                                  >
+                                    <Text style={styles.metaActionText}>Reply</Text>
+                                  </TouchableOpacity>
+
+                                  {canDeleteReply && (
+                                    <TouchableOpacity
+                                      onPress={() => setCommentToDelete(r.id)}
+                                      style={styles.metaActionBtn}
+                                    >
+                                      <Text style={[styles.metaActionText, { color: '#94a3b8' }]}>
+                                        Delete
+                                      </Text>
+                                    </TouchableOpacity>
+                                  )}
+                                </View>
+                              </View>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    )}
+
+                    {/* INLINE REPLY COMPOSER right under this exact thread with Curved Elbow (╰──) */}
+                    {isReplyingHere && (
+                      <View style={styles.inlineReplyBoxWrap}>
+                        <View style={styles.curvedBranchElbowReply} />
+                        {myAvatarUrl ? (
+                          <Image source={{ uri: myAvatarUrl }} style={styles.replyAvatar} />
+                        ) : (
+                          <View style={styles.replyAvatarFallback}>
+                            <Text style={styles.replyAvatarInitials}>{myInitials}</Text>
+                          </View>
+                        )}
+                        <View style={styles.inlineReplyPill}>
+                          <TextInput
+                            ref={replyInputRef}
+                            style={styles.inlineReplyInput}
+                            placeholder={`Reply to ${replyTo.authorName}...`}
+                            placeholderTextColor="#94a3b8"
+                            value={replyText}
+                            onChangeText={setReplyText}
+                            multiline
+                            maxLength={600}
+                          />
+                          <TouchableOpacity
+                            onPress={() => {
+                              setReplyTo(null);
+                              setReplyText('');
+                            }}
+                            style={styles.inlineReplyCancelIcon}
+                            hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                          >
+                            <FontAwesome name="times-circle" size={15} color="#94a3b8" />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[
+                              styles.inlineReplySendBtn,
+                              (!replyText.trim() || submittingReply) && { opacity: 0.4 },
+                            ]}
+                            onPress={() => handleSubmitReply(c.id)}
+                            disabled={!replyText.trim() || submittingReply}
+                          >
+                            {submittingReply ? (
+                              <ActivityIndicator size="small" color="#ffffff" />
+                            ) : (
+                              <FontAwesome name="paper-plane" size={11} color="#ffffff" />
+                            )}
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    )}
                   </View>
-                )}
+                </View>
               </View>
             );
           })}
         </View>
       )}
 
-      {/* Main Bottom Comment Composer (inline inside the card) */}
-      {user ? (
-        <View style={styles.mainComposerWrap}>
-          <View style={[styles.avatarCircle, { width: 30, height: 30, borderRadius: 15 }]}>
-            {myAvatarUrl ? (
-              <Image
-                source={{ uri: myAvatarUrl }}
-                style={{ width: 30, height: 30, borderRadius: 15 }}
-              />
-            ) : (
-              <Text style={[styles.avatarInitials, { fontSize: 11 }]}>{myInitials}</Text>
-            )}
-          </View>
-          <View style={styles.mainInputPill}>
-            <TextInput
-              style={styles.mainInput}
-              placeholder="Write a comment..."
-              placeholderTextColor="#94a3b8"
-              value={mainText}
-              onChangeText={setMainText}
-              multiline
-            />
-            <TouchableOpacity
-              style={[
-                styles.sendCircleBtn,
-                !mainText.trim() && styles.sendCircleBtnDisabled,
-              ]}
-              disabled={!mainText.trim() || submittingMain}
-              onPress={handleSubmitMainComment}
-            >
-              {submittingMain ? (
-                <ActivityIndicator size="small" color="#ffffff" />
-              ) : (
-                <Text style={styles.sendCircleBtnText}>↑</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      ) : (
-        <TouchableOpacity
-          style={styles.loginPromptBtn}
-          onPress={() => router.push('/login')}
-        >
-          <Text style={styles.loginPromptText}>Sign in to write a comment</Text>
-        </TouchableOpacity>
-      )}
+      {/* 1-Tap Quick Encouragement Chips (shown when thread is open for instant modern interaction) */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.quickChipsRow}
+      >
+        {QUICK_ENCOURAGEMENTS.map((chip) => (
+          <TouchableOpacity
+            key={chip}
+            style={styles.quickChipPill}
+            activeOpacity={0.75}
+            onPress={() => handleSubmitMainComment(chip)}
+          >
+            <Text style={styles.quickChipText}>{chip}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
 
+      {/* Main Inline Comment Input Pill at Bottom of Card */}
+      <View style={styles.mainComposerRow}>
+        {myAvatarUrl ? (
+          <Image source={{ uri: myAvatarUrl }} style={styles.composerAvatar} />
+        ) : (
+          <View style={styles.composerAvatarFallback}>
+            <Text style={styles.composerAvatarInitials}>{myInitials}</Text>
+          </View>
+        )}
+
+        <View style={styles.mainInputPill}>
+          <TextInput
+            ref={mainInputRef}
+            style={styles.mainTextInput}
+            placeholder="Write a comment..."
+            placeholderTextColor="#94a3b8"
+            value={mainText}
+            onChangeText={setMainText}
+            multiline
+            maxLength={800}
+          />
+          <TouchableOpacity
+            style={[
+              styles.mainSendBtn,
+              (!mainText.trim() || submittingMain) && {
+                backgroundColor: '#e2e8f0',
+              },
+            ]}
+            onPress={() => handleSubmitMainComment()}
+            disabled={!mainText.trim() || submittingMain}
+          >
+            {submittingMain ? (
+              <ActivityIndicator size="small" color="#ffffff" />
+            ) : (
+              <FontAwesome
+                name="paper-plane"
+                size={12}
+                color={mainText.trim() ? '#ffffff' : '#94a3b8'}
+              />
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Delete Comment ConfirmModal */}
       <ConfirmModal
-        visible={Boolean(commentToDelete)}
-        title="Delete Comment"
-        message="Are you sure you want to delete this comment? This action cannot be undone."
-        confirmText="Delete"
+        visible={commentToDelete !== null}
+        title="Delete Comment?"
+        message="Are you sure you want to delete this comment?"
+        confirmText={deleting ? 'Deleting...' : 'Delete'}
         destructive
-        loading={deleting}
         onConfirm={handleConfirmDelete}
         onCancel={() => setCommentToDelete(null)}
       />
@@ -724,64 +1001,200 @@ export default function InlineCommentThread({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    marginTop: 8,
+  /* ── Inline Reactions Panel (Replaces Bottom-Up Slider) ── */
+  reactionsInlineCard: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+  },
+  reactionsHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  reactionsFilterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  reactionFilterPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  reactionFilterPillActive: {
+    backgroundColor: PRIMARY,
+    borderColor: PRIMARY,
+  },
+  reactionFilterPillText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#64748b',
+  },
+  reactionFilterPillTextActive: {
+    color: '#ffffff',
+  },
+  reactionInlineCloseBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#e2e8f0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reactorsChipWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  reactorChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    backgroundColor: '#ffffff',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  reactorAvatarWrap: {
+    width: 24,
+    height: 24,
+    position: 'relative',
+  },
+  reactorAvatarImg: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+  },
+  reactorAvatarFallback: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(78,177,203,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reactorAvatarInitials: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: PRIMARY,
+  },
+  reactorMiniBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -3,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  reactorChipName: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#0f172a',
+    maxWidth: 140,
+  },
+
+  /* ── Modern Threaded Comments ── */
+  threadContainer: {
+    marginTop: 6,
     paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: '#f1f5f9',
   },
-  emptyText: {
-    fontSize: 12.5,
-    color: '#94a3b8',
-    textAlign: 'center',
-    paddingVertical: 10,
+  commentsList: {
+    gap: 12,
+    marginBottom: 8,
   },
-  bubbleRow: {
+  commentGroup: {
+    width: '100%',
+  },
+  pinnedBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginLeft: 42,
+    marginBottom: 3,
+  },
+  pinnedBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0284c7',
+  },
+  commentRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
-    marginBottom: 10,
   },
-  avatarCircle: {
-    backgroundColor: 'rgba(78, 177, 203, 0.16)',
+  avatarColumn: {
+    alignItems: 'center',
+    width: 34,
+  },
+  threadVerticalSpine: {
+    flex: 1,
+    width: 2,
+    backgroundColor: '#e2e8f0',
+    marginTop: 4,
+    marginBottom: 14,
+    borderRadius: 1,
+  },
+  commentAvatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#e2e8f0',
+  },
+  commentAvatarFallback: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(78,177,203,0.16)',
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
-    marginTop: 2,
   },
-  avatarInitials: {
+  commentAvatarInitials: {
+    fontSize: 13,
     fontWeight: '800',
     color: PRIMARY,
   },
-  pinnedBadgeText: {
-    fontSize: 10.5,
-    fontWeight: '700',
-    color: PRIMARY,
-    marginBottom: 3,
-  },
-  bubbleBox: {
-    backgroundColor: '#f1f5f9',
-    borderRadius: 16,
-    borderTopLeftRadius: 4,
-    paddingHorizontal: 12,
+  commentBubble: {
+    backgroundColor: '#F0F2F5',
+    borderRadius: 18,
+    paddingHorizontal: 13,
     paddingVertical: 8,
-    alignSelf: 'flex-start',
-    maxWidth: '100%',
   },
-  bubbleBoxPinned: {
-    backgroundColor: 'rgba(78, 177, 203, 0.1)',
+  commentBubblePinned: {
+    backgroundColor: '#f0f9ff',
     borderWidth: 1,
-    borderColor: 'rgba(78, 177, 203, 0.3)',
+    borderColor: '#bae6fd',
   },
-  bubbleBoxHighlighted: {
-    borderWidth: 1.5,
+  commentBubbleHighlight: {
+    backgroundColor: '#e0f2fe',
+    borderWidth: 1,
     borderColor: PRIMARY,
   },
-  authorNameText: {
-    fontSize: 12.5,
-    fontWeight: '800',
+  commentAuthorName: {
+    fontSize: 13,
+    fontWeight: '700',
     color: '#0f172a',
-    marginBottom: 2,
+    marginBottom: 1,
   },
   commentBodyText: {
     fontSize: 13.5,
@@ -789,130 +1202,220 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
   mentionText: {
-    fontSize: 13.5,
+    color: '#0284c7',
     fontWeight: '700',
-    color: PRIMARY,
   },
-  actionRow: {
+  floatingCommentLikePill: {
+    position: 'absolute',
+    bottom: -7,
+    right: -6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
+  },
+  floatingCommentLikeCount: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  commentMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
     marginTop: 4,
-    paddingLeft: 4,
+    paddingLeft: 10,
   },
-  timeText: {
-    fontSize: 11,
+  commentTimeText: {
+    fontSize: 11.5,
     color: '#94a3b8',
+    fontWeight: '500',
   },
-  actionBtn: {
+  metaActionBtn: {
     paddingVertical: 1,
   },
-  actionText: {
-    fontSize: 11.5,
+  metaActionText: {
+    fontSize: 12,
     fontWeight: '700',
     color: '#64748b',
   },
-  repliesContainer: {
-    marginLeft: 34,
-    paddingLeft: 10,
-    borderLeftWidth: 2,
-    borderLeftColor: '#e2e8f0',
-    marginTop: -2,
-    marginBottom: 4,
+  repliesListWrap: {
+    marginTop: 8,
+    gap: 8,
   },
-  inlineReplyBox: {
-    marginLeft: 34,
-    marginTop: 2,
-    marginBottom: 10,
-    backgroundColor: '#f8fafc',
-    borderRadius: 14,
-    padding: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(78, 177, 203, 0.35)',
-  },
-  replyingHeaderRow: {
+  replyItemRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-    paddingHorizontal: 4,
+    alignItems: 'flex-start',
+    gap: 7,
+    position: 'relative',
   },
-  replyingToLabel: {
-    fontSize: 11,
-    fontWeight: '700',
+  curvedBranchElbow: {
+    width: 14,
+    height: 16,
+    borderLeftWidth: 2,
+    borderBottomWidth: 2,
+    borderColor: '#e2e8f0',
+    borderBottomLeftRadius: 10,
+    marginLeft: -25,
+    marginRight: 3,
+    marginTop: -4,
+  },
+  curvedBranchElbowReply: {
+    width: 14,
+    height: 18,
+    borderLeftWidth: 2,
+    borderBottomWidth: 2,
+    borderColor: '#cbd5e1',
+    borderBottomLeftRadius: 10,
+    marginLeft: -25,
+    marginRight: 3,
+    marginTop: -6,
+  },
+  replyAvatar: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#e2e8f0',
+  },
+  replyAvatarFallback: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(78,177,203,0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  replyAvatarInitials: {
+    fontSize: 10.5,
+    fontWeight: '800',
     color: PRIMARY,
   },
-  cancelReplyText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#94a3b8',
-  },
-  composerRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 6,
-  },
-  replyInput: {
-    flex: 1,
-    fontSize: 13,
-    color: '#0f172a',
-    backgroundColor: '#ffffff',
+  replyBubble: {
+    backgroundColor: '#F0F2F5',
     borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    maxHeight: 80,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+    paddingHorizontal: 11,
+    paddingVertical: 7,
   },
-  mainComposerWrap: {
+  replyAuthorName: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#0f172a',
+    marginBottom: 1,
+  },
+  inlineReplyBoxWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginTop: 4,
+    gap: 7,
+    marginTop: 8,
   },
-  mainInputPill: {
+  inlineReplyPill: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    borderRadius: 22,
+    backgroundColor: '#F0F2F5',
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: PRIMARY,
     paddingLeft: 12,
     paddingRight: 5,
     paddingVertical: 4,
     gap: 6,
   },
-  mainInput: {
+  inlineReplyInput: {
+    flex: 1,
+    fontSize: 13,
+    color: '#0f172a',
+    maxHeight: 80,
+    paddingVertical: 3,
+  },
+  inlineReplyCancelIcon: {
+    paddingHorizontal: 2,
+  },
+  inlineReplySendBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: PRIMARY,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickChipsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingBottom: 8,
+  },
+  quickChipPill: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  quickChipText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  mainComposerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  composerAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#e2e8f0',
+  },
+  composerAvatarFallback: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(78,177,203,0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  composerAvatarInitials: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: PRIMARY,
+  },
+  mainInputPill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0F2F5',
+    borderRadius: 22,
+    paddingLeft: 14,
+    paddingRight: 5,
+    paddingVertical: 4,
+    gap: 6,
+  },
+  mainTextInput: {
     flex: 1,
     fontSize: 13.5,
     color: '#0f172a',
+    maxHeight: 90,
     paddingVertical: 4,
-    maxHeight: 80,
   },
-  sendCircleBtn: {
+  mainSendBtn: {
     width: 28,
     height: 28,
     borderRadius: 14,
     backgroundColor: PRIMARY,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  sendCircleBtnDisabled: {
-    backgroundColor: '#e2e8f0',
-  },
-  sendCircleBtnText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  loginPromptBtn: {
-    paddingVertical: 8,
-    alignItems: 'center',
-  },
-  loginPromptText: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: PRIMARY,
   },
 });

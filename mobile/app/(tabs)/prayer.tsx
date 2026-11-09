@@ -946,7 +946,7 @@ export default function PrayerWallScreen() {
       <Modal
         visible={Boolean(prayModal)}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setPrayModal(null)}
       >
         <KeyboardAvoidingView
@@ -998,7 +998,7 @@ export default function PrayerWallScreen() {
       {/* ── Prayer Detail Modal ("🙏 Who's Praying" — app/(app)/prayer/[id]/page.tsx) ── */}
       <Modal
         visible={detailItem !== null}
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setDetailItem(null)}
       >
         <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
@@ -1392,15 +1392,18 @@ const styles = StyleSheet.create({
   emptySub: { fontSize: 13, color: '#9ca3af' },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(15,23,42,0.5)',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
   },
   modalSheet: {
     backgroundColor: '#ffffff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderRadius: 22,
     padding: 20,
-    paddingBottom: 34,
+    shadowColor: '#000',
+    shadowOpacity: 0.16,
+    shadowRadius: 16,
+    elevation: 8,
   },
   modalTitle: {
     fontSize: 16,
