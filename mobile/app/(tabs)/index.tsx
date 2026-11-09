@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   KeyboardAvoidingView,
+  Keyboard,
   Platform,
   Share,
   Linking,
@@ -207,6 +208,7 @@ export default function FeedScreen() {
   const { user } = useAuth();
 
   const [posts, setPosts] = useState<FeedPost[]>([]);
+  const feedListRef = useRef<FlatList<FeedPost>>(null);
   const [carousel, setCarousel] = useState<CarouselData>({});
   const [slideIdx, setSlideIdx] = useState(0);
   const [highlightedPostId, setHighlightedPostId] = useState<number | null>(null);
@@ -1539,18 +1541,28 @@ export default function FeedScreen() {
         </ScrollView>
       ) : (
         <FlatList
+          ref={feedListRef}
           data={visiblePosts}
           keyExtractor={(item) => String(item.id)}
           renderItem={renderPost}
           ListHeaderComponent={user ? renderLoggedInHeader() : renderGuestHeader()}
           ListFooterComponent={renderFooter()}
           contentContainerStyle={styles.listContent}
+          keyboardShouldPersistTaps="handled"
+          onScrollBeginDrag={() => Keyboard.dismiss()}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              onRefresh={() => {
+              onRefresh={async () => {
+                Keyboard.dismiss();
+                setExpandedCommentPostIds({});
+                setReactionsModalPost(null);
+                setReactionPickerPostId(null);
                 setRefreshing(true);
-                fetchFeed();
+                await fetchFeed();
+                requestAnimationFrame(() => {
+                  feedListRef.current?.scrollToOffset({ offset: 0, animated: false });
+                });
               }}
               tintColor="#4EB1CB"
             />

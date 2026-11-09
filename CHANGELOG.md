@@ -1,3 +1,11 @@
+## [v2.83.2] — 2026-11-09
+### Added / Changed / Fixed
+- **Pull-to-Refresh Top-of-Page Lock & Android ScrollView Focus Jump Fix (`mobile/v1.7.2`, `v2.83.2`)**:
+  - **Fixed Pull-to-Refresh Jumping to the Bottom of Member Profile & Feed (`mobile/app/church.tsx`, `mobile/app/(tabs)/index.tsx`, `mobile/app/(tabs)/prayer.tsx`)**:
+    - Resolved the Android `ReactScrollView` `requestChildFocus` / `scrollToChild(mFocused)` bug where pulling down to refresh (`<RefreshControl />`) triggered a layout pass that snapped the scroll position to a mounted or previously focused inline `<TextInput>` on a post at the bottom of the page.
+    - Added `Keyboard.dismiss()` on `onScrollBeginDrag` and inside `onRefresh`, collapsed open inline comment/reaction drawers on refresh, wired `fetchMemberProfileData(true)` so pulling to refresh on Member Profile actually reloads the member's profile and page 1 newest Wall posts, and pinned scroll position to the top (`y: 0` / `offset: 0`) via `memberScrollRef`, `dirListRef`, `feedListRef`, and `prayerListRef`.
+    - Added fallback `targetMemberId` resolution to `user?.id` when navigating to `/church?tab=member` without an explicit `id` param.
+
 ## [v2.83.1] — 2026-11-09
 ### Added / Changed / Fixed
 - **Zero Bottom-Up Sliders — Modern Inline Reactions Panel, Curved Thread Connectors & Pill Action Bar (`mobile/v1.7.1`, `v2.83.1`)**:

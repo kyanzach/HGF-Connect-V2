@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   KeyboardAvoidingView,
+  Keyboard,
   Platform,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -115,6 +116,7 @@ export default function PrayerWallScreen() {
   const [mineOnly, setMineOnly] = useState(rawMine === 'true');
   const [tab, setTab] = useState<'active' | 'answered'>('active');
   const [prayers, setPrayers] = useState<PrayerItem[]>([]);
+  const prayerListRef = useRef<FlatList<PrayerItem>>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [highlightedId, setHighlightedId] = useState<number | null>(null);
@@ -909,17 +911,25 @@ export default function PrayerWallScreen() {
         </ScrollView>
       ) : (
         <FlatList
+          ref={prayerListRef}
           data={prayers}
           keyExtractor={(item) => String(item.id)}
           renderItem={renderPrayerCard}
           ListHeaderComponent={renderHeader()}
           contentContainerStyle={styles.listContent}
+          keyboardShouldPersistTaps="handled"
+          onScrollBeginDrag={() => Keyboard.dismiss()}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              onRefresh={() => {
+              onRefresh={async () => {
+                Keyboard.dismiss();
+                setExpandedPrayerIds({});
                 setRefreshing(true);
-                fetchPrayers();
+                await fetchPrayers();
+                requestAnimationFrame(() => {
+                  prayerListRef.current?.scrollToOffset({ offset: 0, animated: false });
+                });
               }}
               tintColor={PRIMARY}
             />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   KeyboardAvoidingView,
+  Keyboard,
   Platform,
   Modal,
   Linking,
@@ -196,12 +197,16 @@ export default function WebReplicaScreen() {
 
   const [selectedMemberId, setSelectedMemberId] = useState<number | null>(null);
   const rawId = Array.isArray(params.id) ? params.id[0] : params.id;
-  const targetMemberId = rawId ? Number(rawId) : selectedMemberId;
+  const targetMemberId = rawId
+    ? Number(rawId)
+    : selectedMemberId || (activePage === 'member' && user?.id ? Number(user.id) : null);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   // ── Public Member Profile State (app/(public)/member/[id]/ProfileClient.tsx) ──
+  const memberScrollRef = useRef<ScrollView>(null);
+  const dirListRef = useRef<FlatList<DirectoryMember>>(null);
   const [memberProfile, setMemberProfile] = useState<any>(null);
   const [memberPosts, setMemberPosts] = useState<any[]>([]);
   const [memberTab, setMemberTab] = useState<'wall' | 'about' | 'ministries'>('wall');
@@ -472,18 +477,17 @@ export default function WebReplicaScreen() {
     }
   }, [activePage, rawProspectsFor]);
 
-  // Load individual member profile & wall posts when activePage === 'member'
-  useEffect(() => {
-    if (activePage !== 'member' || !targetMemberId) return;
-    let cancelled = false;
-    setLoadingMember(true);
-    setMemberProfile(null);
-    setMemberPosts([]);
-    setMemberTab('wall');
-    setMemberPage(1);
-    setMemberHasMore(false);
-
-    (async () => {
+  const fetchMemberProfileData = useCallback(
+    async (isPullRefresh = false) => {
+      if (!targetMemberId) return;
+      if (isPullRefresh) {
+        Keyboard.dismiss();
+        setExpandedWallCommentPostIds({});
+        setReactionsModalPost(null);
+        setReactionPickerPostId(null);
+        setOpenPostMenuId(null);
+        setRefreshing(true);
+      }
       try {
         const [mobileRes, webMemberRes, webPostsRes] = await Promise.all([
           client.get(`/church?memberId=${targetMemberId}&page=1`).catch(() => null),
@@ -494,7 +498,6 @@ export default function WebReplicaScreen() {
             .then((r) => (r.ok ? r.json() : null))
             .catch(() => null),
         ]);
-        if (cancelled) return;
 
         const mData = mobileRes?.data?.data;
         if (mData?.member) {
@@ -517,6 +520,7 @@ export default function WebReplicaScreen() {
           });
           if (webPostsRes?.posts && Array.isArray(webPostsRes.posts)) {
             setMemberPosts(webPostsRes.posts);
+            setMemberPage(1);
             setMemberHasMore((webPostsRes.page ?? 1) < (webPostsRes.totalPages ?? 1));
           } else {
             setMemberPosts([]);
@@ -525,14 +529,34 @@ export default function WebReplicaScreen() {
       } catch {
         // Silent
       } finally {
-        if (!cancelled) setLoadingMember(false);
+        setLoadingMember(false);
+        setRefreshing(false);
+        if (isPullRefresh) {
+          requestAnimationFrame(() => {
+            memberScrollRef.current?.scrollTo({ y: 0, animated: false });
+          });
+        }
       }
-    })();
+    },
+    [targetMemberId, user]
+  );
 
-    return () => {
-      cancelled = true;
-    };
-  }, [activePage, targetMemberId, user]);
+  // Load individual member profile & wall posts when activePage === 'member'
+  useEffect(() => {
+    if (activePage !== 'member' || !targetMemberId) return;
+    Keyboard.dismiss();
+    setExpandedWallCommentPostIds({});
+    setReactionsModalPost(null);
+    setReactionPickerPostId(null);
+    setOpenPostMenuId(null);
+    setLoadingMember(true);
+    setMemberProfile(null);
+    setMemberPosts([]);
+    setMemberTab('wall');
+    setMemberPage(1);
+    setMemberHasMore(false);
+    fetchMemberProfileData(false);
+  }, [activePage, targetMemberId, fetchMemberProfileData]);
 
   const loadMoreMemberPosts = async () => {
     if (loadingMorePosts || !memberHasMore || !targetMemberId) return;
@@ -703,15 +727,22 @@ export default function WebReplicaScreen() {
 
     return (
       <FlatList
+        ref={dirListRef}
         data={filtered}
         keyExtractor={(m) => String(m.id)}
         contentContainerStyle={{ paddingBottom: 100 }}
+        keyboardShouldPersistTaps="handled"
+        onScrollBeginDrag={() => Keyboard.dismiss()}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => {
+              Keyboard.dismiss();
               setRefreshing(true);
               loadData();
+              requestAnimationFrame(() => {
+                dirListRef.current?.scrollToOffset({ offset: 0, animated: false });
+              });
             }}
             tintColor={PRIMARY}
           />
@@ -1108,14 +1139,16 @@ export default function WebReplicaScreen() {
 
     return (
       <ScrollView
+        ref={memberScrollRef}
         style={{ flex: 1, backgroundColor: '#f1f5f9' }}
         contentContainerStyle={{ paddingBottom: 110 }}
+        keyboardShouldPersistTaps="handled"
+        onScrollBeginDrag={() => Keyboard.dismiss()}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => {
-              setRefreshing(true);
-              loadData();
+              fetchMemberProfileData(true);
             }}
             tintColor={PRIMARY}
           />
