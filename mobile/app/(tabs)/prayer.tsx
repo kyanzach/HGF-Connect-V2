@@ -18,6 +18,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import client from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
 import ConfirmModal from '@/components/ui/ConfirmModal';
+import { SkeletonPrayerLoading } from '@/components/ui/SkeletonPulse';
 import AlertPromptModal, { AlertType } from '@/components/ui/AlertPromptModal';
 
 const PRIMARY = '#4EB1CB';
@@ -130,6 +131,13 @@ export default function PrayerWallScreen() {
   const [prayNote, setPrayNote] = useState('');
   const [praying, setPraying] = useState(false);
 
+  // Inline Expandable Prayer Responses State
+  const [expandedPrayerIds, setExpandedPrayerIds] = useState<Record<number, boolean>>({});
+  const [inlineResponsesMap, setInlineResponsesMap] = useState<Record<number, PrayerResponseItem[]>>({});
+  const [inlineLoadingMap, setInlineLoadingMap] = useState<Record<number, boolean>>({});
+  const [inlineNoteMap, setInlineNoteMap] = useState<Record<number, string>>({});
+  const [inlineSubmittingMap, setInlineSubmittingMap] = useState<Record<number, boolean>>({});
+
   // Prayer Detail Modal ("🙏 Who's Praying" — app/(app)/prayer/[id]/page.tsx)
   const [detailItem, setDetailItem] = useState<PrayerItem | null>(null);
   const [detailResponses, setDetailResponses] = useState<PrayerResponseItem[]>([]);
@@ -215,27 +223,70 @@ export default function PrayerWallScreen() {
   }, [rawPray, prayers, loading]);
 
   const openPrayerDetail = async (item: PrayerItem) => {
-    setDetailItem(item);
-    setDetailResponses(item.responses || []);
-    setDetailLoading(true);
+    const isCurrentlyOpen = Boolean(expandedPrayerIds[item.id]);
+    setExpandedPrayerIds((prev) => ({ ...prev, [item.id]: !isCurrentlyOpen }));
+    if (isCurrentlyOpen) return;
+
+    if (item.responses && item.responses.length > 0) {
+      setInlineResponsesMap((prev) => ({ ...prev, [item.id]: item.responses || [] }));
+    }
+    setInlineLoadingMap((prev) => ({ ...prev, [item.id]: true }));
     try {
       const { data } = await client.get(`/prayer?id=${item.id}`);
       const payload = data?.data || data;
       const fullPrayer = payload?.prayer;
-      if (fullPrayer) {
-        setDetailItem({
-          ...item,
-          ...fullPrayer,
-          prayCount: fullPrayer.prayCount ?? fullPrayer.prayerCount ?? item.prayCount,
-        });
-        setDetailResponses(fullPrayer.responses || payload?.responses || []);
-      } else if (Array.isArray(payload?.responses)) {
-        setDetailResponses(payload.responses);
-      }
+      const list = fullPrayer?.responses || payload?.responses || item.responses || [];
+      setInlineResponsesMap((prev) => ({ ...prev, [item.id]: list }));
     } catch {
       // fallback
     } finally {
-      setDetailLoading(false);
+      setInlineLoadingMap((prev) => ({ ...prev, [item.id]: false }));
+    }
+  };
+
+  const handleInlinePrayerReply = async (item: PrayerItem) => {
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+    const text = (inlineNoteMap[item.id] || '').trim();
+    setInlineSubmittingMap((prev) => ({ ...prev, [item.id]: true }));
+    try {
+      await client.post('/prayer', {
+        action: 'pray',
+        prayerId: item.id,
+        message: text || undefined,
+      });
+      const optimisticResp: PrayerResponseItem = {
+        id: Date.now(),
+        message: text || null,
+        createdAt: new Date().toISOString(),
+        author: {
+          id: Number(user.id),
+          firstName: user.firstName || user.fullName?.split(' ')[0] || 'You',
+          lastName: user.lastName || user.fullName?.split(' ').slice(1).join(' ') || '',
+          profilePicture: user.profilePicture,
+        },
+      };
+      setInlineResponsesMap((prev) => ({
+        ...prev,
+        [item.id]: [...(prev[item.id] || item.responses || []), optimisticResp],
+      }));
+      setInlineNoteMap((prev) => ({ ...prev, [item.id]: '' }));
+      setPrayers((prev) =>
+        prev.map((p) =>
+          p.id === item.id
+            ? {
+                ...p,
+                prayCount: p.prayCount + 1,
+                responseCount: (p.responseCount ?? 0) + 1,
+                hasPrayed: true,
+              }
+            : p
+        )
+      );
+    } finally {
+      setInlineSubmittingMap((prev) => ({ ...prev, [item.id]: false }));
     }
   };
 
@@ -667,9 +718,184 @@ export default function PrayerWallScreen() {
             style={{ marginLeft: 'auto' }}
             onPress={() => openPrayerDetail(item)}
           >
-            <Text style={styles.responsesLinkText}>💬 {respCount} responses →</Text>
+            <Text style={styles.responsesLinkText}>
+              💬 {respCount} {respCount === 1 ? 'response' : 'responses'}{' '}
+              {expandedPrayerIds[item.id] ? '▴' : '▾'}
+            </Text>
           </TouchableOpacity>
         </View>
+
+        {/* Inline Expandable Prayer Responses & Encouragement Thread */}
+        {expandedPrayerIds[item.id] && (
+          <View
+            style={{
+              marginTop: 12,
+              paddingTop: 12,
+              borderTopWidth: 1,
+              borderTopColor: '#f1f5f9',
+            }}
+          >
+            {inlineLoadingMap[item.id] && !(inlineResponsesMap[item.id]?.length) ? (
+              <ActivityIndicator size="small" color={PRIMARY} style={{ marginVertical: 10 }} />
+            ) : (inlineResponsesMap[item.id] || item.responses || []).length === 0 ? (
+              <Text
+                style={{
+                  fontSize: 12.5,
+                  color: '#94a3b8',
+                  textAlign: 'center',
+                  paddingVertical: 8,
+                }}
+              >
+                No prayer notes yet. Commit to pray and leave an encouraging word!
+              </Text>
+            ) : (
+              <View style={{ gap: 8, marginBottom: 10 }}>
+                {(inlineResponsesMap[item.id] || item.responses || []).map((r) => {
+                  const rAuthor = r.author || r.member;
+                  const rName = rAuthor
+                    ? `${rAuthor.firstName || ''} ${rAuthor.lastName || ''}`.trim()
+                    : 'Church Member';
+                  const rInitials =
+                    `${rAuthor?.firstName?.[0] || ''}${rAuthor?.lastName?.[0] || ''}`.toUpperCase() ||
+                    '🙏';
+                  const rAvatar = getAvatarUrl(rAuthor?.profilePicture);
+                  const noteText = r.message || r.prayer;
+                  return (
+                    <View
+                      key={r.id}
+                      style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}
+                    >
+                      <TouchableOpacity
+                        onPress={() => {
+                          if (rAuthor?.id) {
+                            router.push(`/church?tab=member&id=${rAuthor.id}` as any);
+                          }
+                        }}
+                        style={{
+                          width: 30,
+                          height: 30,
+                          borderRadius: 15,
+                          backgroundColor: 'rgba(78,177,203,0.16)',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          overflow: 'hidden',
+                          marginTop: 2,
+                        }}
+                      >
+                        {rAvatar ? (
+                          <Image
+                            source={{ uri: rAvatar }}
+                            style={{ width: 30, height: 30, borderRadius: 15 }}
+                          />
+                        ) : (
+                          <Text style={{ fontSize: 11, fontWeight: '800', color: PRIMARY }}>
+                            {rInitials}
+                          </Text>
+                        )}
+                      </TouchableOpacity>
+                      <View
+                        style={{
+                          flex: 1,
+                          backgroundColor: '#f1f5f9',
+                          borderRadius: 14,
+                          borderTopLeftRadius: 4,
+                          paddingHorizontal: 12,
+                          paddingVertical: 8,
+                        }}
+                      >
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            marginBottom: 2,
+                          }}
+                        >
+                          <Text style={{ fontSize: 12.5, fontWeight: '800', color: '#0f172a' }}>
+                            {rName}
+                          </Text>
+                          <Text style={{ fontSize: 10.5, color: '#94a3b8' }}>
+                            {timeAgo(r.createdAt)}
+                          </Text>
+                        </View>
+                        {noteText ? (
+                          <Text style={{ fontSize: 13, color: '#1e293b', lineHeight: 18 }}>
+                            {noteText}
+                          </Text>
+                        ) : (
+                          <Text
+                            style={{
+                              fontSize: 12,
+                              fontStyle: 'italic',
+                              color: '#64748b',
+                            }}
+                          >
+                            🙏 Committed to pray
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+
+            {/* Inline Prayer / Encouragement Input Box */}
+            {user ? (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: '#f8fafc',
+                  borderRadius: 22,
+                  borderWidth: 1,
+                  borderColor: '#e2e8f0',
+                  paddingLeft: 12,
+                  paddingRight: 5,
+                  paddingVertical: 4,
+                  gap: 6,
+                }}
+              >
+                <TextInput
+                  style={{
+                    flex: 1,
+                    fontSize: 13,
+                    color: '#0f172a',
+                    paddingVertical: 4,
+                    maxHeight: 75,
+                  }}
+                  placeholder="Write a prayer or encouragement..."
+                  placeholderTextColor="#94a3b8"
+                  value={inlineNoteMap[item.id] || ''}
+                  onChangeText={(v) =>
+                    setInlineNoteMap((prev) => ({ ...prev, [item.id]: v }))
+                  }
+                  multiline
+                />
+                <TouchableOpacity
+                  onPress={() => handleInlinePrayerReply(item)}
+                  disabled={Boolean(inlineSubmittingMap[item.id])}
+                  style={{
+                    backgroundColor: PRIMARY,
+                    borderRadius: 16,
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {inlineSubmittingMap[item.id] ? (
+                    <ActivityIndicator size="small" color="#ffffff" />
+                  ) : (
+                    <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: '800' }}>
+                      🙏 Pray
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            ) : null}
+          </View>
+        )}
       </View>
     );
   };
@@ -677,12 +903,10 @@ export default function PrayerWallScreen() {
   return (
     <View style={styles.container}>
       {loading && prayers.length === 0 ? (
-        <View style={{ flex: 1 }}>
+        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
           {renderHeader()}
-          <View style={styles.center}>
-            <ActivityIndicator size="large" color={PRIMARY} />
-          </View>
-        </View>
+          <SkeletonPrayerLoading />
+        </ScrollView>
       ) : (
         <FlatList
           data={prayers}

@@ -18,20 +18,27 @@ import client from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
 import AlertPromptModal, { AlertType } from '@/components/ui/AlertPromptModal';
 import ConfirmModal from '@/components/ui/ConfirmModal';
+import NotificationModal from '@/components/ui/NotificationModal';
+import { SkeletonBox } from '@/components/ui/SkeletonPulse';
 import * as SecureStore from 'expo-secure-store';
 
 interface ProfileData {
   id: number;
   firstName: string;
   lastName: string;
+  username?: string | null;
   email?: string | null;
   phone?: string | null;
+  address?: string | null;
+  familyMembers?: string | null;
   role: string;
   status: string;
   type?: string | null;
   ageGroup?: string | null;
   profilePicture?: string | null;
   coverPhoto?: string | null;
+  coverPhotoPositionX?: number | null;
+  coverPhotoPositionY?: number | null;
   bio?: string | null;
   favoriteVerse?: string | null;
   createdAt?: string | null;
@@ -49,13 +56,27 @@ export default function MeScreen() {
   const [bioSupported, setBioSupported] = useState(false);
   const [bioEnabled, setBioEnabledState] = useState(false);
 
-  // Edit Profile Modal
+  // Edit Profile Modal (3 tabs: Personal, Bio & Verse, Security — v2.24.11 & v2.24.18–v2.24.20)
   const [editOpen, setEditOpen] = useState(false);
+  const [editTab, setEditTab] = useState<'personal' | 'verse' | 'security'>('personal');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
+  const [familyMembers, setFamilyMembers] = useState('');
   const [favoriteVerse, setFavoriteVerse] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Security Tab: Independent Username (with 1.5s debounced check) & Password Update
+  const [usernameInput, setUsernameInput] = useState('');
+  const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
+  const [savingUsername, setSavingUsername] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [savingPassword, setSavingPassword] = useState(false);
+
+  // Notifications Modal
+  const [notifModalOpen, setNotifModalOpen] = useState(false);
 
   // Settings & Account Modal
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -74,18 +95,43 @@ export default function MeScreen() {
     if (!user) return;
     setLoading(true);
     try {
-      const { data } = await client.get('/profile');
-      const payload = data?.data || data;
-      if (payload?.user) {
-        setProfile({
-          ...payload.user,
-          createdAt: payload.user.createdAt || payload.user.joinDate,
-        });
-        setFirstName(payload.user.firstName || '');
-        setLastName(payload.user.lastName || '');
-        setPhone(payload.user.phone || '');
-        setFavoriteVerse(payload.user.favoriteVerse || '');
-      }
+      const [profileRes, memberRes] = await Promise.all([
+        client.get('/profile').catch(() => null),
+        fetch(`https://connect.houseofgrace.ph/api/members/${user.id}`)
+          .then((r) => (r.ok ? r.json() : null))
+          .catch(() => null),
+      ]);
+      const payload = profileRes?.data?.data || profileRes?.data;
+      const pUser = payload?.user || {};
+      const mData = memberRes || {};
+      const merged: ProfileData = {
+        ...pUser,
+        id: pUser.id || user.id,
+        firstName: pUser.firstName || mData.firstName || user.firstName || '',
+        lastName: pUser.lastName || mData.lastName || user.lastName || '',
+        role: pUser.role || user.role || 'member',
+        status: pUser.status || 'approved',
+        profilePicture: pUser.profilePicture || mData.profilePicture || user.profilePicture || null,
+        coverPhoto: pUser.coverPhoto || mData.coverPhoto || (user as any).coverPhoto || null,
+        coverPhotoPositionX:
+          pUser.coverPhotoPositionX ?? mData.coverPhotoPositionX ?? 50,
+        coverPhotoPositionY:
+          pUser.coverPhotoPositionY ?? mData.coverPhotoPositionY ?? 50,
+        favoriteVerse: pUser.favoriteVerse || mData.favoriteVerse || user.favoriteVerse || '',
+        phone: pUser.phone || mData.phone || user.phone || '',
+        address: pUser.address || mData.address || '',
+        familyMembers: pUser.familyMembers || mData.familyMembers || '',
+        username: pUser.username || mData.username || (user as any).username || '',
+        createdAt: pUser.createdAt || pUser.joinDate || mData.joinDate || null,
+      };
+      setProfile(merged);
+      setFirstName(merged.firstName || '');
+      setLastName(merged.lastName || '');
+      setPhone(merged.phone || '');
+      setAddress(merged.address || '');
+      setFamilyMembers(merged.familyMembers || '');
+      setFavoriteVerse(merged.favoriteVerse || '');
+      setUsernameInput(merged.username || '');
     } catch {
       // Fallback to AuthContext user
     } finally {
@@ -111,6 +157,33 @@ export default function MeScreen() {
     setBioEnabledState(nextVal);
   };
 
+  // 1.5s Debounced Live Username Availability Check (v2.24.11)
+  useEffect(() => {
+    const clean = usernameInput.trim().toLowerCase();
+    if (!editOpen || editTab !== 'security') return;
+    if (!clean || clean === (profile?.username || '').toLowerCase()) {
+      setUsernameStatus('idle');
+      return;
+    }
+    if (clean.length < 3 || !/^[a-z0-9._-]+$/.test(clean)) {
+      setUsernameStatus('invalid');
+      return;
+    }
+    setUsernameStatus('checking');
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://connect.houseofgrace.ph/api/members/check-username?username=${encodeURIComponent(clean)}`
+        );
+        const data = await res.json();
+        setUsernameStatus(data?.available ? 'available' : 'taken');
+      } catch {
+        setUsernameStatus('idle');
+      }
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [usernameInput, editOpen, editTab, profile?.username]);
+
   const handleSaveProfile = async () => {
     if (!firstName.trim() || !lastName.trim()) {
       setAlertModal({
@@ -127,6 +200,8 @@ export default function MeScreen() {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         phone: phone.trim(),
+        address: address.trim(),
+        familyMembers: familyMembers.trim(),
         favoriteVerse: favoriteVerse.trim(),
       });
       await updateUser({
@@ -153,6 +228,82 @@ export default function MeScreen() {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleUpdateUsername = async () => {
+    const clean = usernameInput.trim().toLowerCase();
+    if (!clean || clean.length < 3 || usernameStatus === 'taken' || usernameStatus === 'invalid') {
+      return;
+    }
+    setSavingUsername(true);
+    try {
+      await client.patch('/profile', {
+        action: 'update_username',
+        username: clean,
+      });
+      await loadProfile();
+      setUsernameStatus('idle');
+      setAlertModal({
+        visible: true,
+        type: 'success',
+        title: 'Username Updated',
+        message: `Your username is now @${clean}.`,
+      });
+    } catch (err: any) {
+      setAlertModal({
+        visible: true,
+        type: 'error',
+        title: 'Username Update Failed',
+        message: err?.response?.data?.error || 'Could not update username.',
+      });
+    } finally {
+      setSavingUsername(false);
+    }
+  };
+
+  const handleUpdatePassword = async () => {
+    if (!newPassword || newPassword.length < 6) {
+      setAlertModal({
+        visible: true,
+        type: 'warning',
+        title: 'Password Too Short',
+        message: 'New password must be at least 6 characters.',
+      });
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setAlertModal({
+        visible: true,
+        type: 'warning',
+        title: 'Passwords Do Not Match',
+        message: 'Please make sure both password fields match.',
+      });
+      return;
+    }
+    setSavingPassword(true);
+    try {
+      await client.patch('/profile', {
+        action: 'update_password',
+        newPassword,
+      });
+      setNewPassword('');
+      setConfirmNewPassword('');
+      setAlertModal({
+        visible: true,
+        type: 'success',
+        title: 'Password Updated',
+        message: 'Your password has been changed.',
+      });
+    } catch (err: any) {
+      setAlertModal({
+        visible: true,
+        type: 'error',
+        title: 'Password Update Failed',
+        message: err?.response?.data?.error || 'Could not update password.',
+      });
+    } finally {
+      setSavingPassword(false);
     }
   };
 
@@ -214,22 +365,25 @@ export default function MeScreen() {
       ? `https://connect.houseofgrace.ph/uploads/profile_pictures/${avatarUrl.replace(/^\/uploads\/(avatars|profile_pictures)\//, '')}`
       : null;
 
+  const rawCoverUrl = profile?.coverPhoto || (user as any)?.coverPhoto || null;
+  const fullCoverUrl =
+    rawCoverUrl && String(rawCoverUrl).startsWith('http')
+      ? String(rawCoverUrl)
+      : rawCoverUrl
+      ? `https://connect.houseofgrace.ph/uploads/cover_photos/${String(rawCoverUrl).replace(/^\/uploads\/cover_photos\//, '')}`
+      : null;
+  const coverPosY = Number(profile?.coverPhotoPositionY ?? 50);
+  const coverImgHeight = 320;
+  const coverBannerHeight = 165;
+  const coverTopOffset = -Math.round((coverImgHeight - coverBannerHeight) * (Math.min(100, Math.max(0, coverPosY)) / 100));
+
   const MENU_ITEMS = [
-    { icon: '👤', label: 'Edit Profile', onPress: () => setEditOpen(true) },
-    {
-      icon: '🔔',
-      label: 'Notifications',
-      onPress: () =>
-        setAlertModal({
-          visible: true,
-          type: 'info',
-          title: 'Notifications',
-          message: 'You are up to date with all community notifications.',
-        }),
-    },
-    { icon: '📖', label: 'My Grace Blog', onPress: () => router.push('/church?tab=devo' as any) },
-    { icon: '🙏', label: 'My Prayer Requests', onPress: () => router.push('/(tabs)/prayer') },
-    { icon: '🤝', label: 'My Listings', onPress: () => router.push('/(tabs)/stewardshop') },
+    { icon: '👤', label: 'View Public Profile & Wall', onPress: () => router.push(`/church?tab=member&id=${user.id}` as any) },
+    { icon: '✏️', label: 'Edit Profile', onPress: () => { setEditTab('personal'); setEditOpen(true); } },
+    { icon: '🔔', label: 'Notifications', onPress: () => setNotifModalOpen(true) },
+    { icon: '📝', label: 'My Grace Blog', onPress: () => router.push('/church?tab=journal' as any) },
+    { icon: '🙏', label: 'My Prayer Requests', onPress: () => router.push('/(tabs)/prayer?mine=true' as any) },
+    { icon: '🤝', label: 'My Listings', onPress: () => router.push('/church?page=my-listings' as any) },
     { icon: '🛡️', label: 'Privacy Policy', onPress: () => router.push('/privacy' as any) },
     { icon: '📄', label: 'Terms of Use', onPress: () => router.push('/terms' as any) },
     { icon: '⚙️', label: 'Settings & Account', onPress: () => setSettingsOpen(true) },
@@ -238,7 +392,28 @@ export default function MeScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
       {/* Cover Banner (app/(app)/me/page.tsx) */}
-      <View style={styles.coverBanner} />
+      <TouchableOpacity
+        activeOpacity={0.92}
+        onPress={() => router.push(`/church?tab=member&id=${user.id}` as any)}
+        style={[styles.coverBanner, { height: coverBannerHeight, overflow: 'hidden', position: 'relative' }]}
+      >
+        {fullCoverUrl ? (
+          <Image
+            source={{ uri: fullCoverUrl }}
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: coverTopOffset,
+              width: '100%',
+              height: coverImgHeight,
+            }}
+            resizeMode="cover"
+          />
+        ) : loading ? (
+          <SkeletonBox width="100%" height={coverBannerHeight} radius={0} dark />
+        ) : null}
+      </TouchableOpacity>
 
       <View style={styles.bodyWrap}>
         {/* Main Profile Card overlapping cover */}
@@ -301,7 +476,7 @@ export default function MeScreen() {
         {/* View Public Profile Button */}
         <TouchableOpacity
           style={styles.viewFullProfileBtn}
-          onPress={() => router.push(`/member/${user.id}` as any)}
+          onPress={() => router.push(`/church?tab=member&id=${user.id}` as any)}
           activeOpacity={0.85}
         >
           <Text style={styles.viewFullProfileText}>👁 View My Full Profile</Text>
@@ -328,14 +503,7 @@ export default function MeScreen() {
           {(user.role === 'admin' || user.role === 'moderator') && (
             <TouchableOpacity
               style={[styles.menuRow, { borderTopWidth: 1, borderTopColor: '#f8fafc' }]}
-              onPress={() =>
-                setAlertModal({
-                  visible: true,
-                  type: 'info',
-                  title: 'Admin Panel',
-                  message: 'All members are currently approved and active.',
-                })
-              }
+              onPress={() => router.push('/admin' as any)}
             >
               <Text style={styles.menuIcon}>🛡️</Text>
               <Text style={[styles.menuLabel, { color: '#4EB1CB', fontWeight: '700' }]}>
@@ -356,7 +524,7 @@ export default function MeScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Edit Profile Modal */}
+      {/* Edit Profile Modal (3 Tabs: Personal | Bio & Verse | Security — v2.24.11 & v2.24.18–v2.24.20) */}
       <Modal
         visible={editOpen}
         transparent
@@ -367,57 +535,235 @@ export default function MeScreen() {
           style={styles.modalBackdrop}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>👤 Edit Profile</Text>
-            <Text style={styles.fieldLabel}>First Name</Text>
-            <TextInput
-              style={styles.input}
-              value={firstName}
-              onChangeText={setFirstName}
-              placeholder="First Name"
-            />
-            <Text style={styles.fieldLabel}>Last Name</Text>
-            <TextInput
-              style={styles.input}
-              value={lastName}
-              onChangeText={setLastName}
-              placeholder="Last Name"
-            />
-            <Text style={styles.fieldLabel}>Mobile Number</Text>
-            <TextInput
-              style={styles.input}
-              value={phone}
-              onChangeText={setPhone}
-              placeholder="09XX XXX XXXX"
-              keyboardType="phone-pad"
-            />
-            <Text style={styles.fieldLabel}>Favorite Bible Verse</Text>
-            <TextInput
-              style={styles.input}
-              value={favoriteVerse}
-              onChangeText={setFavoriteVerse}
-              placeholder="e.g. Psalm 23:1"
-            />
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
-              <TouchableOpacity
-                style={[styles.outlineBtn, { flex: 1, marginTop: 0 }]}
-                onPress={() => setEditOpen(false)}
-              >
-                <Text style={styles.outlineBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.primaryBtn, { flex: 2 }]}
-                onPress={handleSaveProfile}
-                disabled={saving}
-              >
-                <Text style={styles.primaryBtnText}>
-                  {saving ? 'Saving…' : 'Save Changes'}
-                </Text>
+          <View style={[styles.modalSheet, { maxHeight: '85%' }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <Text style={styles.modalTitle}>👤 Edit Profile</Text>
+              <TouchableOpacity onPress={() => setEditOpen(false)}>
+                <Text style={{ fontSize: 16, fontWeight: '800', color: '#64748b' }}>✕</Text>
               </TouchableOpacity>
             </View>
+
+            {/* 3-Tab Switcher: Personal | Bio & Verse | Security (v2.24.19) */}
+            <View
+              style={{
+                flexDirection: 'row',
+                backgroundColor: '#f1f5f9',
+                borderRadius: 12,
+                padding: 3,
+                marginBottom: 14,
+              }}
+            >
+              {(
+                [
+                  { id: 'personal', label: 'Personal' },
+                  { id: 'verse', label: 'Bio & Verse' },
+                  { id: 'security', label: 'Security' },
+                ] as const
+              ).map((t) => {
+                const active = editTab === t.id;
+                return (
+                  <TouchableOpacity
+                    key={t.id}
+                    onPress={() => setEditTab(t.id)}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 7,
+                      borderRadius: 9,
+                      backgroundColor: active ? '#ffffff' : 'transparent',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text
+                      numberOfLines={1}
+                      style={{
+                        fontSize: 12.5,
+                        fontWeight: '700',
+                        color: active ? '#4EB1CB' : '#64748b',
+                      }}
+                    >
+                      {t.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {editTab === 'personal' && (
+                <View>
+                  <Text style={styles.fieldLabel}>First Name</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={firstName}
+                    onChangeText={setFirstName}
+                    placeholder="First Name"
+                  />
+                  <Text style={styles.fieldLabel}>Last Name</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={lastName}
+                    onChangeText={setLastName}
+                    placeholder="Last Name"
+                  />
+                  <Text style={styles.fieldLabel}>Mobile Number</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={phone}
+                    onChangeText={setPhone}
+                    placeholder="09XX XXX XXXX"
+                    keyboardType="phone-pad"
+                  />
+                  <Text style={styles.fieldLabel}>Address</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={address}
+                    onChangeText={setAddress}
+                    placeholder="Barangay / City"
+                  />
+                  <Text style={styles.fieldLabel}>Family Members (comma-separated)</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={familyMembers}
+                    onChangeText={setFamilyMembers}
+                    placeholder=""
+                  />
+                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
+                    <TouchableOpacity
+                      style={[styles.outlineBtn, { flex: 1, marginTop: 0 }]}
+                      onPress={() => setEditOpen(false)}
+                    >
+                      <Text style={styles.outlineBtnText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.primaryBtn, { flex: 2 }]}
+                      onPress={handleSaveProfile}
+                      disabled={saving}
+                    >
+                      <Text style={styles.primaryBtnText}>
+                        {saving ? 'Saving…' : 'Save Changes'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+
+              {editTab === 'verse' && (
+                <View>
+                  <Text style={styles.fieldLabel}>Favorite Bible Verse</Text>
+                  <TextInput
+                    style={[styles.input, { minHeight: 80, textAlignVertical: 'top' }]}
+                    value={favoriteVerse}
+                    onChangeText={setFavoriteVerse}
+                    placeholder="e.g. Psalm 23:1 — The Lord is my shepherd, I lack nothing."
+                    multiline
+                  />
+                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
+                    <TouchableOpacity
+                      style={[styles.outlineBtn, { flex: 1, marginTop: 0 }]}
+                      onPress={() => setEditOpen(false)}
+                    >
+                      <Text style={styles.outlineBtnText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.primaryBtn, { flex: 2 }]}
+                      onPress={handleSaveProfile}
+                      disabled={saving}
+                    >
+                      <Text style={styles.primaryBtnText}>
+                        {saving ? 'Saving…' : 'Save Verse'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+
+              {editTab === 'security' && (
+                <View>
+                  {/* Independent Username Form (v2.24.11 & v2.24.18) */}
+                  <Text style={styles.fieldLabel}>Username</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={usernameInput}
+                    onChangeText={setUsernameInput}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    placeholder="username"
+                  />
+                  {usernameStatus === 'checking' && (
+                    <Text style={{ fontSize: 11.5, color: '#64748b', marginTop: -6, marginBottom: 8 }}>
+                      Checking availability…
+                    </Text>
+                  )}
+                  {usernameStatus === 'available' && (
+                    <Text style={{ fontSize: 11.5, color: '#16a34a', fontWeight: '700', marginTop: -6, marginBottom: 8 }}>
+                      ✓ Username is available!
+                    </Text>
+                  )}
+                  {usernameStatus === 'taken' && (
+                    <Text style={{ fontSize: 11.5, color: '#dc2626', fontWeight: '700', marginTop: -6, marginBottom: 8 }}>
+                      ✕ Username is already taken.
+                    </Text>
+                  )}
+                  {usernameStatus === 'invalid' && (
+                    <Text style={{ fontSize: 11.5, color: '#d97706', fontWeight: '600', marginTop: -6, marginBottom: 8 }}>
+                      Minimum 3 characters (letters, numbers, ., _, -).
+                    </Text>
+                  )}
+                  <TouchableOpacity
+                    style={[
+                      styles.primaryBtn,
+                      { marginBottom: 18 },
+                      (savingUsername || usernameStatus === 'taken' || usernameStatus === 'invalid') && {
+                        opacity: 0.6,
+                      },
+                    ]}
+                    disabled={savingUsername || usernameStatus === 'taken' || usernameStatus === 'invalid'}
+                    onPress={handleUpdateUsername}
+                  >
+                    <Text style={styles.primaryBtnText}>
+                      {savingUsername ? 'Updating…' : 'Update Username'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Independent Password Form without current password requirement (v2.24.18 & v2.24.20) */}
+                  <View style={{ borderTopWidth: 1, borderTopColor: '#f1f5f9', paddingTop: 14 }}>
+                    <Text style={styles.fieldLabel}>New Password</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={newPassword}
+                      onChangeText={setNewPassword}
+                      secureTextEntry
+                      placeholder="Enter new password (min. 6 chars)"
+                    />
+                    <Text style={styles.fieldLabel}>Confirm New Password</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={confirmNewPassword}
+                      onChangeText={setConfirmNewPassword}
+                      secureTextEntry
+                      placeholder="Confirm new password"
+                    />
+                    <TouchableOpacity
+                      style={styles.primaryBtn}
+                      disabled={savingPassword}
+                      onPress={handleUpdatePassword}
+                    >
+                      <Text style={styles.primaryBtnText}>
+                        {savingPassword ? 'Updating…' : 'Update Password'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+            </ScrollView>
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      <NotificationModal
+        visible={notifModalOpen}
+        onClose={() => setNotifModalOpen(false)}
+      />
 
       {/* Settings & Account Modal */}
       <Modal

@@ -1443,27 +1443,27 @@ export default function PostCard({ post }: PostCardProps) {
             </button>
           </div>
 
-          <button onClick={() => setCommentsOpen(true)} style={actionBtnStyle}>
+          <button onClick={() => setCommentsOpen((prev) => !prev)} style={{ ...actionBtnStyle, color: commentsOpen ? PRIMARY : "#64748b", fontWeight: commentsOpen ? 700 : 400 }}>
             💬 {commentCount > 0 && commentCount}
           </button>
           <button onClick={handleShare} style={actionBtnStyle}>
             📤 Share
           </button>
         </div>
-      </div>
 
-      {/* Comment Drawer */}
-      <CommentDrawer
-        postId={post.id}
-        postAuthorId={post.author.id}
-        isOpen={commentsOpen}
-        highlightCommentId={highlightCommentId}
-        onClose={() => {
-          setCommentsOpen(false);
-          setHighlightCommentId(null);
-        }}
-        onCommentCountChange={(delta) => setCommentCount((c) => c + delta)}
-      />
+        {/* Inline Facebook/Instagram Threaded Comments */}
+        <CommentDrawer
+          postId={post.id}
+          postAuthorId={post.author.id}
+          isOpen={commentsOpen}
+          highlightCommentId={highlightCommentId}
+          onClose={() => {
+            setCommentsOpen(false);
+            setHighlightCommentId(null);
+          }}
+          onCommentCountChange={(delta) => setCommentCount((c) => c + delta)}
+        />
+      </div>
 
       {/* Active Quiz Player */}
       {activeQuestion && (

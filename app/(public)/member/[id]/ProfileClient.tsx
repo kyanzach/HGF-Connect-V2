@@ -355,12 +355,12 @@ export default function ProfileClient({ member }: { member: ProfileData }) {
 
       {/* ── Hero card ────────────────────────────────────────────────────── */}
       <div style={{ background: "white", padding: "0 1rem 1rem", position: "relative" }}>
-        <div style={{ display: "flex", alignItems: "flex-end", gap: "0.875rem", marginTop: -44 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
 
           {/* Clickable avatar — NO "VIEW" text */}
           <button
             onClick={handleAvatarTap}
-            style={{ width: 88, height: 88, borderRadius: "50%", border: "4px solid white",
+            style={{ marginTop: -36, width: 88, height: 88, borderRadius: "50%", border: "4px solid white",
               boxShadow: "0 4px 20px rgba(0,0,0,0.18)", overflow: "hidden", background: `${PRIMARY}20`,
               display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
               padding: 0, cursor: "pointer" }}
@@ -373,34 +373,41 @@ export default function ProfileClient({ member }: { member: ProfileData }) {
             )}
           </button>
 
-          {/* Name + badges inline */}
-          <div style={{ flex: 1, paddingBottom: "0.5rem", minWidth: 0 }}>
-            <h1 style={{ fontSize: "1.125rem", fontWeight: 900, color: "#0f172a", margin: "0 0 0.25rem", letterSpacing: "-0.02em", lineHeight: 1.2 }}>
-              {fullName}
-            </h1>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem" }}>
+          {/* Balanced Right Area: Top row [Name + Post Button], Bottom row [Duration • Ministries] */}
+          <div style={{ flex: 1, paddingTop: "0.625rem", paddingBottom: "0.25rem", minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem", marginBottom: "0.5rem" }}>
+              <h1 style={{ fontSize: "1.1875rem", fontWeight: 900, color: "#0f172a", margin: 0, letterSpacing: "-0.02em", lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {fullName}
+              </h1>
+
+              {/* Post / Member badge */}
+              {member.isOwn ? (
+                <Link href="/feed/create"
+                  style={{ background: PRIMARY, color: "white", textDecoration: "none", padding: "0.375rem 0.875rem", borderRadius: "999px", fontSize: "0.78rem", fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>✍️ Post</Link>
+              ) : (
+                <div style={{ background: `${PRIMARY}15`, color: PRIMARY, padding: "0.375rem 0.75rem", borderRadius: "999px", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>
+                  👤 Member
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0.375rem" }}>
               {dur && (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: "0.2rem", background: `${PRIMARY}12`, color: PRIMARY, fontSize: "0.65rem", fontWeight: 700, padding: "0.2rem 0.5rem", borderRadius: "999px" }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", background: `${PRIMARY}12`, color: PRIMARY, fontSize: "0.6875rem", fontWeight: 700, padding: "0.25rem 0.625rem", borderRadius: "999px", whiteSpace: "nowrap" }}>
                   📅 {dur} in HGF
                 </span>
               )}
               {member.ministries.length > 0 && (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: "0.2rem", background: "#f1f5f9", color: "#64748b", fontSize: "0.65rem", fontWeight: 700, padding: "0.2rem 0.5rem", borderRadius: "999px" }}>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("ministries")}
+                  style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", background: "#f1f5f9", color: "#64748b", fontSize: "0.6875rem", fontWeight: 700, padding: "0.25rem 0.625rem", borderRadius: "999px", border: "none", cursor: "pointer", whiteSpace: "nowrap" }}
+                >
                   🤲 {member.ministries.length} {member.ministries.length === 1 ? "Ministry" : "Ministries"}
-                </span>
+                </button>
               )}
             </div>
           </div>
-
-          {/* Post / Member badge */}
-          {member.isOwn ? (
-            <Link href="/feed/create"
-              style={{ marginBottom: "0.5rem", background: PRIMARY, color: "white", textDecoration: "none", padding: "0.45rem 1rem", borderRadius: "999px", fontSize: "0.78rem", fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>✍️ Post</Link>
-          ) : (
-            <div style={{ marginBottom: "0.5rem", background: `${PRIMARY}15`, color: PRIMARY, padding: "0.45rem 1rem", borderRadius: "999px", fontSize: "0.78rem", fontWeight: 700, flexShrink: 0 }}>
-              👤 Member
-            </div>
-          )}
         </div>
 
         {member.favoriteVerse && (

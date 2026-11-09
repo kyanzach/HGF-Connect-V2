@@ -7,10 +7,8 @@ const isExpoGo =
   Constants.appOwnership === 'expo' ||
   Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
-const isAndroidExpoGo = Platform.OS === 'android' && isExpoGo;
-
 export function getNotificationsModule(): typeof import('expo-notifications') | null {
-  if (isAndroidExpoGo) {
+  if (isExpoGo) {
     return null;
   }
   try {

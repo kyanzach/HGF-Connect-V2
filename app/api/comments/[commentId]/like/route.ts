@@ -1,18 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { getAuthenticatedMember } from "@/lib/mobileAuth";
 import { db } from "@/lib/db";
 
 // POST /api/comments/[commentId]/like — toggle like on a comment
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ commentId: string }> }
 ) {
   const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const mobileMember = !session ? await getAuthenticatedMember(request) : null;
+  if (!session && !mobileMember) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { commentId } = await params;
   const cid = parseInt(commentId);
-  const memberId = parseInt(session.user.id);
+  const memberId = session?.user?.id ? parseInt(session.user.id) : mobileMember!.id;
 
   try {
     const existing = await (db as any).commentLike.findUnique({

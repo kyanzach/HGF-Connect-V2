@@ -16,6 +16,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter, usePathname, useGlobalSearchParams } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import NotificationModal from './NotificationModal';
+import { TopNavigationProgress } from './SkeletonPulse';
 import {
   registerForPushNotificationsAsync,
   syncAndAlertNewNotifications,
@@ -23,7 +24,7 @@ import {
 
 const PRIMARY = '#4EB1CB';
 const DARK_NAV = '#3A95AD';
-const APP_VERSION = '2.82.0';
+const APP_VERSION = '2.83.0';
 
 const NAV_LINKS = [
   { href: '/(tabs)', label: 'Home', icon: '🏠' },
@@ -86,6 +87,7 @@ export default function TopHeader() {
   return (
     <>
       <View style={[styles.headerWrap, { paddingTop: topPad }]}>
+        <TopNavigationProgress />
         {/* Top bar — exact 56px height matching UnifiedHeader.tsx */}
         <View style={styles.topBar}>
           {/* Brand: [Circular Logo] HGF Connect [BETA v2.78.0] */}

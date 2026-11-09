@@ -22,6 +22,7 @@ import * as ImagePicker from 'expo-image-picker';
 import client from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
 import AlertPromptModal, { AlertType } from '@/components/ui/AlertPromptModal';
+import { SkeletonStewardShopLoading } from '@/components/ui/SkeletonPulse';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -379,7 +380,11 @@ export default function StewardShopScreen() {
   };
 
   const handleShareListing = async (item: ListingItem, customUrl?: string) => {
-    const url = customUrl || `https://connect.houseofgrace.ph/stewardshop/${item.id}`;
+    const slug = (item.title || `listing-${item.id}`)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+    const url = customUrl || `https://hgfapp.link/s/${slug}`;
     const og = item.ogPrice ?? item.price;
     const priceLine =
       item.hasDiscount && og
@@ -802,12 +807,10 @@ export default function StewardShopScreen() {
   return (
     <View style={styles.container}>
       {loading && listings.length === 0 ? (
-        <View style={{ flex: 1 }}>
+        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
           {renderHeader()}
-          <View style={styles.center}>
-            <ActivityIndicator size="large" color="#4EB1CB" />
-          </View>
-        </View>
+          <SkeletonStewardShopLoading />
+        </ScrollView>
       ) : (
         <FlatList
           data={filteredListings}

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { getAuthenticatedMember } from "@/lib/mobileAuth";
 import { db } from "@/lib/db";
 import { createNotification } from "@/lib/notify";
 
@@ -7,13 +8,14 @@ interface Props { params: Promise<{ id: string }> }
 
 // GET /api/posts/[id]/comments — fetch all comments (pinned first, then date asc)
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: Props
 ) {
   const { id } = await params;
   const postId = parseInt(id);
   const session = await auth();
-  const viewerId = session?.user?.id ? parseInt(session.user.id) : null;
+  const mobileMember = !session ? await getAuthenticatedMember(request) : null;
+  const viewerId = session?.user?.id ? parseInt(session.user.id) : mobileMember?.id ?? null;
 
   try {
     const rows = await (db as any).comment.findMany({
@@ -23,6 +25,9 @@ export async function GET(
         replies: {
           include: {
             author: { select: { id: true, firstName: true, lastName: true, profilePicture: true } },
+            ...(viewerId
+              ? { commentLikes: { where: { memberId: viewerId }, select: { memberId: true } } }
+              : {}),
           },
           orderBy: { createdAt: "asc" },
         },
@@ -47,7 +52,7 @@ export async function GET(
         content: r.content,
         createdAt: r.createdAt,
         likeCount: r.likeCount ?? 0,
-        isLiked: false,
+        isLiked: viewerId ? (r.commentLikes?.length ?? 0) > 0 : false,
         author: r.author,
       })),
     }));
@@ -65,11 +70,12 @@ export async function POST(
   { params }: Props
 ) {
   const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const mobileMember = !session ? await getAuthenticatedMember(request) : null;
+  if (!session && !mobileMember) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
   const postId = parseInt(id);
-  const authorId = parseInt(session.user.id);
+  const authorId = session?.user?.id ? parseInt(session.user.id) : mobileMember!.id;
 
   try {
     const { content, parentId, mentionedMemberIds } = await request.json();

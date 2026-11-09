@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Tabs, useRouter } from 'expo-router';
+import { Tabs, useRouter, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import TopHeader from '@/components/ui/TopHeader';
 import { useAuth } from '@/context/AuthContext';
@@ -18,6 +18,7 @@ const DOCK_ITEMS = [
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const pathname = usePathname();
   const { user } = useAuth();
   const bottomInset = Math.max(insets.bottom, 8);
 
@@ -28,8 +29,15 @@ export default function TabLayout() {
         screenOptions={{
           headerShown: false,
         }}
-        tabBar={({ state, navigation }) => {
-          const currentRoute = state.routes[state.index]?.name || 'index';
+        tabBar={(props: any) => {
+          const state = props?.state;
+          const nav = props?.navigation;
+          const stateRoute = state?.routes?.[state?.index ?? 0]?.name;
+          const currentRoute =
+            stateRoute ||
+            (pathname === '/' || pathname === '/index'
+              ? 'index'
+              : pathname.replace(/^\/+/, '').split('/')[0] || 'index');
 
           // Hide BottomDock when not logged in and on public home screen (matching web app)
           if (!user && currentRoute === 'index') {
@@ -76,7 +84,15 @@ export default function TabLayout() {
                     style={styles.dockItem}
                     activeOpacity={0.8}
                     onPress={() => {
-                      navigation.navigate(item.routeName as never);
+                      const target =
+                        item.routeName === 'index'
+                          ? '/(tabs)'
+                          : `/(tabs)/${item.routeName}`;
+                      if (typeof router?.navigate === 'function') {
+                        router.navigate(target as any);
+                      } else if (typeof router?.push === 'function') {
+                        router.push(target as any);
+                      }
                     }}
                   >
                     <Text

@@ -1,3 +1,22 @@
+## [v2.83.0] — 2026-11-09
+### Added / Changed / Fixed
+- **Inline Facebook/Instagram-Style Threaded Comments, Reactions Analytics Parity, Shimmer Skeleton Loaders & Balanced Member Hero UX (`mobile/v1.7.0`, `v2.83.0`)**:
+  - **Inline Facebook/Instagram-Style Threaded Comments & Inline Reply Boxes (`mobile/components/ui/InlineCommentThread.tsx`, `mobile/app/(tabs)/index.tsx`, `mobile/app/church.tsx`, `mobile/app/(tabs)/prayer.tsx`, `components/feed/CommentDrawer.tsx`, `components/feed/PostCard.tsx`, `app/api/mobile/posts/[id]/comments/route.ts`)**:
+    - Replaced the slide-up bottom sheet comment modal (`<Modal animationType="slide">`) with an **inline expandable Facebook/Instagram-style comment thread** (`<InlineCommentThread />`) directly inside every post card on Community Feed, Member Profile Wall, Prayer Wall, and Web `PostCard.tsx`.
+    - Tapping `Reply` on any comment or nested reply opens an **inline reply box right underneath that specific comment thread** (`↩ Replying to [Name]` + `Cancel` + rounded input + `↑` Send button) instead of jumping to a bottom drawer.
+    - Upgraded `GET/POST /api/mobile/posts/[id]/comments` to return top-level comments (`parentId: null`) with nested `replies`, `isPinned`, `likeCount`, and `isLiked`, and support `parentId`, `mentionedMemberIds`, `action: "like"`, `action: "pin" | "unpin"`, and `action: "delete"`.
+  - **Community Feed Reactions Summary Row, Who-Reacted Analytics Modal & Line-by-Line Micro-Feature Parity (`mobile/app/(tabs)/index.tsx`, `mobile/app/(tabs)/profile.tsx`, `mobile/app/(tabs)/stewardshop.tsx`, `app/api/mobile/profile/route.ts`)**:
+    - Replaced the static left-aligned `❤️ 🙏 {likeCount}` row on Community Feed (`mobile/app/(tabs)/index.tsx`) with dynamic right-aligned overlapping circular reaction badges (`❤️`, `🙏`, `🤗`) + `{likeCount}` that open the **Who-Reacted Analytics Modal** (`All`, `❤️`, `🙏`, `🤗` filter tabs + clickable reactor list with avatar, reaction badge, and full name navigating to `/church?tab=member&id=${r.memberId}`).
+    - Synced `handleReact` optimistic `item.likes` updates, single-tap (`onPress` -> instant `HEART` toggle) vs long-press (`onLongPress` -> floating `❤️ 🙏 🤗` picker) gestures, `/p/${post.id}` OG share links, and `https://hgfapp.link/s/${slug}` StewardShop short share links.
+    - Upgraded Edit Profile Modal (`mobile/app/(tabs)/profile.tsx`) to the 3-tab Web layout (`Personal`, `Bio & Verse`, `Security`) with 1.5s debounced live username availability check (`/api/members/check-username`), independent `"Update Username"` button, and independent `"Update Password"` button, backed by `PUT` and `PATCH` support in `app/api/mobile/profile/route.ts`.
+  - **Cover Photo Rendering, `coverPhotoPositionY` Framing & Balanced Member Hero Card (`mobile/app/church.tsx`, `mobile/app/(tabs)/profile.tsx`, `app/(public)/member/[id]/ProfileClient.tsx`)**:
+    - Fixed cover photo rendering on React Native Fabric (`0.84`) by replacing `StyleSheet.absoluteFillObject` inside `TouchableOpacity` with explicit `height` and `top` offsets derived from `coverPhotoPositionY`.
+    - Re-balanced the Member Hero Card layout so `[📅 X months in HGF]` and `[🤲 N Ministries]` sit side-by-side (`flexDirection: 'row', flexWrap: 'wrap', gap: 6`) in the horizontal space above the favorite verse.
+  - **Native Privacy Policy & Terms of Use Screens (`mobile/app/privacy.tsx`, `mobile/app/terms.tsx`, `mobile/app/_layout.tsx`)**:
+    - Created dedicated native `/privacy` and `/terms` screens (matching `app/(public)/privacy/page.tsx` and `app/(public)/terms/page.tsx` with Republic Act No. 10173 Data Privacy Act of 2012 compliance) to fix the `Unmatched Route` error from the Me tab.
+  - **Facebook-Style Sweeping Shimmer Skeletons, Top Navigation Progress Bar & Single-Member Fetch Speedup (`mobile/components/ui/SkeletonPulse.tsx`, `mobile/components/ui/TopHeader.tsx`, `mobile/app/church.tsx`)**:
+    - Built 60fps native `LinearGradient` sweeping shimmer skeleton loaders (`SkeletonFeedLoading`, `SkeletonPrayerLoading`, `SkeletonStewardShopLoading`, `SkeletonEventsLoading`, `SkeletonDirectoryLoading`, `SkeletonProfileLoading`) and `<TopNavigationProgress />` across all screens, and eliminated redundant 500-member directory fetches when opening a single member profile.
+
 ## [v2.82.0] — 2026-11-07
 ### Added / Changed / Fixed
 - **Complete 1:1 Web-to-Mobile Feature & Deep-Link Parity Across All Core Modules (`mobile/v1.6.0`, `v2.82.0`)**:

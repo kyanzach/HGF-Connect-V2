@@ -17,6 +17,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import client from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
 import AlertPromptModal, { AlertType } from '@/components/ui/AlertPromptModal';
+import { SkeletonEventsLoading } from '@/components/ui/SkeletonPulse';
 
 interface EventItem {
   id: number;
@@ -387,12 +388,10 @@ export default function EventsScreen() {
   return (
     <View style={styles.container}>
       {loading && events.length === 0 ? (
-        <View style={{ flex: 1 }}>
+        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
           {renderHeader()}
-          <View style={styles.center}>
-            <ActivityIndicator size="large" color="#4EB1CB" />
-          </View>
-        </View>
+          <SkeletonEventsLoading />
+        </ScrollView>
       ) : (
         <FlatList
           data={displayList}

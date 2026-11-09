@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { getAuthenticatedMember } from "@/lib/mobileAuth";
 import { db } from "@/lib/db";
 
 // PATCH /api/comments/[commentId] — pin/unpin (post owner or admin only)
@@ -8,7 +9,8 @@ export async function PATCH(
   { params }: { params: Promise<{ commentId: string }> }
 ) {
   const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const mobileMember = !session ? await getAuthenticatedMember(request) : null;
+  if (!session && !mobileMember) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { commentId } = await params;
   const cid = parseInt(commentId);
@@ -21,9 +23,10 @@ export async function PATCH(
     });
     if (!comment) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    const userId = parseInt(session.user.id);
+    const userId = session?.user?.id ? parseInt(session.user.id) : mobileMember!.id;
+    const userRole = session?.user?.role ?? mobileMember?.role ?? "";
     const isPostOwner = comment.post.authorId === userId;
-    const isAdmin = ["admin", "moderator"].includes(session.user.role ?? "");
+    const isAdmin = ["admin", "moderator"].includes(userRole);
     if (!isPostOwner && !isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { action } = await request.json(); // "pin" | "unpin"
@@ -46,11 +49,12 @@ export async function PATCH(
 
 // DELETE /api/comments/[commentId] — delete own comment or admin
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ commentId: string }> }
 ) {
   const session = await auth();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const mobileMember = !session ? await getAuthenticatedMember(request) : null;
+  if (!session && !mobileMember) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { commentId } = await params;
   const cid = parseInt(commentId);
@@ -62,10 +66,11 @@ export async function DELETE(
     });
     if (!comment) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    const userId = parseInt(session.user.id);
+    const userId = session?.user?.id ? parseInt(session.user.id) : mobileMember!.id;
+    const userRole = session?.user?.role ?? mobileMember?.role ?? "";
     const isOwner = comment.authorId === userId;
     const isPostOwner = comment.post.authorId === userId;
-    const isAdmin = ["admin", "moderator"].includes(session.user.role ?? "");
+    const isAdmin = ["admin", "moderator"].includes(userRole);
     if (!isOwner && !isPostOwner && !isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     await (db as any).comment.delete({ where: { id: cid } });

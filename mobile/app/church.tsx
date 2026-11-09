@@ -24,6 +24,8 @@ import client from '@/api/client';
 import TopHeader from '@/components/ui/TopHeader';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import { useAuth } from '@/context/AuthContext';
+import { SkeletonDirectoryLoading, SkeletonProfileLoading } from '@/components/ui/SkeletonPulse';
+import InlineCommentThread from '@/components/ui/InlineCommentThread';
 
 const PRIMARY = '#4EB1CB';
 const HGF_LOGO = require('../assets/images/HGF-icon-v1.0.png');
@@ -211,6 +213,7 @@ export default function WebReplicaScreen() {
   const [reactionPickerPostId, setReactionPickerPostId] = useState<number | null>(null);
   const [reactionsModalPost, setReactionsModalPost] = useState<any | null>(null);
   const [reactionsModalTab, setReactionsModalTab] = useState<'ALL' | 'HEART' | 'PRAY' | 'CARE'>('ALL');
+  const [expandedWallCommentPostIds, setExpandedWallCommentPostIds] = useState<Record<number, boolean>>({});
   const [commentModalPost, setCommentModalPost] = useState<any | null>(null);
   const [commentsList, setCommentsList] = useState<any[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
@@ -340,17 +343,27 @@ export default function WebReplicaScreen() {
 
   const loadData = useCallback(async () => {
     try {
+      // When viewing a single member profile and directory is already cached, skip heavy 500-member directory reload
+      if (activePage === 'member' && members.length > 0) {
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
       const qIdToLoad = selectedQuizId || (rawQuizId ? Number(rawQuizId) : null);
       const churchEndpoint = qIdToLoad ? `/church?quizId=${qIdToLoad}` : '/church';
       // Fetch both /church (mobile API) and /api/members?limit=500 (public web API for full 486 members)
       const [churchRes, webMembersRes, webMinRes, shopRes, sharesRes] = await Promise.all([
         client.get(churchEndpoint).catch(() => null),
-        fetch('https://connect.houseofgrace.ph/api/members?limit=500')
-          .then((r) => (r.ok ? r.json() : null))
-          .catch(() => null),
-        fetch('https://connect.houseofgrace.ph/api/ministries')
-          .then((r) => (r.ok ? r.json() : null))
-          .catch(() => null),
+        members.length === 0 || activePage === 'directory'
+          ? fetch('https://connect.houseofgrace.ph/api/members?limit=500')
+              .then((r) => (r.ok ? r.json() : null))
+              .catch(() => null)
+          : Promise.resolve(null),
+        ministries.length === 0 || activePage === 'directory' || activePage === 'ministries'
+          ? fetch('https://connect.houseofgrace.ph/api/ministries')
+              .then((r) => (r.ok ? r.json() : null))
+              .catch(() => null)
+          : Promise.resolve(null),
         activePage === 'my-listings' || activePage === 'my-shares'
           ? client.get('/stewardshop').catch(() => null)
           : Promise.resolve(null),
@@ -556,10 +569,30 @@ export default function WebReplicaScreen() {
           : currentMyReaction
             ? currentCount
             : currentCount + 1;
+        const myMemberId = Number(user?.id || 0);
+        const existingLikes = Array.isArray(p.likes) ? p.likes : [];
+        const filteredLikes = existingLikes.filter((l: any) => Number(l.memberId) !== myMemberId);
+        const updatedLikes =
+          nextMyReaction && myMemberId
+            ? [
+                ...filteredLikes,
+                {
+                  memberId: myMemberId,
+                  type: nextMyReaction,
+                  member: {
+                    id: myMemberId,
+                    firstName: user?.firstName || user?.fullName?.split(' ')[0] || 'You',
+                    lastName: user?.lastName || user?.fullName?.split(' ').slice(1).join(' ') || '',
+                    profilePicture: user?.profilePicture || null,
+                  },
+                },
+              ]
+            : filteredLikes;
         return {
           ...p,
           myReaction: nextMyReaction,
           likeCount: nextCount,
+          likes: updatedLikes,
           _count: { ...(p._count || {}), likes: nextCount },
         };
       })
@@ -571,20 +604,12 @@ export default function WebReplicaScreen() {
     }
   };
 
-  const openPostComments = async (post: any) => {
+  const openPostComments = (post: any) => {
     setOpenPostMenuId(null);
-    setCommentModalPost(post);
-    setCommentsList([]);
-    setLoadingComments(true);
-    try {
-      const res = await client.get(`/posts/${post.id}/comments`);
-      const list = res?.data?.data || res?.data?.comments || [];
-      setCommentsList(Array.isArray(list) ? list : []);
-    } catch {
-      setCommentsList([]);
-    } finally {
-      setLoadingComments(false);
-    }
+    setExpandedWallCommentPostIds((prev) => ({
+      ...prev,
+      [post.id]: !prev[post.id],
+    }));
   };
 
   const submitPostComment = async () => {
@@ -826,7 +851,7 @@ export default function WebReplicaScreen() {
                   <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
                     <Image
                       source={{ uri: coverUri }}
-                      style={StyleSheet.absoluteFillObject}
+                      style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' }}
                       resizeMode="cover"
                     />
                     <LinearGradient
@@ -956,9 +981,7 @@ export default function WebReplicaScreen() {
         }}
         ListEmptyComponent={
           loading ? (
-            <View style={{ padding: 40, alignItems: 'center' }}>
-              <ActivityIndicator size="large" color={PRIMARY} />
-            </View>
+            <SkeletonDirectoryLoading />
           ) : (
             <View style={{ padding: 48, alignItems: 'center' }}>
               <Text style={{ fontSize: 40, marginBottom: 8 }}>🔍</Text>
@@ -976,9 +999,9 @@ export default function WebReplicaScreen() {
   const renderMemberProfilePage = () => {
     if (loadingMember && !memberProfile) {
       return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
-          <ActivityIndicator size="large" color={PRIMARY} />
-        </View>
+        <ScrollView style={{ flex: 1, backgroundColor: '#f8fafc' }} showsVerticalScrollIndicator={false}>
+          <SkeletonProfileLoading />
+        </ScrollView>
       );
     }
 
@@ -1012,11 +1035,24 @@ export default function WebReplicaScreen() {
         ? m.profilePicture
         : `https://connect.houseofgrace.ph/uploads/profile_pictures/${m.profilePicture}`
       : null;
-    const coverSrc = m.coverPhoto
-      ? m.coverPhoto.startsWith('http')
-        ? m.coverPhoto
-        : `https://connect.houseofgrace.ph/uploads/cover_photos/${m.coverPhoto}`
+    const rawCover =
+      m.coverPhoto ||
+      memberProfile?.coverPhoto ||
+      members.find((x) => Number(x.id) === Number(targetMemberId))?.coverPhoto ||
+      (m.isOwn ? (user as any)?.coverPhoto : null);
+    const coverSrc = rawCover
+      ? String(rawCover).startsWith('http')
+        ? String(rawCover)
+        : String(rawCover).startsWith('/')
+        ? `https://connect.houseofgrace.ph${rawCover}`
+        : `https://connect.houseofgrace.ph/uploads/cover_photos/${rawCover}`
       : null;
+    const coverPosY = Number(m.coverPhotoPositionY ?? memberProfile?.coverPhotoPositionY ?? 50);
+    const coverImgHeight = 380;
+    const coverBannerHeight = 220;
+    const coverTopOffset = -Math.round(
+      (coverImgHeight - coverBannerHeight) * (Math.min(100, Math.max(0, coverPosY)) / 100)
+    );
 
     const calcDuration = (joinDate?: string | null) => {
       if (!joinDate) return '';
@@ -1104,7 +1140,14 @@ export default function WebReplicaScreen() {
           {coverSrc ? (
             <Image
               source={{ uri: coverSrc }}
-              style={StyleSheet.absoluteFillObject}
+              style={{
+                position: 'absolute',
+                top: coverTopOffset,
+                left: 0,
+                right: 0,
+                width: '100%',
+                height: coverImgHeight,
+              }}
               resizeMode="cover"
             />
           ) : null}
@@ -1166,7 +1209,7 @@ export default function WebReplicaScreen() {
 
         {/* ── White Hero Card ── */}
         <View style={{ backgroundColor: '#ffffff', paddingHorizontal: 16, paddingBottom: 16 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 12, marginTop: -44 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             {/* Overlapping 88x88 Avatar */}
             <TouchableOpacity
               activeOpacity={0.9}
@@ -1178,6 +1221,7 @@ export default function WebReplicaScreen() {
                 }
               }}
               style={{
+                marginTop: -36,
                 width: 88,
                 height: 88,
                 borderRadius: 44,
@@ -1201,79 +1245,94 @@ export default function WebReplicaScreen() {
               )}
             </TouchableOpacity>
 
-            {/* Name + Inline Badges */}
-            <View style={{ flex: 1, paddingBottom: 6, minWidth: 0 }}>
-              <Text
-                numberOfLines={1}
+            {/* Balanced Right Area: Top row [Name + Post Button], Bottom row [18 months in HGF • 6 Ministries] */}
+            <View style={{ flex: 1, paddingTop: 10, paddingBottom: 4, minWidth: 0 }}>
+              <View
                 style={{
-                  fontSize: 18,
-                  fontWeight: '900',
-                  color: '#0f172a',
-                  marginBottom: 5,
-                  letterSpacing: -0.3,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 8,
+                  marginBottom: 8,
                 }}
               >
-                {fullName}
-              </Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5 }}>
+                <Text
+                  numberOfLines={1}
+                  style={{
+                    flex: 1,
+                    fontSize: 19,
+                    fontWeight: '900',
+                    color: '#0f172a',
+                    letterSpacing: -0.3,
+                  }}
+                >
+                  {fullName}
+                </Text>
+
+                {/* Right Pill: ✍️ Post (own) or 👤 Member */}
+                {m.isOwn ? (
+                  <TouchableOpacity
+                    style={{
+                      backgroundColor: PRIMARY,
+                      paddingHorizontal: 14,
+                      paddingVertical: 6,
+                      borderRadius: 999,
+                    }}
+                    onPress={() => router.push('/create-post' as any)}
+                  >
+                    <Text numberOfLines={1} style={{ color: '#ffffff', fontSize: 12.5, fontWeight: '700' }}>
+                      ✍️ Post
+                    </Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View
+                    style={{
+                      backgroundColor: 'rgba(78,177,203,0.14)',
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 999,
+                    }}
+                  >
+                    <Text numberOfLines={1} style={{ color: PRIMARY, fontSize: 12, fontWeight: '700' }}>
+                      👤 Member
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
                 {dur ? (
                   <View
                     style={{
                       backgroundColor: 'rgba(78,177,203,0.12)',
-                      paddingHorizontal: 8,
-                      paddingVertical: 3,
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
                       borderRadius: 999,
                     }}
                   >
-                    <Text style={{ fontSize: 10.5, fontWeight: '700', color: PRIMARY }}>
+                    <Text numberOfLines={1} style={{ fontSize: 11, fontWeight: '700', color: PRIMARY }}>
                       📅 {dur} in HGF
                     </Text>
                   </View>
                 ) : null}
                 {minList.length > 0 ? (
-                  <View
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => setMemberTab('ministries')}
                     style={{
                       backgroundColor: '#f1f5f9',
-                      paddingHorizontal: 8,
-                      paddingVertical: 3,
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
                       borderRadius: 999,
                     }}
                   >
-                    <Text style={{ fontSize: 10.5, fontWeight: '700', color: '#64748b' }}>
+                    <Text numberOfLines={1} style={{ fontSize: 11, fontWeight: '700', color: '#64748b' }}>
                       🤲 {minList.length} {minList.length === 1 ? 'Ministry' : 'Ministries'}
                     </Text>
-                  </View>
+                  </TouchableOpacity>
                 ) : null}
               </View>
             </View>
-
-            {/* Right Pill: ✍️ Post (own) or 👤 Member */}
-            {m.isOwn ? (
-              <TouchableOpacity
-                style={{
-                  marginBottom: 6,
-                  backgroundColor: PRIMARY,
-                  paddingHorizontal: 14,
-                  paddingVertical: 7,
-                  borderRadius: 999,
-                }}
-                onPress={() => router.push('/create-post' as any)}
-              >
-                <Text style={{ color: '#ffffff', fontSize: 12.5, fontWeight: '700' }}>✍️ Post</Text>
-              </TouchableOpacity>
-            ) : (
-              <View
-                style={{
-                  marginBottom: 6,
-                  backgroundColor: 'rgba(78,177,203,0.14)',
-                  paddingHorizontal: 14,
-                  paddingVertical: 7,
-                  borderRadius: 999,
-                }}
-              >
-                <Text style={{ color: PRIMARY, fontSize: 12.5, fontWeight: '700' }}>👤 Member</Text>
-              </View>
-            )}
           </View>
 
           {/* Favorite Verse Quote */}
@@ -1977,10 +2036,20 @@ export default function WebReplicaScreen() {
                             justifyContent: 'center',
                             paddingVertical: 6,
                             gap: 5,
+                            backgroundColor: expandedWallCommentPostIds[post.id]
+                              ? 'rgba(78,177,203,0.1)'
+                              : 'transparent',
+                            borderRadius: 8,
                           }}
                           onPress={() => openPostComments(post)}
                         >
-                          <Text style={{ fontSize: 15, color: '#64748b', fontWeight: '600' }}>
+                          <Text
+                            style={{
+                              fontSize: 15,
+                              color: expandedWallCommentPostIds[post.id] ? PRIMARY : '#64748b',
+                              fontWeight: expandedWallCommentPostIds[post.id] ? '700' : '600',
+                            }}
+                          >
                             💬 {commentCount > 0 ? commentCount : ''}
                           </Text>
                         </TouchableOpacity>
@@ -2006,6 +2075,35 @@ export default function WebReplicaScreen() {
                           </Text>
                         </TouchableOpacity>
                       </View>
+
+                      {/* Inline Facebook/Instagram Threaded Comments on Member Wall */}
+                      <InlineCommentThread
+                        postId={post.id}
+                        postAuthorId={Number(post.author?.id || post.authorId || m.id)}
+                        isOpen={Boolean(expandedWallCommentPostIds[post.id])}
+                        onCommentCountChange={(delta) => {
+                          setMemberPosts((prev) =>
+                            prev.map((p) =>
+                              p.id === post.id
+                                ? {
+                                    ...p,
+                                    commentCount: Math.max(
+                                      0,
+                                      (p.commentCount ?? p._count?.comments ?? 0) + delta
+                                    ),
+                                    _count: {
+                                      ...(p._count || {}),
+                                      comments: Math.max(
+                                        0,
+                                        (p._count?.comments ?? p.commentCount ?? 0) + delta
+                                      ),
+                                    },
+                                  }
+                                : p
+                            )
+                          );
+                        }}
+                      />
                     </View>
                   );
                 })}

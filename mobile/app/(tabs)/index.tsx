@@ -22,6 +22,8 @@ import client from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
 import AlertPromptModal, { AlertType } from '@/components/ui/AlertPromptModal';
 import ConfirmModal from '@/components/ui/ConfirmModal';
+import { SkeletonFeedLoading } from '@/components/ui/SkeletonPulse';
+import InlineCommentThread from '@/components/ui/InlineCommentThread';
 
 const MOUNTAIN_BG = require('../../assets/images/mountain.png');
 const OCEAN_BG = require('../../assets/images/ocean.png');
@@ -57,6 +59,17 @@ interface FeedPost {
   commentCount: number;
   myReaction?: string | null;
   reactionCounts?: Record<string, number>;
+  likes?: Array<{
+    memberId: number;
+    type: string;
+    member?: {
+      id: number;
+      firstName?: string;
+      lastName?: string;
+      avatar?: string | null;
+      profilePicture?: string | null;
+    } | null;
+  }>;
 }
 
 interface CommentItem {
@@ -220,10 +233,13 @@ export default function FeedScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Reaction Picker Post ID
+  // Reaction Picker Post ID & Who-Reacted Analytics Modal
   const [reactionPickerPostId, setReactionPickerPostId] = useState<number | null>(null);
+  const [reactionsModalPost, setReactionsModalPost] = useState<FeedPost | null>(null);
+  const [reactionsModalTab, setReactionsModalTab] = useState<string>('ALL');
 
-  // Comments Modal
+  // Inline Expandable Comments Map (postId -> boolean)
+  const [expandedCommentPostIds, setExpandedCommentPostIds] = useState<Record<number, boolean>>({});
   const [activePost, setActivePost] = useState<FeedPost | null>(null);
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
@@ -311,13 +327,36 @@ export default function FeedScreen() {
     const isRemoving = prevReaction === reactionType;
     const nextReaction = isRemoving ? null : reactionType;
     const delta = isRemoving ? -1 : prevReaction ? 0 : 1;
+    const myMemberId = Number(user.id);
 
     setPosts((prev) =>
-      prev.map((p) =>
-        p.id === post.id
-          ? { ...p, myReaction: nextReaction, likeCount: Math.max(0, p.likeCount + delta) }
-          : p
-      )
+      prev.map((p) => {
+        if (p.id !== post.id) return p;
+        const existingLikes = Array.isArray(p.likes) ? p.likes : [];
+        const filteredLikes = existingLikes.filter((l) => Number(l.memberId) !== myMemberId);
+        const updatedLikes = nextReaction
+          ? [
+              ...filteredLikes,
+              {
+                memberId: myMemberId,
+                type: nextReaction,
+                member: {
+                  id: myMemberId,
+                  firstName: user.firstName || user.fullName?.split(' ')[0] || 'You',
+                  lastName: user.lastName || user.fullName?.split(' ').slice(1).join(' ') || '',
+                  avatar: getAvatarUrl(user.profilePicture),
+                  profilePicture: user.profilePicture,
+                },
+              },
+            ]
+          : filteredLikes;
+        return {
+          ...p,
+          myReaction: nextReaction,
+          likeCount: Math.max(0, p.likeCount + delta),
+          likes: updatedLikes,
+        };
+      })
     );
 
     try {
@@ -327,18 +366,11 @@ export default function FeedScreen() {
     }
   };
 
-  const openComments = async (post: FeedPost) => {
-    setActivePost(post);
-    setLoadingComments(true);
-    try {
-      const { data } = await client.get(`/posts/${post.id}/comments`);
-      const payload = data?.data || data;
-      setComments(payload?.comments || []);
-    } catch {
-      setComments([]);
-    } finally {
-      setLoadingComments(false);
-    }
+  const openComments = (post: FeedPost) => {
+    setExpandedCommentPostIds((prev) => ({
+      ...prev,
+      [post.id]: !prev[post.id],
+    }));
   };
 
   const handleSendComment = async () => {
@@ -376,9 +408,10 @@ export default function FeedScreen() {
 
   const handleSharePost = async (post: FeedPost) => {
     try {
+      const shareUrl = `https://connect.houseofgrace.ph/p/${post.id}`;
       await Share.share({
-        message: `${post.author.name} on HGF Connect — https://connect.houseofgrace.ph/feed#post-${post.id}`,
-        url: `https://connect.houseofgrace.ph/feed#post-${post.id}`,
+        message: `${post.author.name} on HGF Connect\n${shareUrl}`,
+        url: shareUrl,
       });
     } catch {
       // User dismissed share sheet
@@ -1270,26 +1303,65 @@ export default function FeedScreen() {
           </TouchableOpacity>
         )}
 
-        {/* Reactions Summary Row */}
-        {(item.likeCount > 0 || item.commentCount > 0) && (
-          <View style={styles.reactionSummaryRow}>
-            {item.likeCount > 0 ? (
-              <View style={styles.reactionSummaryLeft}>
-                <Text style={{ fontSize: 13 }}>❤️ 🙏</Text>
-                <Text style={styles.reactionSummaryCount}>{item.likeCount}</Text>
+        {/* Reactions Summary Row (1:1 with components/feed/PostCard.tsx) */}
+        {item.likeCount > 0 && (() => {
+          const rawTypes = Array.from(
+            new Set((item.likes || []).map((r) => r.type || 'HEART'))
+          );
+          const distinctTypes = rawTypes.length > 0 ? rawTypes : ['HEART'];
+          const emojiMap: Record<string, string> = {
+            HEART: '❤️',
+            PRAY: '🙏',
+            HUG: '🤗',
+            CARE: '🤗',
+          };
+          return (
+            <TouchableOpacity
+              activeOpacity={0.75}
+              onPress={() => {
+                setReactionsModalPost(item);
+                setReactionsModalTab('ALL');
+              }}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                gap: 6,
+                paddingVertical: 6,
+                paddingHorizontal: 2,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                {distinctTypes.map((t, i) => (
+                  <View
+                    key={t}
+                    style={{
+                      width: 20,
+                      height: 20,
+                      borderRadius: 10,
+                      backgroundColor: '#ffffff',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginLeft: i > 0 ? -5 : 0,
+                      zIndex: 3 - i,
+                      borderWidth: 1,
+                      borderColor: '#f1f5f9',
+                      shadowColor: '#000',
+                      shadowOpacity: 0.12,
+                      shadowRadius: 2,
+                      elevation: 1,
+                    }}
+                  >
+                    <Text style={{ fontSize: 11 }}>{emojiMap[t] || '❤️'}</Text>
+                  </View>
+                ))}
               </View>
-            ) : (
-              <View />
-            )}
-            {item.commentCount > 0 ? (
-              <TouchableOpacity onPress={() => openComments(item)}>
-                <Text style={styles.reactionSummaryComments}>
-                  {item.commentCount} {item.commentCount === 1 ? 'comment' : 'comments'}
-                </Text>
-              </TouchableOpacity>
-            ) : null}
-          </View>
-        )}
+              <Text style={{ fontSize: 12.5, color: '#64748b', fontWeight: '600' }}>
+                {item.likeCount}
+              </Text>
+            </TouchableOpacity>
+          );
+        })()}
 
         {/* Reaction Picker Popover */}
         {reactionPickerPostId === item.id && (
@@ -1316,31 +1388,32 @@ export default function FeedScreen() {
               styles.postActionBtn,
               item.myReaction ? styles.postActionBtnActive : null,
             ]}
-            onPress={() =>
+            onPress={() => handleReact(item, item.myReaction || 'HEART')}
+            onLongPress={() =>
               setReactionPickerPostId((prev) => (prev === item.id ? null : item.id))
             }
             activeOpacity={0.75}
           >
-            <Text style={{ fontSize: 17 }}>{myEmoji || '🤍'}</Text>
-            {item.likeCount > 0 && (
-              <Text
-                style={[
-                  styles.postActionText,
-                  item.myReaction ? { color: '#4EB1CB', fontWeight: '700' } : null,
-                ]}
-              >
-                {item.likeCount}
-              </Text>
-            )}
+            <Text style={{ fontSize: 18 }}>{myEmoji || '🤍'}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.postActionBtn}
+            style={[
+              styles.postActionBtn,
+              expandedCommentPostIds[item.id] ? styles.postActionBtnActive : null,
+            ]}
             onPress={() => openComments(item)}
             activeOpacity={0.75}
           >
             <Text style={{ fontSize: 16 }}>💬</Text>
-            <Text style={styles.postActionText}>{item.commentCount}</Text>
+            <Text
+              style={[
+                styles.postActionText,
+                expandedCommentPostIds[item.id] ? { color: '#4EB1CB', fontWeight: '700' } : null,
+              ]}
+            >
+              {item.commentCount}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -1352,6 +1425,22 @@ export default function FeedScreen() {
             <Text style={styles.postActionText}>Share</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Inline Facebook/Instagram Threaded Comments */}
+        <InlineCommentThread
+          postId={item.id}
+          postAuthorId={item.author.id}
+          isOpen={Boolean(expandedCommentPostIds[item.id])}
+          onCommentCountChange={(delta) => {
+            setPosts((prev) =>
+              prev.map((p) =>
+                p.id === item.id
+                  ? { ...p, commentCount: Math.max(0, p.commentCount + delta) }
+                  : p
+              )
+            );
+          }}
+        />
       </View>
     );
   };
@@ -1397,9 +1486,9 @@ export default function FeedScreen() {
   return (
     <View style={styles.container}>
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color="#4EB1CB" />
-        </View>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <SkeletonFeedLoading />
+        </ScrollView>
       ) : (
         <FlatList
           data={visiblePosts}
@@ -1430,79 +1519,182 @@ export default function FeedScreen() {
         />
       )}
 
-      {/* Comments Drawer Modal */}
+      {/* Who-Reacted Analytics Modal (1:1 with components/feed/PostCard.tsx) */}
       <Modal
-        visible={Boolean(activePost)}
+        visible={Boolean(reactionsModalPost)}
         transparent
         animationType="slide"
-        onRequestClose={() => setActivePost(null)}
+        onRequestClose={() => setReactionsModalPost(null)}
       >
-        <KeyboardAvoidingView
+        <TouchableOpacity
           style={styles.modalBackdrop}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          activeOpacity={1}
+          onPress={() => setReactionsModalPost(null)}
         >
-          <View style={[styles.modalSheet, { maxHeight: '80%' }]}>
+          <TouchableOpacity
+            activeOpacity={1}
+            style={[styles.modalSheet, { maxHeight: '75%' }]}
+          >
             <View style={styles.modalHandle} />
             <View style={styles.modalHeaderRow}>
-              <Text style={styles.modalTitle}>💬 Comments ({comments.length})</Text>
-              <TouchableOpacity onPress={() => setActivePost(null)}>
-                <Text style={{ fontSize: 18, color: '#64748b', fontWeight: '700' }}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            {loadingComments ? (
-              <ActivityIndicator color="#4EB1CB" style={{ marginVertical: 24 }} />
-            ) : (
-              <FlatList
-                data={comments}
-                keyExtractor={(c) => String(c.id)}
-                style={{ marginVertical: 10 }}
-                renderItem={({ item }) => (
-                  <View style={styles.commentRow}>
-                    <View style={styles.commentAvatar}>
-                      <Text style={styles.commentAvatarText}>
-                        {item.author.name?.[0]?.toUpperCase() || 'M'}
-                      </Text>
-                    </View>
-                    <View style={styles.commentBubble}>
-                      <View style={styles.commentHeader}>
-                        <Text style={styles.commentAuthor}>{item.author.name}</Text>
-                        <Text style={styles.commentDate}>{timeAgo(item.createdAt)}</Text>
-                      </View>
-                      <Text style={styles.commentBody}>{item.content}</Text>
-                    </View>
-                  </View>
-                )}
-                ListEmptyComponent={
-                  <Text style={styles.noCommentsText}>
-                    No comments yet. Share an encouraging word!
-                  </Text>
-                }
-              />
-            )}
-
-            <View style={styles.commentInputRow}>
-              <TextInput
-                style={styles.commentInput}
-                placeholder="Write a comment…"
-                placeholderTextColor="#94a3b8"
-                value={commentText}
-                onChangeText={setCommentText}
-              />
+              <Text style={styles.modalTitle}>Reactions</Text>
               <TouchableOpacity
-                style={styles.sendCommentBtn}
-                onPress={handleSendComment}
-                disabled={sendingComment}
+                onPress={() => setReactionsModalPost(null)}
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 14,
+                  backgroundColor: '#f1f5f9',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
               >
-                {sendingComment ? (
-                  <ActivityIndicator size="small" color="#ffffff" />
-                ) : (
-                  <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 13 }}>Post</Text>
-                )}
+                <Text style={{ fontSize: 14, color: '#64748b', fontWeight: '700' }}>✕</Text>
               </TouchableOpacity>
             </View>
-          </View>
-        </KeyboardAvoidingView>
+
+            {/* Filter Tabs: All | ❤️ | 🙏 | 🤗 */}
+            <View
+              style={{
+                flexDirection: 'row',
+                gap: 8,
+                paddingVertical: 10,
+                borderBottomWidth: 1,
+                borderBottomColor: '#f1f5f9',
+              }}
+            >
+              {(['ALL', 'HEART', 'PRAY', 'HUG'] as const).map((tab) => {
+                const postReactions = reactionsModalPost?.likes || [];
+                const count =
+                  tab === 'ALL'
+                    ? postReactions.length
+                    : postReactions.filter(
+                        (r) =>
+                          r.type === tab || (tab === 'HUG' && r.type === 'CARE')
+                      ).length;
+                if (count === 0 && tab !== 'ALL') return null;
+                const isActive = reactionsModalTab === tab;
+                const emojiMap: Record<string, string> = {
+                  ALL: 'All',
+                  HEART: '❤️',
+                  PRAY: '🙏',
+                  HUG: '🤗',
+                };
+                return (
+                  <TouchableOpacity
+                    key={tab}
+                    onPress={() => setReactionsModalTab(tab)}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 4,
+                      backgroundColor: isActive ? 'rgba(78,177,203,0.14)' : 'transparent',
+                      borderRadius: 16,
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: '700',
+                        color: isActive ? '#4EB1CB' : '#64748b',
+                      }}
+                    >
+                      {emojiMap[tab]} {count}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Reactors List */}
+            <ScrollView style={{ marginTop: 6 }} showsVerticalScrollIndicator={false}>
+              {(reactionsModalPost?.likes || [])
+                .filter(
+                  (r) =>
+                    reactionsModalTab === 'ALL' ||
+                    r.type === reactionsModalTab ||
+                    (reactionsModalTab === 'HUG' && r.type === 'CARE')
+                )
+                .map((r, idx) => {
+                  const first = r.member?.firstName || '';
+                  const last = r.member?.lastName || '';
+                  const fullName = `${first} ${last}`.trim() || 'Church Member';
+                  const initials = `${first[0] || ''}${last[0] || ''}`.toUpperCase() || 'M';
+                  const avatarUri = getAvatarUrl(r.member?.avatar || r.member?.profilePicture);
+                  const badgeEmoji =
+                    r.type === 'PRAY' ? '🙏' : r.type === 'HUG' || r.type === 'CARE' ? '🤗' : '❤️';
+                  return (
+                    <TouchableOpacity
+                      key={`${r.memberId}-${idx}`}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        paddingVertical: 10,
+                        borderBottomWidth: 1,
+                        borderBottomColor: '#f8fafc',
+                      }}
+                      onPress={() => {
+                        setReactionsModalPost(null);
+                        if (r.memberId) {
+                          router.push(`/church?tab=member&id=${r.memberId}` as any);
+                        }
+                      }}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <View
+                          style={{
+                            width: 38,
+                            height: 38,
+                            borderRadius: 19,
+                            backgroundColor: 'rgba(78,177,203,0.18)',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            position: 'relative',
+                          }}
+                        >
+                          {avatarUri ? (
+                            <Image
+                              source={{ uri: avatarUri }}
+                              style={{ width: 38, height: 38, borderRadius: 19 }}
+                            />
+                          ) : (
+                            <Text style={{ color: '#4EB1CB', fontSize: 13, fontWeight: '800' }}>
+                              {initials}
+                            </Text>
+                          )}
+                          <View
+                            style={{
+                              position: 'absolute',
+                              bottom: -2,
+                              right: -2,
+                              width: 17,
+                              height: 17,
+                              borderRadius: 9,
+                              backgroundColor: '#ffffff',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              shadowColor: '#000',
+                              shadowOpacity: 0.15,
+                              shadowRadius: 2,
+                              elevation: 2,
+                            }}
+                          >
+                            <Text style={{ fontSize: 10 }}>{badgeEmoji}</Text>
+                          </View>
+                        </View>
+                        <Text style={{ fontSize: 14, fontWeight: '700', color: '#1e293b' }}>
+                          {fullName}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+            </ScrollView>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
 
       {/* Post ••• Action Sheet */}
