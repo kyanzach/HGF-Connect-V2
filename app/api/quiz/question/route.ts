@@ -29,19 +29,38 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Question not found" }, { status: 404 });
     }
 
-    if (question.quiz.status !== "published") {
+    if (!["published", "completed"].includes(question.quiz.status)) {
       return NextResponse.json({ error: "Quiz is not active" }, { status: 403 });
     }
 
-    // Enforce day access checks
+    const memberId = parseInt(session.user.id, 10);
+    let isCatchup = false;
+
+    // Enforce day access checks (including 7-day Catch-Up pass)
     if (isQuizWeekExpired(question.quiz.sermonDate)) {
-      return NextResponse.json({ error: "This quiz week has ended" }, { status: 403 });
+      if (!isNaN(memberId)) {
+        const catchupSession = await db.quizCatchupSession.findUnique({
+          where: { quizId_memberId: { quizId: question.quiz.id, memberId } },
+        });
+        if (
+          catchupSession &&
+          !catchupSession.isCompleted &&
+          new Date() < catchupSession.expiresAt
+        ) {
+          isCatchup = true;
+        }
+      }
+      if (!isCatchup) {
+        return NextResponse.json({ error: "This quiz week has ended" }, { status: 403 });
+      }
     }
 
-    const quizRelativeDay = getQuizDayForDate(question.quiz.sermonDate);
-    const currentDay = Math.min(Math.max(quizRelativeDay, 0), 7);
-    if (!canAccessDay(question.dayNumber, currentDay)) {
-      return NextResponse.json({ error: "This question is not unlocked yet" }, { status: 403 });
+    if (!isCatchup) {
+      const quizRelativeDay = getQuizDayForDate(question.quiz.sermonDate);
+      const currentDay = Math.min(Math.max(quizRelativeDay, 0), 7);
+      if (!canAccessDay(question.dayNumber, currentDay)) {
+        return NextResponse.json({ error: "This question is not unlocked yet" }, { status: 403 });
+      }
     }
 
     // Safely return only what the client needs to render the form

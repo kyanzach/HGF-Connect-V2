@@ -20,7 +20,7 @@
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://care.maskpro.ph/api"
+        "EXPO_PUBLIC_API_URL": "https://connect.houseofgrace.ph/api/mobile"
       },
       "ios": {
         "resourceClass": "m-medium"

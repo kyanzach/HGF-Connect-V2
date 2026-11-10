@@ -14,9 +14,9 @@ import { callOpenAI, callOpenAIJson } from "./ai";
 // 0 = Sun, 1 = Mon, 2 = Tue, 3 = Wed, 4 = Thu, 5 = Fri, 6 = Sat
 export const QUIZ_DAYS = [
   { dayNumber: 1, weekday: 1, label: "Monday",    type: "MULTIPLE_CHOICE"    as const },
-  { dayNumber: 2, weekday: 2, label: "Tuesday",   type: "FILL_IN_BLANKS"     as const },
+  { dayNumber: 2, weekday: 2, label: "Tuesday",   type: "TREE_OF_LIFE"       as const },
   { dayNumber: 3, weekday: 3, label: "Wednesday", type: "SHORT_ANSWER"       as const },
-  { dayNumber: 4, weekday: 4, label: "Thursday",  type: "SCRIPTURE_ORDERING" as const },
+  { dayNumber: 4, weekday: 4, label: "Thursday",  type: "TREE_OF_LIFE"       as const },
   { dayNumber: 5, weekday: 5, label: "Friday",    type: "TRUE_FALSE_EXPLAIN" as const },
   { dayNumber: 6, weekday: 6, label: "Saturday",  type: "MULTIPLE_CHOICE"    as const },
   { dayNumber: 7, weekday: 0, label: "Sunday",    type: "SHORT_ANSWER"       as const },
@@ -24,6 +24,7 @@ export const QUIZ_DAYS = [
 
 export const QUIZ_TYPE_LABELS: Record<string, { label: string; difficulty: string; emoji: string }> = {
   MULTIPLE_CHOICE:    { label: "Balloon Pop",       difficulty: "Easy",        emoji: "🎈" },
+  TREE_OF_LIFE:       { label: "Tree of Wisdom",    difficulty: "Medium",      emoji: "🌳" },
   FILL_IN_BLANKS:     { label: "Fill the Blanks",   difficulty: "Medium-Easy", emoji: "✏️" },
   SHORT_ANSWER:       { label: "In Your Own Words", difficulty: "Medium",      emoji: "📝" },
   SCRIPTURE_ORDERING: { label: "Verse Builder",     difficulty: "Medium-Hard", emoji: "🧩" },
@@ -176,21 +177,22 @@ TASK: Generate THREE things from this sermon summary:
    - options: ["Option A text", "Option B text", "Option C text", "Option D text"]
    - correctAnswer: the exact text of the correct option
 
-   DAY 2 (Tuesday) — FILL_IN_BLANKS:
-   - A key sentence from the sermon with 1-2 missing words replaced by "______"
-   - correctAnswer: the missing word(s), comma-separated if multiple blanks
-   - options: null
+   DAY 2 (Tuesday) — TREE_OF_LIFE:
+   - A clear, encouraging multiple-choice question testing a key Biblical truth or promise from the sermon
+   - 4 options (A, B, C, D) — only 1 correct, with 3 plausible distractors
+   - options: ["Option A text", "Option B text", "Option C text", "Option D text"]
+   - correctAnswer: the exact text of the correct option
 
    DAY 3 (Wednesday) — SHORT_ANSWER:
    - An open-ended question requiring the member to explain a concept in their own words
    - correctAnswer: the ideal answer (used as reference for AI grading)
    - options: null
 
-   DAY 4 (Thursday) — SCRIPTURE_ORDERING:
-   - A key Bible verse or sermon quote broken into 4-6 phrase segments
-   - The segments should be shuffled in the options array
-   - correctAnswer: the segments joined in the correct order, separated by " | "
-   - options: ["shuffled phrase 1", "shuffled phrase 2", ...] (the phrases in WRONG order)
+   DAY 4 (Thursday) — TREE_OF_LIFE:
+   - A deeper wisdom or Scripture-application multiple-choice question from the sermon
+   - 4 options (A, B, C, D) — only 1 correct, with 3 thoughtful distractors
+   - options: ["Option A text", "Option B text", "Option C text", "Option D text"]
+   - correctAnswer: the exact text of the correct option
 
    DAY 5 (Friday) — TRUE_FALSE_EXPLAIN:
    - A statement about the sermon that is either true or false

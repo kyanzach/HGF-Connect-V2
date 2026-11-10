@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getAuthenticatedMember } from "@/lib/mobileAuth";
+import { createNotification } from "@/lib/notify";
 import {
   getQuizDayForDate,
   isQuizWeekExpired,
@@ -443,8 +444,16 @@ export async function GET(req: NextRequest) {
     let quizStatus: any = { active: false };
     if (latestQuiz) {
       const memberId = viewer?.id || 0;
-      const isAdminOrPastor =
+      let isAdminOrPastor =
         viewer?.role === "admin" || viewer?.role === "moderator";
+      if (!isAdminOrPastor && memberId) {
+        const pm = await db.memberMinistry
+          .findFirst({
+            where: { memberId, ministryId: 11, status: "active" },
+          })
+          .catch(() => null);
+        isAdminOrPastor = Boolean(pm);
+      }
       const isActiveQuiz = mostRecentQuizId ? latestQuiz.id === mostRecentQuizId : true;
 
       const userSubs = memberId
@@ -538,6 +547,20 @@ export async function GET(req: NextRequest) {
           .catch(() => null);
       }
 
+      let rewardDisplay: any = rewardTier ? { ...REWARD_DISPLAY[rewardTier] } : null;
+      if (rewardTier && latestQuiz.rewardItems) {
+        const matchedItem = latestQuiz.rewardItems.find(
+          (item: any) => item.rewardTier === rewardTier
+        );
+        if (matchedItem) {
+          rewardDisplay = {
+            label: rewardDisplay?.label || matchedItem.title,
+            description: matchedItem.description || rewardDisplay?.description || "",
+            imageUrl: matchedItem.imageUrl || null,
+          };
+        }
+      }
+
       quizStatus = {
         active: true,
         attended: true,
@@ -576,37 +599,113 @@ export async function GET(req: NextRequest) {
           totalScore,
           isWeekComplete,
           rewardTier,
-          rewardDisplay: rewardTier ? { ...REWARD_DISPLAY[rewardTier] } : null,
+          rewardDisplay,
           rewardClaim: rewardClaim ? JSON.parse(JSON.stringify(rewardClaim)) : null,
         },
       };
     }
 
-    // Aggregate quiz leaderboard by member
-    const scoreMap = new Map<
-      number,
-      { id: number; name: string; avatar: string | null; totalScore: number; quizzesTaken: number }
-    >();
-    for (const sub of submissions) {
-      if (!sub.member || !["active", "approved"].includes(sub.member.status)) continue;
-      const mId = sub.member.id;
-      const existing = scoreMap.get(mId) || {
-        id: mId,
-        name: `${sub.member.firstName} ${sub.member.lastName}`.trim(),
-        avatar: sub.member.profilePicture
-          ? `https://connect.houseofgrace.ph/uploads/profile_pictures/${sub.member.profilePicture}`
-          : null,
-        totalScore: 0,
-        quizzesTaken: 0,
-      };
-      existing.totalScore += Number(sub.score || sub.totalScore || 0);
-      existing.quizzesTaken += 1;
-      scoreMap.set(mId, existing);
+    // Dual Leaderboards (1:1 with /api/quiz/leaderboard — Weekly + All-Time)
+    let weeklyLeaderboard: Array<{
+      id: number;
+      name: string;
+      firstName: string;
+      lastName: string;
+      avatar: string | null;
+      score: number;
+    }> = [];
+
+    if (mostRecentQuizId) {
+      const weeklySubs = await db.quizSubmission
+        .findMany({
+          where: { quizId: mostRecentQuizId, isCorrect: true },
+          include: {
+            member: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                profilePicture: true,
+                status: true,
+              },
+            },
+          },
+        })
+        .catch(() => []);
+
+      const weeklyMap = new Map<
+        number,
+        {
+          id: number;
+          name: string;
+          firstName: string;
+          lastName: string;
+          avatar: string | null;
+          score: number;
+        }
+      >();
+      for (const sub of weeklySubs) {
+        if (!sub.member || !["active", "approved"].includes(sub.member.status)) continue;
+        const mId = sub.member.id;
+        const cur = weeklyMap.get(mId) || {
+          id: mId,
+          name: `${sub.member.firstName} ${sub.member.lastName}`.trim(),
+          firstName: sub.member.firstName,
+          lastName: sub.member.lastName,
+          avatar: sub.member.profilePicture
+            ? `https://connect.houseofgrace.ph/uploads/profile_pictures/${sub.member.profilePicture}`
+            : null,
+          score: 0,
+        };
+        cur.score += 1;
+        weeklyMap.set(mId, cur);
+      }
+      weeklyLeaderboard = Array.from(weeklyMap.values())
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 10);
     }
 
-    const leaderboard = Array.from(scoreMap.values())
-      .sort((a, b) => b.totalScore - a.totalScore)
-      .slice(0, 20);
+    const allTimeMembers = await db.member
+      .findMany({
+        where: { status: { in: ["active", "approved"] } },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          profilePicture: true,
+          _count: {
+            select: {
+              quizSubmissions: {
+                where: { isCorrect: true },
+              },
+            },
+          },
+        },
+        orderBy: {
+          quizSubmissions: {
+            _count: "desc",
+          },
+        },
+        take: 20,
+      })
+      .catch(() => []);
+
+    const allTimeLeaderboard = allTimeMembers
+      .filter((m) => m._count.quizSubmissions > 0)
+      .map((m) => ({
+        id: m.id,
+        name: `${m.firstName} ${m.lastName}`.trim(),
+        firstName: m.firstName,
+        lastName: m.lastName,
+        avatar: m.profilePicture
+          ? `https://connect.houseofgrace.ph/uploads/profile_pictures/${m.profilePicture}`
+          : null,
+        totalScore: m._count.quizSubmissions,
+        score: m._count.quizSubmissions,
+        quizzesTaken: m._count.quizSubmissions,
+      }));
+
+    const leaderboard = allTimeLeaderboard;
 
     return NextResponse.json({
       success: true,
@@ -646,6 +745,8 @@ export async function GET(req: NextRequest) {
         quizStatus,
         quizHistory,
         leaderboard,
+        weeklyLeaderboard,
+        allTimeLeaderboard,
         journals: journalEntries.map((j) => ({
           id: j.id,
           title: j.title || null,
@@ -864,18 +965,125 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
       }
       const quizId = Number(body?.quizId);
-      if (!quizId) {
+      if (!quizId || isNaN(quizId)) {
         return NextResponse.json({ success: false, message: "Quiz ID required" }, { status: 400 });
       }
-      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-      await db.quizCatchupSession.upsert({
+
+      const targetQuiz = await db.sermonQuiz.findUnique({
+        where: { id: quizId },
+        include: { questions: { select: { id: true } } },
+      });
+      if (!targetQuiz || !["published", "completed"].includes(targetQuiz.status)) {
+        return NextResponse.json(
+          { success: false, message: "Quiz not found or not published." },
+          { status: 404 }
+        );
+      }
+
+      // 1. Already finished all challenges?
+      const subCount = await db.quizSubmission.count({
+        where: { quizId, memberId: member.id },
+      });
+      const totalReq = targetQuiz.questions.length || 7;
+      if (subCount >= totalReq) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "You have already completed all challenges for this sermon quiz!",
+          },
+          { status: 400 }
+        );
+      }
+
+      // 2. Existing catch-up session for this quiz?
+      const existingSession = await db.quizCatchupSession.findUnique({
         where: { quizId_memberId: { quizId, memberId: member.id } },
-        update: { isCompleted: false, expiresAt },
-        create: { quizId, memberId: member.id, expiresAt },
+      });
+      if (existingSession) {
+        if (existingSession.isCompleted) {
+          return NextResponse.json(
+            { success: false, message: "You have already completed this catch-up challenge." },
+            { status: 400 }
+          );
+        }
+        if (new Date() >= existingSession.expiresAt) {
+          return NextResponse.json(
+            { success: false, message: "The 7-day catch-up window for this quiz has ended." },
+            { status: 403 }
+          );
+        }
+        return NextResponse.json({
+          success: true,
+          data: { expiresAt: existingSession.expiresAt.toISOString(), session: existingSession },
+        });
+      }
+
+      // 3. Single-Active-Quiz Rule A: Unfinished current live week quiz?
+      const latestPublished = await db.sermonQuiz.findFirst({
+        where: { status: { in: ["published", "completed"] } },
+        orderBy: { sermonDate: "desc" },
+        include: { questions: { select: { id: true } } },
+      });
+      if (
+        latestPublished &&
+        !isQuizWeekExpired(latestPublished.sermonDate) &&
+        latestPublished.id !== quizId
+      ) {
+        const latestSubs = await db.quizSubmission.count({
+          where: { quizId: latestPublished.id, memberId: member.id },
+        });
+        const latestTotal = latestPublished.questions.length || 7;
+        if (latestSubs < latestTotal) {
+          return NextResponse.json(
+            {
+              success: false,
+              conflict: "active_current_week",
+              activeQuizId: latestPublished.id,
+              activeQuizTitle: latestPublished.title,
+              message: `You have the chance to answer previous Sunday quiz after you finish this one, and you have 7 days to finish this one. Finish this week's quiz ("${latestPublished.title}") first!`,
+            },
+            { status: 409 }
+          );
+        }
+      }
+
+      // 4. Single-Active-Quiz Rule B: Another active catch-up in progress?
+      const activeCatchup = await db.quizCatchupSession.findFirst({
+        where: {
+          memberId: member.id,
+          isCompleted: false,
+          expiresAt: { gt: new Date() },
+          quizId: { not: quizId },
+        },
+        include: { quiz: { select: { id: true, title: true } } },
+      });
+      if (activeCatchup) {
+        const msLeft = activeCatchup.expiresAt.getTime() - Date.now();
+        const hoursLeft = Math.floor(msLeft / (1000 * 60 * 60));
+        const daysLeft = Math.floor(hoursLeft / 24);
+        const remainingHours = hoursLeft % 24;
+        const timeLeftStr =
+          daysLeft > 0 ? `${daysLeft}d ${remainingHours}h` : `${remainingHours}h`;
+        return NextResponse.json(
+          {
+            success: false,
+            conflict: "active_catchup",
+            activeQuizId: activeCatchup.quiz.id,
+            activeQuizTitle: activeCatchup.quiz.title,
+            message: `You have the chance to answer previous Sunday quiz after you finish this one, and you have 7 days to finish this one. (${timeLeftStr} remaining on "${activeCatchup.quiz.title}")`,
+          },
+          { status: 409 }
+        );
+      }
+
+      // 5. Create 7-day personal catch-up window
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      const created = await db.quizCatchupSession.create({
+        data: { quizId, memberId: member.id, expiresAt, isCompleted: false },
       });
       return NextResponse.json({
         success: true,
-        data: { expiresAt: expiresAt.toISOString() },
+        data: { expiresAt: expiresAt.toISOString(), session: created },
       });
     }
 
@@ -952,10 +1160,13 @@ export async function POST(req: NextRequest) {
       const userAnswer = String(answer).trim();
 
       switch (question.questionType) {
-        case "MULTIPLE_CHOICE": {
+        case "MULTIPLE_CHOICE":
+        case "TREE_OF_LIFE": {
           isCorrect = userAnswer.toLowerCase() === question.correctAnswer.toLowerCase();
           aiFeedback = isCorrect
-            ? "Correct! 🎉"
+            ? question.questionType === "TREE_OF_LIFE"
+              ? "Wisdom unlocked! Your Tree of Wisdom flourishes! 🌳"
+              : "Correct! 🎉"
             : `The correct answer was: ${question.correctAnswer}`;
           break;
         }
@@ -1085,24 +1296,22 @@ export async function POST(req: NextRequest) {
             },
           });
 
-          await db.notification.create({
-            data: {
-              memberId: member.id,
-              type: "quiz_reward",
-              title:
-                tier === "PERFECT"
-                  ? "🏆 PERFECT SCORE! Claim your reward!"
-                  : tier === "PARTICIPANT"
-                  ? "🙏 Quiz for Christ complete!"
-                  : "🎁 You earned a prize this week!",
-              body:
-                tier === "PERFECT"
-                  ? "You aced all 7 days! Tap to claim your Christian statement t-shirt."
-                  : tier === "PARTICIPANT"
-                  ? `You scored ${finalScore}/7. Keep growing in the Word!`
-                  : `You scored ${finalScore}/7! Your prize will be announced this Sunday. 🎁`,
-              link: "/quiz",
-            },
+          await createNotification({
+            memberId: member.id,
+            type: "quiz_reward",
+            title:
+              tier === "PERFECT"
+                ? "🏆 PERFECT SCORE! Claim your reward!"
+                : tier === "PARTICIPANT"
+                ? "🙏 Quiz for Christ complete!"
+                : "🎁 You earned a prize this week!",
+            body:
+              tier === "PERFECT"
+                ? "You aced all 7 days! Tap to claim your Christian statement t-shirt."
+                : tier === "PARTICIPANT"
+                ? `You scored ${finalScore}/7. Keep growing in the Word!`
+                : `You scored ${finalScore}/7! Your prize will be announced this Sunday. 🎁`,
+            link: "/quiz",
           });
 
           reward = { totalScore: finalScore, tier };
@@ -1126,21 +1335,24 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
       }
       const quizId = Number(body?.quizId);
-      const tShirtSize = String(body?.tShirtSize || "").trim();
+      const size = String(body?.size || body?.tShirtSize || "").trim();
       const phone = String(body?.phone || "").trim();
-      if (!quizId) {
-        return NextResponse.json({ success: false, message: "Quiz ID required" }, { status: 400 });
+      if (!quizId || !size || !phone) {
+        return NextResponse.json(
+          { success: false, message: "Please select a T-shirt size and provide a contact number." },
+          { status: 400 }
+        );
       }
       await db.quizReward.updateMany({
         where: { quizId, memberId: member.id },
         data: {
           claimStatus: "claimed",
-          claimDetails: { tShirtSize, phone },
+          claimDetails: { size, phone },
         },
       });
       return NextResponse.json({
         success: true,
-        message: "Reward claimed! We will notify you on Sunday.",
+        message: "Your claim details have been recorded! Bring your HGF Connect app to Sunday Service to collect your T-Shirt.",
       });
     }
 

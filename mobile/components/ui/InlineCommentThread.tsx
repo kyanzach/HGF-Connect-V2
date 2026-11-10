@@ -62,7 +62,7 @@ export interface InlineReactionItem {
     lastName?: string;
     profilePicture?: string | null;
     avatar?: string | null;
-  };
+  } | null;
 }
 
 interface InlineReactionsPanelProps {
@@ -454,7 +454,7 @@ export default function InlineCommentThread({
   const [loading, setLoading] = useState(false);
   const [mainText, setMainText] = useState('');
   const [submittingMain, setSubmittingMain] = useState(false);
-  const mainInputRef = useRef<TextInput>(null);
+  const mainInputRef = useRef<any>(null);
   const onSyncRef = useRef(onSyncComments);
   onSyncRef.current = onSyncComments;
 
@@ -462,7 +462,7 @@ export default function InlineCommentThread({
   const [replyTo, setReplyTo] = useState<{ parentId: number; authorName: string } | null>(null);
   const [replyText, setReplyText] = useState('');
   const [submittingReply, setSubmittingReply] = useState(false);
-  const replyInputRef = useRef<TextInput>(null);
+  const replyInputRef = useRef<any>(null);
 
   // Delete confirmation modal
   const [commentToDelete, setCommentToDelete] = useState<number | null>(null);
@@ -804,7 +804,7 @@ export default function InlineCommentThread({
             <View key={i} style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
               <SkeletonCircle size={32} />
               <View style={{ flex: 1, gap: 5 }}>
-                <SkeletonBox width="72%" height={44} borderRadius={16} />
+                <SkeletonBox width="72%" height={44} radius={16} />
               </View>
             </View>
           ))}

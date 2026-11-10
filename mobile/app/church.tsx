@@ -21,10 +21,18 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, usePathname } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import * as SecureStore from 'expo-secure-store';
 import { LinearGradient } from 'expo-linear-gradient';
 import client from '@/api/client';
 import TopHeader from '@/components/ui/TopHeader';
 import ConfirmModal from '@/components/ui/ConfirmModal';
+import AlertPromptModal from '@/components/ui/AlertPromptModal';
+import {
+  NativeYoutubePlayer,
+  NativeSlideVideoPlayer,
+  NativeConfetti,
+} from '@/components/ui/NativeQuizMedia';
+import { NativeTreeOfWisdom } from '@/components/ui/NativeTreeOfWisdom';
 import { useAuth } from '@/context/AuthContext';
 import { SkeletonDirectoryLoading, SkeletonProfileLoading } from '@/components/ui/SkeletonPulse';
 import InlineCommentThread, {
@@ -211,7 +219,7 @@ export default function WebReplicaScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   // ── Public Member Profile State (app/(public)/member/[id]/ProfileClient.tsx) ──
-  const memberScrollRef = useRef<ScrollView>(null);
+  const memberScrollRef = useRef<any>(null);
   const dirListRef = useRef<FlatList<DirectoryMember>>(null);
   const [memberProfile, setMemberProfile] = useState<any>(null);
   const [memberPosts, setMemberPosts] = useState<any[]>([]);
@@ -277,6 +285,8 @@ export default function WebReplicaScreen() {
   const [quizStatus, setQuizStatus] = useState<any>(null);
   const [quizHistory, setQuizHistory] = useState<any[]>([]);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [weeklyLeaderboard, setWeeklyLeaderboard] = useState<any[]>([]);
+  const [allTimeLeaderboard, setAllTimeLeaderboard] = useState<any[]>([]);
   const [selectedQuizId, setSelectedQuizId] = useState<number | null>(
     rawQuizId ? Number(rawQuizId) : null
   );
@@ -287,9 +297,29 @@ export default function WebReplicaScreen() {
       ? 'leaderboard'
       : 'main'
   );
-  const [quizStudyTab, setQuizStudyTab] = useState<'video' | 'slides'>('slides');
+  const [quizStudyTab, setQuizStudyTab] = useState<'video' | 'slides'>('video');
   const [quizSlideIdx, setQuizSlideIdx] = useState(0);
   const [startingCatchup, setStartingCatchup] = useState(false);
+  const [catchupBriefingQuiz, setCatchupBriefingQuiz] = useState<{
+    quizId: number;
+    title: string;
+    targetDay?: any;
+  } | null>(null);
+  const [catchupConflictModal, setCatchupConflictModal] = useState<{
+    open: boolean;
+    message: string;
+    activeQuizId?: number;
+  }>({ open: false, message: '' });
+  const [quizAlertModal, setQuizAlertModal] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+  }>({ visible: false, title: '', message: '' });
+  const [tShirtSize, setTShirtSize] = useState('');
+  const [claimPhone, setClaimPhone] = useState('');
+  const [claimingReward, setClaimingReward] = useState(false);
+  const [claimSuccessMsg, setClaimSuccessMsg] = useState('');
+  const [claimError, setClaimError] = useState('');
   const [activeQuizQuestion, setActiveQuizQuestion] = useState<any | null>(null);
   const [quizPlayerAnswer, setQuizPlayerAnswer] = useState('');
   const [quizPlayerBlanks, setQuizPlayerBlanks] = useState<string[]>([]);
@@ -407,12 +437,23 @@ export default function WebReplicaScreen() {
       }
       if (payload.quizStatus) {
         setQuizStatus(payload.quizStatus);
+        const qz = payload.quizStatus.quiz;
+        if (qz) {
+          setQuizStudyTab(qz.youtubeVideoId ? 'video' : 'slides');
+          setQuizSlideIdx(0);
+        }
       }
       if (Array.isArray(payload.quizHistory)) {
         setQuizHistory(payload.quizHistory);
       }
       if (Array.isArray(payload.leaderboard)) {
         setLeaderboard(payload.leaderboard);
+      }
+      if (Array.isArray(payload.weeklyLeaderboard)) {
+        setWeeklyLeaderboard(payload.weeklyLeaderboard);
+      }
+      if (Array.isArray(payload.allTimeLeaderboard)) {
+        setAllTimeLeaderboard(payload.allTimeLeaderboard);
       }
       if (Array.isArray(payload.journals)) {
         setJournals(payload.journals);
@@ -469,6 +510,44 @@ export default function WebReplicaScreen() {
       }
     }
   }, [activePage, rawDay, quizStatus]);
+
+  // Deep link: /church?page=quiz&tab=archive&quizId=N → auto-open Catch-Up Briefing
+  useEffect(() => {
+    if (
+      activePage === 'quiz' &&
+      (rawTab === 'archive' || rawTab === 'past' || rawTab === 'catchup') &&
+      rawQuizId &&
+      quizHistory.length > 0
+    ) {
+      const match = quizHistory.find((w: any) => Number(w.id) === Number(rawQuizId));
+      if (match && match.isExpired && match.submissionsCount < 7 && match.catchupStatus !== 'active' && match.catchupStatus !== 'expired') {
+        setCatchupBriefingQuiz({ quizId: match.id, title: match.title });
+      }
+    }
+  }, [activePage, rawTab, rawQuizId, quizHistory.length]);
+
+  const openAuthenticatedPresentationDownload = async (
+    eventId?: number | null,
+    presentationFile?: string | null
+  ) => {
+    try {
+      const token = await SecureStore.getItemAsync('hgf_token').catch(() => null);
+      const base = eventId
+        ? `https://connect.houseofgrace.ph/api/events/${eventId}/presentation/download`
+        : presentationFile?.startsWith('http')
+        ? presentationFile
+        : `https://connect.houseofgrace.ph${presentationFile || ''}`;
+      const finalUrl =
+        token && eventId ? `${base}?token=${encodeURIComponent(token)}` : base;
+      await Linking.openURL(finalUrl);
+    } catch {
+      setQuizAlertModal({
+        visible: true,
+        title: 'Download Failed',
+        message: 'Unable to open presentation download link right now.',
+      });
+    }
+  };
 
   useEffect(() => {
     if (activePage === 'my-listings' && rawProspectsFor) {
@@ -987,7 +1066,7 @@ export default function WebReplicaScreen() {
               <View style={styles.dirMemberCard}>
                 {/* Full-bleed Cover Photo + Seamless Horizontal Linear Gradient (exact replica of Directory page.tsx) */}
                 {coverUri ? (
-                  <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+                  <View style={StyleSheet.absoluteFill} pointerEvents="none">
                     <Image
                       source={{ uri: coverUri }}
                       style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' }}
@@ -1003,7 +1082,7 @@ export default function WebReplicaScreen() {
                       locations={[0, 0.38, 0.65, 1]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
-                      style={StyleSheet.absoluteFillObject}
+                      style={StyleSheet.absoluteFill}
                     />
                   </View>
                 ) : null}
@@ -2267,7 +2346,7 @@ export default function WebReplicaScreen() {
                       <InlineCommentPreview
                         visible={!expandedWallCommentPostIds[post.id]}
                         comments={post.latestComments}
-                        totalCount={cCount}
+                        totalCount={post.commentCount ?? post._count?.comments ?? 0}
                         onExpand={() =>
                           setExpandedWallCommentPostIds((prev) => ({
                             ...prev,
@@ -2817,17 +2896,24 @@ export default function WebReplicaScreen() {
                       </Text>
 
                       <View style={styles.resSlideStage}>
-                        <TouchableOpacity
-                          activeOpacity={0.9}
-                          style={{ width: '100%', height: '100%' }}
-                          onPress={() => setLightboxSlide(currentSlide.image)}
-                        >
-                          <Image
-                            source={{ uri: currentSlide.image }}
-                            style={styles.resSlideImg}
-                            resizeMode="contain"
+                        {currentSlide.video ? (
+                          <NativeSlideVideoPlayer
+                            videoUrl={currentSlide.video}
+                            posterUrl={currentSlide.image}
                           />
-                        </TouchableOpacity>
+                        ) : (
+                          <TouchableOpacity
+                            activeOpacity={0.9}
+                            style={{ width: '100%', height: '100%' }}
+                            onPress={() => setLightboxSlide(currentSlide.image)}
+                          >
+                            <Image
+                              source={{ uri: currentSlide.image }}
+                              style={styles.resSlideImg}
+                              resizeMode="contain"
+                            />
+                          </TouchableOpacity>
+                        )}
 
                         {/* Slide X of N badge */}
                         <View style={styles.resSlideCounterBadge}>
@@ -2910,17 +2996,15 @@ export default function WebReplicaScreen() {
                     <TouchableOpacity
                       style={styles.resDownloadBtn}
                       onPress={() =>
-                        Linking.openURL(
-                          `https://connect.houseofgrace.ph/api/events/${ev.id}/presentation/download`
-                        )
+                        openAuthenticatedPresentationDownload(ev.id, ev.presentationFile)
                       }
                     >
                       <Text style={styles.resDownloadBtnText}>
                         {ev.presentationFile.toLowerCase().endsWith('.zip')
-                          ? '📥 Download Presentation Package (.zip)'
+                          ? 'Download Presentation Package (.zip)'
                           : ev.presentationFile.toLowerCase().endsWith('.pdf')
-                          ? '📥 Download Slide Deck (.pdf)'
-                          : '📥 Download Slide Deck (.pptx)'}
+                          ? 'Download Slide Deck (.pdf)'
+                          : 'Download Slide Deck (.pptx)'}
                       </Text>
                     </TouchableOpacity>
                   )}
@@ -3561,7 +3645,7 @@ export default function WebReplicaScreen() {
   );
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // 6. QUIZ FOR CHRIST (/quiz & /quiz/hub) — 1:1 Replica + 5-Type QuizPlayer
+  // 6. QUIZ FOR CHRIST (/quiz & /quiz/hub) — Full 1:1 Replica + 3D Tree of Wisdom
   // ═══════════════════════════════════════════════════════════════════════════
   const openQuizPlayer = (dayObj: any) => {
     setActiveQuizQuestion(dayObj);
@@ -3605,7 +3689,9 @@ export default function WebReplicaScreen() {
       setQuizPlayerResult({
         isCorrect: Boolean(payload?.isCorrect),
         score: payload?.score ?? (payload?.isCorrect ? 1 : 0),
-        feedback: payload?.feedback || (payload?.isCorrect ? 'Correct! 🎉' : 'Keep growing in the Word!'),
+        feedback:
+          payload?.feedback ||
+          (payload?.isCorrect ? 'Correct!' : 'Keep growing in the Word!'),
         explanation: payload?.explanation || '',
         reward: payload?.reward || null,
       });
@@ -3614,7 +3700,8 @@ export default function WebReplicaScreen() {
       setQuizPlayerResult({
         isCorrect: false,
         score: 0,
-        feedback: err?.response?.data?.message || 'Could not submit answer. Please try again.',
+        feedback:
+          err?.response?.data?.message || 'Could not submit answer. Please try again.',
         explanation: '',
       });
     } finally {
@@ -3622,7 +3709,7 @@ export default function WebReplicaScreen() {
     }
   };
 
-  const handleStartCatchup = async (targetQuizId?: number) => {
+  const handleStartCatchup = async (targetQuizId?: number, targetDay?: any) => {
     const qId = targetQuizId || quizStatus?.quiz?.id;
     if (!qId) return;
     setStartingCatchup(true);
@@ -3631,36 +3718,130 @@ export default function WebReplicaScreen() {
         action: 'start_catchup',
         quizId: qId,
       });
+      setCatchupBriefingQuiz(null);
       setSelectedQuizId(qId);
       setQuizSubView('main');
       await loadData();
-    } catch {
-      // silent
+      if (targetDay) {
+        openQuizPlayer({ ...targetDay, status: 'available' });
+      }
+    } catch (err: any) {
+      setCatchupBriefingQuiz(null);
+      const status = err?.response?.status;
+      const errData = err?.response?.data || {};
+      if (status === 409) {
+        setCatchupConflictModal({
+          open: true,
+          message:
+            errData.message ||
+            'You have the chance to answer previous Sunday quiz after you finish this one, and you have 7 days to finish this one.',
+          activeQuizId: errData.activeQuizId,
+        });
+      } else {
+        setQuizAlertModal({
+          visible: true,
+          title: 'Unable to Start Pass',
+          message: errData.message || 'Could not start the 7-day catch-up window right now.',
+        });
+      }
     } finally {
       setStartingCatchup(false);
     }
   };
 
+  const handleClaimQuizReward = async () => {
+    if (!tShirtSize || !claimPhone.trim()) {
+      setClaimError('Please select your T-shirt size and enter a contact number.');
+      return;
+    }
+    if (!quizStatus?.quiz?.id) return;
+    setClaimingReward(true);
+    setClaimError('');
+    try {
+      const res = await client.post('/church', {
+        action: 'claim_quiz_reward',
+        quizId: quizStatus.quiz.id,
+        size: tShirtSize,
+        phone: claimPhone.trim(),
+      });
+      setClaimSuccessMsg(
+        res.data?.message ||
+          'Your claim details have been recorded! Bring your HGF Connect app to Sunday Service to collect your T-Shirt.'
+      );
+      await loadData();
+    } catch (err: any) {
+      setClaimError(
+        err?.response?.data?.message || 'Unable to submit your claim right now. Please try again.'
+      );
+    } finally {
+      setClaimingReward(false);
+    }
+  };
+
   const DAY_LABELS_MAP: Record<number, string> = {
-    1: '🎈 Day 1 — Balloon Pop',
-    2: '✏️ Day 2 — Fill the Blanks',
-    3: '📝 Day 3 — In Your Own Words',
-    4: '🧩 Day 4 — Verse Builder',
-    5: '⚖️ Day 5 — Defend Your Faith',
-    6: '🎈 Day 6 — Scripture Trivia',
-    7: '📝 Day 7 — Heart Reflection',
+    1: 'Day 1 — Balloon Pop',
+    2: 'Day 2 — Tree of Wisdom',
+    3: 'Day 3 — In Your Own Words',
+    4: 'Day 4 — Tree of Wisdom',
+    5: 'Day 5 — Defend Your Faith',
+    6: 'Day 6 — Scripture Trivia',
+    7: 'Day 7 — Heart Reflection',
+  };
+
+  const TIER_BADGE_MAP: Record<string, string> = {
+    PERFECT: 'Perfect (7/7)',
+    EXCELLENT: 'Excellent (6/7)',
+    GOOD: 'Good (4-5/7)',
+    PARTICIPANT: 'Participant',
+  };
+
+  const renderLeaderAvatar = (row: any) => {
+    const initials = `${row.firstName?.[0] || row.name?.[0] || 'M'}${
+      row.lastName?.[0] || ''
+    }`.toUpperCase();
+    return (
+      <View
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: 18,
+          backgroundColor: PRIMARY,
+          overflow: 'hidden',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        {row.avatar ? (
+          <Image source={{ uri: row.avatar }} style={{ width: 36, height: 36 }} />
+        ) : (
+          <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: '800' }}>{initials}</Text>
+        )}
+      </View>
+    );
   };
 
   const renderQuizPage = () => {
     const qObj = quizStatus?.quiz;
     const days = quizStatus?.days || [];
+    const progress = quizStatus?.progress;
+    const rewardItems = Array.isArray(quizStatus?.rewardItems) ? quizStatus.rewardItems : [];
     const slidesArray = normalizeSlides(qObj?.presentationSlides);
     const currentSlide = slidesArray[quizSlideIdx];
+    const hasVideo = Boolean(qObj?.youtubeVideoId);
+    const hasSlides = slidesArray.length > 0;
     const isAdminOrPastor = user?.role === 'admin' || user?.role === 'moderator';
+    const showClaimBox =
+      progress?.isWeekComplete &&
+      progress?.rewardTier === 'PERFECT' &&
+      (!progress?.rewardClaim || progress.rewardClaim.claimStatus === 'unclaimed');
+
+    const resolvedAllTime =
+      allTimeLeaderboard.length > 0 ? allTimeLeaderboard : leaderboard;
 
     return (
       <ScrollView
         contentContainerStyle={{ padding: 16, paddingBottom: 110 }}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -3681,12 +3862,14 @@ export default function WebReplicaScreen() {
             }
           >
             <View style={styles.quizBrainCircle}>
-              <Text style={{ fontSize: 22 }}>🧠</Text>
+              <FontAwesome name="graduation-cap" size={18} color="#ffffff" />
             </View>
             <View>
-              <Text style={styles.quizBrandTitle}>HGF Quiz for Christ Page</Text>
-              <Text style={styles.quizBrandLink}>
-                {quizSubView === 'main' ? 'View Leaderboard →' : '← Back to Active Quiz'}
+              <Text style={styles.quizBrandTitle} numberOfLines={1}>
+                HGF Quiz for Christ
+              </Text>
+              <Text style={styles.quizBrandLink} numberOfLines={1}>
+                {quizSubView === 'main' ? 'View Leaderboard' : 'Back to Active Quiz'}
               </Text>
             </View>
           </TouchableOpacity>
@@ -3697,22 +3880,24 @@ export default function WebReplicaScreen() {
               setQuizSubView((v) => (v === 'archive' ? 'main' : 'archive'))
             }
           >
-            <Text style={{ fontSize: 16 }}>📁</Text>
+            <FontAwesome name="folder-open" size={15} color="#ffffff" />
             <View>
-              <Text style={styles.quizPastBtnTitle}>Past Quizzes</Text>
-              <Text style={styles.quizPastBtnSub}>
-                {quizSubView === 'archive' ? '← Active Quiz' : 'Catch Up →'}
+              <Text style={styles.quizPastBtnTitle} numberOfLines={1}>
+                Past Quizzes
+              </Text>
+              <Text style={styles.quizPastBtnSub} numberOfLines={1}>
+                {quizSubView === 'archive' ? 'Active Quiz' : 'Catch Up'}
               </Text>
             </View>
           </TouchableOpacity>
         </View>
 
-        {/* 3-Tab Pill Bar (Active Quiz | Past Quizzes Archive | Leaderboard) */}
+        {/* 3-Tab Pill Bar (Zero emojis in navigation pills per UX Rule #4) */}
         <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
           {[
-            { key: 'main' as const, label: '🎯 Active Quiz' },
-            { key: 'archive' as const, label: `📁 Past Quizzes (${quizHistory.length})` },
-            { key: 'leaderboard' as const, label: '🏆 Leaderboard' },
+            { key: 'main' as const, label: 'Active Quiz' },
+            { key: 'archive' as const, label: `Past Quizzes (${quizHistory.length})` },
+            { key: 'leaderboard' as const, label: 'Leaderboard' },
           ].map((t) => {
             const active = quizSubView === t.key;
             return (
@@ -3721,7 +3906,7 @@ export default function WebReplicaScreen() {
                 onPress={() => setQuizSubView(t.key)}
                 style={{
                   flex: 1,
-                  paddingVertical: 9,
+                  paddingVertical: 10,
                   paddingHorizontal: 8,
                   borderRadius: 10,
                   backgroundColor: active ? PRIMARY : '#ffffff',
@@ -3732,8 +3917,9 @@ export default function WebReplicaScreen() {
               >
                 <Text
                   numberOfLines={1}
+                  adjustsFontSizeToFit
                   style={{
-                    fontSize: 12,
+                    fontSize: 12.5,
                     fontWeight: '700',
                     color: active ? '#ffffff' : '#475569',
                   }}
@@ -3746,28 +3932,163 @@ export default function WebReplicaScreen() {
         </View>
 
         {quizSubView === 'leaderboard' ? (
-          <View style={styles.loveWhiteCard}>
-            <Text style={styles.loveSectionTitle}>🏆 Quiz for Christ Leaderboard</Text>
-            {leaderboard.map((row, idx) => (
-              <View key={row.id} style={styles.quizLeaderRow}>
-                <Text style={styles.quizLeaderRank}>
-                  {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}
+          <View style={{ gap: 14 }}>
+            {/* Quiz Hub Brand Banner & Overview Strip (1:1 with app/(app)/quiz/hub/page.tsx) */}
+            <View
+              style={{
+                backgroundColor: '#ffffff',
+                borderRadius: 18,
+                overflow: 'hidden',
+                borderWidth: 1,
+                borderColor: '#e2e8f0',
+              }}
+            >
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() =>
+                  setLightboxSlide('https://connect.houseofgrace.ph/quiz-cover-banner.png')
+                }
+              >
+                <Image
+                  source={{ uri: 'https://connect.houseofgrace.ph/quiz-cover-banner.png' }}
+                  style={{ width: '100%', height: 145, backgroundColor: '#0f2d3d' }}
+                  resizeMode="cover"
+                />
+              </TouchableOpacity>
+              <View style={{ padding: 14 }}>
+                <Text style={{ fontSize: 16, fontWeight: '800', color: '#0f172a' }}>
+                  Official Church Quiz Program
                 </Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.quizLeaderName}>{row.name}</Text>
-                  <Text style={styles.quizLeaderSub}>
-                    {row.quizzesTaken} challenges completed
-                  </Text>
+                <Text style={{ fontSize: 12.5, color: '#64748b', marginTop: 3 }}>
+                  Study Sunday sermons, grow in the Word, and earn weekly rewards.
+                </Text>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    marginTop: 12,
+                    paddingTop: 12,
+                    borderTopWidth: 1,
+                    borderTopColor: '#f1f5f9',
+                  }}
+                >
+                  <View style={{ flex: 1, alignItems: 'center', borderRightWidth: 1, borderRightColor: '#f1f5f9' }}>
+                    <Text style={{ fontSize: 16, fontWeight: '800', color: PRIMARY }}>
+                      {quizHistory.length}
+                    </Text>
+                    <Text style={{ fontSize: 10.5, fontWeight: '700', color: '#94a3b8' }}>
+                      Quiz Weeks
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1, alignItems: 'center', borderRightWidth: 1, borderRightColor: '#f1f5f9' }}>
+                    <Text style={{ fontSize: 16, fontWeight: '800', color: PRIMARY }}>
+                      {resolvedAllTime.length > 0 ? 'Active' : 'Open'}
+                    </Text>
+                    <Text style={{ fontSize: 10.5, fontWeight: '700', color: '#94a3b8' }}>
+                      Standings
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1, alignItems: 'center' }}>
+                    <Text style={{ fontSize: 16, fontWeight: '800', color: PRIMARY }}>
+                      Every Sun
+                    </Text>
+                    <Text style={{ fontSize: 10.5, fontWeight: '700', color: '#94a3b8' }}>
+                      Awards
+                    </Text>
+                  </View>
                 </View>
-                <Text style={styles.quizLeaderScore}>{row.totalScore} pts</Text>
               </View>
-            ))}
+            </View>
+
+            {/* 1. Weekly Top Performers */}
+            <View style={styles.loveWhiteCard}>
+              <Text style={styles.loveSectionTitle}>Weekly Top Performers</Text>
+              {weeklyLeaderboard.length === 0 ? (
+                <Text style={{ color: '#94a3b8', fontSize: 13, textAlign: 'center', paddingVertical: 14 }}>
+                  No participants recorded yet this week. Play today to place first!
+                </Text>
+              ) : (
+                weeklyLeaderboard.map((row, idx) => (
+                  <TouchableOpacity
+                    key={`wk-${row.id}`}
+                    style={styles.quizLeaderRow}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/church',
+                        params: { tab: 'member', id: String(row.id) },
+                      } as any)
+                    }
+                  >
+                    <Text
+                      style={[
+                        styles.quizLeaderRank,
+                        idx === 0 && { color: '#d97706' },
+                        idx === 1 && { color: '#64748b' },
+                        idx === 2 && { color: '#b45309' },
+                      ]}
+                    >
+                      #{idx + 1}
+                    </Text>
+                    {renderLeaderAvatar(row)}
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.quizLeaderName} numberOfLines={1}>
+                        {row.name}
+                      </Text>
+                    </View>
+                    <Text style={styles.quizLeaderScore}>{row.score}/7</Text>
+                  </TouchableOpacity>
+                ))
+              )}
+            </View>
+
+            {/* 2. All-Time Standings */}
+            <View style={styles.loveWhiteCard}>
+              <Text style={styles.loveSectionTitle}>All-Time Standings</Text>
+              {resolvedAllTime.length === 0 ? (
+                <Text style={{ color: '#94a3b8', fontSize: 13, textAlign: 'center', paddingVertical: 14 }}>
+                  Standings update automatically as members complete challenges.
+                </Text>
+              ) : (
+                resolvedAllTime.map((row, idx) => (
+                  <TouchableOpacity
+                    key={`all-${row.id}`}
+                    style={styles.quizLeaderRow}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/church',
+                        params: { tab: 'member', id: String(row.id) },
+                      } as any)
+                    }
+                  >
+                    <Text
+                      style={[
+                        styles.quizLeaderRank,
+                        idx === 0 && { color: '#d97706' },
+                        idx === 1 && { color: '#64748b' },
+                        idx === 2 && { color: '#b45309' },
+                      ]}
+                    >
+                      #{idx + 1}
+                    </Text>
+                    {renderLeaderAvatar(row)}
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.quizLeaderName} numberOfLines={1}>
+                        {row.name}
+                      </Text>
+                      <Text style={styles.quizLeaderSub}>
+                        {row.totalScore ?? row.score} correct answers
+                      </Text>
+                    </View>
+                    <Text style={styles.quizLeaderScore}>{row.totalScore ?? row.score} pts</Text>
+                  </TouchableOpacity>
+                ))
+              )}
+            </View>
           </View>
         ) : quizSubView === 'archive' ? (
           <View style={styles.loveWhiteCard}>
-            <Text style={styles.loveSectionTitle}>📁 Past Quizzes & Catch-Up Archive</Text>
+            <Text style={styles.loveSectionTitle}>Past Quizzes & Catch-Up</Text>
             <Text style={{ fontSize: 12.5, color: '#64748b', marginBottom: 12 }}>
-              Missed a Sunday quiz? Unlock a 7-day personal Catch-Up Pass on any past sermon week to complete all 7 daily challenges and earn points!
+              Unlock a 7-day personal Catch-Up Pass on any missed sermon week.
             </Text>
             {quizHistory.length === 0 ? (
               <Text style={{ color: '#94a3b8', textAlign: 'center', paddingVertical: 24 }}>
@@ -3775,26 +4096,42 @@ export default function WebReplicaScreen() {
               </Text>
             ) : (
               quizHistory.map((week: any) => {
-                const isCompletedWeek = week.submissionsCount >= 7;
+                const isCompletedWeek = (week.submissionsCount ?? 0) >= 7;
+                const isCatchupActive = week.catchupStatus === 'active';
+                const isCatchupExpired = week.catchupStatus === 'expired';
+                let remainingDaysStr = '';
+                if (isCatchupActive && week.catchupExpiresAt) {
+                  const ms = new Date(week.catchupExpiresAt).getTime() - Date.now();
+                  const dLeft = Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)));
+                  remainingDaysStr = `${dLeft}d left`;
+                }
+
                 return (
                   <View
                     key={week.id}
                     style={{
-                      borderWidth: 1,
-                      borderColor: '#e2e8f0',
+                      borderWidth: isCatchupActive ? 1.5 : 1,
+                      borderColor: isCatchupActive ? '#7dd3fc' : '#e2e8f0',
                       borderRadius: 14,
                       padding: 14,
                       marginBottom: 10,
                       backgroundColor: '#f8fafc',
                     }}
                   >
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        gap: 8,
+                      }}
+                    >
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 15, fontWeight: '800', color: '#0f172a' }}>
+                        <Text style={{ fontSize: 14.5, fontWeight: '800', color: '#0f172a' }}>
                           {week.title}
                         </Text>
-                        <Text style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
-                          📅{' '}
+                        <Text style={{ fontSize: 12, color: '#64748b', marginTop: 3 }}>
+                          Sermon Date:{' '}
                           {week.sermonDate
                             ? new Date(week.sermonDate).toLocaleDateString('en-PH', {
                                 year: 'numeric',
@@ -3806,14 +4143,16 @@ export default function WebReplicaScreen() {
                       </View>
                       <View
                         style={{
-                          paddingHorizontal: 10,
+                          paddingHorizontal: 9,
                           paddingVertical: 4,
                           borderRadius: 999,
                           backgroundColor: isCompletedWeek
                             ? '#dcfce7'
-                            : week.catchupStatus === 'active'
+                            : isCatchupActive
                             ? '#e0f2fe'
-                            : '#fef3c7',
+                            : isCatchupExpired
+                            ? '#f1f5f9'
+                            : '#fef9c3',
                         }}
                       >
                         <Text
@@ -3822,57 +4161,122 @@ export default function WebReplicaScreen() {
                             fontWeight: '700',
                             color: isCompletedWeek
                               ? '#166534'
-                              : week.catchupStatus === 'active'
+                              : isCatchupActive
                               ? '#0369a1'
-                              : '#92400e',
+                              : isCatchupExpired
+                              ? '#64748b'
+                              : '#854d0e',
                           }}
                         >
                           {isCompletedWeek
-                            ? `✅ ${week.score}/7 pts`
-                            : week.catchupStatus === 'active'
-                            ? `🎯 Catch-Up (${week.submissionsCount}/7)`
-                            : `${week.submissionsCount}/7 Played`}
+                            ? `Score: ${week.score}/7${
+                                week.tier ? ` • ${TIER_BADGE_MAP[week.tier] || week.tier}` : ''
+                              }`
+                            : isCatchupActive
+                            ? `Catch-Up (${remainingDaysStr || `${week.submissionsCount}/7`})`
+                            : isCatchupExpired
+                            ? 'Window Ended'
+                            : `Missed (${week.submissionsCount || 0}/7)`}
                         </Text>
                       </View>
                     </View>
 
                     <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
-                      <TouchableOpacity
-                        style={{
-                          flex: 1,
-                          backgroundColor: PRIMARY,
-                          paddingVertical: 9,
-                          borderRadius: 10,
-                          alignItems: 'center',
-                        }}
-                        onPress={() => {
-                          setSelectedQuizId(week.id);
-                          setQuizSubView('main');
-                        }}
-                      >
-                        <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 12.5 }}>
-                          {isCompletedWeek || !week.isExpired || week.catchupStatus === 'active'
-                            ? '▶ View / Play Challenges'
-                            : '📖 View Quiz Week'}
-                        </Text>
-                      </TouchableOpacity>
-
-                      {week.isExpired && !isCompletedWeek && week.catchupStatus !== 'active' && (
+                      {isCatchupActive ? (
                         <TouchableOpacity
                           style={{
                             flex: 1,
-                            backgroundColor: '#0284c7',
-                            paddingVertical: 9,
+                            backgroundColor: PRIMARY,
+                            paddingVertical: 10,
                             borderRadius: 10,
                             alignItems: 'center',
                           }}
-                          onPress={() => handleStartCatchup(week.id)}
-                          disabled={startingCatchup}
+                          onPress={() => {
+                            setSelectedQuizId(week.id);
+                            setQuizSubView('main');
+                          }}
                         >
-                          <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 12.5 }}>
-                            🎯 Start 7-Day Catch-Up
+                          <Text
+                            numberOfLines={1}
+                            style={{ color: '#ffffff', fontWeight: '700', fontSize: 12.5 }}
+                          >
+                            Resume Catch-Up
                           </Text>
                         </TouchableOpacity>
+                      ) : isCompletedWeek || isCatchupExpired || !week.isExpired ? (
+                        <TouchableOpacity
+                          style={{
+                            flex: 1,
+                            backgroundColor: !week.isExpired ? PRIMARY : '#e2e8f0',
+                            paddingVertical: 10,
+                            borderRadius: 10,
+                            alignItems: 'center',
+                          }}
+                          onPress={() => {
+                            setSelectedQuizId(week.id);
+                            setQuizSubView('main');
+                          }}
+                        >
+                          <Text
+                            numberOfLines={1}
+                            style={{
+                              color: !week.isExpired ? '#ffffff' : '#334155',
+                              fontWeight: '700',
+                              fontSize: 12.5,
+                            }}
+                          >
+                            {!week.isExpired
+                              ? 'Play Active Quiz'
+                              : isCompletedWeek
+                              ? 'Review Answers'
+                              : 'View Recap'}
+                          </Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <>
+                          <TouchableOpacity
+                            style={{
+                              flex: 1,
+                              backgroundColor: '#ffffff',
+                              borderWidth: 1,
+                              borderColor: '#cbd5e1',
+                              paddingVertical: 10,
+                              borderRadius: 10,
+                              alignItems: 'center',
+                            }}
+                            onPress={() => {
+                              setSelectedQuizId(week.id);
+                              setQuizSubView('main');
+                            }}
+                          >
+                            <Text
+                              numberOfLines={1}
+                              style={{ color: '#334155', fontWeight: '700', fontSize: 12.5 }}
+                            >
+                              View Sermon
+                            </Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={{
+                              flex: 1.2,
+                              backgroundColor: '#0284c7',
+                              paddingVertical: 10,
+                              borderRadius: 10,
+                              alignItems: 'center',
+                            }}
+                            onPress={() =>
+                              setCatchupBriefingQuiz({ quizId: week.id, title: week.title })
+                            }
+                            disabled={startingCatchup}
+                          >
+                            <Text
+                              numberOfLines={1}
+                              style={{ color: '#ffffff', fontWeight: '700', fontSize: 12.5 }}
+                            >
+                              Catch Up (7-Day Pass)
+                            </Text>
+                          </TouchableOpacity>
+                        </>
                       )}
                     </View>
                   </View>
@@ -3896,14 +4300,14 @@ export default function WebReplicaScreen() {
               <View style={styles.quizStatusPill}>
                 <Text style={styles.quizStatusPillText}>
                   {quizStatus?.isCatchup
-                    ? '🎯 7-DAY CATCH-UP WINDOW'
+                    ? '7-Day Catch-Up Window'
                     : quizStatus?.isExpired
-                    ? 'COMPLETED WEEK'
-                    : 'ACTIVE QUIZ WEEK'}
+                    ? 'Completed Week'
+                    : 'Active Quiz Week'}
                 </Text>
               </View>
               <Text style={styles.quizWeekTitle}>
-                {qObj?.title ? qObj.title.split(/ — | - /)[0] : 'The Kingdom Mind'}
+                {qObj?.title ? qObj.title.split(/ — | - /)[0] : 'Sunday Sermon Quiz'}
               </Text>
               <Text style={styles.quizWeekDate}>
                 Sermon Date:{' '}
@@ -3914,40 +4318,100 @@ export default function WebReplicaScreen() {
                       month: 'long',
                       day: 'numeric',
                     })
-                  : 'Sunday, October 11, 2026'}
+                  : ''}
               </Text>
             </View>
+
+            {/* Active 7-Day Catch-Up Window Info Banner + Expiration Countdown */}
+            {quizStatus?.isCatchup && (
+              <View
+                style={{
+                  backgroundColor: '#ecfeff',
+                  borderWidth: 1,
+                  borderColor: '#7dd3fc',
+                  borderRadius: 16,
+                  padding: 14,
+                  marginBottom: 16,
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                  gap: 10,
+                }}
+              >
+                <FontAwesome name="clock-o" size={20} color="#0284c7" style={{ marginTop: 2 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '800', color: '#0369a1' }}>
+                    7-Day Catch-Up Window Active
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 12.5,
+                      color: '#0c4a6e',
+                      lineHeight: 18,
+                      marginTop: 3,
+                    }}
+                  >
+                    All 7 challenges are unlocked! Answer at your own pace across the week.
+                  </Text>
+                  {quizStatus?.catchupExpiresAt ? (
+                    <View
+                      style={{
+                        alignSelf: 'flex-start',
+                        backgroundColor: '#ffffff',
+                        borderWidth: 1,
+                        borderColor: '#bae6fd',
+                        borderRadius: 8,
+                        paddingHorizontal: 9,
+                        paddingVertical: 4,
+                        marginTop: 8,
+                      }}
+                    >
+                      <Text style={{ fontSize: 11.5, fontWeight: '700', color: '#0284c7' }}>
+                        Window expires:{' '}
+                        {new Date(quizStatus.catchupExpiresAt).toLocaleDateString('en-PH', {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+              </View>
+            )}
 
             {/* Expired / Catch-Up Banner */}
             {quizStatus?.isExpired && !quizStatus?.isCatchup && (
               <View style={styles.quizExpiredBanner}>
-                <Text style={{ fontSize: 26 }}>⏰</Text>
+                <FontAwesome name="calendar-check-o" size={22} color="#b45309" style={{ marginTop: 2 }} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.quizExpiredTitle}>
                     This quiz week has ended, but you can still catch up!
                   </Text>
                   <Text style={styles.quizExpiredBody}>
-                    You missed this Sunday quiz, but you can unlock a 7-day personal catch-up
-                    pass to play all 7 challenges and earn points for your leaderboard score!
+                    {(progress?.completed ?? 0) > 0
+                      ? `You completed ${progress?.completed}/7 challenges. Activate a 7-day pass to finish the rest!`
+                      : 'Unlock a 7-day personal catch-up pass to play all 7 challenges and earn points!'}
                   </Text>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                     <TouchableOpacity
                       style={styles.quizStartCatchupBtn}
-                      onPress={() => handleStartCatchup(qObj?.id)}
+                      onPress={() =>
+                        qObj?.id &&
+                        setCatchupBriefingQuiz({ quizId: qObj.id, title: qObj.title })
+                      }
                       disabled={startingCatchup}
                     >
-                      <Text style={styles.quizStartCatchupText}>
-                        {startingCatchup
-                          ? '⏳ Activating Pass...'
-                          : '🎯 Start 7-Day Catch-Up Pass'}
+                      <Text style={styles.quizStartCatchupText} numberOfLines={1}>
+                        {startingCatchup ? 'Activating Pass...' : 'Start 7-Day Catch-Up Pass'}
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.quizViewPastOutlineBtn}
                       onPress={() => setQuizSubView('archive')}
                     >
-                      <Text style={styles.quizViewPastOutlineText}>
-                        📁 View All Past Quizzes →
+                      <Text style={styles.quizViewPastOutlineText} numberOfLines={1}>
+                        View Past Quizzes
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -3955,135 +4419,760 @@ export default function WebReplicaScreen() {
               </View>
             )}
 
-            {/* Sermon Study Guide */}
-            {(slidesArray.length > 0 || qObj?.commentary) && (
+            {/* Sermon Study Guide (YouTube Livestream Replay + Sermon Slides + Commentary + Download) */}
+            {(hasVideo || hasSlides || qObj?.commentary || qObj?.presentationFile) && (
               <View style={styles.loveWhiteCard}>
-                <Text style={styles.quizSectionHeader}>📖 Sermon Study Guide</Text>
-                {qObj?.commentary && (
-                  <View style={[styles.resCommentaryBox, { marginBottom: 14 }]}>
-                    <Text style={styles.resCommentaryHeader}>
-                      📝 SERMON COMMENTARY & TAKEAWAYS
-                    </Text>
-                    <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled>
-                      {renderCommentaryLines(qObj.commentary)}
-                    </ScrollView>
+                <Text style={styles.quizSectionHeader}>Sermon Study Guide</Text>
+
+                {/* Video vs Slides Segmented Switcher when BOTH exist */}
+                {hasVideo && (hasSlides || qObj?.commentary) && (
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      backgroundColor: '#f1f5f9',
+                      borderRadius: 10,
+                      padding: 4,
+                      marginBottom: 14,
+                      gap: 6,
+                    }}
+                  >
+                    <TouchableOpacity
+                      onPress={() => setQuizStudyTab('video')}
+                      style={{
+                        flex: 1,
+                        paddingVertical: 9,
+                        borderRadius: 8,
+                        alignItems: 'center',
+                        backgroundColor: quizStudyTab === 'video' ? '#ffffff' : 'transparent',
+                      }}
+                    >
+                      <Text
+                        numberOfLines={1}
+                        style={{
+                          fontSize: 13,
+                          fontWeight: '700',
+                          color: quizStudyTab === 'video' ? '#0f172a' : '#64748b',
+                        }}
+                      >
+                        Livestream Replay
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => setQuizStudyTab('slides')}
+                      style={{
+                        flex: 1,
+                        paddingVertical: 9,
+                        borderRadius: 8,
+                        alignItems: 'center',
+                        backgroundColor: quizStudyTab === 'slides' ? '#ffffff' : 'transparent',
+                      }}
+                    >
+                      <Text
+                        numberOfLines={1}
+                        style={{
+                          fontSize: 13,
+                          fontWeight: '700',
+                          color: quizStudyTab === 'slides' ? '#0f172a' : '#64748b',
+                        }}
+                      >
+                        Sermon Slides
+                      </Text>
+                    </TouchableOpacity>
                   </View>
                 )}
-                {slidesArray.length > 0 && currentSlide && (
-                  <View>
-                    <Text style={styles.resSlidesHeader}>
-                      📽️ SERMON SLIDE DECK ({slidesArray.length} SLIDES)
-                    </Text>
-                    <View style={styles.resSlideStage}>
-                      <Image
-                        source={{ uri: currentSlide.image }}
-                        style={styles.resSlideImg}
-                        resizeMode="contain"
-                      />
-                      <View style={styles.resSlideCounterBadge}>
-                        <Text style={styles.resSlideCounterText}>
-                          Slide {quizSlideIdx + 1} of {slidesArray.length}
+
+                {hasVideo && (quizStudyTab === 'video' || (!hasSlides && !qObj?.commentary)) ? (
+                  <NativeYoutubePlayer videoId={qObj.youtubeVideoId} />
+                ) : (
+                  <View style={{ gap: 14 }}>
+                    {qObj?.commentary && (
+                      <View style={styles.resCommentaryBox}>
+                        <Text style={styles.resCommentaryHeader}>
+                          Sermon Commentary & Takeaways
                         </Text>
+                        <ScrollView style={{ maxHeight: 210 }} nestedScrollEnabled>
+                          {renderCommentaryLines(qObj.commentary)}
+                        </ScrollView>
                       </View>
-                      {slidesArray.length > 1 && (
-                        <>
-                          <TouchableOpacity
-                            style={[styles.resSlideArrow, { left: 8 }]}
-                            onPress={() =>
-                              setQuizSlideIdx((p) =>
-                                p > 0 ? p - 1 : slidesArray.length - 1
-                              )
-                            }
+                    )}
+
+                    {hasSlides && currentSlide && (
+                      <View>
+                        <Text style={styles.resSlidesHeader}>
+                          Sermon Slide Deck ({slidesArray.length} Slides)
+                        </Text>
+                        <View style={styles.resSlideStage}>
+                          {currentSlide.video ? (
+                            <NativeSlideVideoPlayer
+                              videoUrl={currentSlide.video}
+                              posterUrl={currentSlide.image}
+                            />
+                          ) : (
+                            <TouchableOpacity
+                              activeOpacity={0.9}
+                              style={{ width: '100%', height: '100%' }}
+                              onPress={() => setLightboxSlide(currentSlide.image)}
+                            >
+                              <Image
+                                source={{ uri: currentSlide.image }}
+                                style={styles.resSlideImg}
+                                resizeMode="contain"
+                              />
+                            </TouchableOpacity>
+                          )}
+
+                          <View style={styles.resSlideCounterBadge}>
+                            <Text style={styles.resSlideCounterText}>
+                              Slide {quizSlideIdx + 1} of {slidesArray.length}
+                            </Text>
+                          </View>
+
+                          {!currentSlide.video && (
+                            <TouchableOpacity
+                              style={styles.resFullscreenBtn}
+                              onPress={() => setLightboxSlide(currentSlide.image)}
+                            >
+                              <Text style={styles.resSlideCounterText}>Fullscreen</Text>
+                            </TouchableOpacity>
+                          )}
+
+                          {slidesArray.length > 1 && (
+                            <>
+                              <TouchableOpacity
+                                style={[styles.resSlideArrow, { left: 8 }]}
+                                onPress={() =>
+                                  setQuizSlideIdx((p) =>
+                                    p > 0 ? p - 1 : slidesArray.length - 1
+                                  )
+                                }
+                              >
+                                <Text style={styles.resSlideArrowText}>◀</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                style={[styles.resSlideArrow, { right: 8 }]}
+                                onPress={() =>
+                                  setQuizSlideIdx((p) =>
+                                    p < slidesArray.length - 1 ? p + 1 : 0
+                                  )
+                                }
+                              >
+                                <Text style={styles.resSlideArrowText}>▶</Text>
+                              </TouchableOpacity>
+                            </>
+                          )}
+                        </View>
+
+                        {/* Slide Thumbnail Strip (matching app/(app)/quiz/page.tsx) */}
+                        {slidesArray.length > 1 && (
+                          <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={styles.resThumbRow}
                           >
-                            <Text style={styles.resSlideArrowText}>◀</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={[styles.resSlideArrow, { right: 8 }]}
-                            onPress={() =>
-                              setQuizSlideIdx((p) =>
-                                p < slidesArray.length - 1 ? p + 1 : 0
-                              )
-                            }
-                          >
-                            <Text style={styles.resSlideArrowText}>▶</Text>
-                          </TouchableOpacity>
-                        </>
-                      )}
-                    </View>
+                            {slidesArray.map((s, idx) => (
+                              <TouchableOpacity
+                                key={idx}
+                                style={[
+                                  styles.resThumbBtn,
+                                  quizSlideIdx === idx && styles.resThumbBtnActive,
+                                ]}
+                                onPress={() => setQuizSlideIdx(idx)}
+                              >
+                                <Image
+                                  source={{ uri: s.image }}
+                                  style={{ width: '100%', height: '100%' }}
+                                  resizeMode="cover"
+                                />
+                                {s.video ? (
+                                  <View
+                                    style={{
+                                      position: 'absolute',
+                                      bottom: 2,
+                                      left: 2,
+                                      backgroundColor: 'rgba(2,132,199,0.9)',
+                                      paddingHorizontal: 4,
+                                      paddingVertical: 1,
+                                      borderRadius: 4,
+                                    }}
+                                  >
+                                    <FontAwesome name="play" size={8} color="#ffffff" />
+                                  </View>
+                                ) : null}
+                              </TouchableOpacity>
+                            ))}
+                          </ScrollView>
+                        )}
+                      </View>
+                    )}
+
+                    {/* Authenticated Sermon Slide Deck / Assets Download Button */}
+                    {qObj?.presentationFile ? (
+                      <TouchableOpacity
+                        style={styles.resDownloadBtn}
+                        onPress={() =>
+                          openAuthenticatedPresentationDownload(
+                            qObj.eventId,
+                            qObj.presentationFile
+                          )
+                        }
+                      >
+                        <Text style={styles.resDownloadBtnText} numberOfLines={1}>
+                          {qObj.presentationFile.toLowerCase().endsWith('.zip')
+                            ? 'Download Sermon Assets (.zip)'
+                            : qObj.presentationFile.toLowerCase().endsWith('.pdf')
+                            ? 'Download Sermon Slide Deck (.pdf)'
+                            : 'Download Sermon Slide Deck (.pptx)'}
+                        </Text>
+                      </TouchableOpacity>
+                    ) : null}
                   </View>
                 )}
               </View>
             )}
 
+            {/* Weekly Progress & Points + This Week's Prizes (1:1 with quiz/page.tsx) */}
+            <View style={styles.loveWhiteCard}>
+              <Text style={styles.quizSectionHeader}>Weekly Progress & Points</Text>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  marginBottom: 6,
+                }}
+              >
+                <Text style={{ fontSize: 13, color: '#64748b' }}>
+                  Completed: {progress?.completed ?? 0}/7 days
+                </Text>
+                <Text style={{ fontSize: 13, fontWeight: '800', color: '#0f172a' }}>
+                  Score: {progress?.totalScore ?? 0}/7
+                </Text>
+              </View>
+              <View
+                style={{
+                  width: '100%',
+                  height: 8,
+                  backgroundColor: '#f1f5f9',
+                  borderRadius: 8,
+                  overflow: 'hidden',
+                  marginBottom: 14,
+                }}
+              >
+                <View
+                  style={{
+                    width: `${Math.min(100, (((progress?.completed || 0) / 7) * 100))}%`,
+                    height: '100%',
+                    backgroundColor: PRIMARY,
+                    borderRadius: 8,
+                  }}
+                />
+              </View>
+
+              {progress?.isWeekComplete ? (
+                <View
+                  style={{
+                    backgroundColor: 'rgba(78,177,203,0.1)',
+                    borderWidth: 1,
+                    borderColor: 'rgba(78,177,203,0.32)',
+                    borderRadius: 12,
+                    padding: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 10,
+                  }}
+                >
+                  {progress.rewardDisplay?.imageUrl ? (
+                    <Image
+                      source={{
+                        uri: progress.rewardDisplay.imageUrl.startsWith('http')
+                          ? progress.rewardDisplay.imageUrl
+                          : `https://connect.houseofgrace.ph${
+                              progress.rewardDisplay.imageUrl.startsWith('/')
+                                ? progress.rewardDisplay.imageUrl
+                                : `/uploads/${progress.rewardDisplay.imageUrl}`
+                            }`,
+                      }}
+                      style={{ width: 44, height: 44, borderRadius: 8 }}
+                    />
+                  ) : (
+                    <View
+                      style={{
+                        width: 42,
+                        height: 42,
+                        borderRadius: 10,
+                        backgroundColor: '#e0f2fe',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <FontAwesome
+                        name={progress.rewardTier === 'PERFECT' ? 'trophy' : 'gift'}
+                        size={20}
+                        color={PRIMARY}
+                      />
+                    </View>
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '800', color: '#0f172a' }}>
+                      {progress.rewardDisplay?.label || 'Week Complete!'}
+                    </Text>
+                    {progress.rewardDisplay?.description ? (
+                      <Text style={{ fontSize: 12.5, color: '#475569', marginTop: 2 }}>
+                        {progress.rewardDisplay.description}
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
+              ) : (
+                <Text
+                  style={{
+                    color: '#64748b',
+                    fontSize: 12.5,
+                    fontStyle: 'italic',
+                    textAlign: 'center',
+                  }}
+                >
+                  Complete all 7 days to unlock your weekly reward tier!
+                </Text>
+              )}
+
+              {/* Announced Weekly Rewards Preview */}
+              {rewardItems.length > 0 && (
+                <View
+                  style={{
+                    marginTop: 14,
+                    paddingTop: 14,
+                    borderTopWidth: 1,
+                    borderTopColor: '#f1f5f9',
+                    gap: 8,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontWeight: '800',
+                      color: '#64748b',
+                      marginBottom: 2,
+                    }}
+                  >
+                    This Week&apos;s Prizes
+                  </Text>
+                  {rewardItems.map((item: any) => {
+                    const imgUri = item.imageUrl
+                      ? item.imageUrl.startsWith('http')
+                        ? item.imageUrl
+                        : `https://connect.houseofgrace.ph${
+                            item.imageUrl.startsWith('/')
+                              ? item.imageUrl
+                              : `/uploads/${item.imageUrl}`
+                          }`
+                      : null;
+                    return (
+                      <View
+                        key={item.id}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 10,
+                          backgroundColor: '#f8fafc',
+                          padding: 9,
+                          borderRadius: 10,
+                        }}
+                      >
+                        {imgUri ? (
+                          <TouchableOpacity onPress={() => setLightboxSlide(imgUri)}>
+                            <Image
+                              source={{ uri: imgUri }}
+                              style={{ width: 38, height: 38, borderRadius: 7 }}
+                            />
+                          </TouchableOpacity>
+                        ) : (
+                          <View
+                            style={{
+                              width: 38,
+                              height: 38,
+                              borderRadius: 7,
+                              backgroundColor: '#e2e8f0',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <FontAwesome name="gift" size={16} color="#0284c7" />
+                          </View>
+                        )}
+                        <View style={{ flex: 1 }}>
+                          <View
+                            style={{
+                              flexDirection: 'row',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              gap: 6,
+                            }}
+                          >
+                            <Text
+                              style={{ fontSize: 13, fontWeight: '700', color: '#0f172a', flex: 1 }}
+                              numberOfLines={1}
+                            >
+                              {item.title}
+                            </Text>
+                            <View
+                              style={{
+                                backgroundColor:
+                                  item.rewardTier === 'PERFECT' ? '#fef3c7' : '#eff6ff',
+                                paddingHorizontal: 6,
+                                paddingVertical: 2,
+                                borderRadius: 5,
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  fontSize: 10.5,
+                                  fontWeight: '700',
+                                  color:
+                                    item.rewardTier === 'PERFECT' ? '#d97706' : '#0284c7',
+                                }}
+                              >
+                                {TIER_BADGE_MAP[item.rewardTier] || item.rewardTier}
+                              </Text>
+                            </View>
+                          </View>
+                          {item.description ? (
+                            <Text
+                              style={{ fontSize: 11.5, color: '#64748b', marginTop: 2 }}
+                              numberOfLines={1}
+                            >
+                              {item.description}
+                            </Text>
+                          ) : null}
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+
+            {/* Perfect Score (7/7) T-Shirt Claim Box */}
+            {showClaimBox && (
+              <View
+                style={[
+                  styles.loveWhiteCard,
+                  { borderWidth: 2, borderColor: PRIMARY },
+                ]}
+              >
+                <Text style={{ fontSize: 16, fontWeight: '800', color: '#0f172a', marginBottom: 4 }}>
+                  Claim Your T-Shirt!
+                </Text>
+                <Text style={{ fontSize: 12.5, color: '#475569', marginBottom: 12 }}>
+                  Perfect score! Select your T-shirt size and contact number for Sunday pickup.
+                </Text>
+
+                {claimSuccessMsg ? (
+                  <Text style={{ color: '#16a34a', fontSize: 13, fontWeight: '700' }}>
+                    {claimSuccessMsg}
+                  </Text>
+                ) : (
+                  <View style={{ gap: 10 }}>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#475569' }}>
+                      T-Shirt Size
+                    </Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                      {['XS', 'S', 'M', 'L', 'XL', 'XXL'].map((sz) => {
+                        const active = tShirtSize === sz;
+                        return (
+                          <TouchableOpacity
+                            key={sz}
+                            onPress={() => setTShirtSize(sz)}
+                            style={{
+                              paddingHorizontal: 14,
+                              paddingVertical: 8,
+                              borderRadius: 9,
+                              borderWidth: 1.5,
+                              borderColor: active ? PRIMARY : '#cbd5e1',
+                              backgroundColor: active ? PRIMARY : '#ffffff',
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 13,
+                                fontWeight: '700',
+                                color: active ? '#ffffff' : '#334155',
+                              }}
+                            >
+                              {sz}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#475569', marginTop: 2 }}>
+                      Contact Number
+                    </Text>
+                    <TextInput
+                      value={claimPhone}
+                      onChangeText={setClaimPhone}
+                      keyboardType="phone-pad"
+                      placeholder="e.g. 09171234567"
+                      placeholderTextColor="#94a3b8"
+                      style={{
+                        borderWidth: 1,
+                        borderColor: '#cbd5e1',
+                        borderRadius: 10,
+                        paddingHorizontal: 12,
+                        paddingVertical: 10,
+                        fontSize: 14,
+                        color: '#0f172a',
+                      }}
+                    />
+
+                    {claimError ? (
+                      <Text style={{ color: '#ef4444', fontSize: 12, fontWeight: '600' }}>
+                        {claimError}
+                      </Text>
+                    ) : null}
+
+                    <TouchableOpacity
+                      disabled={claimingReward}
+                      onPress={handleClaimQuizReward}
+                      style={{
+                        backgroundColor: PRIMARY,
+                        paddingVertical: 12,
+                        borderRadius: 10,
+                        alignItems: 'center',
+                        marginTop: 4,
+                      }}
+                    >
+                      <Text style={{ color: '#ffffff', fontSize: 14, fontWeight: '800' }}>
+                        {claimingReward ? 'Submitting...' : 'Submit Claim'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* Claimed Status Card */}
+            {progress?.isWeekComplete &&
+              progress?.rewardClaim?.claimStatus === 'claimed' && (
+                <View
+                  style={[
+                    styles.loveWhiteCard,
+                    { flexDirection: 'row', alignItems: 'center', gap: 12 },
+                  ]}
+                >
+                  <FontAwesome name="check-circle" size={24} color={PRIMARY} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '800', color: '#0f172a' }}>
+                      T-Shirt Claim Submitted
+                    </Text>
+                    <Text style={{ fontSize: 12.5, color: '#64748b', marginTop: 2 }}>
+                      Size:{' '}
+                      {progress.rewardClaim.claimDetails?.size ||
+                        progress.rewardClaim.claimDetails?.tShirtSize ||
+                        'Recorded'}{' '}
+                      • Pending distribution this Sunday
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+            {/* Distributed Status Card */}
+            {progress?.isWeekComplete &&
+              progress?.rewardClaim?.claimStatus === 'distributed' && (
+                <View
+                  style={[
+                    styles.loveWhiteCard,
+                    { flexDirection: 'row', alignItems: 'center', gap: 12 },
+                  ]}
+                >
+                  <FontAwesome name="trophy" size={24} color="#16a34a" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '800', color: '#0f172a' }}>
+                      Reward Received!
+                    </Text>
+                    <Text style={{ fontSize: 12.5, color: '#16a34a', fontWeight: '600' }}>
+                      Reward distributed. Thank you for studying the Word!
+                    </Text>
+                  </View>
+                </View>
+              )}
+
             {/* 7 Daily Challenges */}
             <View style={styles.loveWhiteCard}>
               <Text style={styles.quizSectionHeader}>
-                🎯 Daily Challenges ({quizStatus?.progress?.completed ?? 0}/7 Completed)
+                Daily Challenges ({progress?.completed ?? 0}/7 Completed)
               </Text>
-              {days.map((d: any) => (
-                <TouchableOpacity
-                  key={d.dayNumber}
-                  style={styles.quizDayCard}
-                  activeOpacity={0.8}
-                  onPress={() => {
-                    if (d.status === 'expired') {
-                      handleStartCatchup(qObj?.id);
-                    } else if (d.status === 'completed') {
-                      setCompletedDayModal(d);
-                    } else if (d.status === 'available' || d.status === 'today') {
-                      openQuizPlayer(d);
-                    } else if (isAdminOrPastor) {
-                      openQuizPlayer(d);
-                    }
-                  }}
-                >
-                  <View style={styles.quizDayEmojiBox}>
-                    <Text style={{ fontSize: 20 }}>{d.typeEmoji || '🧠'}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.quizDayTitle}>
-                      Day {d.dayNumber}: {d.typeLabel}
-                    </Text>
-                    <Text style={styles.quizDaySub}>
-                      {d.label} • {d.difficulty}
-                    </Text>
-                  </View>
-                  <View
+              {days.map((d: any) => {
+                const isToday = d.status === 'today';
+                const isAvailable = d.status === 'available';
+                const isCompleted = d.status === 'completed';
+                const isDayExpired = d.status === 'expired';
+                return (
+                  <TouchableOpacity
+                    key={d.dayNumber}
                     style={[
-                      styles.quizDayBadge,
-                      d.status === 'completed'
-                        ? { backgroundColor: '#dcfce7' }
-                        : d.status === 'available' || d.status === 'today'
-                        ? { backgroundColor: '#e0f2fe' }
-                        : { backgroundColor: '#f1f5f9' },
+                      styles.quizDayCard,
+                      isToday && {
+                        borderColor: PRIMARY,
+                        borderWidth: 2,
+                      },
                     ]}
+                    activeOpacity={0.8}
+                    onPress={() => {
+                      if (isDayExpired) {
+                        if (qObj?.id) {
+                          setCatchupBriefingQuiz({
+                            quizId: qObj.id,
+                            title: qObj.title,
+                            targetDay: d,
+                          });
+                        }
+                      } else if (isCompleted) {
+                        setCompletedDayModal(d);
+                      } else if (isAvailable || isToday) {
+                        openQuizPlayer(d);
+                      } else if (isAdminOrPastor) {
+                        openQuizPlayer(d);
+                      }
+                    }}
                   >
-                    <Text
+                    <View
                       style={[
-                        styles.quizDayBadgeText,
-                        d.status === 'completed'
-                          ? { color: '#166534' }
-                          : d.status === 'available' || d.status === 'today'
-                          ? { color: '#0369a1' }
-                          : { color: '#64748b' },
+                        styles.quizDayEmojiBox,
+                        isCompleted && {
+                          backgroundColor: d.isCorrect ? '#dcfce7' : '#f1f5f9',
+                        },
                       ]}
                     >
-                      {d.status === 'completed'
-                        ? d.isCorrect
-                          ? '✅ +1 pt'
-                          : '✅ Done'
-                        : d.status === 'available' || d.status === 'today'
-                        ? '▶ Play'
-                        : d.status === 'expired'
-                        ? '⏰ Catch Up'
-                        : '🔒 Locked'}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
+                      <Text style={{ fontSize: 19 }}>
+                        {isCompleted ? (d.isCorrect ? '✅' : '💡') : d.typeEmoji || '🧠'}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <Text style={styles.quizDayTitle}>{d.label}</Text>
+                        {isToday && (
+                          <View
+                            style={{
+                              backgroundColor: PRIMARY,
+                              paddingHorizontal: 6,
+                              paddingVertical: 2,
+                              borderRadius: 6,
+                            }}
+                          >
+                            <Text style={{ color: '#ffffff', fontSize: 10, fontWeight: '800' }}>
+                              Today
+                            </Text>
+                          </View>
+                        )}
+                        {isAvailable && (
+                          <View
+                            style={{
+                              backgroundColor: 'rgba(78,177,203,0.16)',
+                              paddingHorizontal: 6,
+                              paddingVertical: 2,
+                              borderRadius: 6,
+                            }}
+                          >
+                            <Text style={{ color: PRIMARY, fontSize: 10, fontWeight: '800' }}>
+                              Catch-up
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.quizDaySub}>
+                        {d.typeLabel} • {d.difficulty}
+                      </Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.quizDayBadge,
+                        isCompleted
+                          ? { backgroundColor: d.isCorrect ? '#dcfce7' : '#f1f5f9' }
+                          : isAvailable || isToday
+                          ? { backgroundColor: '#e0f2fe' }
+                          : isDayExpired
+                          ? { backgroundColor: '#fef2f2' }
+                          : { backgroundColor: '#f1f5f9' },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.quizDayBadgeText,
+                          isCompleted
+                            ? { color: d.isCorrect ? '#166534' : '#475569' }
+                            : isAvailable || isToday
+                            ? { color: '#0369a1' }
+                            : isDayExpired
+                            ? { color: '#dc2626' }
+                            : { color: '#64748b' },
+                        ]}
+                      >
+                        {isCompleted
+                          ? d.isCorrect
+                            ? '+1 Point'
+                            : 'Learned'
+                          : isAvailable || isToday
+                          ? 'Play'
+                          : isDayExpired
+                          ? 'Missed'
+                          : 'Locked'}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </>
         )}
+
+        {/* ── Pre-Flight Catch-Up Briefing Modal ── */}
+        <ConfirmModal
+          visible={catchupBriefingQuiz !== null}
+          title="Start 7-Day Catch-Up"
+          message={
+            catchupBriefingQuiz
+              ? `Unlock all 7 daily challenges for "${
+                  catchupBriefingQuiz.title.split(/ — | - /)[0]
+                }" with a personal 7-day window. Correct answers count toward your All-Time score!`
+              : ''
+          }
+          confirmText={startingCatchup ? 'Starting...' : 'Start 7-Day Pass'}
+          onConfirm={() =>
+            catchupBriefingQuiz &&
+            handleStartCatchup(catchupBriefingQuiz.quizId, catchupBriefingQuiz.targetDay)
+          }
+          onCancel={() => setCatchupBriefingQuiz(null)}
+        />
+
+        {/* ── Polite Single-Active-Quiz Conflict Modal ("One Quiz at a Time") ── */}
+        <ConfirmModal
+          visible={catchupConflictModal.open}
+          title="One Quiz at a Time"
+          message={catchupConflictModal.message}
+          confirmText={
+            catchupConflictModal.activeQuizId ? 'Go to Active Quiz' : 'Got It'
+          }
+          cancelText="Close"
+          onConfirm={() => {
+            const activeId = catchupConflictModal.activeQuizId;
+            setCatchupConflictModal({ open: false, message: '' });
+            if (activeId) {
+              setSelectedQuizId(activeId);
+              setQuizSubView('main');
+            }
+          }}
+          onCancel={() => setCatchupConflictModal({ open: false, message: '' })}
+        />
+
+        {/* ── Clean Mobile Alert Prompt Modal ── */}
+        <AlertPromptModal
+          visible={quizAlertModal.visible}
+          type="warning"
+          title={quizAlertModal.title}
+          message={quizAlertModal.message}
+          onClose={() => setQuizAlertModal({ visible: false, title: '', message: '' })}
+        />
 
         {/* ── Completed Day Feedback & Pastor's Answer Key Modal ── */}
         <Modal
@@ -4129,8 +5218,8 @@ export default function WebReplicaScreen() {
                     }}
                   >
                     {completedDayModal.isCorrect
-                      ? '🏆 Correct Answer! (+1 Point)'
-                      : '💡 Opportunity to Learn'}
+                      ? 'Correct Answer! (+1 Point)'
+                      : 'Opportunity to Learn'}
                   </Text>
                 </View>
 
@@ -4153,7 +5242,7 @@ export default function WebReplicaScreen() {
                         marginBottom: 4,
                       }}
                     >
-                      PASTOR&apos;S NOTES / AI FEEDBACK:
+                      Pastor&apos;s Notes / Feedback
                     </Text>
                     <Text style={{ fontSize: 13.5, color: '#334155', lineHeight: 20 }}>
                       &ldquo;{completedDayModal.feedback}&rdquo;
@@ -4177,14 +5266,29 @@ export default function WebReplicaScreen() {
                         fontSize: 11,
                         fontWeight: '800',
                         color: '#15803d',
-                        marginBottom: 4,
+                        marginBottom: 6,
                       }}
                     >
-                      🔑 ANSWER KEY (PASTORS & ADMINS ONLY):
+                      Answer Key (Pastors & Admins)
                     </Text>
-                    <Text style={{ fontSize: 13.5, fontWeight: '700', color: '#166534' }}>
-                      {completedDayModal.correctAnswer}
-                    </Text>
+                    {completedDayModal.type === 'SCRIPTURE_ORDERING' ? (
+                      <View style={{ gap: 5 }}>
+                        {String(completedDayModal.correctAnswer)
+                          .split(' | ')
+                          .map((seg, sIdx) => (
+                            <Text
+                              key={sIdx}
+                              style={{ fontSize: 13, fontWeight: '600', color: '#166534' }}
+                            >
+                              {sIdx + 1}. {seg}
+                            </Text>
+                          ))}
+                      </View>
+                    ) : (
+                      <Text style={{ fontSize: 13.5, fontWeight: '700', color: '#166534' }}>
+                        {completedDayModal.correctAnswer}
+                      </Text>
+                    )}
                   </View>
                 ) : null}
 
@@ -4207,582 +5311,710 @@ export default function WebReplicaScreen() {
           </View>
         </Modal>
 
-        {/* ── Interactive 5-Type QuizPlayer Modal (1:1 Replica of components/quiz/QuizPlayer.tsx) ── */}
+        {/* ── Interactive QuizPlayer Modal (Balloon Pop + 3D Tree of Wisdom + AI Reflection) ── */}
         <Modal
           visible={activeQuizQuestion !== null}
           animationType="fade"
           onRequestClose={() => setActiveQuizQuestion(null)}
         >
           <LinearGradient
-            colors={['#0a2a3a', '#134e5e', '#1a3a4a']}
+            colors={
+              activeQuizQuestion?.type === 'TREE_OF_LIFE'
+                ? ['#05131d', '#092232', '#030e16']
+                : ['#0a2a3a', '#134e5e', '#1a3a4a']
+            }
             style={{ flex: 1, paddingTop: Math.max(insets.top, 20) }}
           >
-            {activeQuizQuestion && (
-              <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 80 }}>
-                {/* Header */}
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: 20,
-                  }}
+            <NativeConfetti active={Boolean(quizPlayerResult?.isCorrect)} />
+            <KeyboardAvoidingView
+              style={{ flex: 1 }}
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            >
+              {activeQuizQuestion && (
+                <ScrollView
+                  contentContainerStyle={{ padding: 20, paddingBottom: 90 }}
+                  keyboardShouldPersistTaps="handled"
                 >
+                  {/* Header */}
                   <View
                     style={{
-                      backgroundColor: 'rgba(78,177,203,0.28)',
-                      borderWidth: 1,
-                      borderColor: 'rgba(78,177,203,0.45)',
-                      paddingHorizontal: 14,
-                      paddingVertical: 6,
-                      borderRadius: 999,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      marginBottom: 14,
                     }}
                   >
-                    <Text style={{ color: '#4EB1CB', fontWeight: '700', fontSize: 13 }}>
-                      {DAY_LABELS_MAP[activeQuizQuestion.dayNumber] ||
-                        `Day ${activeQuizQuestion.dayNumber} — ${activeQuizQuestion.typeLabel}`}
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => setActiveQuizQuestion(null)}
-                    style={{
-                      backgroundColor: 'rgba(255,255,255,0.15)',
-                      paddingHorizontal: 14,
-                      paddingVertical: 8,
-                      borderRadius: 8,
-                    }}
-                  >
-                    <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 14 }}>
-                      {quizPlayerResult ? 'Done' : '✕'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Result Screen */}
-                {quizPlayerResult ? (
-                  <View style={{ alignItems: 'center', marginTop: 24 }}>
-                    <Text style={{ fontSize: 60 }}>
-                      {quizPlayerResult.isCorrect ? '🎉' : '😅'}
-                    </Text>
-                    <Text
-                      style={{
-                        color: quizPlayerResult.isCorrect ? '#48BB78' : '#FC8181',
-                        fontSize: 24,
-                        fontWeight: '800',
-                        marginTop: 12,
-                      }}
-                    >
-                      {quizPlayerResult.isCorrect ? 'Correct!' : 'Not quite!'}
-                    </Text>
                     <View
                       style={{
-                        backgroundColor: 'rgba(255,255,255,0.08)',
-                        borderRadius: 16,
-                        padding: 20,
-                        width: '100%',
-                        marginTop: 20,
+                        backgroundColor: 'rgba(78,177,203,0.26)',
+                        borderWidth: 1,
+                        borderColor: 'rgba(78,177,203,0.45)',
+                        paddingHorizontal: 14,
+                        paddingVertical: 6,
+                        borderRadius: 999,
                       }}
                     >
-                      <Text
-                        style={{
-                          color: '#e2e8f0',
-                          fontSize: 15,
-                          lineHeight: 23,
-                          textAlign: 'center',
-                        }}
-                      >
-                        {quizPlayerResult.feedback}
+                      <Text style={{ color: '#7dd3fc', fontWeight: '700', fontSize: 13 }}>
+                        {DAY_LABELS_MAP[activeQuizQuestion.dayNumber] ||
+                          `Day ${activeQuizQuestion.dayNumber} — ${activeQuizQuestion.typeLabel}`}
                       </Text>
-                      {quizPlayerResult.explanation ? (
-                        <Text
-                          style={{
-                            color: '#cbd5e1',
-                            fontSize: 13.5,
-                            marginTop: 12,
-                            lineHeight: 20,
-                            textAlign: 'center',
-                          }}
-                        >
-                          💡 {quizPlayerResult.explanation}
-                        </Text>
-                      ) : null}
                     </View>
-
-                    {quizPlayerResult.reward && (
-                      <View
-                        style={{
-                          backgroundColor: 'rgba(78,177,203,0.16)',
-                          borderWidth: 2,
-                          borderColor: 'rgba(78,177,203,0.55)',
-                          borderRadius: 16,
-                          padding: 18,
-                          width: '100%',
-                          marginTop: 16,
-                          alignItems: 'center',
-                        }}
-                      >
-                        <Text style={{ color: '#4EB1CB', fontSize: 17, fontWeight: '800' }}>
-                          🏆 Week Complete! Score: {quizPlayerResult.reward.totalScore}/7
-                        </Text>
-                        <Text
-                          style={{
-                            color: '#e2e8f0',
-                            fontSize: 13.5,
-                            marginTop: 6,
-                            textAlign: 'center',
-                          }}
-                        >
-                          {quizPlayerResult.reward.tier === 'PERFECT'
-                            ? 'PERFECT SCORE! Claim your Christian statement t-shirt! 🎽'
-                            : quizPlayerResult.reward.tier === 'PARTICIPANT'
-                            ? 'Keep growing in the Word! Every quiz makes you stronger. 🙏'
-                            : '🎁 Prize: TBA — to be announced this Sunday!'}
-                        </Text>
-                      </View>
-                    )}
-
                     <TouchableOpacity
                       onPress={() => setActiveQuizQuestion(null)}
                       style={{
-                        backgroundColor: PRIMARY,
-                        paddingVertical: 15,
-                        paddingHorizontal: 44,
-                        borderRadius: 14,
-                        marginTop: 28,
+                        backgroundColor: 'rgba(255,255,255,0.14)',
+                        paddingHorizontal: 14,
+                        paddingVertical: 8,
+                        borderRadius: 8,
                       }}
                     >
-                      <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: '800' }}>
-                        Continue →
+                      <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 14 }}>
+                        {quizPlayerResult ? 'Done' : '✕'}
                       </Text>
                     </TouchableOpacity>
                   </View>
-                ) : (
-                  <View>
-                    {/* Question Text */}
-                    <Text
-                      style={{
-                        color: '#ffffff',
-                        fontSize: 18,
-                        fontWeight: '700',
-                        textAlign: 'center',
-                        lineHeight: 27,
-                        marginVertical: 16,
-                      }}
-                    >
-                      {activeQuizQuestion.type === 'SCRIPTURE_ORDERING'
-                        ? 'Arrange these parts in the correct order:'
-                        : activeQuizQuestion.questionText}
-                    </Text>
 
-                    {/* Hint Button */}
-                    {activeQuizQuestion.hint ? (
-                      <View style={{ alignItems: 'center', marginBottom: 14 }}>
-                        <TouchableOpacity
-                          onPress={() => setQuizPlayerShowHint((v) => !v)}
-                        >
-                          <Text style={{ color: '#FBD38D', fontSize: 13.5, fontWeight: '600' }}>
-                            {quizPlayerShowHint ? 'Hide hint' : '💡 Need a hint?'}
-                          </Text>
-                        </TouchableOpacity>
-                        {quizPlayerShowHint && (
-                          <View
-                            style={{
-                              backgroundColor: 'rgba(251,211,141,0.12)',
-                              borderWidth: 1,
-                              borderColor: 'rgba(251,211,141,0.35)',
-                              borderRadius: 12,
-                              padding: 12,
-                              marginTop: 8,
-                              width: '100%',
-                            }}
-                          >
-                            <Text style={{ color: '#FBD38D', fontSize: 13, textAlign: 'center' }}>
-                              💡 {activeQuizQuestion.hint}
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                    ) : null}
-
-                    {/* Pastor / Admin Answer Key Reveal */}
-                    {isAdminOrPastor && activeQuizQuestion.correctAnswer ? (
-                      <View style={{ alignItems: 'center', marginBottom: 14 }}>
-                        <TouchableOpacity
-                          onPress={() => setQuizPlayerRevealAnswer((v) => !v)}
+                  {/* Result Screen */}
+                  {quizPlayerResult ? (
+                    <View style={{ alignItems: 'center', marginTop: 24 }}>
+                      <Text style={{ fontSize: 56 }}>
+                        {quizPlayerResult.isCorrect ? '🎉' : '💡'}
+                      </Text>
+                      <Text
+                        style={{
+                          color: quizPlayerResult.isCorrect ? '#48BB78' : '#FC8181',
+                          fontSize: 24,
+                          fontWeight: '800',
+                          marginTop: 12,
+                        }}
+                      >
+                        {quizPlayerResult.isCorrect ? 'Correct!' : 'Not quite!'}
+                      </Text>
+                      <View
+                        style={{
+                          backgroundColor: 'rgba(255,255,255,0.08)',
+                          borderRadius: 16,
+                          padding: 20,
+                          width: '100%',
+                          marginTop: 20,
+                        }}
+                      >
+                        <Text
                           style={{
-                            backgroundColor: 'rgba(72,187,120,0.2)',
-                            borderWidth: 1,
-                            borderColor: 'rgba(72,187,120,0.45)',
-                            paddingHorizontal: 12,
-                            paddingVertical: 6,
-                            borderRadius: 999,
+                            color: '#e2e8f0',
+                            fontSize: 15,
+                            lineHeight: 23,
+                            textAlign: 'center',
                           }}
                         >
-                          <Text style={{ color: '#9AE6B4', fontSize: 12, fontWeight: '700' }}>
-                            {quizPlayerRevealAnswer
-                              ? '🙈 Hide Answer Key'
-                              : '🔑 Pastor/Admin: Reveal Answer'}
-                          </Text>
-                        </TouchableOpacity>
-                        {quizPlayerRevealAnswer && (
-                          <View
+                          {quizPlayerResult.feedback}
+                        </Text>
+                        {quizPlayerResult.explanation ? (
+                          <Text
                             style={{
-                              backgroundColor: 'rgba(72,187,120,0.15)',
-                              borderRadius: 10,
-                              padding: 10,
-                              marginTop: 8,
-                              width: '100%',
+                              color: '#cbd5e1',
+                              fontSize: 13.5,
+                              marginTop: 12,
+                              lineHeight: 20,
+                              textAlign: 'center',
                             }}
                           >
-                            <Text style={{ color: '#9AE6B4', fontSize: 12.5, textAlign: 'center', fontWeight: '700' }}>
-                              Answer: {activeQuizQuestion.correctAnswer}
-                            </Text>
-                          </View>
-                        )}
+                            {quizPlayerResult.explanation}
+                          </Text>
+                        ) : null}
                       </View>
-                    ) : null}
 
-                    {/* 1. MULTIPLE_CHOICE (Balloon Pop) */}
-                    {activeQuizQuestion.type === 'MULTIPLE_CHOICE' && (
-                      <View style={{ gap: 12, marginTop: 8 }}>
-                        {(activeQuizQuestion.options || []).map((opt: string, idx: number) => {
-                          const colors = ['#FF6B6B', '#4EB1CB', '#0284c7', '#48BB78'];
-                          return (
-                            <TouchableOpacity
-                              key={idx}
-                              disabled={quizPlayerSubmitting}
-                              onPress={() => handleSubmitQuizAnswer(opt)}
+                      {quizPlayerResult.reward && (
+                        <View
+                          style={{
+                            backgroundColor: 'rgba(78,177,203,0.16)',
+                            borderWidth: 2,
+                            borderColor: 'rgba(78,177,203,0.55)',
+                            borderRadius: 16,
+                            padding: 18,
+                            width: '100%',
+                            marginTop: 16,
+                            alignItems: 'center',
+                          }}
+                        >
+                          <Text style={{ color: '#4EB1CB', fontSize: 17, fontWeight: '800' }}>
+                            Week Complete! Score: {quizPlayerResult.reward.totalScore}/7
+                          </Text>
+                          <Text
+                            style={{
+                              color: '#e2e8f0',
+                              fontSize: 13.5,
+                              marginTop: 6,
+                              textAlign: 'center',
+                            }}
+                          >
+                            {quizPlayerResult.reward.tier === 'PERFECT'
+                              ? 'Perfect score! Claim your Christian statement T-shirt on the quiz page!'
+                              : quizPlayerResult.reward.tier === 'PARTICIPANT'
+                              ? 'Keep growing in the Word! Every quiz makes you stronger.'
+                              : 'Prize details will be announced this Sunday!'}
+                          </Text>
+                        </View>
+                      )}
+
+                      <TouchableOpacity
+                        onPress={() => setActiveQuizQuestion(null)}
+                        style={{
+                          backgroundColor: PRIMARY,
+                          paddingVertical: 15,
+                          paddingHorizontal: 44,
+                          borderRadius: 14,
+                          marginTop: 28,
+                        }}
+                      >
+                        <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: '800' }}>
+                          Continue
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <View>
+                      {/* Pastor / Admin Answer Key Reveal */}
+                      {isAdminOrPastor && activeQuizQuestion.correctAnswer ? (
+                        <View style={{ alignItems: 'center', marginBottom: 12 }}>
+                          <TouchableOpacity
+                            onPress={() => setQuizPlayerRevealAnswer((v) => !v)}
+                            style={{
+                              backgroundColor: 'rgba(72,187,120,0.2)',
+                              borderWidth: 1,
+                              borderColor: 'rgba(72,187,120,0.45)',
+                              paddingHorizontal: 12,
+                              paddingVertical: 6,
+                              borderRadius: 999,
+                            }}
+                          >
+                            <Text style={{ color: '#9AE6B4', fontSize: 12, fontWeight: '700' }}>
+                              {quizPlayerRevealAnswer
+                                ? 'Hide Answer Key'
+                                : 'Pastor/Admin: Reveal Answer'}
+                            </Text>
+                          </TouchableOpacity>
+                          {quizPlayerRevealAnswer && (
+                            <View
                               style={{
-                                backgroundColor: colors[idx % 4],
-                                borderRadius: 20,
-                                paddingVertical: 20,
-                                paddingHorizontal: 18,
-                                alignItems: 'center',
-                                justifyContent: 'center',
+                                backgroundColor: 'rgba(72,187,120,0.15)',
+                                borderRadius: 10,
+                                padding: 10,
+                                marginTop: 8,
+                                width: '100%',
                               }}
                             >
                               <Text
                                 style={{
-                                  color: '#ffffff',
-                                  fontSize: 15.5,
-                                  fontWeight: '700',
+                                  color: '#9AE6B4',
+                                  fontSize: 12.5,
                                   textAlign: 'center',
+                                  fontWeight: '700',
                                 }}
                               >
-                                🎈 {opt}
+                                Answer: {activeQuizQuestion.correctAnswer}
                               </Text>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </View>
-                    )}
-
-                    {/* 2. FILL_IN_BLANKS */}
-                    {activeQuizQuestion.type === 'FILL_IN_BLANKS' && (
-                      <View style={{ gap: 12, marginTop: 8 }}>
-                        {quizPlayerBlanks.map((val, bIdx) => (
-                          <View key={bIdx}>
-                            <Text style={{ color: '#cbd5e1', fontSize: 12.5, marginBottom: 6 }}>
-                              Blank #{bIdx + 1}:
-                            </Text>
-                            <TextInput
-                              value={val}
-                              onChangeText={(txt) => {
-                                const next = [...quizPlayerBlanks];
-                                next[bIdx] = txt;
-                                setQuizPlayerBlanks(next);
-                              }}
-                              placeholder={`Type missing word #${bIdx + 1}...`}
-                              placeholderTextColor="rgba(255,255,255,0.4)"
-                              style={{
-                                backgroundColor: 'rgba(78,177,203,0.15)',
-                                borderWidth: 2,
-                                borderColor: PRIMARY,
-                                borderRadius: 12,
-                                color: '#ffffff',
-                                fontSize: 15,
-                                paddingHorizontal: 14,
-                                paddingVertical: 12,
-                              }}
-                            />
-                          </View>
-                        ))}
-                        <TouchableOpacity
-                          disabled={
-                            quizPlayerSubmitting ||
-                            quizPlayerBlanks.some((b) => !b.trim())
-                          }
-                          onPress={() => handleSubmitQuizAnswer()}
-                          style={{
-                            backgroundColor: PRIMARY,
-                            borderRadius: 14,
-                            paddingVertical: 15,
-                            alignItems: 'center',
-                            marginTop: 12,
-                            opacity:
-                              quizPlayerSubmitting ||
-                              quizPlayerBlanks.some((b) => !b.trim())
-                                ? 0.5
-                                : 1,
-                          }}
-                        >
-                          <Text style={{ color: '#ffffff', fontSize: 15.5, fontWeight: '800' }}>
-                            {quizPlayerSubmitting ? 'Checking...' : 'Submit Answer'}
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
-
-                    {/* 3. SHORT_ANSWER (Essay with AI Grading) */}
-                    {activeQuizQuestion.type === 'SHORT_ANSWER' && (
-                      <View style={{ marginTop: 8 }}>
-                        <View
-                          style={{
-                            backgroundColor: 'rgba(78,177,203,0.12)',
-                            borderWidth: 1,
-                            borderColor: 'rgba(78,177,203,0.35)',
-                            borderRadius: 12,
-                            padding: 12,
-                            marginBottom: 14,
-                          }}
-                        >
-                          <Text style={{ color: '#4EB1CB', fontSize: 12.5, lineHeight: 18 }}>
-                            📝 Answer in your own words. Bisaya, Tagalog, or English — all are accepted! We use AI to understand the meaning of your answer.
-                          </Text>
+                            </View>
+                          )}
                         </View>
-                        <TextInput
-                          value={quizPlayerAnswer}
-                          onChangeText={(t) => setQuizPlayerAnswer(t.slice(0, 500))}
-                          placeholder="Type your reflection here (minimum 20 characters)..."
-                          placeholderTextColor="rgba(255,255,255,0.4)"
-                          multiline
-                          style={{
-                            backgroundColor: 'rgba(255,255,255,0.08)',
-                            borderWidth: 2,
-                            borderColor: 'rgba(78,177,203,0.35)',
-                            borderRadius: 12,
-                            color: '#ffffff',
-                            fontSize: 15,
-                            padding: 14,
-                            minHeight: 120,
-                            textAlignVertical: 'top',
-                          }}
-                        />
-                        <Text style={{ color: '#94a3b8', fontSize: 12, marginTop: 6 }}>
-                          {quizPlayerAnswer.length}/500 characters{' '}
-                          {quizPlayerAnswer.trim().length < 20 ? '(minimum 20)' : ''}
-                        </Text>
-                        <TouchableOpacity
-                          disabled={
-                            quizPlayerSubmitting ||
-                            quizPlayerAnswer.trim().length < 20
-                          }
-                          onPress={() => handleSubmitQuizAnswer()}
-                          style={{
-                            backgroundColor: PRIMARY,
-                            borderRadius: 14,
-                            paddingVertical: 15,
-                            alignItems: 'center',
-                            marginTop: 16,
-                            opacity:
-                              quizPlayerSubmitting ||
-                              quizPlayerAnswer.trim().length < 20
-                                ? 0.5
-                                : 1,
-                          }}
-                        >
-                          <Text style={{ color: '#ffffff', fontSize: 15.5, fontWeight: '800' }}>
-                            {quizPlayerSubmitting
-                              ? 'AI is reviewing your answer...'
-                              : 'Submit Answer'}
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
+                      ) : null}
 
-                    {/* 4. SCRIPTURE_ORDERING (Verse Builder) */}
-                    {activeQuizQuestion.type === 'SCRIPTURE_ORDERING' && (
-                      <View style={{ marginTop: 8 }}>
-                        {quizPlayerOrder.map((seg, idx) => (
-                          <View
-                            key={`${idx}-${seg}`}
+                      {/* NEW: TREE_OF_LIFE (3D Tree of Wisdom Spotlight Stage — Days 2 & 4) */}
+                      {activeQuizQuestion.type === 'TREE_OF_LIFE' ? (
+                        <NativeTreeOfWisdom
+                          dayNumber={activeQuizQuestion.dayNumber}
+                          questionText={activeQuizQuestion.questionText}
+                          options={activeQuizQuestion.options || []}
+                          hint={activeQuizQuestion.hint}
+                          submitting={quizPlayerSubmitting}
+                          onSubmit={(ans) => handleSubmitQuizAnswer(ans)}
+                        />
+                      ) : (
+                        <>
+                          {/* Question Text for non-Tree types */}
+                          <Text
                             style={{
-                              flexDirection: 'row',
-                              alignItems: 'center',
-                              gap: 10,
-                              backgroundColor: 'rgba(255,255,255,0.08)',
-                              borderWidth: 1,
-                              borderColor: 'rgba(255,255,255,0.15)',
-                              borderRadius: 12,
-                              padding: 12,
-                              marginBottom: 10,
+                              color: '#ffffff',
+                              fontSize: 18,
+                              fontWeight: '700',
+                              textAlign: 'center',
+                              lineHeight: 27,
+                              marginVertical: 14,
                             }}
                           >
-                            <View style={{ gap: 4 }}>
-                              <TouchableOpacity
-                                disabled={idx === 0}
-                                onPress={() => {
-                                  if (idx === 0) return;
-                                  const next = [...quizPlayerOrder];
-                                  const [moved] = next.splice(idx, 1);
-                                  next.splice(idx - 1, 0, moved);
-                                  setQuizPlayerOrder(next);
-                                }}
-                                style={{ paddingHorizontal: 6, paddingVertical: 2 }}
-                              >
-                                <Text
-                                  style={{
-                                    color: idx === 0 ? '#475569' : '#4EB1CB',
-                                    fontSize: 15,
-                                    fontWeight: '800',
-                                  }}
-                                >
-                                  ▲
-                                </Text>
-                              </TouchableOpacity>
-                              <TouchableOpacity
-                                disabled={idx === quizPlayerOrder.length - 1}
-                                onPress={() => {
-                                  if (idx >= quizPlayerOrder.length - 1) return;
-                                  const next = [...quizPlayerOrder];
-                                  const [moved] = next.splice(idx, 1);
-                                  next.splice(idx + 1, 0, moved);
-                                  setQuizPlayerOrder(next);
-                                }}
-                                style={{ paddingHorizontal: 6, paddingVertical: 2 }}
-                              >
-                                <Text
-                                  style={{
-                                    color:
-                                      idx === quizPlayerOrder.length - 1
-                                        ? '#475569'
-                                        : '#4EB1CB',
-                                    fontSize: 15,
-                                    fontWeight: '800',
-                                  }}
-                                >
-                                  ▼
-                                </Text>
-                              </TouchableOpacity>
-                            </View>
-                            <View
-                              style={{
-                                width: 26,
-                                height: 26,
-                                borderRadius: 13,
-                                backgroundColor: 'rgba(78,177,203,0.25)',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                              }}
-                            >
-                              <Text style={{ color: '#4EB1CB', fontWeight: '800', fontSize: 12 }}>
-                                {idx + 1}
-                              </Text>
-                            </View>
-                            <Text style={{ flex: 1, color: '#e2e8f0', fontSize: 14, lineHeight: 20 }}>
-                              {seg}
-                            </Text>
-                          </View>
-                        ))}
-                        <TouchableOpacity
-                          disabled={quizPlayerSubmitting}
-                          onPress={() => handleSubmitQuizAnswer()}
-                          style={{
-                            backgroundColor: PRIMARY,
-                            borderRadius: 14,
-                            paddingVertical: 15,
-                            alignItems: 'center',
-                            marginTop: 12,
-                          }}
-                        >
-                          <Text style={{ color: '#ffffff', fontSize: 15.5, fontWeight: '800' }}>
-                            {quizPlayerSubmitting ? 'Checking order...' : 'Submit Order'}
+                            {activeQuizQuestion.type === 'SCRIPTURE_ORDERING'
+                              ? 'Arrange these parts in the correct order:'
+                              : activeQuizQuestion.type === 'FILL_IN_BLANKS'
+                              ? String(activeQuizQuestion.questionText || '')
+                                  .split('______')
+                                  .reduce(
+                                    (acc, part, idx, arr) =>
+                                      idx < arr.length - 1
+                                        ? `${acc}${part}[ #${idx + 1} ]`
+                                        : `${acc}${part}`,
+                                    ''
+                                  )
+                              : activeQuizQuestion.questionText}
                           </Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
 
-                    {/* 5. TRUE_FALSE_EXPLAIN */}
-                    {activeQuizQuestion.type === 'TRUE_FALSE_EXPLAIN' && (
-                      <View style={{ marginTop: 8 }}>
-                        <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>
-                          {(['TRUE', 'FALSE'] as const).map((choice) => {
-                            const selected = quizPlayerTF === choice;
-                            const isTrue = choice === 'TRUE';
-                            return (
+                          {/* Hint Button */}
+                          {activeQuizQuestion.hint ? (
+                            <View style={{ alignItems: 'center', marginBottom: 14 }}>
                               <TouchableOpacity
-                                key={choice}
-                                onPress={() => setQuizPlayerTF(choice)}
-                                style={{
-                                  flex: 1,
-                                  paddingVertical: 18,
-                                  borderRadius: 16,
-                                  alignItems: 'center',
-                                  backgroundColor: selected
-                                    ? isTrue
-                                      ? '#38A169'
-                                      : '#E53E3E'
-                                    : isTrue
-                                    ? 'rgba(72,187,120,0.15)'
-                                    : 'rgba(252,129,129,0.15)',
-                                  borderWidth: 2,
-                                  borderColor: selected
-                                    ? '#ffffff'
-                                    : isTrue
-                                    ? 'rgba(72,187,120,0.35)'
-                                    : 'rgba(252,129,129,0.35)',
-                                }}
+                                onPress={() => setQuizPlayerShowHint((v) => !v)}
                               >
-                                <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: '800' }}>
-                                  {isTrue ? '✅ TRUE' : '❌ FALSE'}
+                                <Text
+                                  style={{
+                                    color: '#FBD38D',
+                                    fontSize: 13.5,
+                                    fontWeight: '600',
+                                  }}
+                                >
+                                  {quizPlayerShowHint ? 'Hide hint' : 'Show Scripture Hint'}
                                 </Text>
                               </TouchableOpacity>
-                            );
-                          })}
-                        </View>
-                        {quizPlayerTF && (
-                          <>
-                            <TextInput
-                              value={quizPlayerExplanation}
-                              onChangeText={(t) => setQuizPlayerExplanation(t.slice(0, 500))}
-                              placeholder="Explain why in your own words (Bisaya, Tagalog, or English)..."
-                              placeholderTextColor="rgba(255,255,255,0.4)"
-                              multiline
-                              style={{
-                                backgroundColor: 'rgba(255,255,255,0.08)',
-                                borderWidth: 2,
-                                borderColor: 'rgba(78,177,203,0.35)',
-                                borderRadius: 12,
-                                color: '#ffffff',
-                                fontSize: 14.5,
-                                padding: 14,
-                                minHeight: 100,
-                                textAlignVertical: 'top',
-                              }}
-                            />
-                            <TouchableOpacity
-                              disabled={quizPlayerSubmitting}
-                              onPress={() => handleSubmitQuizAnswer()}
-                              style={{
-                                backgroundColor: PRIMARY,
-                                borderRadius: 14,
-                                paddingVertical: 15,
-                                alignItems: 'center',
-                                marginTop: 16,
-                              }}
-                            >
-                              <Text style={{ color: '#ffffff', fontSize: 15.5, fontWeight: '800' }}>
-                                {quizPlayerSubmitting ? 'AI is reviewing...' : 'Submit Answer'}
+                              {quizPlayerShowHint && (
+                                <View
+                                  style={{
+                                    backgroundColor: 'rgba(251,211,141,0.12)',
+                                    borderWidth: 1,
+                                    borderColor: 'rgba(251,211,141,0.35)',
+                                    borderRadius: 12,
+                                    padding: 12,
+                                    marginTop: 8,
+                                    width: '100%',
+                                  }}
+                                >
+                                  <Text
+                                    style={{
+                                      color: '#FBD38D',
+                                      fontSize: 13,
+                                      textAlign: 'center',
+                                    }}
+                                  >
+                                    {activeQuizQuestion.hint}
+                                  </Text>
+                                </View>
+                              )}
+                            </View>
+                          ) : null}
+
+                          {/* 1. MULTIPLE_CHOICE (Balloon Pop) */}
+                          {activeQuizQuestion.type === 'MULTIPLE_CHOICE' && (
+                            <View style={{ gap: 12, marginTop: 8 }}>
+                              {(activeQuizQuestion.options || []).map(
+                                (opt: string, idx: number) => {
+                                  const colors = [
+                                    '#FF6B6B',
+                                    '#4EB1CB',
+                                    '#0284c7',
+                                    '#48BB78',
+                                  ];
+                                  return (
+                                    <TouchableOpacity
+                                      key={idx}
+                                      disabled={quizPlayerSubmitting}
+                                      onPress={() => handleSubmitQuizAnswer(opt)}
+                                      style={{
+                                        backgroundColor: colors[idx % 4],
+                                        borderRadius: 22,
+                                        paddingVertical: 20,
+                                        paddingHorizontal: 18,
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                      }}
+                                    >
+                                      <Text
+                                        style={{
+                                          color: '#ffffff',
+                                          fontSize: 15.5,
+                                          fontWeight: '700',
+                                          textAlign: 'center',
+                                        }}
+                                      >
+                                        {opt}
+                                      </Text>
+                                    </TouchableOpacity>
+                                  );
+                                }
+                              )}
+                            </View>
+                          )}
+
+                          {/* 2. Legacy FILL_IN_BLANKS fallback */}
+                          {activeQuizQuestion.type === 'FILL_IN_BLANKS' && (
+                            <View style={{ gap: 12, marginTop: 8 }}>
+                              {quizPlayerBlanks.map((val, bIdx) => (
+                                <View key={bIdx}>
+                                  <Text
+                                    style={{
+                                      color: '#cbd5e1',
+                                      fontSize: 12.5,
+                                      marginBottom: 6,
+                                    }}
+                                  >
+                                    Missing Word #{bIdx + 1}:
+                                  </Text>
+                                  <TextInput
+                                    value={val}
+                                    onChangeText={(txt) => {
+                                      const next = [...quizPlayerBlanks];
+                                      next[bIdx] = txt;
+                                      setQuizPlayerBlanks(next);
+                                    }}
+                                    placeholder={`Type word for [ #${bIdx + 1} ]...`}
+                                    placeholderTextColor="rgba(255,255,255,0.4)"
+                                    style={{
+                                      backgroundColor: 'rgba(78,177,203,0.15)',
+                                      borderWidth: 2,
+                                      borderColor: PRIMARY,
+                                      borderRadius: 12,
+                                      color: '#ffffff',
+                                      fontSize: 15,
+                                      paddingHorizontal: 14,
+                                      paddingVertical: 12,
+                                    }}
+                                  />
+                                </View>
+                              ))}
+                              <TouchableOpacity
+                                disabled={
+                                  quizPlayerSubmitting ||
+                                  quizPlayerBlanks.some((b) => !b.trim())
+                                }
+                                onPress={() => handleSubmitQuizAnswer()}
+                                style={{
+                                  backgroundColor: PRIMARY,
+                                  borderRadius: 14,
+                                  paddingVertical: 15,
+                                  alignItems: 'center',
+                                  marginTop: 12,
+                                  opacity:
+                                    quizPlayerSubmitting ||
+                                    quizPlayerBlanks.some((b) => !b.trim())
+                                      ? 0.5
+                                      : 1,
+                                }}
+                              >
+                                <Text
+                                  style={{
+                                    color: '#ffffff',
+                                    fontSize: 15.5,
+                                    fontWeight: '800',
+                                  }}
+                                >
+                                  {quizPlayerSubmitting ? 'Checking...' : 'Submit Answer'}
+                                </Text>
+                              </TouchableOpacity>
+                            </View>
+                          )}
+
+                          {/* 3. SHORT_ANSWER (Essay with AI Grading) */}
+                          {activeQuizQuestion.type === 'SHORT_ANSWER' && (
+                            <View style={{ marginTop: 8 }}>
+                              <View
+                                style={{
+                                  backgroundColor: 'rgba(78,177,203,0.12)',
+                                  borderWidth: 1,
+                                  borderColor: 'rgba(78,177,203,0.35)',
+                                  borderRadius: 12,
+                                  padding: 12,
+                                  marginBottom: 14,
+                                }}
+                              >
+                                <Text
+                                  style={{
+                                    color: '#7dd3fc',
+                                    fontSize: 12.5,
+                                    lineHeight: 18,
+                                  }}
+                                >
+                                  Answer in your own words. Bisaya, Tagalog, or English are all accepted!
+                                </Text>
+                              </View>
+                              <TextInput
+                                value={quizPlayerAnswer}
+                                onChangeText={(t) => setQuizPlayerAnswer(t.slice(0, 500))}
+                                placeholder="Type your reflection here (minimum 20 characters)..."
+                                placeholderTextColor="rgba(255,255,255,0.4)"
+                                multiline
+                                style={{
+                                  backgroundColor: 'rgba(255,255,255,0.08)',
+                                  borderWidth: 2,
+                                  borderColor: 'rgba(78,177,203,0.35)',
+                                  borderRadius: 12,
+                                  color: '#ffffff',
+                                  fontSize: 15,
+                                  padding: 14,
+                                  minHeight: 120,
+                                  textAlignVertical: 'top',
+                                }}
+                              />
+                              <Text style={{ color: '#94a3b8', fontSize: 12, marginTop: 6 }}>
+                                {quizPlayerAnswer.length}/500 characters{' '}
+                                {quizPlayerAnswer.trim().length < 20 ? '(minimum 20)' : ''}
                               </Text>
-                            </TouchableOpacity>
-                          </>
-                        )}
-                      </View>
-                    )}
-                  </View>
-                )}
-              </ScrollView>
-            )}
+                              <TouchableOpacity
+                                disabled={
+                                  quizPlayerSubmitting ||
+                                  quizPlayerAnswer.trim().length < 20
+                                }
+                                onPress={() => handleSubmitQuizAnswer()}
+                                style={{
+                                  backgroundColor: PRIMARY,
+                                  borderRadius: 14,
+                                  paddingVertical: 15,
+                                  alignItems: 'center',
+                                  marginTop: 16,
+                                  opacity:
+                                    quizPlayerSubmitting ||
+                                    quizPlayerAnswer.trim().length < 20
+                                      ? 0.5
+                                      : 1,
+                                }}
+                              >
+                                <Text
+                                  style={{
+                                    color: '#ffffff',
+                                    fontSize: 15.5,
+                                    fontWeight: '800',
+                                  }}
+                                >
+                                  {quizPlayerSubmitting
+                                    ? 'AI is reviewing your answer...'
+                                    : 'Submit Answer'}
+                                </Text>
+                              </TouchableOpacity>
+                            </View>
+                          )}
+
+                          {/* 4. Legacy SCRIPTURE_ORDERING fallback */}
+                          {activeQuizQuestion.type === 'SCRIPTURE_ORDERING' && (
+                            <View style={{ marginTop: 8 }}>
+                              {quizPlayerOrder.map((seg, idx) => (
+                                <View
+                                  key={`${idx}-${seg}`}
+                                  style={{
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                    gap: 10,
+                                    backgroundColor: 'rgba(255,255,255,0.08)',
+                                    borderWidth: 1,
+                                    borderColor: 'rgba(255,255,255,0.15)',
+                                    borderRadius: 12,
+                                    padding: 12,
+                                    marginBottom: 10,
+                                  }}
+                                >
+                                  <View style={{ gap: 4 }}>
+                                    <TouchableOpacity
+                                      disabled={idx === 0}
+                                      onPress={() => {
+                                        if (idx === 0) return;
+                                        const next = [...quizPlayerOrder];
+                                        const [moved] = next.splice(idx, 1);
+                                        next.splice(idx - 1, 0, moved);
+                                        setQuizPlayerOrder(next);
+                                      }}
+                                      style={{ paddingHorizontal: 6, paddingVertical: 2 }}
+                                    >
+                                      <Text
+                                        style={{
+                                          color: idx === 0 ? '#475569' : '#4EB1CB',
+                                          fontSize: 15,
+                                          fontWeight: '800',
+                                        }}
+                                      >
+                                        ▲
+                                      </Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                      disabled={idx === quizPlayerOrder.length - 1}
+                                      onPress={() => {
+                                        if (idx >= quizPlayerOrder.length - 1) return;
+                                        const next = [...quizPlayerOrder];
+                                        const [moved] = next.splice(idx, 1);
+                                        next.splice(idx + 1, 0, moved);
+                                        setQuizPlayerOrder(next);
+                                      }}
+                                      style={{ paddingHorizontal: 6, paddingVertical: 2 }}
+                                    >
+                                      <Text
+                                        style={{
+                                          color:
+                                            idx === quizPlayerOrder.length - 1
+                                              ? '#475569'
+                                              : '#4EB1CB',
+                                          fontSize: 15,
+                                          fontWeight: '800',
+                                        }}
+                                      >
+                                        ▼
+                                      </Text>
+                                    </TouchableOpacity>
+                                  </View>
+                                  <View
+                                    style={{
+                                      width: 26,
+                                      height: 26,
+                                      borderRadius: 13,
+                                      backgroundColor: 'rgba(78,177,203,0.25)',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                    }}
+                                  >
+                                    <Text
+                                      style={{
+                                        color: '#4EB1CB',
+                                        fontWeight: '800',
+                                        fontSize: 12,
+                                      }}
+                                    >
+                                      {idx + 1}
+                                    </Text>
+                                  </View>
+                                  <Text
+                                    style={{
+                                      flex: 1,
+                                      color: '#e2e8f0',
+                                      fontSize: 14,
+                                      lineHeight: 20,
+                                    }}
+                                  >
+                                    {seg}
+                                  </Text>
+                                </View>
+                              ))}
+                              <TouchableOpacity
+                                disabled={quizPlayerSubmitting}
+                                onPress={() => handleSubmitQuizAnswer()}
+                                style={{
+                                  backgroundColor: PRIMARY,
+                                  borderRadius: 14,
+                                  paddingVertical: 15,
+                                  alignItems: 'center',
+                                  marginTop: 12,
+                                }}
+                              >
+                                <Text
+                                  style={{
+                                    color: '#ffffff',
+                                    fontSize: 15.5,
+                                    fontWeight: '800',
+                                  }}
+                                >
+                                  {quizPlayerSubmitting ? 'Checking order...' : 'Submit Order'}
+                                </Text>
+                              </TouchableOpacity>
+                            </View>
+                          )}
+
+                          {/* 5. TRUE_FALSE_EXPLAIN */}
+                          {activeQuizQuestion.type === 'TRUE_FALSE_EXPLAIN' && (
+                            <View style={{ marginTop: 8 }}>
+                              <View
+                                style={{
+                                  flexDirection: 'row',
+                                  gap: 12,
+                                  marginBottom: 16,
+                                }}
+                              >
+                                {(['TRUE', 'FALSE'] as const).map((choice) => {
+                                  const selected = quizPlayerTF === choice;
+                                  const isTrue = choice === 'TRUE';
+                                  return (
+                                    <TouchableOpacity
+                                      key={choice}
+                                      onPress={() => setQuizPlayerTF(choice)}
+                                      style={{
+                                        flex: 1,
+                                        paddingVertical: 18,
+                                        borderRadius: 16,
+                                        alignItems: 'center',
+                                        backgroundColor: selected
+                                          ? isTrue
+                                            ? '#38A169'
+                                            : '#E53E3E'
+                                          : isTrue
+                                          ? 'rgba(72,187,120,0.15)'
+                                          : 'rgba(252,129,129,0.15)',
+                                        borderWidth: 2,
+                                        borderColor: selected
+                                          ? '#ffffff'
+                                          : isTrue
+                                          ? 'rgba(72,187,120,0.35)'
+                                          : 'rgba(252,129,129,0.35)',
+                                      }}
+                                    >
+                                      <Text
+                                        style={{
+                                          color: '#ffffff',
+                                          fontSize: 16,
+                                          fontWeight: '800',
+                                        }}
+                                      >
+                                        {choice}
+                                      </Text>
+                                    </TouchableOpacity>
+                                  );
+                                })}
+                              </View>
+                              {quizPlayerTF && (
+                                <>
+                                  <TextInput
+                                    value={quizPlayerExplanation}
+                                    onChangeText={(t) =>
+                                      setQuizPlayerExplanation(t.slice(0, 500))
+                                    }
+                                    placeholder="Explain why in your own words (Bisaya, Tagalog, or English)..."
+                                    placeholderTextColor="rgba(255,255,255,0.4)"
+                                    multiline
+                                    style={{
+                                      backgroundColor: 'rgba(255,255,255,0.08)',
+                                      borderWidth: 2,
+                                      borderColor: 'rgba(78,177,203,0.35)',
+                                      borderRadius: 12,
+                                      color: '#ffffff',
+                                      fontSize: 14.5,
+                                      padding: 14,
+                                      minHeight: 100,
+                                      textAlignVertical: 'top',
+                                    }}
+                                  />
+                                  <TouchableOpacity
+                                    disabled={quizPlayerSubmitting}
+                                    onPress={() => handleSubmitQuizAnswer()}
+                                    style={{
+                                      backgroundColor: PRIMARY,
+                                      borderRadius: 14,
+                                      paddingVertical: 15,
+                                      alignItems: 'center',
+                                      marginTop: 16,
+                                    }}
+                                  >
+                                    <Text
+                                      style={{
+                                        color: '#ffffff',
+                                        fontSize: 15.5,
+                                        fontWeight: '800',
+                                      }}
+                                    >
+                                      {quizPlayerSubmitting
+                                        ? 'AI is reviewing...'
+                                        : 'Submit Answer'}
+                                    </Text>
+                                  </TouchableOpacity>
+                                </>
+                              )}
+                            </View>
+                          )}
+                        </>
+                      )}
+                    </View>
+                  )}
+                </ScrollView>
+              )}
+            </KeyboardAvoidingView>
           </LinearGradient>
         </Modal>
       </ScrollView>

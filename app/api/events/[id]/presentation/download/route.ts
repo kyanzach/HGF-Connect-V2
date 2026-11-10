@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { getAuthenticatedMember } from "@/lib/mobileAuth";
 import { getPresentationDownloadFilename } from "@/lib/presentationUtils";
 import path from "path";
 import fs from "fs";
@@ -13,25 +13,19 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user) {
+    const member = await getAuthenticatedMember(req);
+    if (!member) {
       return NextResponse.json(
         { error: "Unauthorized. Please sign in to download sermon resources." },
         { status: 401 }
       );
     }
 
-    if ((session.user as any).status === "pending") {
-      const dbMember = await db.member.findUnique({
-        where: { id: Number(session.user.id) },
-        select: { status: true },
-      });
-      if (!dbMember || dbMember.status === "pending") {
-        return NextResponse.json(
-          { error: "Forbidden. Account approval required to download sermon resources." },
-          { status: 403 }
-        );
-      }
+    if (member.status === "pending") {
+      return NextResponse.json(
+        { error: "Forbidden. Account approval required to download sermon resources." },
+        { status: 403 }
+      );
     }
 
     const { id } = await params;

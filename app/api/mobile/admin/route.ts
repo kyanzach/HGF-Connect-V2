@@ -3,6 +3,16 @@ import { db } from "@/lib/db";
 import { getAuthenticatedMember } from "@/lib/mobileAuth";
 import { notifyAllMembers, createNotification } from "@/lib/notify";
 import { sendSms } from "@/lib/sms";
+import {
+  generateQuiz,
+  getRewardTier,
+  isQuizWeekExpired,
+  getQuizDayForDate,
+  QUIZ_DAYS,
+  QUIZ_TYPE_LABELS,
+} from "@/lib/quiz-helpers";
+import { extractVideoId, fetchTranscriptWithMeta } from "@/lib/youtube";
+import { QuizRewardTier } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 export const dynamic = "force-dynamic";
@@ -677,12 +687,13 @@ export async function GET(req: NextRequest) {
         }),
         db.event.findMany({
           orderBy: { eventDate: "desc" },
-          take: 30,
+          take: 40,
           select: {
             id: true,
             title: true,
             eventDate: true,
             speaker: true,
+            commentary: true,
             presentationSlides: true,
           },
         }),
@@ -697,6 +708,214 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    if (page === "quiz-participants") {
+      const quizId = Number(searchParams.get("quizId"));
+      if (!quizId || isNaN(quizId)) {
+        return NextResponse.json({ success: false, message: "quizId required" }, { status: 400 });
+      }
+      const quiz = await db.sermonQuiz.findUnique({
+        where: { id: quizId },
+        include: {
+          questions: {
+            orderBy: { dayNumber: "asc" },
+            select: { id: true, dayNumber: true, questionType: true, questionText: true },
+          },
+          rewards: true,
+          catchupSessions: { select: { memberId: true, isCompleted: true, startedAt: true } },
+        },
+      });
+      if (!quiz) {
+        return NextResponse.json({ success: false, message: "Quiz not found" }, { status: 404 });
+      }
+      const submissions = await db.quizSubmission.findMany({
+        where: { quizId },
+        include: {
+          question: { select: { dayNumber: true } },
+          member: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              profilePictureThumbnail: true,
+              profilePicture: true,
+              phone: true,
+              ministries: {
+                where: { status: "active" },
+                include: { ministry: { select: { name: true } } },
+              },
+            },
+          },
+        },
+        orderBy: { submittedAt: "asc" },
+      });
+
+      const memberMap = new Map<number, any>();
+      for (const sub of submissions) {
+        if (!sub.member) continue;
+        const mId = sub.memberId;
+        if (!memberMap.has(mId)) {
+          const phone = sub.member.phone || "";
+          const masked =
+            phone.length > 7 ? phone.slice(0, 4) + "****" + phone.slice(-3) : phone;
+          const pic = sub.member.profilePictureThumbnail || sub.member.profilePicture || null;
+          memberMap.set(mId, {
+            memberId: mId,
+            name: `${sub.member.firstName} ${sub.member.lastName}`.trim(),
+            firstName: sub.member.firstName,
+            lastName: sub.member.lastName,
+            photoUrl: pic ? `https://connect.houseofgrace.ph/uploads/profile_pictures/${pic}` : null,
+            maskedPhone: masked,
+            ministries: sub.member.ministries?.map((mm: any) => mm.ministry.name) || [],
+            submissions: [],
+            firstSubmittedAt: sub.submittedAt,
+            lastSubmittedAt: sub.submittedAt,
+            totalScore: 0,
+          });
+        }
+        const mData = memberMap.get(mId)!;
+        mData.submissions.push({
+          questionId: sub.questionId,
+          dayNumber: sub.question.dayNumber,
+          isCorrect: sub.isCorrect,
+          score: sub.score,
+          submittedAt: sub.submittedAt,
+        });
+        mData.totalScore += sub.score;
+        if (!mData.lastSubmittedAt || sub.submittedAt > mData.lastSubmittedAt) {
+          mData.lastSubmittedAt = sub.submittedAt;
+        }
+      }
+
+      const catchupMap = new Map<number, boolean>();
+      quiz.catchupSessions.forEach((c) => catchupMap.set(c.memberId, c.isCompleted));
+      const rewardMap = new Map<number, any>();
+      quiz.rewards.forEach((r) => rewardMap.set(r.memberId, r));
+
+      const totalQuestions = quiz.questions.length || 7;
+      const participants = Array.from(memberMap.values()).map((p) => {
+        const dayProgress = [];
+        for (let day = 1; day <= totalQuestions; day++) {
+          const subForDay = p.submissions.find((s: any) => s.dayNumber === day);
+          dayProgress.push({
+            dayNumber: day,
+            completed: Boolean(subForDay),
+            isCorrect: subForDay?.isCorrect ?? false,
+            score: subForDay?.score ?? 0,
+          });
+        }
+        const daysCompleted = p.submissions.length;
+        const isCompleted = daysCompleted >= totalQuestions;
+        const rewardTier = getRewardTier(p.totalScore);
+        const rewardClaim = rewardMap.get(p.memberId);
+        return {
+          memberId: p.memberId,
+          name: p.name,
+          photoUrl: p.photoUrl,
+          maskedPhone: p.maskedPhone,
+          ministries: p.ministries,
+          daysCompleted,
+          isCompleted,
+          totalScore: p.totalScore,
+          rewardTier,
+          dayProgress,
+          lastSubmittedAt: p.lastSubmittedAt,
+          isCatchup: catchupMap.has(p.memberId),
+          claimStatus: rewardClaim?.claimStatus || "unclaimed",
+        };
+      });
+
+      participants.sort((a, b) => {
+        if (b.daysCompleted !== a.daysCompleted) return b.daysCompleted - a.daysCompleted;
+        if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
+        return 0;
+      });
+
+      const totalParticipants = participants.length;
+      const completedCount = participants.filter((p) => p.isCompleted).length;
+      const perfectScoreCount = participants.filter((p) => p.totalScore >= totalQuestions).length;
+      const completionRate =
+        totalParticipants > 0 ? Math.round((completedCount / totalParticipants) * 100) : 0;
+      const averageScore =
+        totalParticipants > 0
+          ? parseFloat(
+              (participants.reduce((acc, p) => acc + p.totalScore, 0) / totalParticipants).toFixed(1)
+            )
+          : 0;
+
+      const dayDropoff = [];
+      for (let day = 1; day <= totalQuestions; day++) {
+        const count = submissions.filter((s) => s.question.dayNumber === day).length;
+        const correctCount = submissions.filter(
+          (s) => s.question.dayNumber === day && s.isCorrect
+        ).length;
+        dayDropoff.push({
+          dayNumber: day,
+          participants: count,
+          correctCount,
+          accuracyRate: count > 0 ? Math.round((correctCount / count) * 100) : 0,
+        });
+      }
+
+      const tierDistribution = {
+        PERFECT: participants.filter((p) => p.rewardTier === "PERFECT").length,
+        EXCELLENT: participants.filter((p) => p.rewardTier === "EXCELLENT").length,
+        GOOD: participants.filter((p) => p.rewardTier === "GOOD").length,
+        PARTICIPANT: participants.filter((p) => p.rewardTier === "PARTICIPANT").length,
+      };
+
+      return NextResponse.json({
+        success: true,
+        data: JSON.parse(
+          JSON.stringify({
+            quiz: {
+              id: quiz.id,
+              title: quiz.title,
+              sermonDate: quiz.sermonDate,
+              status: quiz.status,
+              totalQuestions,
+            },
+            summary: {
+              totalParticipants,
+              totalSubmissions: submissions.length,
+              completedCount,
+              completionRate,
+              perfectScoreCount,
+              averageScore,
+              tierDistribution,
+              dayDropoff,
+            },
+            participants,
+          })
+        ),
+      });
+    }
+
+    if (page === "quiz-rewards") {
+      const quizId = Number(searchParams.get("quizId"));
+      if (!quizId || isNaN(quizId)) {
+        return NextResponse.json({ success: false, message: "quizId required" }, { status: 400 });
+      }
+      const rewards = await db.quizReward.findMany({
+        where: { quizId },
+        include: {
+          member: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              phone: true,
+              profilePicture: true,
+            },
+          },
+        },
+        orderBy: [{ totalScore: "desc" }, { createdAt: "desc" }],
+      });
+      return NextResponse.json({
+        success: true,
+        data: { rewards: JSON.parse(JSON.stringify(rewards)) },
+      });
+    }
+
     return NextResponse.json({ success: true, data: { viewerRole: member?.role || "admin" } });
   } catch (err: any) {
     console.error("[api/mobile/admin GET]", err?.message);
@@ -707,7 +926,16 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const member = await getAuthenticatedMember(req);
-    if (!member || !["admin", "moderator", "usher", "multimedia"].includes(member.role || "")) {
+    let hasAdminAccess = Boolean(
+      member && ["admin", "moderator", "usher", "multimedia"].includes(member.role || "")
+    );
+    if (!hasAdminAccess && member?.id) {
+      const pm = await db.memberMinistry
+        .findFirst({ where: { memberId: member.id, ministryId: 11, status: "active" } })
+        .catch(() => null);
+      hasAdminAccess = Boolean(pm);
+    }
+    if (!member || !hasAdminAccess) {
       return NextResponse.json({ success: false, message: "Admin access required." }, { status: 403 });
     }
 
@@ -1150,30 +1378,580 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    if (action === "announce_quiz_rewards") {
-      const rewardTier = String(body?.rewardTier || "PERFECT");
-      const title = String(body?.title || "").trim();
-      const description = String(body?.description || "").trim();
-      const latestQuiz = await db.sermonQuiz.findFirst({ orderBy: { sermonDate: "desc" } });
-      if (latestQuiz && title) {
-        await db.quizRewardItem.create({
-          data: {
-            quizId: latestQuiz.id,
-            rewardTier: rewardTier as any,
-            title,
-            description: description || null,
+    if (action === "fetch_quiz_transcript") {
+      const url = String(body?.url || "").trim();
+      const cleanId = extractVideoId(url);
+      if (!cleanId) {
+        return NextResponse.json(
+          { success: false, message: "Please provide a valid YouTube sermon video URL." },
+          { status: 400 }
+        );
+      }
+      const ytResult = await fetchTranscriptWithMeta(cleanId);
+      if (!ytResult || !ytResult.text?.trim()) {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              "Could not extract captions automatically (YouTube cloud IP check or captions disabled). Paste notes manually below.",
+          },
+          { status: 422 }
+        );
+      }
+      return NextResponse.json({
+        success: true,
+        data: {
+          transcript: ytResult.text,
+          wordCount: ytResult.wordCount,
+          charCount: ytResult.charCount,
+          segmentCount: ytResult.segmentCount,
+          language: ytResult.language,
+          title: ytResult.title,
+        },
+      });
+    }
+
+    if (action === "generate_quiz") {
+      const sermonDate = String(body?.sermonDate || "").trim();
+      const youtubeUrl = body?.youtubeUrl ? String(body.youtubeUrl).trim() : "";
+      const eventId = body?.eventId ? Number(body.eventId) : null;
+      let sourceText = body?.sermonText ? String(body.sermonText).trim() : "";
+      let transcriptSource = "manual";
+
+      if (!sermonDate) {
+        return NextResponse.json(
+          { success: false, message: "Sunday sermon date is required." },
+          { status: 400 }
+        );
+      }
+
+      if (!sourceText && youtubeUrl) {
+        const cleanId = extractVideoId(youtubeUrl);
+        if (cleanId) {
+          const ytResult = await fetchTranscriptWithMeta(cleanId).catch(() => null);
+          if (ytResult?.text?.trim()) {
+            sourceText = ytResult.text;
+            transcriptSource = "youtube";
+          }
+        }
+      }
+
+      if (!sourceText && eventId) {
+        const ev = await db.event.findUnique({
+          where: { id: eventId },
+          select: { commentary: true },
+        });
+        if (ev?.commentary?.trim()) {
+          sourceText = ev.commentary;
+          transcriptSource = "slides";
+        }
+      }
+
+      if (!sourceText) {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              "Please paste sermon notes, provide a YouTube URL with captions, or select an event with uploaded sermon slides.",
+          },
+          { status: 400 }
+        );
+      }
+
+      const generated = await generateQuiz(sourceText, sermonDate);
+      return NextResponse.json({
+        success: true,
+        data: {
+          transcriptSource,
+          sourceText,
+          title: generated.title,
+          announcementCaption: generated.announcementCaption,
+          questions: generated.questions,
+        },
+      });
+    }
+
+    if (action === "save_quiz" || action === "publish_quiz") {
+      const {
+        quizId: rawQuizId,
+        title,
+        sermonDate,
+        youtubeUrl,
+        transcriptText,
+        announcementCaption,
+        questions,
+        eventId,
+        notifyArchiveMembers,
+      } = body;
+
+      if (!title || !sermonDate || !Array.isArray(questions) || questions.length === 0) {
+        return NextResponse.json(
+          { success: false, message: "Title, sermon date, and questions are required." },
+          { status: 400 }
+        );
+      }
+
+      const youtubeVideoId = youtubeUrl ? extractVideoId(String(youtubeUrl)) : null;
+      const isPast = isQuizWeekExpired(sermonDate);
+      const shouldPublish = action === "publish_quiz";
+      const targetStatus = isPast ? "completed" : "draft";
+
+      let parsedEventId = eventId ? Number(eventId) : NaN;
+      if (isNaN(parsedEventId) || !parsedEventId) {
+        const sDate = new Date(sermonDate);
+        const dayStr = sDate.toISOString().split("T")[0];
+        const existingEvent = await db.event.findFirst({
+          where: {
+            eventType: "sunday_service",
+            eventDate: {
+              gte: new Date(`${dayStr}T00:00:00.000Z`),
+              lte: new Date(`${dayStr}T23:59:59.999Z`),
+            },
           },
         });
-        await db.post.create({
+        if (existingEvent) {
+          parsedEventId = existingEvent.id;
+        } else {
+          const createdEv = await db.event.create({
+            data: {
+              title: String(title) || "Sunday Worship Service",
+              eventType: "sunday_service",
+              eventDate: sDate,
+              startTime: new Date("1970-01-01T09:00:00Z"),
+              location: "House of Grace Sanctuary",
+              description: `Sunday Service sermon: ${title}`,
+              createdBy: member.id,
+            },
+          });
+          parsedEventId = createdEv.id;
+        }
+      }
+
+      let savedQuizId = rawQuizId ? Number(rawQuizId) : null;
+      if (savedQuizId) {
+        await db.sermonQuiz.update({
+          where: { id: savedQuizId },
           data: {
-            authorId: member.id,
-            type: "TEXT",
-            content: `🎁 QUIZ FOR CHRIST REWARD ANNOUNCEMENT!\n\n🏆 Tier: ${rewardTier}\n🎁 Prize: ${title}${description ? `\n\n${description}` : ""}\n\nJoin this week's Quiz for Christ and test your knowledge of Sunday's message! 🧠✨`,
-            visibility: "PUBLIC",
+            title: String(title),
+            sermonDate: new Date(sermonDate),
+            youtubeUrl: youtubeUrl ? String(youtubeUrl) : null,
+            youtubeVideoId: youtubeVideoId || null,
+            transcriptText: transcriptText ? String(transcriptText) : null,
+            announcementCaption: announcementCaption ? String(announcementCaption) : null,
+            eventId: parsedEventId,
+            status: targetStatus as any,
           },
+        });
+        await db.quizQuestion.deleteMany({ where: { quizId: savedQuizId } });
+        await db.quizQuestion.createMany({
+          data: questions.map((q: any) => ({
+            quizId: savedQuizId!,
+            dayNumber: Number(q.dayNumber),
+            questionType: q.questionType,
+            questionText: String(q.questionText),
+            correctAnswer: String(q.correctAnswer),
+            options: q.options || null,
+            hint: q.hint ? String(q.hint) : null,
+            explanation: q.explanation ? String(q.explanation) : null,
+          })),
+        });
+      } else {
+        const createdQuiz = await db.sermonQuiz.create({
+          data: {
+            title: String(title),
+            sermonDate: new Date(sermonDate),
+            youtubeUrl: youtubeUrl ? String(youtubeUrl) : null,
+            youtubeVideoId: youtubeVideoId || null,
+            transcriptText: transcriptText ? String(transcriptText) : null,
+            announcementCaption: announcementCaption ? String(announcementCaption) : null,
+            status: targetStatus as any,
+            createdById: member.id,
+            eventId: parsedEventId,
+            questions: {
+              create: questions.map((q: any) => ({
+                dayNumber: Number(q.dayNumber),
+                questionType: q.questionType,
+                questionText: String(q.questionText),
+                correctAnswer: String(q.correctAnswer),
+                options: q.options || null,
+                hint: q.hint ? String(q.hint) : null,
+                explanation: q.explanation ? String(q.explanation) : null,
+              })),
+            },
+          },
+        });
+        savedQuizId = createdQuiz.id;
+      }
+
+      if (isPast) {
+        if (notifyArchiveMembers) {
+          const activeMembers = await db.member.findMany({
+            where: { status: { in: ["active", "approved"] } },
+            select: { id: true },
+          });
+          if (activeMembers.length > 0) {
+            await db.notification.createMany({
+              data: activeMembers.map((m) => ({
+                memberId: m.id,
+                type: "quiz_announcement" as const,
+                title: "📖 New Catch-Up Quiz Available",
+                body: `Missed a Sunday? "${title}" is now open in the Catch-Up Archive. Tap to catch up and earn your points!`,
+                link: `/quiz/hub?tab=archive&quizId=${savedQuizId}`,
+                actorId: member.id,
+              })),
+            });
+          }
+        }
+        return NextResponse.json({
+          success: true,
+          data: { quizId: savedQuizId, archived: true },
+          message: "Past sermon quiz saved to Catch-Up Archive!",
         });
       }
-      return NextResponse.json({ success: true });
+
+      if (!shouldPublish) {
+        return NextResponse.json({
+          success: true,
+          data: { quizId: savedQuizId, status: "draft" },
+          message: "Quiz saved as draft!",
+        });
+      }
+
+      // Publish live quiz week!
+      const quizToPublish = await db.sermonQuiz.findUnique({
+        where: { id: savedQuizId },
+        include: { questions: true },
+      });
+      if (!quizToPublish) {
+        return NextResponse.json({ success: false, message: "Quiz not found" }, { status: 404 });
+      }
+
+      const thumbUrl = quizToPublish.youtubeVideoId
+        ? `https://img.youtube.com/vi/${quizToPublish.youtubeVideoId}/hqdefault.jpg`
+        : null;
+      const announceContent = [
+        quizToPublish.announcementCaption ||
+          `📺 Here's a replay of Sunday's sermon: "${quizToPublish.title}"`,
+        "",
+        "🧠 Get ready for this week's Quiz for Christ!",
+        "7 daily challenges starting today — from easy to hard.",
+        "Perfect score? You might win a prize! 🎁",
+      ].join("\n");
+
+      const announcePost = await db.post.create({
+        data: {
+          authorId: member.id,
+          type: "QUIZ_ANNOUNCEMENT",
+          content: announceContent,
+          imageUrl: thumbUrl,
+          visibility: "MEMBERS_ONLY",
+        },
+      });
+
+      await db.sermonQuiz.update({
+        where: { id: savedQuizId },
+        data: { status: "published", announcementPostId: announcePost.id },
+      });
+
+      const activeMembers = await db.member.findMany({
+        where: { status: { in: ["active", "approved"] } },
+        select: { id: true },
+      });
+      if (activeMembers.length > 0) {
+        await db.notification.createMany({
+          data: activeMembers.map((m) => ({
+            memberId: m.id,
+            type: "quiz_announcement" as const,
+            title: "🧠 This Week's Quiz for Christ is LIVE!",
+            body: `"${quizToPublish.title}" — 7 daily challenges built on Sunday's message. Tap to start and earn points!`,
+            link: `/quiz?quizId=${savedQuizId}`,
+            actorId: member.id,
+          })),
+        });
+      }
+
+      const relDay = getQuizDayForDate(quizToPublish.sermonDate);
+      const curDay = Math.min(Math.max(relDay, 1), 7);
+      for (let dNum = 1; dNum <= curDay; dNum++) {
+        const dayInfo = QUIZ_DAYS.find((d) => d.dayNumber === dNum);
+        const question = quizToPublish.questions.find((q) => q.dayNumber === dNum);
+        if (!dayInfo || !question) continue;
+        const typeInfo = QUIZ_TYPE_LABELS[question.questionType] || QUIZ_TYPE_LABELS[dayInfo.type];
+        const dailyPost = await db.post.create({
+          data: {
+            authorId: member.id,
+            type: "QUIZ_DAILY",
+            content: [
+              `🧠 Day ${dNum} Quiz is LIVE! 🧠`,
+              "",
+              `Topic: "${quizToPublish.title}"`,
+              "",
+              `${typeInfo?.emoji || "🧠"} Today's Challenge: ${typeInfo?.label || question.questionType}`,
+              `⚡ Difficulty: ${typeInfo?.difficulty || "Medium"}`,
+              "",
+              "Let's test our understanding of Sunday's sermon and study the Word together! Tap the play button below to launch today's game and earn points.",
+            ].join("\n"),
+            visibility: "MEMBERS_ONLY",
+          },
+        });
+        await db.quizQuestion.update({
+          where: { id: question.id },
+          data: { feedPostId: dailyPost.id },
+        });
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: { quizId: savedQuizId, status: "published", postId: announcePost.id },
+        message: "Live Quiz Week published & announced to the community!",
+      });
+    }
+
+    if (action === "announce_quiz_rewards") {
+      const rewardTier = String(body?.rewardTier || "PERFECT") as QuizRewardTier;
+      const title = String(body?.title || "").trim();
+      const description = String(body?.description || "").trim();
+      const imageUrl = body?.imageUrl ? String(body.imageUrl).trim() : null;
+
+      const validTiers = Object.values(QuizRewardTier);
+      if (!title || !validTiers.includes(rewardTier)) {
+        return NextResponse.json(
+          { success: false, message: "Valid reward tier and title are required." },
+          { status: 400 }
+        );
+      }
+
+      const quiz =
+        (await db.sermonQuiz.findFirst({
+          where: { status: "published" },
+          orderBy: { sermonDate: "desc" },
+        })) ||
+        (await db.sermonQuiz.findFirst({
+          orderBy: { sermonDate: "desc" },
+        }));
+
+      if (!quiz) {
+        return NextResponse.json(
+          { success: false, message: "No quiz found to attach this reward to." },
+          { status: 404 }
+        );
+      }
+
+      const tierLabels: Record<string, string> = {
+        PERFECT: "🏆 7/7 Perfect Score",
+        EXCELLENT: "🌟 6/7 Excellent Score",
+        GOOD: "👏 4/7 or 5/7 Good Score",
+        PARTICIPANT: "🙏 Sincere Participation",
+      };
+
+      const postContent = [
+        "🎁 WEEKLY QUIZ REWARD ANNOUNCEMENT! 🎁",
+        "",
+        `Sermon: "${quiz.title}"`,
+        `Requirement: ${tierLabels[rewardTier] || rewardTier}`,
+        `Prize: ${title}`,
+        description ? `About the prize: ${description}` : "",
+        "",
+        "Let's study the Word and review Sunday's sermon together. Play the daily challenges, climb the leaderboard, and unlock this week's reward! 🧠✨",
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      const existingItem = await db.quizRewardItem.findUnique({
+        where: { quizId_rewardTier: { quizId: quiz.id, rewardTier } },
+        select: { id: true, postId: true },
+      });
+
+      if (existingItem) {
+        await db.quizRewardItem.update({
+          where: { id: existingItem.id },
+          data: { title, description: description || null, imageUrl },
+        });
+        if (existingItem.postId) {
+          await db.post
+            .update({
+              where: { id: existingItem.postId },
+              data: { content: postContent, imageUrl },
+            })
+            .catch(() => null);
+        } else {
+          const post = await db.post.create({
+            data: {
+              authorId: member.id,
+              type: "QUIZ_REWARD",
+              content: postContent,
+              imageUrl,
+              visibility: "MEMBERS_ONLY",
+            },
+          });
+          await db.quizRewardItem.update({
+            where: { id: existingItem.id },
+            data: { postId: post.id },
+          });
+        }
+        return NextResponse.json({
+          success: true,
+          message: "Reward updated and community feed post synced!",
+        });
+      }
+
+      const newItem = await db.quizRewardItem.create({
+        data: {
+          quizId: quiz.id,
+          rewardTier,
+          title,
+          description: description || null,
+          imageUrl,
+        },
+      });
+      const post = await db.post.create({
+        data: {
+          authorId: member.id,
+          type: "QUIZ_REWARD",
+          content: postContent,
+          imageUrl,
+          visibility: "MEMBERS_ONLY",
+        },
+      });
+      await db.quizRewardItem.update({
+        where: { id: newItem.id },
+        data: { postId: post.id },
+      });
+
+      await notifyAllMembers({
+        actorId: member.id,
+        type: "quiz_announcement",
+        title: "🎁 New Quiz Reward Announced!",
+        body: `We are giving away "${title}" for achieving a ${rewardTier.toLowerCase()} score this week. Play now!`,
+        link: "/quiz",
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: "Reward announced and posted to the community feed!",
+      });
+    }
+
+    if (action === "nudge_quiz_participants") {
+      const quizId = Number(body?.quizId);
+      const targetMemberId = body?.targetMemberId ? Number(body.targetMemberId) : null;
+      const nudgeAllInProgress = Boolean(body?.nudgeAllInProgress);
+
+      if (!quizId || isNaN(quizId)) {
+        return NextResponse.json({ success: false, message: "quizId required" }, { status: 400 });
+      }
+      const quiz = await db.sermonQuiz.findUnique({
+        where: { id: quizId },
+        include: { questions: { select: { id: true } } },
+      });
+      if (!quiz) {
+        return NextResponse.json({ success: false, message: "Quiz not found" }, { status: 404 });
+      }
+      const totalQuestions = quiz.questions.length || 7;
+      let targetIds: number[] = [];
+
+      if (targetMemberId) {
+        targetIds = [targetMemberId];
+      } else if (nudgeAllInProgress) {
+        const subs = await db.quizSubmission.findMany({
+          where: { quizId },
+          select: { memberId: true },
+        });
+        const counts = new Map<number, number>();
+        subs.forEach((s) => counts.set(s.memberId, (counts.get(s.memberId) || 0) + 1));
+        counts.forEach((c, mId) => {
+          if (c < totalQuestions) targetIds.push(mId);
+        });
+      }
+
+      if (targetIds.length === 0) {
+        return NextResponse.json({
+          success: true,
+          data: { count: 0 },
+          message: "No eligible in-progress participants to nudge.",
+        });
+      }
+
+      for (const mId of targetIds) {
+        await createNotification({
+          memberId: mId,
+          type: "quiz_daily",
+          title: "🧠 Keep your Quiz streak going!",
+          body: `You have questions waiting in "${quiz.title}". Answer today's challenge to stay in the running for Sunday prizes!`,
+          link: `/quiz?quizId=${quiz.id}`,
+          actorId: member.id,
+        });
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: { count: targetIds.length },
+        message: `Sent reminder to ${targetIds.length} participant${targetIds.length > 1 ? "s" : ""}!`,
+      });
+    }
+
+    if (action === "mark_quiz_reward_distributed") {
+      const rewardId = Number(body?.rewardId);
+      if (!rewardId || isNaN(rewardId)) {
+        return NextResponse.json({ success: false, message: "rewardId required" }, { status: 400 });
+      }
+      await db.quizReward.update({
+        where: { id: rewardId },
+        data: { claimStatus: "distributed" },
+      });
+      return NextResponse.json({ success: true, message: "Reward marked as distributed!" });
+    }
+
+    if (action === "backfill_quiz_posts") {
+      const quiz = await db.sermonQuiz.findFirst({
+        where: { status: "published" },
+        orderBy: { sermonDate: "desc" },
+        include: { questions: { orderBy: { dayNumber: "asc" } } },
+      });
+      if (!quiz) {
+        return NextResponse.json(
+          { success: false, message: "No active published quiz week to backfill." },
+          { status: 400 }
+        );
+      }
+      const relDay = getQuizDayForDate(quiz.sermonDate);
+      const curDay = Math.min(Math.max(relDay, 1), 7);
+      let createdCount = 0;
+      for (let dNum = 1; dNum <= curDay; dNum++) {
+        const q = quiz.questions.find((x) => x.dayNumber === dNum);
+        if (!q || q.feedPostId) continue;
+        const typeInfo = QUIZ_TYPE_LABELS[q.questionType] || {
+          label: q.questionType,
+          difficulty: "Medium",
+          emoji: "🧠",
+        };
+        const p = await db.post.create({
+          data: {
+            authorId: member.id,
+            type: "QUIZ_DAILY",
+            content: [
+              `🧠 Day ${dNum} Quiz is LIVE! 🧠`,
+              "",
+              `Topic: "${quiz.title}"`,
+              "",
+              `${typeInfo.emoji} Today's Challenge: ${typeInfo.label}`,
+              `⚡ Difficulty: ${typeInfo.difficulty}`,
+              "",
+              "Let's test our understanding of Sunday's sermon and study the Word together! Tap the play button below to launch today's game and earn points.",
+            ].join("\n"),
+            visibility: "MEMBERS_ONLY",
+          },
+        });
+        await db.quizQuestion.update({ where: { id: q.id }, data: { feedPostId: p.id } });
+        createdCount++;
+      }
+      return NextResponse.json({
+        success: true,
+        message:
+          createdCount > 0
+            ? `Backfilled ${createdCount} daily quiz post(s)!`
+            : "All daily posts up to today are already published!",
+      });
     }
 
     return NextResponse.json({ success: false, message: "Unknown admin action" }, { status: 400 });

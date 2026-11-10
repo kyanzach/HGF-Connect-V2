@@ -266,6 +266,13 @@ When a page crashes or shows errors:
 - **Quiz for Christ Open Participation Exemption (`v2.79.1`)**:
   - Removed the physical church attendance gating (`AttendanceRecord` check in `/api/quiz/status`, `app/(app)/quiz/page.tsx`, and `components/feed/PostCard.tsx`) so all members—whether physically present at Sunday Service or joining online—can participate in the weekly Quiz for Christ.
 
+### 2026-11-10
+- **Quiz for Christ Gaming Strategy Reconstruction (`TREE_OF_LIFE` — "Tree of Wisdom") & 100% Mobile Parity (`v2.85.0` / `mobile v1.9.0`)**:
+  - **Production Failure-Rate Audit**: Querying `hog_fellowship.quiz_submissions` revealed `SCRIPTURE_ORDERING` (Day 4) had a `100.0%` failure rate (`0/4` passed) and `FILL_IN_BLANKS` (Day 2) had a `50.0%` failure rate (`5/10` passed due to exact string matching against valid synonyms), whereas `MULTIPLE_CHOICE`, `SHORT_ANSWER`, and `TRUE_FALSE_EXPLAIN` had `80%–100%` pass rates.
+  - **New 7-Day Schedule**: Kept `MULTIPLE_CHOICE` (Balloon Pop) on Days 1 & 6 and replaced both Day 2 and Day 4 with `TREE_OF_LIFE` (**Tree of Wisdom** — 3D rotating perspective Tree + hexagonal sanctuary spotlight multiple choice with zero money/millionaire/lifeline wording and zero purple). Migrated all 12 historical Day 2 & Day 4 rows in production MySQL via `mysql` CLI.
+  - **Mobile Media & Store Config**: Installed `react-native-webview` for inline YouTube (`baseUrl: "https://connect.houseofgrace.ph"` to prevent YouTube Error 153) and inline `.mp4` slide playback, added `?token=` verification in `lib/mobileAuth.ts` for authenticated mobile browser `.zip/.pptx/.pdf` downloads, and fixed `mobile/eas.json` production `EXPO_PUBLIC_API_URL` to `https://connect.houseofgrace.ph/api/mobile`.
+
+
 
 
 

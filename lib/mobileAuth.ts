@@ -42,9 +42,13 @@ export function verifyMobileToken(token: string): MobileTokenPayload | null {
 
 export async function getAuthenticatedMember(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
-  if (authHeader?.startsWith("Bearer ")) {
-    const token = authHeader.slice(7).trim();
-    const payload = verifyMobileToken(token);
+  const queryToken = req.nextUrl?.searchParams?.get("token") || null;
+  const rawToken = authHeader?.startsWith("Bearer ")
+    ? authHeader.slice(7).trim()
+    : queryToken;
+
+  if (rawToken) {
+    const payload = verifyMobileToken(rawToken);
     if (payload?.id) {
       const member = await db.member.findUnique({
         where: { id: Number(payload.id) },

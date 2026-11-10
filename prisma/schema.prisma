@@ -1169,6 +1169,7 @@ model QuizQuestion {
 
 enum QuizQuestionType {
   MULTIPLE_CHOICE
+  TREE_OF_LIFE
   FILL_IN_BLANKS
   SHORT_ANSWER
   SCRIPTURE_ORDERING

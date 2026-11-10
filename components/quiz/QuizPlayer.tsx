@@ -13,6 +13,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import Confetti from "./Confetti";
+import TreeOfWisdomStage from "./TreeOfWisdomStage";
 
 interface QuizQuestion {
   questionId: number;
@@ -148,9 +149,9 @@ export default function QuizPlayer({ question, onComplete, onClose }: QuizPlayer
 
   const dayLabels: Record<number, string> = {
     1: "🎈 Day 1 — Balloon Pop",
-    2: "✏️ Day 2 — Fill the Blanks",
+    2: "🌳 Day 2 — Tree of Wisdom",
     3: "📝 Day 3 — In Your Own Words",
-    4: "🧩 Day 4 — Verse Builder",
+    4: "🌳 Day 4 — Tree of Wisdom",
     5: "⚖️ Day 5 — Defend Your Faith",
     6: "🎈 Day 6 — Scripture Trivia",
     7: "📝 Day 7 — Heart Reflection",
@@ -273,6 +274,18 @@ export default function QuizPlayer({ question, onComplete, onClose }: QuizPlayer
             onClose={onClose}
           />
         );
+      case "TREE_OF_LIFE":
+        return (
+          <TreeOfWisdomStage
+            question={question}
+            onSubmit={submitAnswer}
+            submitting={submitting}
+            dayLabel={dayLabels[question.dayNumber] || `🌳 Day ${question.dayNumber} — Tree of Wisdom`}
+            showHint={showHint}
+            setShowHint={setShowHint}
+            onClose={onClose}
+          />
+        );
       case "FILL_IN_BLANKS":
         return (
           <FillBlanks
@@ -339,7 +352,7 @@ function BalloonPop({ question, onSubmit, submitting, dayLabel, showHint, setSho
   const bubbleColors = [
     "linear-gradient(135deg, #FF6B6B 0%, #ee5a24 100%)",
     "linear-gradient(135deg, #4EB1CB 0%, #38A89D 100%)",
-    "linear-gradient(135deg, #9F7AEA 0%, #805AD5 100%)",
+    "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)",
     "linear-gradient(135deg, #48BB78 0%, #38A169 100%)",
   ];
 

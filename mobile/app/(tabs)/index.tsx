@@ -29,6 +29,7 @@ import InlineCommentThread, {
   InlineReactionsPanel,
   InlineCommentPreview,
 } from '@/components/ui/InlineCommentThread';
+import { NativeYoutubePlayer } from '@/components/ui/NativeQuizMedia';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 const MOUNTAIN_BG = require('../../assets/images/mountain.png');
@@ -660,30 +661,46 @@ export default function FeedScreen() {
             </View>
           )}
 
-          {activeSlide === 'quiz' && (
-            <View style={{ position: 'relative', zIndex: 1 }}>
-              <View style={styles.quizSlideBadgeRow}>
-                <Text style={{ fontSize: 22 }}>🧠</Text>
-                <Text style={styles.quizSlideBadgeText} numberOfLines={1}>
-                  🎯 MISSED SUNDAY QUIZ CATCH-UP
+          {activeSlide === 'quiz' && (() => {
+            const isCatchup = Boolean(qp?.isCatchup);
+            const isExpired = Boolean(qp?.isExpired) && !isCatchup;
+            const badgeLabel = isCatchup
+              ? 'CATCH-UP IN PROGRESS'
+              : isExpired
+              ? 'MISSED SUNDAY QUIZ CATCH-UP'
+              : 'QUIZ FOR CHRIST IS LIVE!';
+            const ctaLabel = isCatchup
+              ? 'Continue Quiz'
+              : isExpired
+              ? 'Catch Up Now'
+              : 'Play Now';
+            return (
+              <View style={{ position: 'relative', zIndex: 1 }}>
+                <View style={styles.quizSlideBadgeRow}>
+                  <FontAwesome name="graduation-cap" size={18} color="#ffffff" />
+                  <Text style={styles.quizSlideBadgeText} numberOfLines={1}>
+                    {badgeLabel}
+                  </Text>
+                </View>
+                <Text style={styles.quizSlideTitle} numberOfLines={1}>
+                  {quizTitle}
                 </Text>
+                <Text style={styles.quizSlideMeta}>{quizDateStr}</Text>
+                <Text style={styles.quizSlideProgress}>
+                  Progress: {quizCompleted}/{quizTotal} challenges complete
+                </Text>
+                <TouchableOpacity
+                  style={styles.quizCatchupBtn}
+                  onPress={() => router.push('/church?page=quiz' as any)}
+                  activeOpacity={0.88}
+                >
+                  <Text style={styles.quizCatchupBtnText} numberOfLines={1}>
+                    {ctaLabel}
+                  </Text>
+                </TouchableOpacity>
               </View>
-              <Text style={styles.quizSlideTitle} numberOfLines={1}>
-                {quizTitle}
-              </Text>
-              <Text style={styles.quizSlideMeta}>📅 {quizDateStr}</Text>
-              <Text style={styles.quizSlideProgress}>
-                📊 Progress: {quizCompleted}/{quizTotal} challenges complete
-              </Text>
-              <TouchableOpacity
-                style={styles.quizCatchupBtn}
-                onPress={() => router.push('/church?page=quiz' as any)}
-                activeOpacity={0.88}
-              >
-                <Text style={styles.quizCatchupBtnText}>Catch Up Now →</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+            );
+          })()}
 
           {activeSlide === 'event' && carousel.upcomingEvent && (
             <View style={{ position: 'relative', zIndex: 1 }}>
@@ -1300,64 +1317,79 @@ export default function FeedScreen() {
           </TouchableOpacity>
         ) : null}
 
-        {/* Photos Grid (Single or Multi-Photo + Lightbox) */}
-        {item.images && item.images.length > 0 && !isBgPost && item.type !== 'EVENT' ? (
-          <View style={{ marginBottom: 12 }}>
-            {item.images.length === 1 ? (
-              <TouchableOpacity
-                activeOpacity={0.9}
-                onPress={() => setLightboxState({ images: item.images, index: 0 })}
-              >
-                <Image
-                  source={{ uri: item.images[0] }}
-                  style={styles.postPhotoSingle}
-                  resizeMode="cover"
-                />
-              </TouchableOpacity>
-            ) : (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                {item.images.slice(0, 4).map((imgUrl, idx) => (
+        {/* Quiz Announcement Inline YouTube Replay OR Photos Grid */}
+        {(() => {
+          const rawThumb = item.imageUrl || item.images?.[0] || '';
+          const ytMatch =
+            item.type === 'QUIZ_ANNOUNCEMENT' ? rawThumb.match(/vi\/([a-zA-Z0-9_-]{11})/) : null;
+          if (ytMatch?.[1]) {
+            return (
+              <View style={{ marginBottom: 12 }}>
+                <NativeYoutubePlayer videoId={ytMatch[1]} />
+              </View>
+            );
+          }
+          if (item.images && item.images.length > 0 && !isBgPost && item.type !== 'EVENT') {
+            return (
+              <View style={{ marginBottom: 12 }}>
+                {item.images.length === 1 ? (
                   <TouchableOpacity
-                    key={idx}
                     activeOpacity={0.9}
-                    onPress={() => setLightboxState({ images: item.images, index: idx })}
-                    style={{
-                      width: '48.5%',
-                      height: 155,
-                      borderRadius: 10,
-                      overflow: 'hidden',
-                      position: 'relative',
-                    }}
+                    onPress={() => setLightboxState({ images: item.images, index: 0 })}
                   >
                     <Image
-                      source={{ uri: imgUrl }}
-                      style={{ width: '100%', height: '100%' }}
+                      source={{ uri: item.images[0] }}
+                      style={styles.postPhotoSingle}
                       resizeMode="cover"
                     />
-                    {idx === 3 && item.images.length > 4 && (
-                      <View
+                  </TouchableOpacity>
+                ) : (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                    {item.images.slice(0, 4).map((imgUrl, idx) => (
+                      <TouchableOpacity
+                        key={idx}
+                        activeOpacity={0.9}
+                        onPress={() => setLightboxState({ images: item.images, index: idx })}
                         style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          backgroundColor: 'rgba(15,23,42,0.6)',
-                          alignItems: 'center',
-                          justifyContent: 'center',
+                          width: '48.5%',
+                          height: 155,
+                          borderRadius: 10,
+                          overflow: 'hidden',
+                          position: 'relative',
                         }}
                       >
-                        <Text style={{ color: '#fff', fontSize: 18, fontWeight: '900' }}>
-                          +{item.images.length - 4}
-                        </Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                ))}
+                        <Image
+                          source={{ uri: imgUrl }}
+                          style={{ width: '100%', height: '100%' }}
+                          resizeMode="cover"
+                        />
+                        {idx === 3 && item.images.length > 4 && (
+                          <View
+                            style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              backgroundColor: 'rgba(15,23,42,0.6)',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <Text style={{ color: '#fff', fontSize: 18, fontWeight: '900' }}>
+                              +{item.images.length - 4}
+                            </Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
               </View>
-            )}
-          </View>
-        ) : null}
+            );
+          }
+          return null;
+        })()}
 
         {/* Prayer Post CTA Button */}
         {item.type === 'PRAYER' && (
@@ -1390,17 +1422,34 @@ export default function FeedScreen() {
           </TouchableOpacity>
         )}
 
-        {/* Quiz CTA Button */}
-        {(item.type === 'QUIZ_ANNOUNCEMENT' || item.type === 'QUIZ_DAILY') && (
+        {/* Quiz CTA Button (Announcement, Daily Challenge Day-Specific, and Weekly Reward) */}
+        {(item.type === 'QUIZ_ANNOUNCEMENT' ||
+          item.type === 'QUIZ_DAILY' ||
+          item.type === 'QUIZ_REWARD') && (
           <TouchableOpacity
-            style={styles.quizPostCtaBtn}
-            onPress={() => router.push('/church?page=quiz' as any)}
+            style={[
+              styles.quizPostCtaBtn,
+              item.type === 'QUIZ_REWARD' && { backgroundColor: '#d97706' },
+            ]}
+            onPress={() => {
+              if (item.type === 'QUIZ_DAILY') {
+                const dayMatch = String(item.content || '').match(/Day (\d+)/i);
+                const dayNum = dayMatch?.[1] ? Number(dayMatch[1]) : null;
+                router.push(
+                  (dayNum ? `/church?page=quiz&day=${dayNum}` : '/church?page=quiz') as any
+                );
+              } else {
+                router.push('/church?page=quiz' as any);
+              }
+            }}
             activeOpacity={0.88}
           >
-            <Text style={styles.quizPostCtaText}>
+            <Text style={styles.quizPostCtaText} numberOfLines={1}>
               {item.type === 'QUIZ_ANNOUNCEMENT'
-                ? "🧠 Start This Week's Quiz →"
-                : "🎮 Play Today's Challenge →"}
+                ? "Start This Week's Quiz"
+                : item.type === 'QUIZ_REWARD'
+                ? 'View Prizes & Play Quiz'
+                : "Play Today's Challenge"}
             </Text>
           </TouchableOpacity>
         )}

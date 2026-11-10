@@ -79,7 +79,7 @@ export function SkeletonBox({
       <Animated.View
         pointerEvents="none"
         style={[
-          StyleSheet.absoluteFillObject,
+          StyleSheet.absoluteFill,
           {
             width: SCREEN_WIDTH * 0.85,
             transform: [{ translateX }],

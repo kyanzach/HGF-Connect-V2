@@ -9,6 +9,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { createNotification } from "@/lib/notify";
 import { getQuizDayForDate, isQuizWeekExpired, canAccessDay, getRewardTier, gradeEssay } from "@/lib/quiz-helpers";
 
 export const dynamic = "force-dynamic";
@@ -79,11 +80,14 @@ export async function POST(request: Request) {
     const userAnswer = String(answer).trim();
 
     switch (question.questionType) {
-      case "MULTIPLE_CHOICE": {
+      case "MULTIPLE_CHOICE":
+      case "TREE_OF_LIFE": {
         // Exact match against correct answer text
         isCorrect = userAnswer.toLowerCase() === question.correctAnswer.toLowerCase();
         aiFeedback = isCorrect
-          ? "Correct! 🎉"
+          ? question.questionType === "TREE_OF_LIFE"
+            ? "Wisdom unlocked! Your Tree of Wisdom flourishes! 🌳"
+            : "Correct! 🎉"
           : `The correct answer was: ${question.correctAnswer}`;
         break;
       }
@@ -224,23 +228,21 @@ export async function POST(request: Request) {
           },
         });
 
-        // Notify member about their reward
-        await db.notification.create({
-          data: {
-            memberId,
-            type: "quiz_reward",
-            title: tier === "PERFECT"
-              ? "🏆 PERFECT SCORE! Claim your reward!"
-              : tier === "PARTICIPANT"
-                ? "🙏 Quiz for Christ complete!"
-                : "🎁 You earned a prize this week!",
-            body: tier === "PERFECT"
-              ? "You aced all 7 days! Tap to claim your Christian statement t-shirt."
-              : tier === "PARTICIPANT"
-                ? `You scored ${finalScore}/7. Keep growing in the Word!`
-                : `You scored ${finalScore}/7! Your prize will be announced this Sunday. 🎁`,
-            link: "/quiz",
-          },
+        // Notify member about their reward (In-App + Expo Push)
+        await createNotification({
+          memberId,
+          type: "quiz_reward",
+          title: tier === "PERFECT"
+            ? "🏆 PERFECT SCORE! Claim your reward!"
+            : tier === "PARTICIPANT"
+              ? "🙏 Quiz for Christ complete!"
+              : "🎁 You earned a prize this week!",
+          body: tier === "PERFECT"
+            ? "You aced all 7 days! Tap to claim your Christian statement t-shirt."
+            : tier === "PARTICIPANT"
+              ? `You scored ${finalScore}/7. Keep growing in the Word!`
+              : `You scored ${finalScore}/7! Your prize will be announced this Sunday. 🎁`,
+          link: "/quiz",
         });
 
         reward = { totalScore: finalScore, tier };

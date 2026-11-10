@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,11 @@ import {
   Image,
   Modal,
   Linking,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import client from '@/api/client';
 
 const api = client;
@@ -1417,91 +1421,517 @@ export function MultimediaAdminView({ data, onRefresh }: { data: any; onRefresh:
   );
 }
 
-// ── 10. QUIZ FOR CHRIST ADMIN (/quiz/admin) ────────────────────────
+// ── 10. QUIZ FOR CHRIST ADMIN (/quiz/admin) — Full 1:1 Parity ──────
 export function QuizAdminView({ data, onRefresh }: { data: any; onRefresh: () => void }) {
   const quizzes: any[] = data?.quizzes || [];
   const events: any[] = data?.events || [];
+
+  const [selectedEventId, setSelectedEventId] = useState<number | null>(
+    events[0]?.id || null
+  );
   const [sermonDate, setSermonDate] = useState(
-    events[0]?.eventDate ? String(events[0].eventDate).slice(0, 10) : new Date().toISOString().slice(0, 10)
+    events[0]?.eventDate
+      ? String(events[0].eventDate).slice(0, 10)
+      : new Date().toISOString().slice(0, 10)
   );
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [sermonText, setSermonText] = useState('');
+  const [fetchingTranscript, setFetchingTranscript] = useState(false);
+  const [transcriptMeta, setTranscriptMeta] = useState<{
+    wordCount: number;
+    language: string;
+  } | null>(null);
+
+  // Generated Preview & Edit State
+  const [generating, setGenerating] = useState(false);
+  const [savingQuiz, setSavingQuiz] = useState(false);
+  const [publishingQuiz, setPublishingQuiz] = useState(false);
+  const [savedQuizId, setSavedQuizId] = useState<number | null>(null);
+  const [generatedTitle, setGeneratedTitle] = useState('');
+  const [generatedCaption, setGeneratedCaption] = useState('');
+  const [generatedQuestions, setGeneratedQuestions] = useState<any[]>([]);
+  const [notifyArchiveMembers, setNotifyArchiveMembers] = useState(true);
+
+  // Weekly Reward Announcement State
   const [rewardTier, setRewardTier] = useState('PERFECT');
   const [rewardTitle, setRewardTitle] = useState('');
   const [rewardDescription, setRewardDescription] = useState('');
-  const [generating, setGenerating] = useState(false);
+  const [rewardImageUrl, setRewardImageUrl] = useState('');
+  const [uploadingRewardImg, setUploadingRewardImg] = useState(false);
+  const [announcingReward, setAnnouncingReward] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
+
+  // Participant Analytics & Rewards Modals
+  const [analyticsModalQuiz, setAnalyticsModalQuiz] = useState<any | null>(null);
+  const [analyticsData, setAnalyticsData] = useState<any | null>(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+  const [participantFilter, setParticipantFilter] = useState<
+    'all' | 'in_progress' | 'completed' | 'perfect'
+  >('all');
+  const [participantSearch, setParticipantSearch] = useState('');
+  const [nudgingId, setNudgingId] = useState<number | 'all' | null>(null);
+
+  const [rewardsModalQuiz, setRewardsModalQuiz] = useState<any | null>(null);
+  const [rewardsList, setRewardsList] = useState<any[]>([]);
+  const [loadingRewards, setLoadingRewards] = useState(false);
+
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const activePublishedQuiz =
+    quizzes.find((q) => q.status === 'published') || quizzes[0];
+
+  useEffect(() => {
+    if (!activePublishedQuiz) return;
+    const existing = (activePublishedQuiz.rewardItems || []).find(
+      (it: any) => it.rewardTier === rewardTier
+    );
+    if (existing) {
+      setRewardTitle(existing.title || '');
+      setRewardDescription(existing.description || '');
+      setRewardImageUrl(existing.imageUrl || '');
+    } else {
+      setRewardTitle('');
+      setRewardDescription('');
+      setRewardImageUrl('');
+    }
+  }, [rewardTier, activePublishedQuiz?.id]);
+
+  // Check if selected sermon date is past (>7 days old -> Catch-Up Archive Mode)
+  const isPastSermon = (() => {
+    if (!sermonDate) return false;
+    const d = new Date(sermonDate);
+    if (isNaN(d.getTime())) return false;
+    const end = new Date(d.getTime() + 7 * 24 * 60 * 60 * 1000);
+    end.setHours(23, 59, 59, 999);
+    return new Date() > end;
+  })();
+
+  const handleFetchTranscript = async () => {
+    if (!youtubeUrl.trim()) {
+      setErrorMsg('Enter a YouTube sermon video URL first.');
+      return;
+    }
+    setFetchingTranscript(true);
+    setErrorMsg(null);
+    setStatusMsg(null);
+    try {
+      const res = await api.post('/admin', {
+        action: 'fetch_quiz_transcript',
+        url: youtubeUrl.trim(),
+      });
+      const d = res.data?.data || res.data;
+      setSermonText(d.transcript || '');
+      setTranscriptMeta({
+        wordCount: d.wordCount || 0,
+        language: d.language || 'English',
+      });
+      if (!generatedTitle && d.title) {
+        setGeneratedTitle(d.title);
+      }
+      setStatusMsg(
+        `Extracted ${(d.wordCount || 0).toLocaleString()} words (${
+          d.language || 'CC'
+        }) from YouTube!`
+      );
+    } catch (e: any) {
+      setErrorMsg(
+        e?.response?.data?.message ||
+          'Could not extract YouTube captions automatically. Paste sermon notes below.'
+      );
+    } finally {
+      setFetchingTranscript(false);
+    }
+  };
 
   const handleGenerate = async () => {
     setGenerating(true);
     setStatusMsg(null);
+    setErrorMsg(null);
     try {
-      const res = await api.post<any>('/api/quiz/generate', {
+      const res = await api.post('/admin', {
+        action: 'generate_quiz',
         sermonText,
         sermonDate,
-        eventId: events[0]?.id || null,
-        youtubeUrl: youtubeUrl || null,
+        eventId: selectedEventId,
+        youtubeUrl: youtubeUrl.trim() || null,
       });
-      setStatusMsg(`✅ Generated 7-day quiz: "${(res as any)?.data?.title || (res as any)?.title || 'Weekly Quiz'}"`);
-      onRefresh();
+      const d = res.data?.data || res.data;
+      setGeneratedTitle(d.title || 'Weekly Sermon Quiz');
+      setGeneratedCaption(d.announcementCaption || '');
+      setGeneratedQuestions(Array.isArray(d.questions) ? d.questions : []);
+      setSavedQuizId(null);
+      setStatusMsg(
+        `Generated 7-day quiz (${
+          d.questions?.length || 7
+        } questions)! Review & publish below.`
+      );
     } catch (e: any) {
-      setStatusMsg(`⚠️ ${e?.message || 'Provide sermon notes or YouTube CC to generate.'}`);
+      setErrorMsg(
+        e?.response?.data?.message ||
+          'Provide sermon notes, YouTube URL with CC, or select an event with slides.'
+      );
     } finally {
       setGenerating(false);
     }
   };
 
-  const handleAnnounceReward = async () => {
-    if (!rewardTitle.trim()) return;
+  const updateQuestionField = (idx: number, field: string, value: any) => {
+    setGeneratedQuestions((prev) =>
+      prev.map((q, i) => (i === idx ? { ...q, [field]: value } : q))
+    );
+  };
+
+  const handleSaveOrPublish = async (mode: 'save_quiz' | 'publish_quiz') => {
+    if (!generatedTitle.trim() || generatedQuestions.length === 0) return;
+    if (mode === 'save_quiz') setSavingQuiz(true);
+    else setPublishingQuiz(true);
+    setErrorMsg(null);
+    setStatusMsg(null);
     try {
-      await api.post('/admin', {
-        action: 'announce_quiz_rewards',
-        rewardTier,
-        title: rewardTitle,
-        description: rewardDescription,
+      const res = await api.post('/admin', {
+        action: mode,
+        quizId: savedQuizId,
+        title: generatedTitle.trim(),
+        sermonDate,
+        youtubeUrl: youtubeUrl.trim() || null,
+        transcriptText: sermonText || null,
+        announcementCaption: generatedCaption || null,
+        questions: generatedQuestions,
+        eventId: selectedEventId,
+        notifyArchiveMembers,
       });
-      setStatusMsg('🎁 Reward announced & posted to the community feed!');
-      setRewardTitle('');
-      setRewardDescription('');
+      const d = res.data?.data || res.data;
+      if (d?.quizId) setSavedQuizId(d.quizId);
+      setStatusMsg(res.data?.message || 'Quiz saved!');
+      if (mode === 'publish_quiz' || isPastSermon) {
+        setGeneratedQuestions([]);
+      }
       onRefresh();
     } catch (e: any) {
-      setStatusMsg(`⚠️ ${e?.message || 'Failed to announce reward'}`);
+      setErrorMsg(e?.response?.data?.message || 'Failed to save quiz.');
+    } finally {
+      setSavingQuiz(false);
+      setPublishingQuiz(false);
     }
+  };
+
+  const handlePickRewardImage = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      setErrorMsg('Photo library permission is required to upload prize images.');
+      return;
+    }
+    const picked = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.85,
+    });
+    if (picked.canceled || !picked.assets?.[0]?.uri) return;
+    setUploadingRewardImg(true);
+    setErrorMsg(null);
+    try {
+      const asset = picked.assets[0];
+      const fd = new FormData();
+      fd.append('file', {
+        uri: asset.uri,
+        name: asset.fileName || 'quiz-prize.jpg',
+        type: asset.mimeType || 'image/jpeg',
+      } as any);
+      const upRes = await api.post('/posts/upload?folder=posts', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const upData = upRes.data?.data || upRes.data;
+      const savedPath = upData?.photoPath || upData?.url || '';
+      if (savedPath) {
+        setRewardImageUrl(
+          savedPath.startsWith('posts/') || savedPath.startsWith('/')
+            ? savedPath
+            : `posts/${savedPath}`
+        );
+      }
+    } catch {
+      setErrorMsg('Prize image upload failed. Please try again.');
+    } finally {
+      setUploadingRewardImg(false);
+    }
+  };
+
+  const handleAnnounceReward = async () => {
+    if (!rewardTitle.trim()) {
+      setErrorMsg('Enter a reward title before announcing.');
+      return;
+    }
+    setAnnouncingReward(true);
+    setErrorMsg(null);
+    setStatusMsg(null);
+    try {
+      const res = await api.post('/admin', {
+        action: 'announce_quiz_rewards',
+        rewardTier,
+        title: rewardTitle.trim(),
+        description: rewardDescription.trim(),
+        imageUrl: rewardImageUrl || null,
+      });
+      setStatusMsg(res.data?.message || 'Reward announced & posted to the feed!');
+      onRefresh();
+    } catch (e: any) {
+      setErrorMsg(e?.response?.data?.message || 'Failed to announce reward.');
+    } finally {
+      setAnnouncingReward(false);
+    }
+  };
+
+  const handleBackfill = async () => {
+    setBackfilling(true);
+    setErrorMsg(null);
+    try {
+      const res = await api.post('/admin', { action: 'backfill_quiz_posts' });
+      setStatusMsg(res.data?.message || 'Backfill complete!');
+      onRefresh();
+    } catch (e: any) {
+      setErrorMsg(e?.response?.data?.message || 'No active published quiz to backfill.');
+    } finally {
+      setBackfilling(false);
+    }
+  };
+
+  const openParticipantsModal = async (quiz: any) => {
+    setAnalyticsModalQuiz(quiz);
+    setAnalyticsData(null);
+    setLoadingAnalytics(true);
+    setParticipantFilter('all');
+    setParticipantSearch('');
+    try {
+      const res = await api.get(`/admin?page=quiz-participants&quizId=${quiz.id}`);
+      setAnalyticsData(res.data?.data || res.data);
+    } catch {
+      setAnalyticsData(null);
+    } finally {
+      setLoadingAnalytics(false);
+    }
+  };
+
+  const handleNudge = async (targetMemberId?: number) => {
+    if (!analyticsModalQuiz) return;
+    setNudgingId(targetMemberId ?? 'all');
+    try {
+      const res = await api.post('/admin', {
+        action: 'nudge_quiz_participants',
+        quizId: analyticsModalQuiz.id,
+        targetMemberId: targetMemberId || null,
+        nudgeAllInProgress: !targetMemberId,
+      });
+      setStatusMsg(res.data?.message || 'In-app reminder sent!');
+    } catch {
+      setErrorMsg('Failed to send reminder notification.');
+    } finally {
+      setNudgingId(null);
+    }
+  };
+
+  const openRewardsModal = async (quiz: any) => {
+    setRewardsModalQuiz(quiz);
+    setRewardsList([]);
+    setLoadingRewards(true);
+    try {
+      const res = await api.get(`/admin?page=quiz-rewards&quizId=${quiz.id}`);
+      const d = res.data?.data || res.data;
+      setRewardsList(Array.isArray(d?.rewards) ? d.rewards : []);
+    } catch {
+      setRewardsList([]);
+    } finally {
+      setLoadingRewards(false);
+    }
+  };
+
+  const handleMarkDistributed = async (rewardId: number) => {
+    try {
+      await api.post('/admin', {
+        action: 'mark_quiz_reward_distributed',
+        rewardId,
+      });
+      setRewardsList((prev) =>
+        prev.map((r) => (r.id === rewardId ? { ...r, claimStatus: 'distributed' } : r))
+      );
+      onRefresh();
+    } catch {
+      setErrorMsg('Could not update distribution status.');
+    }
+  };
+
+  const wordCount = sermonText.trim()
+    ? sermonText.trim().split(/\s+/).filter(Boolean).length
+    : 0;
+
+  const TYPE_INFO_MAP: Record<string, { label: string; diff: string }> = {
+    MULTIPLE_CHOICE: { label: 'Balloon Pop', diff: 'Easy' },
+    TREE_OF_LIFE: { label: 'Tree of Wisdom', diff: 'Medium' },
+    FILL_IN_BLANKS: { label: 'Fill the Blanks', diff: 'Medium-Easy' },
+    SHORT_ANSWER: { label: 'In Your Own Words', diff: 'Medium' },
+    SCRIPTURE_ORDERING: { label: 'Verse Builder', diff: 'Medium-Hard' },
+    TRUE_FALSE_EXPLAIN: { label: 'Defend Your Faith', diff: 'Hard' },
   };
 
   return (
     <View style={styles.pagePad}>
-      <Text style={styles.h1}>🧠 Quiz for Christ</Text>
-      <Text style={[styles.sub, { marginBottom: 16 }]}>Create and manage weekly sermon-based quizzes</Text>
+      <Text style={styles.h1}>Quiz for Christ</Text>
+      <Text style={[styles.sub, { marginBottom: 14 }]}>
+        Create, preview, and manage weekly sermon quizzes
+      </Text>
 
       {statusMsg ? (
-        <View style={{ backgroundColor: '#f0fdf4', padding: 12, borderRadius: 10, marginBottom: 12 }}>
-          <Text style={{ color: '#166534', fontWeight: '700', fontSize: 13 }}>{statusMsg}</Text>
+        <View
+          style={{
+            backgroundColor: '#f0fdf4',
+            borderWidth: 1,
+            borderColor: '#bbf7d0',
+            padding: 12,
+            borderRadius: 10,
+            marginBottom: 12,
+          }}
+        >
+          <Text style={{ color: '#166534', fontWeight: '700', fontSize: 13 }}>
+            {statusMsg}
+          </Text>
+        </View>
+      ) : null}
+
+      {errorMsg ? (
+        <View
+          style={{
+            backgroundColor: '#fef2f2',
+            borderWidth: 1,
+            borderColor: '#fecaca',
+            padding: 12,
+            borderRadius: 10,
+            marginBottom: 12,
+          }}
+        >
+          <Text style={{ color: '#b91c1c', fontWeight: '700', fontSize: 13 }}>
+            {errorMsg}
+          </Text>
         </View>
       ) : null}
 
       {/* Section 1: Create New Quiz Week */}
       <View style={styles.card}>
-        <Text style={styles.h2}>✨ Create New Quiz Week</Text>
-        <Text style={styles.fieldLabel}>📅 Sunday Sermon Date (Required)</Text>
-        <TextInput style={styles.input} value={sermonDate} onChangeText={setSermonDate} placeholder="YYYY-MM-DD" />
+        <View style={[styles.rowBetween, { marginBottom: 8 }]}>
+          <Text style={styles.h2}>Create Quiz Week</Text>
+          <View
+            style={{
+              backgroundColor: isPastSermon ? '#ecfdf5' : '#e0f2fe',
+              paddingHorizontal: 10,
+              paddingVertical: 4,
+              borderRadius: 999,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 11,
+                fontWeight: '800',
+                color: isPastSermon ? '#047857' : '#0369a1',
+              }}
+            >
+              {isPastSermon ? 'Catch-Up Archive Mode' : 'Live Week Mode'}
+            </Text>
+          </View>
+        </View>
 
-        <Text style={styles.fieldLabel}>📺 YouTube Sermon Video URL (Optional)</Text>
+        {events.length > 0 && (
+          <>
+            <Text style={styles.fieldLabel}>Link Sunday Sermon Event</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 6, marginBottom: 8 }}
+            >
+              {events.slice(0, 12).map((ev) => {
+                const active = selectedEventId === ev.id;
+                const dStr = ev.eventDate ? String(ev.eventDate).slice(0, 10) : '';
+                return (
+                  <TouchableOpacity
+                    key={ev.id}
+                    onPress={() => {
+                      setSelectedEventId(ev.id);
+                      if (dStr) setSermonDate(dStr);
+                    }}
+                    style={[styles.pill, active && styles.pillActive]}
+                  >
+                    <Text
+                      style={[styles.pillTxt, active && styles.pillTxtActive]}
+                      numberOfLines={1}
+                    >
+                      {dStr} • {String(ev.title || '').slice(0, 22)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </>
+        )}
+
+        <Text style={styles.fieldLabel}>Sunday Sermon Date (YYYY-MM-DD)</Text>
         <TextInput
           style={styles.input}
-          value={youtubeUrl}
-          onChangeText={setYoutubeUrl}
-          placeholder="https://www.youtube.com/watch?v=..."
+          value={sermonDate}
+          onChangeText={(val) => {
+            setSermonDate(val);
+            const matched = events.find(
+              (ev) => String(ev.eventDate || '').slice(0, 10) === val
+            );
+            setSelectedEventId(matched ? matched.id : null);
+          }}
+          placeholder="YYYY-MM-DD"
           placeholderTextColor="#94a3b8"
         />
 
-        <Text style={styles.fieldLabel}>Sermon Notes / Transcript</Text>
+        <Text style={styles.fieldLabel}>YouTube Sermon Video URL (Optional)</Text>
+        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+          <TextInput
+            style={[styles.input, { flex: 1 }]}
+            value={youtubeUrl}
+            onChangeText={setYoutubeUrl}
+            placeholder="https://www.youtube.com/watch?v=..."
+            placeholderTextColor="#94a3b8"
+            autoCapitalize="none"
+          />
+          <TouchableOpacity
+            onPress={handleFetchTranscript}
+            disabled={fetchingTranscript}
+            style={{
+              backgroundColor: '#0f172a',
+              paddingHorizontal: 12,
+              paddingVertical: 11,
+              borderRadius: 10,
+            }}
+          >
+            <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: '700' }}>
+              {fetchingTranscript ? 'Fetching...' : 'Fetch CC'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+        {transcriptMeta ? (
+          <Text style={{ fontSize: 11.5, color: '#16a34a', fontWeight: '700', marginTop: 4 }}>
+            Loaded {transcriptMeta.wordCount.toLocaleString()} words ({transcriptMeta.language})
+          </Text>
+        ) : null}
+
+        <View style={[styles.rowBetween, { marginTop: 10 }]}>
+          <Text style={[styles.fieldLabel, { marginTop: 0 }]}>
+            Sermon Notes / Transcript
+          </Text>
+          {wordCount > 0 ? (
+            <Text style={{ fontSize: 11, color: '#64748b', fontWeight: '600' }}>
+              {wordCount.toLocaleString()} words
+            </Text>
+          ) : null}
+        </View>
         <TextInput
-          style={[styles.input, { minHeight: 110, textAlignVertical: 'top' }]}
+          style={[styles.input, { minHeight: 105, textAlignVertical: 'top' }]}
           multiline
           value={sermonText}
           onChangeText={setSermonText}
-          placeholder="Paste sermon notes or transcript here..."
+          placeholder="Optional if YouTube CC or Event Slides exist — or paste sermon notes here..."
           placeholderTextColor="#94a3b8"
         />
 
@@ -1511,30 +1941,219 @@ export function QuizAdminView({ data, onRefresh }: { data: any; onRefresh: () =>
           disabled={generating}
         >
           <Text style={styles.btnSolidText}>
-            {generating ? '🤖 AI is generating quiz...' : '🤖 Generate Quiz'}
+            {generating ? 'AI is generating 7-day quiz...' : 'Generate 7-Day Quiz'}
           </Text>
         </TouchableOpacity>
       </View>
 
+      {/* Section 1B: Inline Preview & Edit Generated Questions */}
+      {generatedQuestions.length > 0 && (
+        <View style={[styles.card, { borderWidth: 1.5, borderColor: P }]}>
+          <Text style={styles.h2}>Preview & Edit Quiz</Text>
+
+          <Text style={styles.fieldLabel}>Quiz Title</Text>
+          <TextInput
+            style={styles.input}
+            value={generatedTitle}
+            onChangeText={setGeneratedTitle}
+          />
+
+          <Text style={styles.fieldLabel}>Announcement Caption</Text>
+          <TextInput
+            style={[styles.input, { minHeight: 75, textAlignVertical: 'top' }]}
+            multiline
+            value={generatedCaption}
+            onChangeText={setGeneratedCaption}
+          />
+
+          {generatedQuestions.map((q, idx) => {
+            const meta = TYPE_INFO_MAP[q.questionType] || {
+              label: q.questionType,
+              diff: 'Medium',
+            };
+            return (
+              <View
+                key={idx}
+                style={{
+                  backgroundColor: '#f8fafc',
+                  borderWidth: 1,
+                  borderColor: '#e2e8f0',
+                  borderRadius: 12,
+                  padding: 12,
+                  marginTop: 12,
+                }}
+              >
+                <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8, alignItems: 'center' }}>
+                  <View
+                    style={{
+                      backgroundColor: P,
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                      borderRadius: 6,
+                    }}
+                  >
+                    <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800' }}>
+                      Day {q.dayNumber}
+                    </Text>
+                  </View>
+                  <View
+                    style={{
+                      backgroundColor: '#0284c7',
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                      borderRadius: 6,
+                    }}
+                  >
+                    <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>
+                      {meta.label}
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 11, color: '#64748b' }}>{meta.diff}</Text>
+                </View>
+
+                <Text style={styles.fieldLabel}>Question</Text>
+                <TextInput
+                  style={[styles.input, { minHeight: 52 }]}
+                  multiline
+                  value={q.questionText}
+                  onChangeText={(v) => updateQuestionField(idx, 'questionText', v)}
+                />
+
+                <Text style={styles.fieldLabel}>Correct Answer</Text>
+                <TextInput
+                  style={styles.input}
+                  value={q.correctAnswer}
+                  onChangeText={(v) => updateQuestionField(idx, 'correctAnswer', v)}
+                />
+
+                {Array.isArray(q.options) && (
+                  <>
+                    <Text style={styles.fieldLabel}>Options (one per line)</Text>
+                    <TextInput
+                      style={[styles.input, { minHeight: 78, textAlignVertical: 'top' }]}
+                      multiline
+                      value={q.options.join('\n')}
+                      onChangeText={(v) =>
+                        updateQuestionField(
+                          idx,
+                          'options',
+                          v.split('\n').filter((line) => line.trim().length > 0)
+                        )
+                      }
+                    />
+                  </>
+                )}
+
+                <Text style={styles.fieldLabel}>Hint</Text>
+                <TextInput
+                  style={styles.input}
+                  value={q.hint || ''}
+                  onChangeText={(v) => updateQuestionField(idx, 'hint', v)}
+                />
+              </View>
+            );
+          })}
+
+          {isPastSermon && (
+            <TouchableOpacity
+              onPress={() => setNotifyArchiveMembers((v) => !v)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 10,
+                backgroundColor: '#f0f9ff',
+                borderWidth: 1,
+                borderColor: '#bae6fd',
+                padding: 12,
+                borderRadius: 10,
+                marginTop: 14,
+              }}
+            >
+              <View
+                style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: 5,
+                  borderWidth: 1.5,
+                  borderColor: '#0284c7',
+                  backgroundColor: notifyArchiveMembers ? '#0284c7' : '#ffffff',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {notifyArchiveMembers ? (
+                  <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800' }}>✓</Text>
+                ) : null}
+              </View>
+              <Text style={{ flex: 1, fontSize: 12, color: '#0c4a6e', fontWeight: '600' }}>
+                Send in-app bell notification so active members know this catch-up quiz is available (Zero SMS)
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+            {!isPastSermon && (
+              <TouchableOpacity
+                style={[
+                  styles.btnSolid,
+                  { flex: 1, backgroundColor: '#475569' },
+                ]}
+                disabled={savingQuiz || publishingQuiz}
+                onPress={() => handleSaveOrPublish('save_quiz')}
+              >
+                <Text style={styles.btnSolidText} numberOfLines={1}>
+                  {savingQuiz ? 'Saving...' : 'Save Draft'}
+                </Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={[
+                styles.btnSolid,
+                {
+                  flex: 1.3,
+                  backgroundColor: isPastSermon ? '#059669' : P,
+                },
+              ]}
+              disabled={savingQuiz || publishingQuiz}
+              onPress={() => handleSaveOrPublish('publish_quiz')}
+            >
+              <Text style={styles.btnSolidText} numberOfLines={1}>
+                {publishingQuiz
+                  ? 'Saving...'
+                  : isPastSermon
+                  ? 'Save to Catch-Up Archive'
+                  : 'Publish Live Quiz Week'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {/* Section 2: Announce Weekly Rewards */}
       <View style={styles.card}>
-        <Text style={styles.h2}>🎁 Announce Weekly Rewards</Text>
+        <Text style={styles.h2}>Announce Weekly Rewards</Text>
         <Text style={[styles.sub, { marginBottom: 10 }]}>
-          Announce prizes for the current active quiz to motivate the church!
+          Announce or update prizes for the active quiz and sync to the feed
         </Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginBottom: 8 }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 6, marginBottom: 8 }}
+        >
           {[
-            { k: 'PERFECT', l: '🏆 Perfect (7/7)' },
-            { k: 'EXCELLENT', l: '🌟 Excellent (6/7)' },
-            { k: 'GOOD', l: '👏 Good (4-5/7)' },
-            { k: 'PARTICIPANT', l: '🙏 Participant' },
+            { k: 'PERFECT', l: 'Perfect (7/7)' },
+            { k: 'EXCELLENT', l: 'Excellent (6/7)' },
+            { k: 'GOOD', l: 'Good (4-5/7)' },
+            { k: 'PARTICIPANT', l: 'Participant' },
           ].map((t) => (
             <TouchableOpacity
               key={t.k}
               onPress={() => setRewardTier(t.k)}
               style={[styles.pill, rewardTier === t.k && styles.pillActive]}
             >
-              <Text style={[styles.pillTxt, rewardTier === t.k && styles.pillTxtActive]}>{t.l}</Text>
+              <Text style={[styles.pillTxt, rewardTier === t.k && styles.pillTxtActive]}>
+                {t.l}
+              </Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -1553,20 +2172,82 @@ export function QuizAdminView({ data, onRefresh }: { data: any; onRefresh: () =>
           multiline
           value={rewardDescription}
           onChangeText={setRewardDescription}
-          placeholder="Describe the reward or instructions on how to claim..."
+          placeholder="Instructions on how to claim on Sunday..."
           placeholderTextColor="#94a3b8"
         />
+
+        <Text style={styles.fieldLabel}>Prize Image (Optional)</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 4 }}>
+          <TouchableOpacity
+            onPress={handlePickRewardImage}
+            disabled={uploadingRewardImg}
+            style={{
+              backgroundColor: '#f1f5f9',
+              borderWidth: 1,
+              borderColor: '#cbd5e1',
+              paddingHorizontal: 14,
+              paddingVertical: 9,
+              borderRadius: 9,
+            }}
+          >
+            <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#1e293b' }}>
+              {uploadingRewardImg ? 'Uploading...' : 'Choose Image'}
+            </Text>
+          </TouchableOpacity>
+
+          {rewardImageUrl ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Image
+                source={{
+                  uri: rewardImageUrl.startsWith('http')
+                    ? rewardImageUrl
+                    : `https://connect.houseofgrace.ph/uploads/${rewardImageUrl.replace(
+                        /^\/?uploads\//,
+                        ''
+                      )}`,
+                }}
+                style={{ width: 46, height: 46, borderRadius: 8 }}
+              />
+              <TouchableOpacity onPress={() => setRewardImageUrl('')}>
+                <Text style={{ color: '#ef4444', fontSize: 12, fontWeight: '700' }}>
+                  Remove
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+        </View>
+
         <TouchableOpacity
-          style={[styles.btnSolid, { backgroundColor: '#f59e0b', marginTop: 14 }]}
+          style={[styles.btnSolid, { backgroundColor: '#d97706', marginTop: 14 }]}
           onPress={handleAnnounceReward}
+          disabled={announcingReward || uploadingRewardImg}
         >
-          <Text style={styles.btnSolidText}>📢 Announce Reward & Post</Text>
+          <Text style={styles.btnSolidText}>
+            {announcingReward ? 'Saving...' : 'Announce Reward & Post'}
+          </Text>
         </TouchableOpacity>
       </View>
 
       {/* Section 3: Manage Quizzes */}
       <View style={styles.card}>
-        <Text style={styles.h2}>📊 Manage Quizzes</Text>
+        <View style={[styles.rowBetween, { marginBottom: 6 }]}>
+          <Text style={styles.h2}>Manage Quizzes</Text>
+          <TouchableOpacity
+            onPress={handleBackfill}
+            disabled={backfilling}
+            style={{
+              backgroundColor: '#ea580c',
+              paddingHorizontal: 11,
+              paddingVertical: 6,
+              borderRadius: 8,
+            }}
+          >
+            <Text style={{ color: '#ffffff', fontSize: 11.5, fontWeight: '700' }}>
+              {backfilling ? 'Syncing...' : 'Backfill Posts'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         {quizzes.map((q) => (
           <View
             key={q.id}
@@ -1579,9 +2260,11 @@ export function QuizAdminView({ data, onRefresh }: { data: any; onRefresh: () =>
             }}
           >
             <View style={styles.rowBetween}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontWeight: '700', color: '#1a202c', fontSize: 15 }}>{q.title}</Text>
-                <Text style={{ color: '#a0aec0', fontSize: 12 }}>
+              <View style={{ flex: 1, marginRight: 8 }}>
+                <Text style={{ fontWeight: '700', color: '#1a202c', fontSize: 14.5 }}>
+                  {q.title}
+                </Text>
+                <Text style={{ color: '#64748b', fontSize: 12, marginTop: 2 }}>
                   {new Date(q.sermonDate).toLocaleDateString()}
                 </Text>
               </View>
@@ -1590,28 +2273,518 @@ export function QuizAdminView({ data, onRefresh }: { data: any; onRefresh: () =>
                   styles.badge,
                   {
                     backgroundColor:
-                      q.status === 'published' ? '#48BB78' : q.status === 'draft' ? '#ecc94b' : '#a0aec0',
+                      q.status === 'published'
+                        ? '#16a34a'
+                        : q.status === 'draft'
+                        ? '#d97706'
+                        : '#64748b',
                   },
                 ]}
               >
                 <Text style={[styles.badgeTxt, { color: '#fff' }]}>{q.status}</Text>
               </View>
             </View>
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
-              <View style={{ backgroundColor: '#0f172a', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 }}>
-                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>
-                  👥 Participants & Analytics ({q._count?.submissions || 0})
+
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+              <TouchableOpacity
+                onPress={() => openParticipantsModal(q)}
+                style={{
+                  flex: 1,
+                  backgroundColor: '#0f172a',
+                  paddingHorizontal: 10,
+                  paddingVertical: 9,
+                  borderRadius: 8,
+                  alignItems: 'center',
+                }}
+              >
+                <Text
+                  numberOfLines={1}
+                  style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}
+                >
+                  Analytics ({q._count?.submissions || 0})
                 </Text>
-              </View>
-              <View style={{ backgroundColor: '#edf2f7', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 }}>
-                <Text style={{ color: '#2d3748', fontSize: 12, fontWeight: '600' }}>
-                  🏆 Rewards ({q._count?.rewards || 0})
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => openRewardsModal(q)}
+                style={{
+                  flex: 1,
+                  backgroundColor: '#e2e8f0',
+                  paddingHorizontal: 10,
+                  paddingVertical: 9,
+                  borderRadius: 8,
+                  alignItems: 'center',
+                }}
+              >
+                <Text
+                  numberOfLines={1}
+                  style={{ color: '#1e293b', fontSize: 12, fontWeight: '700' }}
+                >
+                  Rewards ({q._count?.rewards || 0})
                 </Text>
-              </View>
+              </TouchableOpacity>
             </View>
           </View>
         ))}
       </View>
+
+      {/* ── Participant Analytics & Drip Nudge Modal ── */}
+      <Modal
+        visible={analyticsModalQuiz !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAnalyticsModalQuiz(null)}
+      >
+        <KeyboardAvoidingView
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(15,23,42,0.6)',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: 20,
+              maxHeight: '88%',
+              padding: 16,
+            }}
+          >
+            <View style={[styles.rowBetween, { marginBottom: 10 }]}>
+              <View style={{ flex: 1, marginRight: 8 }}>
+                <Text
+                  style={{ fontSize: 16, fontWeight: '800', color: '#0f172a' }}
+                  numberOfLines={1}
+                >
+                  {analyticsModalQuiz?.title || 'Participants & Analytics'}
+                </Text>
+                <Text style={{ fontSize: 12, color: '#64748b' }}>
+                  7-Day Funnel & In-App Streak Reminders
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setAnalyticsModalQuiz(null)}
+                style={{
+                  backgroundColor: '#f1f5f9',
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 8,
+                }}
+              >
+                <Text style={{ fontWeight: '800', color: '#334155' }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {loadingAnalytics ? (
+              <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                <ActivityIndicator color={P} />
+              </View>
+            ) : analyticsData ? (
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                  {[
+                    {
+                      l: 'Players',
+                      v: analyticsData.summary?.totalParticipants ?? 0,
+                    },
+                    {
+                      l: '7/7 Done',
+                      v: `${analyticsData.summary?.completedCount ?? 0} (${
+                        analyticsData.summary?.completionRate ?? 0
+                      }%)`,
+                    },
+                    {
+                      l: 'Perfect',
+                      v: analyticsData.summary?.perfectScoreCount ?? 0,
+                    },
+                    {
+                      l: 'Avg Score',
+                      v: `${analyticsData.summary?.averageScore ?? 0}/7`,
+                    },
+                  ].map((kpi, idx) => (
+                    <View
+                      key={idx}
+                      style={{
+                        flex: 1,
+                        backgroundColor: '#f8fafc',
+                        borderRadius: 10,
+                        padding: 8,
+                        borderWidth: 1,
+                        borderColor: '#e2e8f0',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Text
+                        style={{ fontSize: 14, fontWeight: '800', color: '#0f172a' }}
+                        numberOfLines={1}
+                      >
+                        {kpi.v}
+                      </Text>
+                      <Text
+                        style={{ fontSize: 10, color: '#64748b', fontWeight: '700' }}
+                        numberOfLines={1}
+                      >
+                        {kpi.l}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+
+                {/* 7-Day Drop-off & Accuracy Funnel */}
+                <View
+                  style={{
+                    backgroundColor: '#f8fafc',
+                    borderRadius: 12,
+                    padding: 12,
+                    borderWidth: 1,
+                    borderColor: '#e2e8f0',
+                    marginBottom: 12,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontWeight: '800',
+                      color: '#334155',
+                      marginBottom: 8,
+                    }}
+                  >
+                    7-Day Accuracy & Participation Funnel
+                  </Text>
+                  {(analyticsData.summary?.dayDropoff || []).map((d: any) => (
+                    <View
+                      key={d.dayNumber}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 8,
+                        marginBottom: 5,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          width: 42,
+                          fontSize: 11.5,
+                          fontWeight: '700',
+                          color: '#475569',
+                        }}
+                      >
+                        Day {d.dayNumber}
+                      </Text>
+                      <View
+                        style={{
+                          flex: 1,
+                          height: 7,
+                          backgroundColor: '#e2e8f0',
+                          borderRadius: 4,
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <View
+                          style={{
+                            width: `${d.accuracyRate || 0}%`,
+                            height: '100%',
+                            backgroundColor: P,
+                          }}
+                        />
+                      </View>
+                      <Text
+                        style={{
+                          width: 84,
+                          fontSize: 11,
+                          color: '#475569',
+                          textAlign: 'right',
+                        }}
+                      >
+                        {d.participants}p • {d.accuracyRate}%
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+
+                {/* Nudge All In-Progress CTA */}
+                <TouchableOpacity
+                  disabled={nudgingId !== null}
+                  onPress={() => handleNudge()}
+                  style={{
+                    backgroundColor: '#0284c7',
+                    paddingVertical: 10,
+                    borderRadius: 10,
+                    alignItems: 'center',
+                    marginBottom: 12,
+                  }}
+                >
+                  <Text style={{ color: '#ffffff', fontSize: 12.5, fontWeight: '800' }}>
+                    {nudgingId === 'all'
+                      ? 'Sending Reminders...'
+                      : 'Nudge All In-Progress (Bell Only)'}
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Filter Pills + Search */}
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: 6, marginBottom: 8 }}
+                >
+                  {[
+                    { k: 'all' as const, l: 'All' },
+                    { k: 'in_progress' as const, l: 'In Progress' },
+                    { k: 'completed' as const, l: 'Completed 7/7' },
+                    { k: 'perfect' as const, l: 'Perfect 7/7' },
+                  ].map((f) => (
+                    <TouchableOpacity
+                      key={f.k}
+                      onPress={() => setParticipantFilter(f.k)}
+                      style={[styles.pill, participantFilter === f.k && styles.pillActive]}
+                    >
+                      <Text
+                        style={[
+                          styles.pillTxt,
+                          participantFilter === f.k && styles.pillTxtActive,
+                        ]}
+                      >
+                        {f.l}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+
+                <TextInput
+                  style={[styles.input, { marginBottom: 10 }]}
+                  value={participantSearch}
+                  onChangeText={setParticipantSearch}
+                  placeholder="Search member name..."
+                  placeholderTextColor="#94a3b8"
+                />
+
+                {(analyticsData.participants || [])
+                  .filter((p: any) => {
+                    if (
+                      participantSearch &&
+                      !String(p.name || '')
+                        .toLowerCase()
+                        .includes(participantSearch.toLowerCase())
+                    ) {
+                      return false;
+                    }
+                    if (participantFilter === 'in_progress') return !p.isCompleted;
+                    if (participantFilter === 'completed') return p.isCompleted;
+                    if (participantFilter === 'perfect') return p.totalScore >= 7;
+                    return true;
+                  })
+                  .map((p: any) => (
+                    <View
+                      key={p.memberId}
+                      style={{
+                        borderWidth: 1,
+                        borderColor: '#e2e8f0',
+                        borderRadius: 12,
+                        padding: 10,
+                        marginBottom: 8,
+                      }}
+                    >
+                      <View style={styles.rowBetween}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 13.5, fontWeight: '700', color: '#0f172a' }}>
+                            {p.name}
+                          </Text>
+                          <Text style={{ fontSize: 11.5, color: '#64748b' }}>
+                            Score: {p.totalScore}/7 • {p.daysCompleted}/7 days
+                          </Text>
+                        </View>
+                        {!p.isCompleted && (
+                          <TouchableOpacity
+                            disabled={nudgingId !== null}
+                            onPress={() => handleNudge(p.memberId)}
+                            style={{
+                              backgroundColor: '#e0f2fe',
+                              paddingHorizontal: 10,
+                              paddingVertical: 6,
+                              borderRadius: 8,
+                            }}
+                          >
+                            <Text style={{ fontSize: 11.5, fontWeight: '700', color: '#0369a1' }}>
+                              {nudgingId === p.memberId ? 'Sent' : 'Nudge'}
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+
+                      {/* 7-Day Dot Timeline */}
+                      <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
+                        {(p.dayProgress || []).map((dp: any) => (
+                          <View
+                            key={dp.dayNumber}
+                            style={{
+                              width: 24,
+                              height: 24,
+                              borderRadius: 12,
+                              backgroundColor: !dp.completed
+                                ? '#f1f5f9'
+                                : dp.isCorrect
+                                ? '#dcfce7'
+                                : '#fee2e2',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 10.5,
+                                fontWeight: '800',
+                                color: !dp.completed
+                                  ? '#94a3b8'
+                                  : dp.isCorrect
+                                  ? '#166534'
+                                  : '#b91c1c',
+                              }}
+                            >
+                              {dp.dayNumber}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  ))}
+              </ScrollView>
+            ) : (
+              <Text style={{ color: '#64748b', textAlign: 'center', paddingVertical: 20 }}>
+                No participant data available yet.
+              </Text>
+            )}
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ── Rewards Claims & Distribution Modal ── */}
+      <Modal
+        visible={rewardsModalQuiz !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setRewardsModalQuiz(null)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(15,23,42,0.6)',
+            justifyContent: 'center',
+            padding: 18,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: 20,
+              maxHeight: '82%',
+              padding: 16,
+            }}
+          >
+            <View style={[styles.rowBetween, { marginBottom: 12 }]}>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: '#0f172a', flex: 1 }}>
+                Rewards & Claims
+              </Text>
+              <TouchableOpacity
+                onPress={() => setRewardsModalQuiz(null)}
+                style={{
+                  backgroundColor: '#f1f5f9',
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 8,
+                }}
+              >
+                <Text style={{ fontWeight: '800', color: '#334155' }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {loadingRewards ? (
+              <View style={{ paddingVertical: 36, alignItems: 'center' }}>
+                <ActivityIndicator color={P} />
+              </View>
+            ) : rewardsList.length === 0 ? (
+              <Text style={{ color: '#64748b', textAlign: 'center', paddingVertical: 24 }}>
+                No members have qualified or submitted claims for this quiz yet.
+              </Text>
+            ) : (
+              <ScrollView>
+                {rewardsList.map((r) => {
+                  const cd = r.claimDetails || {};
+                  const sizeStr = cd.size || cd.tShirtSize || '';
+                  const phoneStr = cd.phone || r.member?.phone || '';
+                  return (
+                    <View
+                      key={r.id}
+                      style={{
+                        borderWidth: 1,
+                        borderColor: '#e2e8f0',
+                        borderRadius: 12,
+                        padding: 12,
+                        marginBottom: 8,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 8,
+                      }}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 14, fontWeight: '700', color: '#0f172a' }}>
+                          {r.member?.firstName} {r.member?.lastName}
+                        </Text>
+                        <Text style={{ fontSize: 12, color: '#475569', marginTop: 2 }}>
+                          {r.rewardTier} • Score: {r.totalScore}/7 • {r.claimStatus}
+                        </Text>
+                        {sizeStr || phoneStr ? (
+                          <Text
+                            style={{
+                              fontSize: 12,
+                              color: '#0284c7',
+                              fontWeight: '700',
+                              marginTop: 2,
+                            }}
+                          >
+                            {sizeStr ? `Size: ${sizeStr} ` : ''}
+                            {phoneStr ? `• ${phoneStr}` : ''}
+                          </Text>
+                        ) : null}
+                      </View>
+                      {r.claimStatus !== 'distributed' ? (
+                        <TouchableOpacity
+                          onPress={() => handleMarkDistributed(r.id)}
+                          style={{
+                            backgroundColor: '#16a34a',
+                            paddingHorizontal: 12,
+                            paddingVertical: 8,
+                            borderRadius: 8,
+                          }}
+                        >
+                          <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: '700' }}>
+                            Mark Distributed
+                          </Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <View
+                          style={{
+                            backgroundColor: '#dcfce7',
+                            paddingHorizontal: 10,
+                            paddingVertical: 6,
+                            borderRadius: 8,
+                          }}
+                        >
+                          <Text style={{ color: '#166534', fontSize: 11.5, fontWeight: '700' }}>
+                            Distributed
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

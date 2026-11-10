@@ -285,8 +285,8 @@ export default function MemberQuizPage() {
       return;
     }
 
-    // Block play from past quiz archive view
-    const isPastQuizView = !!(new URLSearchParams(window.location.search).get("quizId")) && !quizStatus?.isActiveQuiz;
+    // Block play from past quiz archive view unless an active catch-up pass is running
+    const isPastQuizView = !!(new URLSearchParams(window.location.search).get("quizId")) && !quizStatus?.isActiveQuiz && !quizStatus?.isCatchup;
     if (isPastQuizView) {
       setInfoModal({
         open: true,
@@ -1066,7 +1066,7 @@ export default function MemberQuizPage() {
           const isToday = day.status === "today";
           const isAvailable = day.status === "available";
           const isDayExpired = day.status === "expired";
-          const isPastQuizView = !!(typeof window !== "undefined" && new URLSearchParams(window.location.search).get("quizId")) && !quizStatus?.isActiveQuiz;
+          const isPastQuizView = !!(typeof window !== "undefined" && new URLSearchParams(window.location.search).get("quizId")) && !quizStatus?.isActiveQuiz && !quizStatus?.isCatchup;
 
           return (
             <button

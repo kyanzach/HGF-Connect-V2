@@ -18,13 +18,14 @@ import { SERMON_CC_BOOKMARKLET } from "@/lib/ytBookmarklet";
 
 const QUIZ_TYPE_LABELS: Record<string, { label: string; difficulty: string; emoji: string }> = {
   MULTIPLE_CHOICE:    { label: "Balloon Pop",       difficulty: "Easy",        emoji: "🎈" },
+  TREE_OF_LIFE:       { label: "Tree of Wisdom",    difficulty: "Medium",      emoji: "🌳" },
   FILL_IN_BLANKS:     { label: "Fill the Blanks",   difficulty: "Medium-Easy", emoji: "✏️" },
   SHORT_ANSWER:       { label: "In Your Own Words", difficulty: "Medium",      emoji: "📝" },
   SCRIPTURE_ORDERING: { label: "Verse Builder",     difficulty: "Medium-Hard", emoji: "🧩" },
   TRUE_FALSE_EXPLAIN: { label: "Defend Your Faith", difficulty: "Hard",        emoji: "⚖️" },
 };
 
-const DAY_ORDER = ["MULTIPLE_CHOICE", "FILL_IN_BLANKS", "SHORT_ANSWER", "SCRIPTURE_ORDERING", "TRUE_FALSE_EXPLAIN"];
+const DAY_ORDER = ["MULTIPLE_CHOICE", "TREE_OF_LIFE", "SHORT_ANSWER", "TREE_OF_LIFE", "TRUE_FALSE_EXPLAIN", "MULTIPLE_CHOICE", "SHORT_ANSWER"];
 
 interface GeneratedQuestion {
   dayNumber: number;
@@ -1323,7 +1324,7 @@ export default function QuizAdminPage() {
               <div key={idx} style={S.questionCard}>
                 <div style={{ marginBottom: "12px" }}>
                   <span style={S.badge("#4EB1CB")}>Day {q.dayNumber}</span>
-                  <span style={S.badge("#805AD5")}>{typeInfo.emoji} {typeInfo.label}</span>
+                  <span style={S.badge("#0284c7")}>{typeInfo.emoji} {typeInfo.label}</span>
                   <span style={{ color: "#a0aec0", fontSize: "0.8rem" }}>{typeInfo.difficulty}</span>
                 </div>
 
