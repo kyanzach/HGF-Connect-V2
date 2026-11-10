@@ -25,7 +25,7 @@ const QUIZ_TYPE_LABELS: Record<string, { label: string; difficulty: string; emoj
   TRUE_FALSE_EXPLAIN: { label: "Defend Your Faith", difficulty: "Hard",        emoji: "⚖️" },
 };
 
-const DAY_ORDER = ["MULTIPLE_CHOICE", "TREE_OF_LIFE", "SHORT_ANSWER", "TREE_OF_LIFE", "TRUE_FALSE_EXPLAIN", "MULTIPLE_CHOICE", "SHORT_ANSWER"];
+const DAY_ORDER = ["MULTIPLE_CHOICE", "TREE_OF_LIFE", "MULTIPLE_CHOICE", "TREE_OF_LIFE", "TRUE_FALSE_EXPLAIN", "SHORT_ANSWER", "SHORT_ANSWER"];
 
 interface GeneratedQuestion {
   dayNumber: number;

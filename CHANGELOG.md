@@ -1,3 +1,7 @@
+## [v2.85.2] — 2026-11-10
+### Changed
+- **Quiz schedule: Wednesday and Saturday swapped (`lib/quiz-helpers.ts`, `components/quiz/QuizPlayer.tsx`, `mobile/app/church.tsx`, `app/(app)/quiz/admin/page.tsx`, `scripts/swap-day3-day6.sql`, `mobile/v1.9.2`)**: Wednesday and Sunday both had writing-style answers. Day 3 (Wed) is now Balloon Pop (`MULTIPLE_CHOICE`) and Day 6 (Sat) is the writing question (`SHORT_ANSWER`). Updated the AI generator prompt, day labels, and swapped Day 3/Day 6 questions plus their feed post "Day N" text for all 6 existing quizzes in production MySQL.
+
 ## [v2.85.1] — 2026-11-10
 ### Changed
 - **Tree of Wisdom: removed the "Branch X of 7" progress pill (`components/quiz/TreeOfWisdomStage.tsx`, `mobile/components/ui/NativeTreeOfWisdom.tsx`, `mobile/v1.9.1`)**: it read as 7 questions per day. Each day stays at exactly 1 question; the 7-day schedule is unchanged.

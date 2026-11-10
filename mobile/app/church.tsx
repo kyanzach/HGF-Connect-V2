@@ -3781,10 +3781,10 @@ export default function WebReplicaScreen() {
   const DAY_LABELS_MAP: Record<number, string> = {
     1: 'Day 1 — Balloon Pop',
     2: 'Day 2 — Tree of Wisdom',
-    3: 'Day 3 — In Your Own Words',
+    3: 'Day 3 — Scripture Trivia',
     4: 'Day 4 — Tree of Wisdom',
     5: 'Day 5 — Defend Your Faith',
-    6: 'Day 6 — Scripture Trivia',
+    6: 'Day 6 — In Your Own Words',
     7: 'Day 7 — Heart Reflection',
   };
 

@@ -15,10 +15,10 @@ import { callOpenAI, callOpenAIJson } from "./ai";
 export const QUIZ_DAYS = [
   { dayNumber: 1, weekday: 1, label: "Monday",    type: "MULTIPLE_CHOICE"    as const },
   { dayNumber: 2, weekday: 2, label: "Tuesday",   type: "TREE_OF_LIFE"       as const },
-  { dayNumber: 3, weekday: 3, label: "Wednesday", type: "SHORT_ANSWER"       as const },
+  { dayNumber: 3, weekday: 3, label: "Wednesday", type: "MULTIPLE_CHOICE"    as const },
   { dayNumber: 4, weekday: 4, label: "Thursday",  type: "TREE_OF_LIFE"       as const },
   { dayNumber: 5, weekday: 5, label: "Friday",    type: "TRUE_FALSE_EXPLAIN" as const },
-  { dayNumber: 6, weekday: 6, label: "Saturday",  type: "MULTIPLE_CHOICE"    as const },
+  { dayNumber: 6, weekday: 6, label: "Saturday",  type: "SHORT_ANSWER"       as const },
   { dayNumber: 7, weekday: 0, label: "Sunday",    type: "SHORT_ANSWER"       as const },
 ] as const;
 
@@ -183,10 +183,11 @@ TASK: Generate THREE things from this sermon summary:
    - options: ["Option A text", "Option B text", "Option C text", "Option D text"]
    - correctAnswer: the exact text of the correct option
 
-   DAY 3 (Wednesday) — SHORT_ANSWER:
-   - An open-ended question requiring the member to explain a concept in their own words
-   - correctAnswer: the ideal answer (used as reference for AI grading)
-   - options: null
+   DAY 3 (Wednesday) — MULTIPLE_CHOICE:
+   - Scripture Trivia or detailed application question from the sermon
+   - 4 options (A, B, C, D) — only 1 correct
+   - options: ["Option A text", "Option B text", "Option C text", "Option D text"]
+   - correctAnswer: the exact text of the correct option
 
    DAY 4 (Thursday) — TREE_OF_LIFE:
    - A deeper wisdom or Scripture-application multiple-choice question from the sermon
@@ -200,11 +201,10 @@ TASK: Generate THREE things from this sermon summary:
    - options: null
    - The explanation should explain WHY it is true or false
 
-   DAY 6 (Saturday) — MULTIPLE_CHOICE:
-   - Scripture Trivia or detailed application question from the sermon
-   - 4 options (A, B, C, D) — only 1 correct
-   - options: ["Option A text", "Option B text", "Option C text", "Option D text"]
-   - correctAnswer: the exact text of the correct option
+   DAY 6 (Saturday) — SHORT_ANSWER:
+   - An open-ended question requiring the member to explain a concept in their own words
+   - correctAnswer: the ideal answer (used as reference for AI grading)
+   - options: null
 
    DAY 7 (Sunday) — SHORT_ANSWER:
    - Reflection question asking the member how they will apply this sermon's teachings in their daily life.
