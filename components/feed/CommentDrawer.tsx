@@ -233,15 +233,26 @@ export default function CommentDrawer({ postId, postAuthorId, isOpen, highlightC
 
   const authorMap = useMemo(() => buildAuthorMap(allAuthors), [allAuthors]);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const d = await fetch(`/api/posts/${postId}/comments`).then((r) => r.json());
       setComments(d.comments ?? []);
-    } catch { /* silent */ } finally { setLoading(false); }
+    } catch { /* silent */ } finally {
+      if (!silent) setLoading(false);
+    }
   }, [postId]);
 
-  useEffect(() => { if (isOpen) load(); }, [isOpen, load]);
+  useEffect(() => {
+    if (!isOpen) return;
+    load(false);
+    const interval = setInterval(() => {
+      if (typeof document === "undefined" || document.visibilityState === "visible") {
+        load(true);
+      }
+    }, 3500);
+    return () => clearInterval(interval);
+  }, [isOpen, load]);
 
   useEffect(() => {
     if (!isOpen || !highlightCommentId || loading || comments.length === 0) return;

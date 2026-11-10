@@ -92,6 +92,37 @@ export async function GET(req: NextRequest) {
       _count: {
         select: { comments: true, likes: true },
       },
+      comments: {
+        where: { parentId: null },
+        orderBy: [{ isPinned: "desc" as const }, { createdAt: "desc" as const }],
+        take: 2,
+        include: {
+          author: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              profilePicture: true,
+              role: true,
+            },
+          },
+          replies: {
+            orderBy: { createdAt: "asc" as const },
+            take: 2,
+            include: {
+              author: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  profilePicture: true,
+                  role: true,
+                },
+              },
+            },
+          },
+        },
+      },
     };
 
     const [rawPosts, targetPost, upcomingEvent, activePrayer, latestQuiz] = await Promise.all([
@@ -387,6 +418,47 @@ export async function GET(req: NextRequest) {
                   : null,
               }
             : null,
+        })),
+        latestComments: [
+          ...(p.comments || []).filter((c: any) => c.isPinned),
+          ...(p.comments || []).filter((c: any) => !c.isPinned).reverse(),
+        ].map((c: any) => ({
+          id: c.id,
+          postId: c.postId,
+          content: c.content,
+          createdAt: c.createdAt.toISOString(),
+          isPinned: Boolean(c.isPinned),
+          likeCount: c.likeCount ?? 0,
+          author: {
+            id: c.author?.id ?? 0,
+            firstName: c.author?.firstName || "",
+            lastName: c.author?.lastName || "",
+            name: `${c.author?.firstName || ""} ${c.author?.lastName || ""}`.trim() || "Member",
+            role: c.author?.role || "user",
+            profilePicture: c.author?.profilePicture || null,
+            avatar: c.author?.profilePicture
+              ? `https://connect.houseofgrace.ph/uploads/profile_pictures/${c.author.profilePicture}`
+              : null,
+          },
+          replies: (c.replies || []).map((r: any) => ({
+            id: r.id,
+            postId: c.postId,
+            parentId: c.id,
+            content: r.content,
+            createdAt: r.createdAt.toISOString(),
+            likeCount: r.likeCount ?? 0,
+            author: {
+              id: r.author?.id ?? 0,
+              firstName: r.author?.firstName || "",
+              lastName: r.author?.lastName || "",
+              name: `${r.author?.firstName || ""} ${r.author?.lastName || ""}`.trim() || "Member",
+              role: r.author?.role || "user",
+              profilePicture: r.author?.profilePicture || null,
+              avatar: r.author?.profilePicture
+                ? `https://connect.houseofgrace.ph/uploads/profile_pictures/${r.author.profilePicture}`
+                : null,
+            },
+          })),
         })),
       };
     });

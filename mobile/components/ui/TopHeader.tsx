@@ -10,6 +10,7 @@ import {
   Modal,
   ScrollView,
   Linking,
+  AppState,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -24,7 +25,7 @@ import {
 
 const PRIMARY = '#4EB1CB';
 const DARK_NAV = '#3A95AD';
-const APP_VERSION = '2.83.2';
+const APP_VERSION = '2.84.0';
 
 const NAV_LINKS = [
   { href: '/(tabs)', label: 'Home', icon: '🏠' },
@@ -59,12 +60,25 @@ export default function TopHeader() {
   useEffect(() => {
     registerForPushNotificationsAsync();
     if (!user) return;
-    syncAndAlertNewNotifications().then((count) => setUnreadCount(count));
-    const timer = setInterval(() => {
+    const syncNow = () => {
       syncAndAlertNewNotifications().then((count) => setUnreadCount(count));
-    }, 15000);
-    return () => clearInterval(timer);
-  }, [user]);
+    };
+    syncNow();
+    const timer = setInterval(() => {
+      if (AppState.currentState === 'active') {
+        syncNow();
+      }
+    }, 4000);
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        syncNow();
+      }
+    });
+    return () => {
+      clearInterval(timer);
+      sub.remove();
+    };
+  }, [user, pathname]);
 
   const firstName = (user?.firstName || user?.fullName || 'Guest').trim().split(/\s+/)[0];
   const fullName = user?.fullName || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Guest';

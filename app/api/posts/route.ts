@@ -115,6 +115,35 @@ export async function GET(request: Request) {
               }
             }
           },
+          comments: {
+            where: { parentId: null },
+            orderBy: [{ isPinned: "desc" }, { createdAt: "desc" }],
+            take: 2,
+            include: {
+              author: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  profilePicture: true,
+                },
+              },
+              replies: {
+                orderBy: { createdAt: "asc" },
+                take: 2,
+                include: {
+                  author: {
+                    select: {
+                      id: true,
+                      firstName: true,
+                      lastName: true,
+                      profilePicture: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
         orderBy: { bumpedAt: "desc" },
         skip,
@@ -295,8 +324,30 @@ export async function GET(request: Request) {
       }
 
       const myLike = session ? p.likes.find((l: any) => l.memberId === parseInt(session.user.id)) : null;
+      const latestComments = [
+        ...(p.comments || []).filter((c: any) => c.isPinned),
+        ...(p.comments || []).filter((c: any) => !c.isPinned).reverse(),
+      ].map((c: any) => ({
+        id: c.id,
+        postId: c.postId,
+        content: c.content,
+        createdAt: c.createdAt?.toISOString?.() ?? c.createdAt,
+        isPinned: Boolean(c.isPinned),
+        likeCount: c.likeCount ?? 0,
+        author: c.author,
+        replies: (c.replies || []).map((r: any) => ({
+          id: r.id,
+          postId: c.postId,
+          parentId: c.id,
+          content: r.content,
+          createdAt: r.createdAt?.toISOString?.() ?? r.createdAt,
+          likeCount: r.likeCount ?? 0,
+          author: r.author,
+        })),
+      }));
       return {
         ...p,
+        latestComments,
         content: updatedContent,
         imageUrl: updatedImageUrl,
         isLiked: !!myLike,

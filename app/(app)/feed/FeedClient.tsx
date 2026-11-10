@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -27,6 +27,8 @@ interface Post {
     username?: string | null;
   };
   _count: { likes: number; comments: number };
+  likes?: any[];
+  latestComments?: any[];
 }
 
 // GCash-style horizontal scrollable shortcuts
@@ -46,6 +48,8 @@ export default function FeedClient() {
   const searchParams = useSearchParams();
   const targetPostId = searchParams.get("post");
   const [posts, setPosts] = useState<Post[]>([]);
+  const postsRef = useRef<Post[]>([]);
+  postsRef.current = posts;
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
@@ -108,31 +112,79 @@ export default function FeedClient() {
 
   useEffect(() => { loadPosts(1); }, [loadPosts]);
 
-  // Poll for new posts in the background
+  // Live Sync Pulse: updates comments, reactions, and new posts every 4s without page reload
   useEffect(() => {
-    if (!posts.length || !session) return;
-    const topPostId = posts[0].id;
-    const poll = async () => {
+    const syncLive = async () => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      const current = postsRef.current;
+      if (!current.length) return;
       try {
-        const res = await fetch(`/api/posts?checkNew=true&latestId=${topPostId}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.newPostsCount > 0) {
-            // If user is already at the top, auto-refresh immediately
-            if (window.scrollY <= 180) {
-              loadPosts(1);
-            } else {
-              setHasNewPosts(true);
-            }
+        const ids = current.slice(0, 30).map((p) => p.id).join(",");
+        const topPostId = current.reduce((m, p) => (p.id > m ? p.id : m), 0);
+        const res = await fetch(`/api/mobile/feed/sync?postIds=${ids}&latestId=${topPostId}`);
+        if (!res.ok) return;
+        const json = await res.json();
+        const payload = json?.data || json;
+        if (!payload) return;
+
+        if ((payload.newPostsCount || 0) > 0) {
+          if (window.scrollY <= 180) {
+            loadPosts(1);
+          } else {
+            setHasNewPosts(true);
           }
         }
-      } catch (err) {
-        console.error("New posts poll failed:", err);
+
+        const updatesList: any[] = Array.isArray(payload.updates) ? payload.updates : [];
+        if (!updatesList.length) return;
+        const updateMap = new Map<number, any>(updatesList.map((u) => [u.id, u]));
+
+        setPosts((prev) => {
+          let changed = false;
+          const next = prev.map((p) => {
+            const u = updateMap.get(p.id);
+            if (!u) return p;
+            const prevLatestSig = JSON.stringify(
+              (p.latestComments || []).map((c: any) => `${c.id}:${c.likeCount}:${(c.replies || []).length}`)
+            );
+            const nextLatestSig = JSON.stringify(
+              (u.latestComments || []).map((c: any) => `${c.id}:${c.likeCount}:${(c.replies || []).length}`)
+            );
+            if (
+              p._count?.comments === u.commentCount &&
+              p._count?.likes === u.likeCount &&
+              prevLatestSig === nextLatestSig
+            ) {
+              return p;
+            }
+            changed = true;
+            return {
+              ...p,
+              likes: u.likes,
+              latestComments: u.latestComments,
+              _count: {
+                likes: u.likeCount,
+                comments: u.commentCount,
+              },
+            };
+          });
+          return changed ? next : prev;
+        });
+      } catch {
+        // Silent background sync fallback
       }
     };
-    const interval = setInterval(poll, 20000); // Poll every 20 seconds
-    return () => clearInterval(interval);
-  }, [posts, session, loadPosts]);
+
+    const interval = setInterval(syncLive, 4000);
+    const onVis = () => {
+      if (document.visibilityState === "visible") syncLive();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [loadPosts]);
 
   // Handle scroll to show floating pill and auto-refresh when scrolled back to top
   useEffect(() => {

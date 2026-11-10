@@ -16,9 +16,11 @@ import {
   Modal,
   Linking,
   Share,
+  AppState,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useIsFocused } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import client from '@/api/client';
@@ -26,7 +28,10 @@ import TopHeader from '@/components/ui/TopHeader';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import { useAuth } from '@/context/AuthContext';
 import { SkeletonDirectoryLoading, SkeletonProfileLoading } from '@/components/ui/SkeletonPulse';
-import InlineCommentThread, { InlineReactionsPanel } from '@/components/ui/InlineCommentThread';
+import InlineCommentThread, {
+  InlineReactionsPanel,
+  InlineCommentPreview,
+} from '@/components/ui/InlineCommentThread';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 const PRIMARY = '#4EB1CB';
@@ -170,6 +175,7 @@ const CHIP_ROWS = [
 
 export default function WebReplicaScreen() {
   const router = useRouter();
+  const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const params = useLocalSearchParams<{
@@ -209,6 +215,8 @@ export default function WebReplicaScreen() {
   const dirListRef = useRef<FlatList<DirectoryMember>>(null);
   const [memberProfile, setMemberProfile] = useState<any>(null);
   const [memberPosts, setMemberPosts] = useState<any[]>([]);
+  const memberPostsRef = useRef<any[]>([]);
+  memberPostsRef.current = memberPosts;
   const [memberTab, setMemberTab] = useState<'wall' | 'about' | 'ministries'>('wall');
   const [loadingMember, setLoadingMember] = useState(false);
   const [memberPage, setMemberPage] = useState(1);
@@ -557,6 +565,105 @@ export default function WebReplicaScreen() {
     setMemberHasMore(false);
     fetchMemberProfileData(false);
   }, [activePage, targetMemberId, fetchMemberProfileData]);
+
+  // Real-time Live Sync Pulse for Member Profile Wall
+  const syncMemberWallLive = useCallback(async () => {
+    if (activePage !== 'member' || !targetMemberId) return;
+    const current = memberPostsRef.current;
+    if (!current.length) return;
+    try {
+      const ids = current.slice(0, 30).map((p) => p.id).join(',');
+      const maxId = current.reduce((m, p) => (p.id > m ? p.id : m), 0);
+      const { data } = await client.get(
+        `/feed/sync?postIds=${ids}&latestId=${maxId}&memberId=${targetMemberId}`
+      );
+      const payload = data?.data || data;
+      if (!payload) return;
+
+      if ((payload.newPostsCount || 0) > 0) {
+        fetchMemberProfileData(false);
+        return;
+      }
+
+      const updatesList: any[] = Array.isArray(payload.updates) ? payload.updates : [];
+      const existingSet = Array.isArray(payload.existingIds)
+        ? new Set<number>(payload.existingIds)
+        : null;
+      const checkedSet = new Set<number>(current.slice(0, 30).map((p) => p.id));
+      const updateMap = new Map<number, any>(updatesList.map((u) => [u.id, u]));
+
+      setMemberPosts((prev) => {
+        let changed = false;
+        const filtered = existingSet
+          ? prev.filter((p) => {
+              if (checkedSet.has(p.id) && !existingSet.has(p.id)) {
+                changed = true;
+                return false;
+              }
+              return true;
+            })
+          : prev;
+
+        const next = filtered.map((p) => {
+          const u = updateMap.get(p.id);
+          if (!u) return p;
+          const prevCount = p.commentCount ?? p._count?.comments ?? 0;
+          const prevLikes = p.likeCount ?? p._count?.likes ?? 0;
+          const prevLatestSig = JSON.stringify(
+            (p.latestComments || []).map((c: any) => `${c.id}:${c.likeCount}:${(c.replies || []).length}`)
+          );
+          const nextLatestSig = JSON.stringify(
+            (u.latestComments || []).map((c: any) => `${c.id}:${c.likeCount}:${(c.replies || []).length}`)
+          );
+          if (
+            prevCount === u.commentCount &&
+            prevLikes === u.likeCount &&
+            p.myReaction === u.myReaction &&
+            prevLatestSig === nextLatestSig
+          ) {
+            return p;
+          }
+          changed = true;
+          return {
+            ...p,
+            commentCount: u.commentCount,
+            likeCount: u.likeCount,
+            myReaction: u.myReaction,
+            isLiked: Boolean(u.myReaction),
+            likes: u.likes,
+            latestComments: u.latestComments,
+            _count: {
+              ...(p._count || {}),
+              comments: u.commentCount,
+              likes: u.likeCount,
+            },
+          };
+        });
+
+        return changed ? next : prev;
+      });
+    } catch {
+      // Silent fallback
+    }
+  }, [activePage, targetMemberId, fetchMemberProfileData]);
+
+  useEffect(() => {
+    if (!isFocused || activePage !== 'member' || !targetMemberId) return;
+    const interval = setInterval(() => {
+      if (AppState.currentState === 'active') {
+        syncMemberWallLive();
+      }
+    }, 3500);
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        syncMemberWallLive();
+      }
+    });
+    return () => {
+      clearInterval(interval);
+      sub.remove();
+    };
+  }, [isFocused, activePage, targetMemberId, syncMemberWallLive]);
 
   const loadMoreMemberPosts = async () => {
     if (loadingMorePosts || !memberHasMore || !targetMemberId) return;
@@ -2156,11 +2263,25 @@ export default function WebReplicaScreen() {
                         </TouchableOpacity>
                       </View>
 
+                      {/* Auto-Visible Latest Comments Preview (Facebook/Instagram Style — Updates Live) */}
+                      <InlineCommentPreview
+                        visible={!expandedWallCommentPostIds[post.id]}
+                        comments={post.latestComments}
+                        totalCount={cCount}
+                        onExpand={() =>
+                          setExpandedWallCommentPostIds((prev) => ({
+                            ...prev,
+                            [post.id]: true,
+                          }))
+                        }
+                      />
+
                       {/* Inline Facebook/Instagram Threaded Comments on Member Wall */}
                       <InlineCommentThread
                         postId={post.id}
                         postAuthorId={Number(post.author?.id || post.authorId || m.id)}
                         isOpen={Boolean(expandedWallCommentPostIds[post.id])}
+                        initialComments={post.latestComments}
                         onCommentCountChange={(delta) => {
                           setMemberPosts((prev) =>
                             prev.map((p) =>
@@ -2177,6 +2298,23 @@ export default function WebReplicaScreen() {
                                         0,
                                         (p._count?.comments ?? p.commentCount ?? 0) + delta
                                       ),
+                                    },
+                                  }
+                                : p
+                            )
+                          );
+                        }}
+                        onSyncComments={(totalCount, latest) => {
+                          setMemberPosts((prev) =>
+                            prev.map((p) =>
+                              p.id === post.id
+                                ? {
+                                    ...p,
+                                    commentCount: totalCount,
+                                    latestComments: latest,
+                                    _count: {
+                                      ...(p._count || {}),
+                                      comments: totalCount,
                                     },
                                   }
                                 : p

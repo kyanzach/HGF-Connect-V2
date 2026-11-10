@@ -17,14 +17,19 @@ import {
   Platform,
   Share,
   Linking,
+  AppState,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useIsFocused } from '@react-navigation/native';
 import client from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
 import AlertPromptModal, { AlertType } from '@/components/ui/AlertPromptModal';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import { SkeletonFeedLoading } from '@/components/ui/SkeletonPulse';
-import InlineCommentThread, { InlineReactionsPanel } from '@/components/ui/InlineCommentThread';
+import InlineCommentThread, {
+  InlineReactionsPanel,
+  InlineCommentPreview,
+} from '@/components/ui/InlineCommentThread';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 const MOUNTAIN_BG = require('../../assets/images/mountain.png');
@@ -72,6 +77,7 @@ interface FeedPost {
       profilePicture?: string | null;
     } | null;
   }>;
+  latestComments?: any[];
 }
 
 interface CommentItem {
@@ -206,8 +212,11 @@ export default function FeedScreen() {
     openComments?: string;
   }>();
   const { user } = useAuth();
+  const isFocused = useIsFocused();
 
   const [posts, setPosts] = useState<FeedPost[]>([]);
+  const postsRef = useRef<FeedPost[]>([]);
+  postsRef.current = posts;
   const feedListRef = useRef<FlatList<FeedPost>>(null);
   const [carousel, setCarousel] = useState<CarouselData>({});
   const [slideIdx, setSlideIdx] = useState(0);
@@ -304,6 +313,96 @@ export default function FeedScreen() {
   useEffect(() => {
     fetchFeed();
   }, [fetchFeed, user?.id]);
+
+  // Real-time Live Sync Pulse: keeps comments, reactions, and new posts instant without manual refresh
+  const syncFeedLive = useCallback(async () => {
+    const currentPosts = postsRef.current;
+    if (!currentPosts.length) return;
+    try {
+      const ids = currentPosts.slice(0, 30).map((p) => p.id).join(',');
+      const maxId = currentPosts.reduce((m, p) => (p.id > m ? p.id : m), 0);
+      const { data } = await client.get(`/feed/sync?postIds=${ids}&latestId=${maxId}`);
+      const payload = data?.data || data;
+      if (!payload) return;
+
+      if ((payload.newPostsCount || 0) > 0) {
+        fetchFeed();
+        return;
+      }
+
+      const updatesList: any[] = Array.isArray(payload.updates) ? payload.updates : [];
+      const existingSet = Array.isArray(payload.existingIds)
+        ? new Set<number>(payload.existingIds)
+        : null;
+      const checkedSet = new Set<number>(currentPosts.slice(0, 30).map((p) => p.id));
+      const updateMap = new Map<number, any>(updatesList.map((u) => [u.id, u]));
+
+      setPosts((prev) => {
+        let changed = false;
+        const filtered = existingSet
+          ? prev.filter((p) => {
+              if (checkedSet.has(p.id) && !existingSet.has(p.id)) {
+                changed = true;
+                return false;
+              }
+              return true;
+            })
+          : prev;
+
+        const next = filtered.map((p) => {
+          const u = updateMap.get(p.id);
+          if (!u) return p;
+          const prevLatestSig = JSON.stringify(
+            (p.latestComments || []).map((c: any) => `${c.id}:${c.likeCount}:${(c.replies || []).length}`)
+          );
+          const nextLatestSig = JSON.stringify(
+            (u.latestComments || []).map((c: any) => `${c.id}:${c.likeCount}:${(c.replies || []).length}`)
+          );
+          if (
+            p.commentCount === u.commentCount &&
+            p.likeCount === u.likeCount &&
+            p.myReaction === u.myReaction &&
+            prevLatestSig === nextLatestSig
+          ) {
+            return p;
+          }
+          changed = true;
+          return {
+            ...p,
+            commentCount: u.commentCount,
+            likeCount: u.likeCount,
+            myReaction: u.myReaction,
+            reactionCounts: u.reactionCounts,
+            likes: u.likes,
+            latestComments: u.latestComments,
+          };
+        });
+
+        return changed ? next : prev;
+      });
+    } catch {
+      // Silent background sync fallback
+    }
+  }, [fetchFeed]);
+
+  useEffect(() => {
+    if (!isFocused) return;
+    syncFeedLive();
+    const interval = setInterval(() => {
+      if (AppState.currentState === 'active') {
+        syncFeedLive();
+      }
+    }, 3500);
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        syncFeedLive();
+      }
+    });
+    return () => {
+      clearInterval(interval);
+      sub.remove();
+    };
+  }, [isFocused, syncFeedLive]);
 
   // Build slides identically to components/feed/HeroCarousel.tsx
   const slides: Array<'welcome' | 'quiz' | 'event' | 'prayer'> = ['welcome'];
@@ -1476,16 +1575,34 @@ export default function FeedScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Auto-Visible Latest Comments Preview (Facebook/Instagram Style — Updates Live) */}
+        <InlineCommentPreview
+          visible={!expandedCommentPostIds[item.id]}
+          comments={item.latestComments}
+          totalCount={item.commentCount}
+          onExpand={() => openComments(item)}
+        />
+
         {/* Inline Facebook/Instagram Threaded Comments */}
         <InlineCommentThread
           postId={item.id}
           postAuthorId={item.author.id}
           isOpen={Boolean(expandedCommentPostIds[item.id])}
+          initialComments={item.latestComments}
           onCommentCountChange={(delta) => {
             setPosts((prev) =>
               prev.map((p) =>
                 p.id === item.id
                   ? { ...p, commentCount: Math.max(0, p.commentCount + delta) }
+                  : p
+              )
+            );
+          }}
+          onSyncComments={(totalCount, latest) => {
+            setPosts((prev) =>
+              prev.map((p) =>
+                p.id === item.id
+                  ? { ...p, commentCount: totalCount, latestComments: latest }
                   : p
               )
             );

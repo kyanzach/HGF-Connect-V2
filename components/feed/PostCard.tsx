@@ -81,6 +81,7 @@ interface PostCardProps {
     _count?: { likes: number; comments: number };
     isLiked?: boolean;
     likes?: any[];
+    latestComments?: any[];
     photos?: { id: number; photoPath: string; sortOrder: number }[];
   };
 }
@@ -116,6 +117,23 @@ export default function PostCard({ post }: PostCardProps) {
   const router = useRouter();
   const [reactions, setReactions] = useState<any[]>(post.likes ?? []);
   const [commentCount, setCommentCount] = useState(post._count?.comments ?? 0);
+  const [latestComments, setLatestComments] = useState<any[]>(post.latestComments ?? []);
+
+  useEffect(() => {
+    if (Array.isArray(post.likes)) setReactions(post.likes);
+  }, [post.likes]);
+
+  useEffect(() => {
+    if (typeof post._count?.comments === "number") {
+      setCommentCount(post._count.comments);
+    }
+  }, [post._count?.comments]);
+
+  useEffect(() => {
+    if (Array.isArray(post.latestComments)) {
+      setLatestComments(post.latestComments);
+    }
+  }, [post.latestComments]);
   const [loading, setLoading] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
@@ -1563,6 +1581,101 @@ export default function PostCard({ post }: PostCardProps) {
             📤 Share
           </button>
         </div>
+
+        {/* Auto-Visible Latest Comments Preview (Facebook/Instagram Style — Updates Live) */}
+        {!commentsOpen && latestComments.length > 0 && (
+          <div style={{ padding: "0.65rem 1rem 0.75rem", borderTop: "1px solid #f1f5f9" }}>
+            {commentCount >
+              latestComments.reduce(
+                (s: number, c: any) => s + 1 + (Array.isArray(c.replies) ? c.replies.length : 0),
+                0
+              ) && (
+              <button
+                onClick={() => setCommentsOpen(true)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: "0 0 0.45rem 0",
+                  fontSize: "0.78rem",
+                  fontWeight: 700,
+                  color: "#64748b",
+                  cursor: "pointer",
+                }}
+              >
+                View all {commentCount} comments
+              </button>
+            )}
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
+              {latestComments.map((c: any) => {
+                const cName = `${c.author?.firstName || ""} ${c.author?.lastName || ""}`.trim() || "Member";
+                const cInit = `${c.author?.firstName?.[0] || "M"}${c.author?.lastName?.[0] || ""}`.toUpperCase();
+                const cPic = c.author?.profilePicture
+                  ? c.author.profilePicture.startsWith("http") || c.author.profilePicture.startsWith("/")
+                    ? c.author.profilePicture
+                    : `/uploads/profile_pictures/${c.author.profilePicture}`
+                  : null;
+                return (
+                  <div key={c.id} style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem" }}>
+                    <a
+                      href={c.author?.id ? `/member/${c.author.id}` : "#"}
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: "50%",
+                        overflow: "hidden",
+                        flexShrink: 0,
+                        background: "rgba(78,177,203,0.16)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        textDecoration: "none",
+                      }}
+                    >
+                      {cPic ? (
+                        <img src={cPic} alt={cName} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      ) : (
+                        <span style={{ fontSize: 11, fontWeight: 800, color: PRIMARY }}>{cInit}</span>
+                      )}
+                    </a>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        onClick={() => setCommentsOpen(true)}
+                        style={{
+                          display: "inline-block",
+                          background: "#F0F2F5",
+                          borderRadius: 16,
+                          padding: "0.42rem 0.8rem",
+                          maxWidth: "100%",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "#0f172a" }}>{cName}</div>
+                        <div style={{ fontSize: "0.85rem", color: "#1e293b", lineHeight: 1.38, wordBreak: "break-word" }}>
+                          {c.content}
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: "0.75rem", paddingLeft: "0.5rem", marginTop: "0.18rem", fontSize: "0.72rem", color: "#64748b" }}>
+                        <span>{timeAgo(c.createdAt)}</span>
+                        <button
+                          onClick={() => setCommentsOpen(true)}
+                          style={{ background: "none", border: "none", padding: 0, fontSize: "0.72rem", fontWeight: 700, color: "#64748b", cursor: "pointer" }}
+                        >
+                          Like
+                        </button>
+                        <button
+                          onClick={() => setCommentsOpen(true)}
+                          style={{ background: "none", border: "none", padding: 0, fontSize: "0.72rem", fontWeight: 700, color: "#64748b", cursor: "pointer" }}
+                        >
+                          Reply
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Inline Facebook/Instagram Threaded Comments */}
         <CommentDrawer

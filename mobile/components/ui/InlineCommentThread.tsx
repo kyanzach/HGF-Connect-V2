@@ -8,6 +8,7 @@ import {
   TextInput,
   ActivityIndicator,
   ScrollView,
+  AppState,
 } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter } from 'expo-router';
@@ -195,12 +196,183 @@ export function InlineReactionsPanel({ visible, likes, onClose }: InlineReaction
   );
 }
 
+interface InlineCommentPreviewProps {
+  visible: boolean;
+  comments?: any[];
+  totalCount: number;
+  onExpand: () => void;
+}
+
+export function InlineCommentPreview({
+  visible,
+  comments,
+  totalCount,
+  onExpand,
+}: InlineCommentPreviewProps) {
+  const router = useRouter();
+  if (!visible || !Array.isArray(comments) || comments.length === 0) return null;
+
+  const shownRootAndReplies = comments.reduce(
+    (sum, c) => sum + 1 + (Array.isArray(c.replies) ? c.replies.length : 0),
+    0
+  );
+  const hasMoreToView = totalCount > shownRootAndReplies;
+
+  return (
+    <View style={styles.threadContainer}>
+      {hasMoreToView && (
+        <TouchableOpacity
+          onPress={onExpand}
+          activeOpacity={0.75}
+          style={{ marginBottom: 8, paddingLeft: 2 }}
+        >
+          <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#64748b' }}>
+            View all {totalCount} comments
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      <View style={styles.commentsList}>
+        {comments.map((c: any) => {
+          const author: CommentAuthor = c.author || { id: 0, name: 'Member' };
+          const avatarUri = getAuthorAvatarUrl(author);
+          const authorName = getAuthorDisplayName(author);
+          const initials = (authorName[0] || 'M').toUpperCase();
+          const replies = Array.isArray(c.replies) ? c.replies : [];
+          const hasBranch = replies.length > 0;
+
+          return (
+            <View key={c.id} style={styles.commentGroup}>
+              {c.isPinned && (
+                <View style={styles.pinnedBadgeRow}>
+                  <FontAwesome name="thumb-tack" size={11} color="#0284c7" />
+                  <Text style={styles.pinnedBadgeText}>Pinned comment</Text>
+                </View>
+              )}
+
+              <View style={styles.commentRow}>
+                <View style={styles.avatarColumn}>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => {
+                      if (author.id) router.push(`/church?tab=member&id=${author.id}` as any);
+                    }}
+                  >
+                    {avatarUri ? (
+                      <Image source={{ uri: avatarUri }} style={styles.commentAvatar} />
+                    ) : (
+                      <View style={styles.commentAvatarFallback}>
+                        <Text style={styles.commentAvatarInitials}>{initials}</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                  {hasBranch && <View style={styles.threadVerticalSpine} />}
+                </View>
+
+                <View style={{ flex: 1 }}>
+                  <TouchableOpacity
+                    activeOpacity={0.88}
+                    onPress={onExpand}
+                    style={{ alignSelf: 'flex-start', maxWidth: '100%' }}
+                  >
+                    <View
+                      style={[
+                        styles.commentBubble,
+                        c.isPinned && styles.commentBubblePinned,
+                      ]}
+                    >
+                      <Text
+                        style={styles.commentAuthorName}
+                        onPress={() => {
+                          if (author.id) router.push(`/church?tab=member&id=${author.id}` as any);
+                        }}
+                      >
+                        {authorName}
+                      </Text>
+                      <Text style={styles.commentBodyText}>{c.content}</Text>
+
+                      {(c.likeCount || 0) > 0 && (
+                        <View style={styles.floatingCommentLikePill}>
+                          <Text style={{ fontSize: 10 }}>❤️</Text>
+                          {c.likeCount > 1 && (
+                            <Text style={styles.floatingCommentLikeCount}>{c.likeCount}</Text>
+                          )}
+                        </View>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+
+                  <View style={styles.commentMetaRow}>
+                    <Text style={styles.commentTimeText}>{timeAgoShort(c.createdAt)}</Text>
+                    <TouchableOpacity onPress={onExpand} style={styles.metaActionBtn}>
+                      <Text style={styles.metaActionText}>Like</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={onExpand} style={styles.metaActionBtn}>
+                      <Text style={styles.metaActionText}>Reply</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {replies.length > 0 && (
+                    <View style={styles.repliesListWrap}>
+                      {replies.map((r: any) => {
+                        const rAuthor: CommentAuthor = r.author || { id: 0, name: 'Member' };
+                        const rAvatar = getAuthorAvatarUrl(rAuthor);
+                        const rName = getAuthorDisplayName(rAuthor);
+                        const rInit = (rName[0] || 'M').toUpperCase();
+                        return (
+                          <View key={r.id} style={styles.replyItemRow}>
+                            <View style={styles.curvedBranchElbow} />
+                            <TouchableOpacity
+                              activeOpacity={0.8}
+                              onPress={() => {
+                                if (rAuthor.id) {
+                                  router.push(`/church?tab=member&id=${rAuthor.id}` as any);
+                                }
+                              }}
+                            >
+                              {rAvatar ? (
+                                <Image source={{ uri: rAvatar }} style={styles.replyAvatar} />
+                              ) : (
+                                <View style={styles.replyAvatarFallback}>
+                                  <Text style={styles.replyAvatarInitials}>{rInit}</Text>
+                                </View>
+                              )}
+                            </TouchableOpacity>
+                            <View style={{ flex: 1 }}>
+                              <TouchableOpacity
+                                activeOpacity={0.88}
+                                onPress={onExpand}
+                                style={{ alignSelf: 'flex-start', maxWidth: '100%' }}
+                              >
+                                <View style={[styles.replyBubble, { paddingHorizontal: 11, paddingVertical: 7 }]}>
+                                  <Text style={styles.commentAuthorName}>{rName}</Text>
+                                  <Text style={styles.commentBodyText}>{r.content}</Text>
+                                </View>
+                              </TouchableOpacity>
+                            </View>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  )}
+                </View>
+              </View>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 interface InlineCommentThreadProps {
   postId: number;
   postAuthorId: number;
   isOpen: boolean;
   highlightCommentId?: number | null;
+  initialComments?: any[];
   onCommentCountChange?: (delta: number) => void;
+  onSyncComments?: (totalCount: number, latest: ThreadedCommentItem[]) => void;
 }
 
 function timeAgoShort(dateStr: string): string {
@@ -267,18 +439,24 @@ export default function InlineCommentThread({
   postAuthorId,
   isOpen,
   highlightCommentId,
+  initialComments,
   onCommentCountChange,
+  onSyncComments,
 }: InlineCommentThreadProps) {
   const router = useRouter();
   const { user } = useAuth();
   const currentUserId = user?.id ? Number(user.id) : null;
   const isAdmin = user?.role === 'admin' || user?.role === 'moderator';
 
-  const [comments, setComments] = useState<ThreadedCommentItem[]>([]);
+  const [comments, setComments] = useState<ThreadedCommentItem[]>(() =>
+    Array.isArray(initialComments) ? (initialComments as ThreadedCommentItem[]) : []
+  );
   const [loading, setLoading] = useState(false);
   const [mainText, setMainText] = useState('');
   const [submittingMain, setSubmittingMain] = useState(false);
   const mainInputRef = useRef<TextInput>(null);
+  const onSyncRef = useRef(onSyncComments);
+  onSyncRef.current = onSyncComments;
 
   // Inline Reply state: opens right under the parent comment thread being replied to
   const [replyTo, setReplyTo] = useState<{ parentId: number; authorName: string } | null>(null);
@@ -290,43 +468,58 @@ export default function InlineCommentThread({
   const [commentToDelete, setCommentToDelete] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const loadComments = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { data } = await client.get(`/posts/${postId}/comments`);
-      const payload = data?.data || data;
-      const list: ThreadedCommentItem[] = (payload?.comments || []).map((c: any) => ({
-        id: c.id,
-        postId: c.postId || postId,
-        content: c.content || '',
-        createdAt: c.createdAt,
-        isPinned: Boolean(c.isPinned),
-        likeCount: c.likeCount ?? 0,
-        isLiked: Boolean(c.isLiked),
-        author: c.author || { id: 0, name: 'Member' },
-        replies: (c.replies || []).map((r: any) => ({
-          id: r.id,
-          postId: r.postId || postId,
-          parentId: c.id,
-          content: r.content || '',
-          createdAt: r.createdAt,
-          likeCount: r.likeCount ?? 0,
-          isLiked: Boolean(r.isLiked),
-          author: r.author || { id: 0, name: 'Member' },
-        })),
-      }));
-      setComments(list);
-    } catch {
-      // Keep existing comments if offline
-    } finally {
-      setLoading(false);
-    }
-  }, [postId]);
+  const loadComments = useCallback(
+    async (silent = false) => {
+      if (!silent && comments.length === 0) {
+        setLoading(true);
+      }
+      try {
+        const { data } = await client.get(`/posts/${postId}/comments`);
+        const payload = data?.data || data;
+        const list: ThreadedCommentItem[] = (payload?.comments || []).map((c: any) => ({
+          id: c.id,
+          postId: c.postId || postId,
+          content: c.content || '',
+          createdAt: c.createdAt,
+          isPinned: Boolean(c.isPinned),
+          likeCount: c.likeCount ?? 0,
+          isLiked: Boolean(c.isLiked),
+          author: c.author || { id: 0, name: 'Member' },
+          replies: (c.replies || []).map((r: any) => ({
+            id: r.id,
+            postId: r.postId || postId,
+            parentId: c.id,
+            content: r.content || '',
+            createdAt: r.createdAt,
+            likeCount: r.likeCount ?? 0,
+            isLiked: Boolean(r.isLiked),
+            author: r.author || { id: 0, name: 'Member' },
+          })),
+        }));
+        setComments(list);
+        const total = list.reduce((sum, c) => sum + 1 + (c.replies?.length || 0), 0);
+        const pinned = list.filter((c) => c.isPinned);
+        const unpinned = list.filter((c) => !c.isPinned).slice(-2);
+        const preview = [...pinned, ...unpinned].slice(0, 2);
+        onSyncRef.current?.(total, preview);
+      } catch {
+        // Keep existing comments if offline
+      } finally {
+        if (!silent) setLoading(false);
+      }
+    },
+    [postId]
+  );
 
   useEffect(() => {
-    if (isOpen) {
-      loadComments();
-    }
+    if (!isOpen) return;
+    loadComments(comments.length > 0);
+    const interval = setInterval(() => {
+      if (AppState.currentState === 'active') {
+        loadComments(true);
+      }
+    }, 3500);
+    return () => clearInterval(interval);
   }, [isOpen, loadComments]);
 
   const allAuthors = useMemo(() => {
@@ -400,6 +593,7 @@ export default function InlineCommentThread({
       ]);
       if (!customText) setMainText('');
       onCommentCountChange?.(1);
+      loadComments(true);
     } finally {
       setSubmittingMain(false);
     }
@@ -456,6 +650,7 @@ export default function InlineCommentThread({
       setReplyText('');
       setReplyTo(null);
       onCommentCountChange?.(1);
+      loadComments(true);
     } finally {
       setSubmittingReply(false);
     }
@@ -541,6 +736,7 @@ export default function InlineCommentThread({
         }));
       });
       onCommentCountChange?.(-removedCount);
+      loadComments(true);
     } finally {
       setDeleting(false);
       setCommentToDelete(null);

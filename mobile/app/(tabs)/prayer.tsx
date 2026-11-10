@@ -14,8 +14,10 @@ import {
   KeyboardAvoidingView,
   Keyboard,
   Platform,
+  AppState,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useIsFocused } from '@react-navigation/native';
 import client from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
 import ConfirmModal from '@/components/ui/ConfirmModal';
@@ -114,6 +116,7 @@ export default function PrayerWallScreen() {
   const rawPray = Array.isArray(params.pray) ? params.pray[0] : params.pray;
 
   const [mineOnly, setMineOnly] = useState(rawMine === 'true');
+  const isFocused = useIsFocused();
   const [tab, setTab] = useState<'active' | 'answered'>('active');
   const [prayers, setPrayers] = useState<PrayerItem[]>([]);
   const prayerListRef = useRef<FlatList<PrayerItem>>(null);
@@ -159,31 +162,74 @@ export default function PrayerWallScreen() {
     setMineOnly(rawMine === 'true');
   }, [rawMine]);
 
-  const fetchPrayers = useCallback(async () => {
-    setLoading(true);
-    try {
-      const endpoint = `/prayer?filter=${tab}${mineOnly ? '&mine=true' : ''}`;
-      const { data } = await client.get(endpoint);
-      const payload = data?.data || data;
-      const list = payload?.prayers || payload?.requests || [];
-      setPrayers(
-        list.map((p: any) => ({
-          ...p,
-          prayCount: p.prayCount ?? p.prayerCount ?? 0,
-          responseCount: p.responseCount ?? p._count?.responses ?? p.responses?.length ?? 0,
-        }))
-      );
-    } catch {
-      // Keep cached
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [tab, mineOnly]);
+  const expandedPrayerIdsRef = useRef<Record<number, boolean>>({});
+  expandedPrayerIdsRef.current = expandedPrayerIds;
+
+  const fetchPrayers = useCallback(
+    async (silent = false) => {
+      if (!silent) setLoading(true);
+      try {
+        const endpoint = `/prayer?filter=${tab}${mineOnly ? '&mine=true' : ''}`;
+        const { data } = await client.get(endpoint);
+        const payload = data?.data || data;
+        const list = payload?.prayers || payload?.requests || [];
+        setPrayers(
+          list.map((p: any) => ({
+            ...p,
+            prayCount: p.prayCount ?? p.prayerCount ?? 0,
+            responseCount: p.responseCount ?? p._count?.responses ?? p.responses?.length ?? 0,
+          }))
+        );
+
+        // Also silently refresh any currently expanded inline prayer threads
+        if (silent) {
+          const openIds = Object.keys(expandedPrayerIdsRef.current)
+            .filter((k) => expandedPrayerIdsRef.current[Number(k)])
+            .map(Number);
+          for (const pid of openIds) {
+            client
+              .get(`/prayer?id=${pid}`)
+              .then(({ data: d }) => {
+                const pl = d?.data || d;
+                const respList = pl?.prayer?.responses || pl?.responses;
+                if (Array.isArray(respList)) {
+                  setInlineResponsesMap((prev) => ({ ...prev, [pid]: respList }));
+                }
+              })
+              .catch(() => {});
+          }
+        }
+      } catch {
+        // Keep cached
+      } finally {
+        if (!silent) setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [tab, mineOnly]
+  );
 
   useEffect(() => {
-    fetchPrayers();
+    fetchPrayers(false);
   }, [fetchPrayers]);
+
+  useEffect(() => {
+    if (!isFocused) return;
+    const interval = setInterval(() => {
+      if (AppState.currentState === 'active') {
+        fetchPrayers(true);
+      }
+    }, 4500);
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        fetchPrayers(true);
+      }
+    });
+    return () => {
+      clearInterval(interval);
+      sub.remove();
+    };
+  }, [isFocused, fetchPrayers]);
 
   // Deep-link: ?highlight=ID
   useEffect(() => {
