@@ -1,3 +1,8 @@
+## [v2.85.1] — 2026-11-10
+### Changed
+- **Tree of Wisdom: removed the "Branch X of 7" progress pill (`components/quiz/TreeOfWisdomStage.tsx`, `mobile/components/ui/NativeTreeOfWisdom.tsx`, `mobile/v1.9.1`)**: it read as 7 questions per day. Each day stays at exactly 1 question; the 7-day schedule is unchanged.
+- **Mobile Tree of Wisdom now matches the web stage (`mobile/components/ui/NativeTreeOfWisdom.tsx`)**: removed the "V" spotlight cones; added orbiting/rising glowing light motes, soft radial canopy glow, teal-to-gold gradient branches, and hexagonal question chamber + A/B/C/D answer pods (replacing rounded pills).
+
 ## [v2.85.0] — 2026-11-10
 ### Added / Changed / Fixed
 - **Quiz for Christ Reconstructed Gaming Strategy — 3D "Tree of Wisdom" Spotlight Stage (`TREE_OF_LIFE`, `v2.85.0`, `mobile/v1.9.0`)**:

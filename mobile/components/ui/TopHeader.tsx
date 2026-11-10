@@ -25,7 +25,7 @@ import {
 
 const PRIMARY = '#4EB1CB';
 const DARK_NAV = '#3A95AD';
-const APP_VERSION = '2.85.0';
+const APP_VERSION = '2.85.1';
 
 const NAV_LINKS = [
   { href: '/(tabs)', label: 'Home', icon: '🏠' },

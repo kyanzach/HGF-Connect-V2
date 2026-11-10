@@ -403,54 +403,6 @@ export default function TreeOfWisdomStage({
             style={{ width: "320px", height: "190px", display: "block" }}
             aria-label="3D Tree of Wisdom Sanctuary Stage"
           />
-
-          {/* 7-Branch Wisdom Ascent Track (Zero money/millionaire terms — pure Day 1 to Day 7 growth) */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "5px 14px",
-              borderRadius: "999px",
-              background: "rgba(9, 34, 50, 0.78)",
-              border: "1px solid rgba(78, 177, 203, 0.32)",
-              marginTop: "-4px",
-            }}
-          >
-            {[1, 2, 3, 4, 5, 6, 7].map((d) => {
-              const isCurrent = d === question.dayNumber;
-              const isPast = d < question.dayNumber;
-              return (
-                <div
-                  key={d}
-                  style={{
-                    width: isCurrent ? "24px" : "8px",
-                    height: "8px",
-                    borderRadius: "999px",
-                    background: isCurrent
-                      ? "linear-gradient(90deg, #fbbf24, #f59e0b)"
-                      : isPast
-                      ? "#4EB1CB"
-                      : "rgba(148, 163, 184, 0.3)",
-                    boxShadow: isCurrent ? "0 0 10px rgba(251, 191, 36, 0.65)" : "none",
-                    transition: "transform 0.25s ease, opacity 0.25s ease",
-                  }}
-                  title={`Day ${d}`}
-                />
-              );
-            })}
-            <span
-              style={{
-                fontSize: "0.72rem",
-                fontWeight: 700,
-                color: "#bae6fd",
-                marginLeft: "4px",
-                whiteSpace: "nowrap",
-              }}
-            >
-              Branch {question.dayNumber} of 7
-            </span>
-          </div>
         </div>
 
         {/* Iconic Hexagonal Beveled Question Chamber with Flanking Stage Rails */}

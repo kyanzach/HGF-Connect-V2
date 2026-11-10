@@ -1,11 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { LayoutChangeEvent, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Svg, {
   Circle,
   Defs,
   Ellipse,
   Line,
-  LinearGradient as SvgLinearGradient,
   Polygon,
   RadialGradient as SvgRadialGradient,
   Stop,
@@ -38,7 +37,16 @@ interface LeafNode3D {
   tier: number;
 }
 
-function buildTree3D(): { branches: Branch3D[]; leaves: LeafNode3D[] } {
+interface Mote3D {
+  angle: number;
+  radius: number;
+  y: number;
+  speed: number;
+  size: number;
+}
+
+// Same deterministic geometry as the web canvas (components/quiz/TreeOfWisdomStage.tsx)
+function buildTree3D(): { branches: Branch3D[]; leaves: LeafNode3D[]; motes: Mote3D[] } {
   const branches: Branch3D[] = [];
   const leaves: LeafNode3D[] = [];
 
@@ -69,7 +77,7 @@ function buildTree3D(): { branches: Branch3D[]; leaves: LeafNode3D[] } {
       x2: nx,
       y2: ny,
       z2: nz,
-      thickness: Math.max(1.3, (maxDepth - depth + 1) * 1.4),
+      thickness: Math.max(1.2, (maxDepth - depth + 1) * 1.45),
     });
 
     if (depth >= maxDepth) {
@@ -77,7 +85,7 @@ function buildTree3D(): { branches: Branch3D[]; leaves: LeafNode3D[] } {
         x: nx,
         y: ny,
         z: nz,
-        radius: 3.4 + rand() * 2.2,
+        radius: 3.2 + rand() * 2.6,
         tier: (leaves.length % 7) + 1,
       });
       return;
@@ -85,36 +93,104 @@ function buildTree3D(): { branches: Branch3D[]; leaves: LeafNode3D[] } {
 
     const childCount = depth === 0 ? 4 : 3;
     for (let i = 0; i < childCount; i++) {
-      const baseYaw = yaw + (i * Math.PI * 2) / childCount + (rand() - 0.5) * 0.42;
-      const nextPitch = 0.36 + depth * 0.11 + rand() * 0.15;
+      const baseYaw = yaw + (i * Math.PI * 2) / childCount + (rand() - 0.5) * 0.45;
+      const nextPitch = 0.36 + depth * 0.11 + rand() * 0.16;
       const nextLen = len * (0.68 + rand() * 0.08);
       grow(nx, ny, nz, nextLen, nextPitch, baseYaw, depth + 1, maxDepth);
     }
   }
 
-  grow(0, 62, 0, 40, 0.02, 0, 0, 3);
+  grow(0, 68, 0, 44, 0.02, 0, 0, 3);
 
   for (let r = 0; r < 6; r++) {
     const a = (r * Math.PI * 2) / 6;
     branches.push({
       x1: 0,
-      y1: 62,
+      y1: 68,
       z1: 0,
-      x2: Math.cos(a) * 26,
-      y2: 70,
-      z2: Math.sin(a) * 26,
-      thickness: 2.1,
+      x2: Math.cos(a) * 28,
+      y2: 76,
+      z2: Math.sin(a) * 28,
+      thickness: 2.2,
     });
   }
 
-  return { branches, leaves };
+  const motes: Mote3D[] = Array.from({ length: 22 }, (_, i) => ({
+    angle: (i * Math.PI * 2) / 22,
+    radius: 26 + (i % 5) * 14,
+    y: 65 - ((i * 6.5) % 135),
+    speed: 0.008 + (i % 4) * 0.003,
+    size: 1.4 + (i % 3) * 0.7,
+  }));
+
+  return { branches, leaves, motes };
+}
+
+// Teal at the base blending to gold at the tips, like the web gradient strokes
+function branchColor(y2: number, alpha: number, locking: boolean) {
+  if (locking) return `rgba(251, 191, 36, ${alpha.toFixed(2)})`;
+  const t = Math.max(0, Math.min(1, (68 - y2) / 130));
+  const r = Math.round(56 + (251 - 56) * t);
+  const g = Math.round(189 + (191 - 189) * t);
+  const b = Math.round(248 + (36 - 248) * t);
+  return `rgba(${r}, ${g}, ${b}, ${alpha.toFixed(2)})`;
+}
+
+// Chamfered hexagon box (same silhouette as the web clip-path chambers/pods)
+function HexBox({
+  children,
+  borderColor,
+  fillColor,
+  chamfer = 14,
+  padding,
+}: {
+  children: React.ReactNode;
+  borderColor: string;
+  fillColor: string;
+  chamfer?: number;
+  padding: { v: number; h: number };
+}) {
+  const [size, setSize] = useState({ w: 0, h: 0 });
+  const onLayout = (e: LayoutChangeEvent) => {
+    const { width, height } = e.nativeEvent.layout;
+    if (Math.abs(width - size.w) > 0.5 || Math.abs(height - size.h) > 0.5) {
+      setSize({ w: width, h: height });
+    }
+  };
+  const { w, h } = size;
+  const c = Math.min(chamfer, h / 2);
+  const points =
+    w > 0
+      ? `${c + 1},1 ${w - c - 1},1 ${w - 1},${h / 2} ${w - c - 1},${h - 1} ${c + 1},${h - 1} 1,${h / 2}`
+      : '';
+  return (
+    <View onLayout={onLayout} style={{ width: '100%' }}>
+      {w > 0 && (
+        <Svg width={w} height={h} style={StyleSheet.absoluteFill} pointerEvents="none">
+          <Polygon
+            points={points}
+            fill={fillColor}
+            stroke={borderColor}
+            strokeWidth={1.8}
+            strokeLinejoin="round"
+          />
+        </Svg>
+      )}
+      <View
+        style={{
+          paddingVertical: padding.v,
+          paddingHorizontal: padding.h + c * 0.6,
+        }}
+      >
+        {children}
+      </View>
+    </View>
+  );
 }
 
 /**
- * Native iOS & Android 3D Tree of Wisdom Spotlight Stage
- * - 3D-projected rotating fractal Tree of Wisdom via react-native-svg
- * - Hexagonal chamfered spotlight question chamber & A/B/C/D answer pods
- * - Zero money / millionaire / lifeline wording; zero purple (Rule #4)
+ * Native iOS & Android 3D Tree of Wisdom — mirrors the web canvas stage:
+ * rotating 3D tree, glowing canopy, orbiting light motes, hexagonal chamber and pods.
  */
 export function NativeTreeOfWisdom({
   dayNumber,
@@ -128,31 +204,39 @@ export function NativeTreeOfWisdom({
   const [lockedIdx, setLockedIdx] = useState<number | null>(null);
   const [phase, setPhase] = useState<'idle' | 'locking'>('idle');
   const [showHint, setShowHint] = useState(false);
+  const [, setTick] = useState(0);
 
-  const { branches, leaves } = useMemo(() => buildTree3D(), []);
+  const { branches, leaves, motes: initialMotes } = useMemo(() => buildTree3D(), []);
+  const motesRef = useRef<Mote3D[]>(initialMotes.map((m) => ({ ...m })));
   const isLocking = phase === 'locking' || submitting;
   const LETTERS = ['A', 'B', 'C', 'D'];
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setRotAngle((prev) => prev + (isLocking ? 0.095 : 0.03));
+      setRotAngle((prev) => prev + (isLocking ? 0.028 : 0.0075) * 2);
+      for (const m of motesRef.current) {
+        m.angle += (isLocking ? m.speed * 2.6 : m.speed) * 2;
+        m.y -= isLocking ? 1.1 : 0.4;
+        if (m.y < -62) m.y = 68;
+      }
+      setTick((t) => (t + 1) % 1000000);
     }, 40);
     return () => clearInterval(interval);
   }, [isLocking]);
 
-  const W = 300;
-  const H = 180;
+  const W = 320;
+  const H = 200;
   const cosA = Math.cos(rotAngle);
   const sinA = Math.sin(rotAngle);
 
   const project = (x: number, y: number, z: number) => {
     const rx = x * cosA - z * sinA;
     const rz = x * sinA + z * cosA;
-    const fov = 250;
+    const fov = 260;
     const scale = fov / (fov + rz + 120);
     return {
       sx: W / 2 + rx * scale,
-      sy: H / 2 + 10 + y * scale,
+      sy: H / 2 + 12 + y * scale,
       rz,
       scale,
     };
@@ -176,64 +260,57 @@ export function NativeTreeOfWisdom({
     setPhase('locking');
     setTimeout(() => {
       onSubmit(opt);
-    }, 760);
+    }, 780);
   };
+
+  const accent = isLocking ? '#fbbf24' : '#4EB1CB';
 
   return (
     <View style={styles.container}>
-      {/* 3D Rotating Tree of Wisdom SVG Stage */}
       <View style={styles.treeStageWrap}>
         <Svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
           <Defs>
-            <SvgLinearGradient id="spotlightLeft" x1="0" y1="0" x2="1" y2="1">
-              <Stop offset="0" stopColor="#4EB1CB" stopOpacity="0.24" />
-              <Stop offset="1" stopColor="#4EB1CB" stopOpacity="0" />
-            </SvgLinearGradient>
-            <SvgLinearGradient id="spotlightRight" x1="1" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor="#fbbf24" stopOpacity="0.22" />
-              <Stop offset="1" stopColor="#fbbf24" stopOpacity="0" />
-            </SvgLinearGradient>
             <SvgRadialGradient id="floorGlow" cx="50%" cy="50%" r="50%">
-              <Stop
-                offset="0%"
-                stopColor={isLocking ? '#fbbf24' : '#4EB1CB'}
-                stopOpacity="0.45"
-              />
+              <Stop offset="0%" stopColor={accent} stopOpacity="0.42" />
+              <Stop offset="55%" stopColor={isLocking ? '#f59e0b' : '#0ea5e9'} stopOpacity="0.12" />
               <Stop offset="100%" stopColor="#05131d" stopOpacity="0" />
+            </SvgRadialGradient>
+            <SvgRadialGradient id="leafCool" cx="50%" cy="50%" r="50%">
+              <Stop offset="0%" stopColor="#e0f2fe" stopOpacity="0.95" />
+              <Stop offset="50%" stopColor="#4EB1CB" stopOpacity="0.55" />
+              <Stop offset="100%" stopColor="#4EB1CB" stopOpacity="0" />
+            </SvgRadialGradient>
+            <SvgRadialGradient id="leafWarm" cx="50%" cy="50%" r="50%">
+              <Stop offset="0%" stopColor="#fef3c7" stopOpacity="0.95" />
+              <Stop offset="45%" stopColor="#fbbf24" stopOpacity="0.65" />
+              <Stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
             </SvgRadialGradient>
           </Defs>
 
-          {/* Converging Sanctuary Spotlight Beams */}
-          <Polygon points={`10,0 95,0 ${W / 2 + 24},${H - 16} ${W / 2 - 58},${H - 16}`} fill="url(#spotlightLeft)" />
-          <Polygon points={`${W - 95},0 ${W - 10},0 ${W / 2 + 58},${H - 16} ${W / 2 - 24},${H - 16}`} fill="url(#spotlightRight)" />
-
-          {/* Sanctuary Base Halo & 3D Rings */}
-          <Ellipse cx={W / 2} cy={H - 18} rx={88} ry={18} fill="url(#floorGlow)" />
+          {/* Sanctuary floor halo + rings (no spotlight cones) */}
+          <Ellipse cx={W / 2} cy={H - 22} rx={92} ry={22} fill="url(#floorGlow)" />
           <Ellipse
             cx={W / 2}
-            cy={H - 18}
-            rx={52}
-            ry={11}
+            cy={H - 22}
+            rx={56}
+            ry={13.4}
             fill="none"
-            stroke={isLocking ? 'rgba(251,191,36,0.4)' : 'rgba(78,177,203,0.35)'}
-            strokeWidth={1.1}
+            stroke={isLocking ? 'rgba(251,191,36,0.24)' : 'rgba(78,177,203,0.2)'}
+            strokeWidth={1.2}
           />
           <Ellipse
             cx={W / 2}
-            cy={H - 18}
-            rx={30}
-            ry={6.5}
+            cy={H - 22}
+            rx={34}
+            ry={8.2}
             fill="none"
-            stroke={isLocking ? 'rgba(251,191,36,0.65)' : 'rgba(78,177,203,0.55)'}
+            stroke={isLocking ? 'rgba(251,191,36,0.5)' : 'rgba(78,177,203,0.45)'}
             strokeWidth={1.2}
           />
 
-          {/* 3D Depth-Sorted Branches */}
+          {/* Branches, back to front, teal base to gold tips */}
           {projectedBranches.map(({ idx, b, p1, p2, avgZ }) => {
-            const alpha = Math.max(0.3, Math.min(0.95, 0.78 - avgZ / 210));
-            const strokeColor = isLocking
-              ? `rgba(251, 191, 36, ${alpha.toFixed(2)})`
-              : `rgba(78, 177, 203, ${alpha.toFixed(2)})`;
+            const alpha = Math.max(0.28, Math.min(0.95, 0.78 - avgZ / 220));
             return (
               <Line
                 key={`b-${idx}`}
@@ -241,83 +318,66 @@ export function NativeTreeOfWisdom({
                 y1={p1.sy}
                 x2={p2.sx}
                 y2={p2.sy}
-                stroke={strokeColor}
+                stroke={branchColor(b.y2, alpha, isLocking)}
                 strokeWidth={b.thickness * ((p1.scale + p2.scale) * 0.5)}
                 strokeLinecap="round"
               />
             );
           })}
 
-          {/* 3D Luminous Canopy Blossoms */}
+          {/* Glowing canopy blossoms */}
           {projectedLeaves.map(({ idx, lf, p }) => {
-            const isCurrentBranch = lf.tier === dayNumber;
-            const r = lf.radius * p.scale * (isCurrentBranch ? 1.35 : 1);
+            const isCurrent = lf.tier === dayNumber;
+            const r = lf.radius * p.scale * (isCurrent ? 1.35 : 1);
+            const warm = isLocking || isCurrent;
             return (
-              <React.Fragment key={`l-${idx}`}>
-                <Circle
-                  cx={p.sx}
-                  cy={p.sy}
-                  r={r * 1.9}
-                  fill={
-                    isLocking || isCurrentBranch
-                      ? 'rgba(251, 191, 36, 0.32)'
-                      : 'rgba(78, 177, 203, 0.28)'
-                  }
-                />
-                <Circle
-                  cx={p.sx}
-                  cy={p.sy}
-                  r={r * 0.85}
-                  fill={isLocking || isCurrentBranch ? '#fef3c7' : '#e0f2fe'}
-                />
-              </React.Fragment>
-            );
-          })}
-        </Svg>
-
-        {/* 7-Branch Wisdom Ascent Pill */}
-        <View style={styles.ascentPill}>
-          {[1, 2, 3, 4, 5, 6, 7].map((d) => {
-            const isCur = d === dayNumber;
-            const isPast = d < dayNumber;
-            return (
-              <View
-                key={d}
-                style={[
-                  styles.ascentDot,
-                  isCur && styles.ascentDotCurrent,
-                  isPast && styles.ascentDotPast,
-                ]}
+              <Circle
+                key={`l-${idx}`}
+                cx={p.sx}
+                cy={p.sy}
+                r={r * 2.4}
+                fill={warm ? 'url(#leafWarm)' : 'url(#leafCool)'}
               />
             );
           })}
-          <Text style={styles.ascentLabel} numberOfLines={1}>
-            Branch {dayNumber} of 7
-          </Text>
-        </View>
+
+          {/* Orbiting, rising light motes */}
+          {motesRef.current.map((m, idx) => {
+            const mx = Math.cos(m.angle) * m.radius;
+            const mz = Math.sin(m.angle) * m.radius;
+            const mp = project(mx, m.y, mz);
+            return (
+              <Circle
+                key={`m-${idx}`}
+                cx={mp.sx}
+                cy={mp.sy}
+                r={Math.max(0.6, m.size * mp.scale)}
+                fill={isLocking ? 'rgba(253,224,71,0.78)' : 'rgba(125,211,252,0.65)'}
+              />
+            );
+          })}
+        </Svg>
       </View>
 
-      {/* Beveled Spotlight Question Chamber with Stage Rails */}
+      {/* Hexagonal question chamber with stage rails */}
       <View style={styles.railRow}>
         <View style={styles.stageRail} />
-        <View
-          style={[
-            styles.questionOuter,
-            isLocking && { borderColor: '#fbbf24' },
-          ]}
-        >
-          <Text style={styles.questionText}>{questionText}</Text>
+        <View style={{ flex: 1 }}>
+          <HexBox
+            borderColor={isLocking ? '#fbbf24' : '#4EB1CB'}
+            fillColor="#071f2e"
+            chamfer={20}
+            padding={{ v: 18, h: 18 }}
+          >
+            <Text style={styles.questionText}>{questionText}</Text>
+          </HexBox>
         </View>
         <View style={styles.stageRail} />
       </View>
 
-      {/* Optional Scripture Hint */}
       {hint ? (
         <View style={{ alignItems: 'center', marginBottom: 12 }}>
-          <TouchableOpacity
-            onPress={() => setShowHint((v) => !v)}
-            style={styles.hintToggleBtn}
-          >
+          <TouchableOpacity onPress={() => setShowHint((v) => !v)} style={styles.hintToggleBtn}>
             <Text style={styles.hintToggleText} numberOfLines={1}>
               {showHint ? 'Hide Hint' : 'Show Scripture Hint'}
             </Text>
@@ -330,42 +390,40 @@ export function NativeTreeOfWisdom({
         </View>
       ) : null}
 
-      {/* 4 Hexagonal-Styled Diamond Answer Pods (A / B / C / D) */}
+      {/* Hexagonal answer pods A / B / C / D */}
       <View style={{ gap: 10, width: '100%' }}>
         {(options || []).map((opt, idx) => {
           const isSelected = lockedIdx === idx;
           const isDimmed = lockedIdx !== null && lockedIdx !== idx;
           return (
-            <View
-              key={idx}
-              style={[styles.podRow, isDimmed && { opacity: 0.45 }]}
-            >
+            <View key={idx} style={[styles.podRow, isDimmed && { opacity: 0.45 }]}>
               <View style={styles.podSideRail} />
               <TouchableOpacity
                 activeOpacity={0.85}
                 disabled={submitting || phase === 'locking'}
                 onPress={() => handleSelect(opt, idx)}
-                style={[
-                  styles.podButton,
-                  isSelected && styles.podButtonLocked,
-                ]}
+                style={{ flex: 1 }}
               >
-                <Text
-                  style={[
-                    styles.podDiamond,
-                    isSelected && { color: '#ffffff' },
-                  ]}
+                <HexBox
+                  borderColor={isSelected ? '#fde68a' : '#38bdf8'}
+                  fillColor={isSelected ? '#b45309' : '#092538'}
+                  chamfer={14}
+                  padding={{ v: 13, h: 14 }}
                 >
-                  ◆ {LETTERS[idx] || idx + 1}:
-                </Text>
-                <Text
-                  style={[
-                    styles.podOptionText,
-                    isSelected && { color: '#ffffff', fontWeight: '800' },
-                  ]}
-                >
-                  {opt}
-                </Text>
+                  <View style={styles.podContent}>
+                    <Text style={[styles.podDiamond, isSelected && { color: '#ffffff' }]}>
+                      ◆ {LETTERS[idx] || idx + 1}:
+                    </Text>
+                    <Text
+                      style={[
+                        styles.podOptionText,
+                        isSelected && { color: '#ffffff', fontWeight: '800' },
+                      ]}
+                    >
+                      {opt}
+                    </Text>
+                  </View>
+                </HexBox>
               </TouchableOpacity>
               <View style={styles.podSideRail} />
             </View>
@@ -374,9 +432,7 @@ export function NativeTreeOfWisdom({
       </View>
 
       {isLocking ? (
-        <Text style={styles.lockingCaption}>
-          Illuminating the Tree of Wisdom...
-        </Text>
+        <Text style={styles.lockingCaption}>Illuminating the Tree of Wisdom...</Text>
       ) : null}
     </View>
   );
@@ -389,44 +445,13 @@ const styles = StyleSheet.create({
   },
   treeStageWrap: {
     alignItems: 'center',
-    marginBottom: 8,
-  },
-  ascentPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 999,
-    backgroundColor: 'rgba(6, 24, 38, 0.85)',
-    borderWidth: 1,
-    borderColor: 'rgba(78, 177, 203, 0.35)',
-    marginTop: -4,
-  },
-  ascentDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: 'rgba(148, 163, 184, 0.3)',
-  },
-  ascentDotPast: {
-    backgroundColor: '#4EB1CB',
-  },
-  ascentDotCurrent: {
-    width: 20,
-    backgroundColor: '#fbbf24',
-  },
-  ascentLabel: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: '#bae6fd',
-    marginLeft: 4,
+    marginBottom: 6,
   },
   railRow: {
     flexDirection: 'row',
     alignItems: 'center',
     width: '100%',
-    marginTop: 6,
+    marginTop: 4,
     marginBottom: 14,
   },
   stageRail: {
@@ -434,20 +459,6 @@ const styles = StyleSheet.create({
     height: 2,
     backgroundColor: '#4EB1CB',
     opacity: 0.75,
-  },
-  questionOuter: {
-    flex: 1,
-    backgroundColor: '#071f2e',
-    borderWidth: 1.8,
-    borderColor: '#4EB1CB',
-    borderRadius: 18,
-    paddingVertical: 16,
-    paddingHorizontal: 18,
-    shadowColor: '#000',
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 5,
   },
   questionText: {
     color: '#f8fafc',
@@ -495,21 +506,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#38bdf8',
     opacity: 0.65,
   },
-  podButton: {
-    flex: 1,
+  podContent: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#092538',
-    borderWidth: 1.6,
-    borderColor: '#38bdf8',
-    borderRadius: 999,
-    paddingVertical: 14,
-    paddingHorizontal: 18,
-  },
-  podButtonLocked: {
-    backgroundColor: '#b45309',
-    borderColor: '#fde68a',
   },
   podDiamond: {
     color: '#fbbf24',
