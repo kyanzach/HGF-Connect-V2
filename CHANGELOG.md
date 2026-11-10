@@ -1,3 +1,8 @@
+## [v2.84.1] — 2026-11-10
+### Added / Changed / Fixed
+- **Expo Router SDK 58 Focus Detection Fix (`mobile/v1.8.1`, `v2.84.1`)**:
+  - Replaced `@react-navigation/native` `useIsFocused` with `expo-router` `usePathname` across `mobile/app/(tabs)/index.tsx`, `mobile/app/church.tsx`, and `mobile/app/(tabs)/prayer.tsx` to avoid duplicate React Navigation context resolution in Expo Go SDK 58.
+
 ## [v2.84.0] — 2026-11-10
 ### Added / Changed / Fixed
 - **Bidirectional Real-Time Live Sync & Auto-Visible Inline Comment Previews Across Mobile (iOS/Android) & Web (`mobile/v1.8.0`, `v2.84.0`)**:

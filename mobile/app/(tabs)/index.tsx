@@ -19,8 +19,7 @@ import {
   Linking,
   AppState,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useIsFocused } from '@react-navigation/native';
+import { useRouter, useLocalSearchParams, usePathname } from 'expo-router';
 import client from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
 import AlertPromptModal, { AlertType } from '@/components/ui/AlertPromptModal';
@@ -212,7 +211,8 @@ export default function FeedScreen() {
     openComments?: string;
   }>();
   const { user } = useAuth();
-  const isFocused = useIsFocused();
+  const pathname = usePathname();
+  const isFocused = pathname === '/' || pathname === '/index';
 
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const postsRef = useRef<FeedPost[]>([]);

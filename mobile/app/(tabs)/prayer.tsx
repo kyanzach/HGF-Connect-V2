@@ -16,8 +16,7 @@ import {
   Platform,
   AppState,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useIsFocused } from '@react-navigation/native';
+import { useRouter, useLocalSearchParams, usePathname } from 'expo-router';
 import client from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
 import ConfirmModal from '@/components/ui/ConfirmModal';
@@ -116,7 +115,8 @@ export default function PrayerWallScreen() {
   const rawPray = Array.isArray(params.pray) ? params.pray[0] : params.pray;
 
   const [mineOnly, setMineOnly] = useState(rawMine === 'true');
-  const isFocused = useIsFocused();
+  const pathname = usePathname();
+  const isFocused = pathname.includes('prayer');
   const [tab, setTab] = useState<'active' | 'answered'>('active');
   const [prayers, setPrayers] = useState<PrayerItem[]>([]);
   const prayerListRef = useRef<FlatList<PrayerItem>>(null);

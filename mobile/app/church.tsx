@@ -19,8 +19,7 @@ import {
   AppState,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useIsFocused } from '@react-navigation/native';
+import { useLocalSearchParams, useRouter, usePathname } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import client from '@/api/client';
@@ -175,7 +174,8 @@ const CHIP_ROWS = [
 
 export default function WebReplicaScreen() {
   const router = useRouter();
-  const isFocused = useIsFocused();
+  const pathname = usePathname();
+  const isFocused = pathname.includes('church');
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const params = useLocalSearchParams<{
