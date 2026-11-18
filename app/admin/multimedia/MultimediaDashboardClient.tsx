@@ -858,7 +858,7 @@ export default function MultimediaDashboardClient({
                     Sermon Slides
                   </h3>
                   <p style={{ color: "#64748b", fontSize: "0.8125rem", margin: "0.125rem 0 0" }}>
-                    Flattened and optimized JPEGs (150 DPI) + extracted media ready for ProPresenter 7.
+                    Sequenced slides and videos ready for ProPresenter 7.
                   </p>
                 </div>
 
@@ -886,14 +886,15 @@ export default function MultimediaDashboardClient({
                         display: "inline-flex",
                         alignItems: "center",
                         gap: "0.375rem",
+                        whiteSpace: "nowrap",
                         boxShadow: "0 4px 12px rgba(78, 177, 203, 0.2)",
                       }}
                     >
                       {isZip
-                        ? "📥 Download ProPresenter Package (.zip)"
+                        ? "Download ProPresenter ZIP"
                         : isPdf
-                        ? "📥 Download Presentation (.pdf)"
-                        : "📥 Download Presentation (.pptx)"}
+                        ? "Download PDF Deck"
+                        : "Download PPTX Deck"}
                     </a>
                   );
                 })()}
@@ -909,12 +910,11 @@ export default function MultimediaDashboardClient({
                     background: "#f8fafc",
                   }}
                 >
-                  <span style={{ fontSize: "2.5rem", display: "block", marginBottom: "0.75rem" }}>📽️</span>
                   <h4 style={{ fontSize: "0.9375rem", fontWeight: 700, color: "#475569", margin: "0 0 0.25rem" }}>
-                    No Sermon Slides Uploaded Yet
+                    No Sermon Slides Yet
                   </h4>
                   <p style={{ color: "#94a3b8", fontSize: "0.8125rem", maxWidth: "320px", margin: "0 auto 1rem" }}>
-                    The preaching pastor should upload their PPTX or PDF slides when setting up the event.
+                    Upload a PPTX, PDF, or Canva/Media ZIP in Events.
                   </p>
                   <Link
                     href="/admin/events"

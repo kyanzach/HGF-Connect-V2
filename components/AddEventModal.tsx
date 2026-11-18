@@ -88,6 +88,8 @@ export default function AddEventModal({ open, onClose }: Props) {
       const ext = file.name.split(".").pop()?.toLowerCase();
       if (ext === "pdf" || ext === "pptx" || ext === "zip" || file.type === "application/pdf" || file.type === "application/vnd.openxmlformats-officedocument.presentationml.presentation" || file.type === "application/zip" || file.type === "application/x-zip-compressed") {
         handlePresentationUpload(file);
+      } else {
+        setErr("Please upload a PDF, PPTX, or ZIP file.");
       }
     }
   };
@@ -295,29 +297,36 @@ export default function AddEventModal({ open, onClose }: Props) {
                   transition: "all 0.2s ease"
                 }}
               >
-                {uploading ? "Uploading…" : dragCover ? "💧 Drop image here" : "📷 Click or Drag & Drop cover photo"}
+                {uploading ? "Uploading…" : dragCover ? "Drop image here" : "Upload Cover Photo"}
               </button>
             )}
             <input ref={fileRef} type="file" accept="image/*" hidden onChange={e => { if (e.target.files?.[0]) handleCoverUpload(e.target.files[0]); e.target.value = ""; }} />
           </div>
 
-          {/* Sermon Presentation (PDF/PPTX) */}
+          {/* Sermon Presentation (PDF / PPTX / Canva or Hybrid ZIP) */}
           <div style={{ marginTop: "0.75rem" }}>
-            <label style={lbl}>Sermon Presentation (PDF or PPTX)</label>
+            <label style={lbl}>Sermon Presentation (PDF, PPTX, or ZIP)</label>
             {form.presentationFile ? (
-              <div style={{ marginTop: "0.375rem", padding: "0.75rem", borderRadius: "8px", border: "1.5px solid #10b981", background: "#f0fdf4", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", minWidth: 0 }}>
-                  <span style={{ fontSize: "1.25rem" }}>📽️</span>
+              <div style={{ marginTop: "0.375rem", padding: "0.75rem", borderRadius: "8px", border: "1.5px solid #10b981", background: "#f0fdf4", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", minWidth: 0 }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#15803d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                    <rect x="2" y="3" width="20" height="14" rx="2" />
+                    <line x1="8" y1="21" x2="16" y2="21" />
+                    <line x1="12" y1="17" x2="12" y2="21" />
+                  </svg>
                   <div style={{ minWidth: 0, textAlign: "left" }}>
                     <p style={{ fontSize: "0.8125rem", fontWeight: 700, color: "#166534", margin: 0, textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
                       {form.presentationOriginalName}
                     </p>
-                    <p style={{ fontSize: "0.75rem", color: "#15803d", margin: 0 }}>
-                      ✅ ProPresenter ZIP Package ({form.presentationSlides.length} slides{form.presentationSlides.filter((s: any) => typeof s === "object" && s?.video).length > 0 ? ` • 🎬 ${form.presentationSlides.filter((s: any) => typeof s === "object" && s?.video).length} video` : ""})
+                    <p style={{ fontSize: "0.75rem", color: "#15803d", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      ProPresenter ZIP ({form.presentationSlides.length} {form.presentationSlides.length === 1 ? "item" : "items"}{(() => {
+                        const vidCount = form.presentationSlides.filter((s: any) => typeof s === "object" && s?.video).length;
+                        return vidCount > 0 ? ` • ${vidCount} ${vidCount === 1 ? "video" : "videos"}` : "";
+                      })()})
                     </p>
                   </div>
                 </div>
-                <button type="button" onClick={() => setForm(f => ({ ...f, presentationFile: "", presentationOriginalName: "", presentationSlides: [] }))} style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 700 }}>✕ Remove</button>
+                <button type="button" onClick={() => setForm(f => ({ ...f, presentationFile: "", presentationOriginalName: "", presentationSlides: [] }))} style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>Remove</button>
               </div>
             ) : (
               <div>
@@ -337,10 +346,13 @@ export default function AddEventModal({ open, onClose }: Props) {
                     background: dragPres ? "#e0f2fe" : "#f8fafc",
                     border: dragPres ? `2px dashed ${P}` : "1.5px dashed #cbd5e1",
                     padding: "1.25rem 0.75rem",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
                     transition: "all 0.2s ease"
                   }}
                 >
-                  {presUploading ? `Packaging slides & media... (${presProgress}%)` : dragPres ? "Drop PDF, PPTX, or Canva ZIP here" : "Upload PDF, PPTX, or Canva ZIP"}
+                  {presUploading ? `Sequencing slides & media... (${presProgress}%)` : dragPres ? "Drop PDF, PPTX, or ZIP here" : "Upload PDF, PPTX, or Canva/Media ZIP"}
                 </button>
                 <input ref={presInputRef} type="file" accept=".pdf,.pptx,.zip" hidden onChange={e => { if (e.target.files?.[0]) handlePresentationUpload(e.target.files[0]); e.target.value = ""; }} />
               </div>

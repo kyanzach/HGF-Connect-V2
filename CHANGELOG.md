@@ -1,3 +1,16 @@
+## [v2.87.0] — 2026-11-18
+### Added / Changed / Fixed
+- **Hybrid Sequential Canva JPG/PNG + Video MP4/MOV ZIP Support (`lib/presentationProcessor.ts`)**:
+  - Added unified media sequence discovery and numerical key parsing (`parseSequenceKey` + `compareSequenceEntries`) so creators can unzip a Canva slideshow, insert videos anywhere in between (`01 slide.jpg`, `02 video.mp4`, ..., `10 video.mp4`, `11 slide.jpg`), re-zip, and upload.
+  - Preserves exact numerical order across mixed zero-padding, prefixed labels (`Slide 3.jpg`, `Video 2.mp4`), parenthesized suffixes (`Deck (10).jpg`), and nested folders while ignoring `__MACOSX`, `._*`, `.DS_Store`, and `Thumbs.db`.
+  - Generates 1920x1080 JPEG poster thumbnails for standalone videos via `ffmpeg` (installed on production server) with an automatic Sharp 16:9 SVG cinema poster fallback so Web & Mobile carousels preview and play inline videos at their exact sequence slots.
+  - Packages the downloadable ProPresenter 7 `.zip` in strict `01..N` filename and central-directory entry order (`01 - slide.jpg`, `02 - video.mp4`, ..., `10 - video.mp4`, `11 - slide.jpg`) using zero-CPU store mode (`zip -n`) for pre-compressed media, without duplicating raw uploaded `.zip` files or adding unwanted still slides for standalone videos.
+- **Presentation Pipeline & Font Engine Audit Fixes (`scripts/ensure_presentation_fonts.py`, `app/api/events/presentation/upload/route.ts`, `app/api/mobile/events/route.ts`, `components/AddEventModal.tsx`, `app/admin/events/AdminEventsClient.tsx`, `app/admin/multimedia/MultimediaDashboardClient.tsx`)**:
+  - Fixed `pdffonts` fixed-width column parsing for multi-word font names and `CID TrueType` types, added embedded `ppt/fonts/` SFNT binary extraction, expanded Google Fonts downloads to include full weights + italics, added proprietary-to-Google twin mappings (`Century Gothic` -> `Jost`, `Segoe UI` -> `Open Sans`, `Helvetica Neue` -> `Arimo`, `Garamond` -> `EB Garamond`, etc.), and auto-provisioned `/etc/fonts/conf.d/99-hgf-presentation-aliases.conf` so `Calibri Light` and proprietary families map cleanly instead of falling back to `DejaVu Sans`.
+  - Replaced shell string interpolation with `execFileAsync` across `unzip`, `ffmpeg`, `python3`, `soffice`, `pdftoppm`, and `zip` to eliminate shell-escaping failures on filenames containing quotes, `$`, `&`, or parentheses.
+  - Switched `/api/events/presentation/upload` from double-buffered `arrayBuffer()` to `stream/promises` `pipeline()` disk streaming with `Cache-Control: no-store` and 2-hour completed-job TTL pruning to protect low-RAM server memory.
+  - Fixed `/api/mobile/events` `SlideItem` object serialization bug (`s.startsWith is not a function`) and double `/uploads/presentations/` URL prefixing, and locked the Admin Events submit button while slide packaging is in progress.
+
 ## [v2.86.0] — 2026-11-18
 ### Added / Changed / Fixed
 - **Canva Slideshow ZIP Upload Support (`lib/presentationProcessor.ts`, `app/api/events/presentation/upload/route.ts`, `components/AddEventModal.tsx`, `app/admin/events/AdminEventsClient.tsx`)**:

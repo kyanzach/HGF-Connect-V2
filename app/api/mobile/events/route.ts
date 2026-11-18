@@ -27,9 +27,14 @@ export async function GET(req: NextRequest) {
         try {
           const parsed = typeof e.presentationSlides === "string" ? JSON.parse(e.presentationSlides) : e.presentationSlides;
           if (Array.isArray(parsed)) {
-            slides = parsed.map((s: string) =>
-              s.startsWith("http") ? s : `https://connect.houseofgrace.ph/uploads/presentations/${s}`
-            );
+            slides = parsed
+              .map((s: any) => {
+                const raw = typeof s === "string" ? s : s?.image || s?.url || "";
+                if (!raw) return "";
+                if (raw.startsWith("http")) return raw;
+                return `https://connect.houseofgrace.ph${raw.startsWith("/") ? raw : `/uploads/presentations/slides/${raw}`}`;
+              })
+              .filter(Boolean);
           }
         } catch {}
       }
@@ -52,12 +57,12 @@ export async function GET(req: NextRequest) {
         coverPhoto: e.coverPhoto
           ? e.coverPhoto.startsWith("http")
             ? e.coverPhoto
-            : `https://connect.houseofgrace.ph/uploads/events/${e.coverPhoto}`
+            : `https://connect.houseofgrace.ph${e.coverPhoto.startsWith("/") ? e.coverPhoto : `/uploads/events/${e.coverPhoto}`}`
           : null,
         presentationFile: e.presentationFile
           ? e.presentationFile.startsWith("http")
             ? e.presentationFile
-            : `https://connect.houseofgrace.ph/uploads/presentations/${e.presentationFile}`
+            : `https://connect.houseofgrace.ph${e.presentationFile.startsWith("/") ? e.presentationFile : `/uploads/presentations/${e.presentationFile}`}`
           : null,
         presentationOriginalName: e.presentationOriginalName || null,
         presentationSlides: slides,
