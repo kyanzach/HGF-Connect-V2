@@ -86,7 +86,7 @@ export default function AddEventModal({ open, onClose }: Props) {
     const file = e.dataTransfer.files?.[0];
     if (file) {
       const ext = file.name.split(".").pop()?.toLowerCase();
-      if (ext === "pdf" || ext === "pptx" || file.type === "application/pdf" || file.type === "application/vnd.openxmlformats-officedocument.presentationml.presentation") {
+      if (ext === "pdf" || ext === "pptx" || ext === "zip" || file.type === "application/pdf" || file.type === "application/vnd.openxmlformats-officedocument.presentationml.presentation" || file.type === "application/zip" || file.type === "application/x-zip-compressed") {
         handlePresentationUpload(file);
       }
     }
@@ -340,9 +340,9 @@ export default function AddEventModal({ open, onClose }: Props) {
                     transition: "all 0.2s ease"
                   }}
                 >
-                  {presUploading ? `⚡ Packaging slides & media... (${presProgress}%)` : dragPres ? "💧 Drop PDF/PPTX here" : "📁 Click or Drag & Drop PDF/PPTX presentation"}
+                  {presUploading ? `Packaging slides & media... (${presProgress}%)` : dragPres ? "Drop PDF, PPTX, or Canva ZIP here" : "Upload PDF, PPTX, or Canva ZIP"}
                 </button>
-                <input ref={presInputRef} type="file" accept=".pdf,.pptx" hidden onChange={e => { if (e.target.files?.[0]) handlePresentationUpload(e.target.files[0]); e.target.value = ""; }} />
+                <input ref={presInputRef} type="file" accept=".pdf,.pptx,.zip" hidden onChange={e => { if (e.target.files?.[0]) handlePresentationUpload(e.target.files[0]); e.target.value = ""; }} />
               </div>
             )}
           </div>

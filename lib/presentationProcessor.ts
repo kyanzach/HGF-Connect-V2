@@ -25,6 +25,21 @@ export interface ProcessedPresentation {
   commentary?: string | null;
 }
 
+async function getFilesRecursively(dir: string): Promise<string[]> {
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  const files: string[] = [];
+  for (const entry of entries) {
+    const full = path.join(dir, entry.name);
+    if (entry.name.startsWith(".") || entry.name.startsWith("__MACOSX")) continue;
+    if (entry.isDirectory()) {
+      files.push(...(await getFilesRecursively(full)));
+    } else {
+      files.push(full);
+    }
+  }
+  return files;
+}
+
 export async function processPresentation(
   filePath: string,
   originalName: string,
@@ -43,106 +58,177 @@ export async function processPresentation(
   await fs.mkdir(videosDir, { recursive: true });
 
   const ext = path.extname(filePath).toLowerCase();
+  const isZip = ext === ".zip";
   const finalFilename = `${uuid}.pptx`;
   const finalDestPath = path.join(uploadDir, finalFilename);
 
   let pdfPath = filePath;
+  let extractedText = "";
   const slideMediaMap = new Map<number, { videoUrl: string; videoType: string; localVideoPath: string; targetExt: string }>();
 
   try {
-    // 1. If it's a PPTX file, inspect embedded media and convert to PDF
-    if (ext === ".pptx") {
-      onProgress?.(10, "Inspecting presentation for embedded videos & media...");
-      const unpackedDir = path.join(tempDir, "unpacked");
-      await fs.mkdir(unpackedDir, { recursive: true });
+    // 1A. If it's a Canva Slideshow ZIP archive, extract and process individual slide images
+    if (isZip) {
+      onProgress?.(10, "Extracting Canva slideshow images from ZIP archive...");
+      const unpackedZipDir = path.join(tempDir, "canva_unpacked");
+      await fs.mkdir(unpackedZipDir, { recursive: true });
+      await execAsync(`unzip -q -o "${filePath}" -d "${unpackedZipDir}"`);
 
-      try {
-        await execAsync(`unzip -q -o "${filePath}" -d "${unpackedDir}"`);
+      const allFiles = await getFilesRecursively(unpackedZipDir);
+      const imageExts = [".jpg", ".jpeg", ".png", ".webp"];
+      const videoExts = [".mp4", ".mov", ".webm", ".m4v", ".avi"];
 
-        // Inspect slide relationship files to map embedded videos to exact slide numbers
-        const relsDir = path.join(unpackedDir, "ppt", "slides", "_rels");
-        const relsFiles = await fs.readdir(relsDir).catch(() => [] as string[]);
+      const rawImagePaths = allFiles.filter(f => imageExts.includes(path.extname(f).toLowerCase()));
+      if (rawImagePaths.length === 0) {
+        throw new Error("No slide images (JPG, PNG, WebP) found inside the Canva ZIP archive.");
+      }
 
-        for (const relFile of relsFiles) {
-          const match = relFile.match(/^slide(\d+)\.xml\.rels$/);
-          if (!match) continue;
-          const slideNum = parseInt(match[1], 10);
+      // Sort images using natural alphanumeric order (e.g. 1.jpg, 2.jpg ... 10.jpg or Slide 1, Slide 2)
+      rawImagePaths.sort((a, b) => {
+        const nameA = path.basename(a);
+        const nameB = path.basename(b);
+        return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: "base" });
+      });
 
-          const relContent = await fs.readFile(path.join(relsDir, relFile), "utf8");
-          const relationshipRegex = /<Relationship\s+[^>]*Target="([^"]+)"[^>]*>/gi;
-          let m: RegExpExecArray | null;
+      // Map any included media videos
+      const rawVideoPaths = allFiles.filter(f => videoExts.includes(path.extname(f).toLowerCase()));
+      for (let i = 0; i < rawVideoPaths.length; i++) {
+        const videoSrc = rawVideoPaths[i];
+        const vExt = path.extname(videoSrc).toLowerCase();
+        const videoDestFilename = `${uuid}-slide-${String(i + 1).padStart(3, "0")}${vExt}`;
+        const videoDestPath = path.join(videosDir, videoDestFilename);
+        await fs.copyFile(videoSrc, videoDestPath);
+        slideMediaMap.set(i + 1, {
+          videoUrl: `/uploads/presentations/videos/${videoDestFilename}`,
+          videoType: vExt === ".webm" ? "video/webm" : "video/mp4",
+          localVideoPath: videoDestPath,
+          targetExt: vExt,
+        });
+      }
 
-          while ((m = relationshipRegex.exec(relContent)) !== null) {
-            const target = m[1];
-            const targetExt = path.extname(target).toLowerCase();
-            const isVideoFile = [".mp4", ".mov", ".webm", ".m4v", ".avi", ".mkv"].includes(targetExt);
+      // Convert each slide image to a normalized page JPEG in tempDir
+      onProgress?.(30, `Processing ${rawImagePaths.length} Canva slideshow pages...`);
+      for (let i = 0; i < rawImagePaths.length; i++) {
+        const pageNum = i + 1;
+        const pageDestPath = path.join(tempDir, `page-${String(pageNum).padStart(3, "0")}.jpg`);
+        await sharp(rawImagePaths[i])
+          .jpeg({ quality: 95 })
+          .toFile(pageDestPath);
+      }
+    } else {
+      // 1B. If it's a PPTX file, inspect embedded media, auto-download missing fonts, and convert to PDF
+      let unpackedDir = "";
+      if (ext === ".pptx") {
+        onProgress?.(10, "Inspecting presentation for embedded videos & media...");
+        unpackedDir = path.join(tempDir, "unpacked");
+        await fs.mkdir(unpackedDir, { recursive: true });
 
-            if (isVideoFile && target.includes("media/")) {
-              const mediaFilename = path.basename(target);
-              const sourceMediaPath = path.join(unpackedDir, "ppt", "media", mediaFilename);
+        try {
+          await execAsync(`unzip -q -o "${filePath}" -d "${unpackedDir}"`);
 
-              try {
-                const stat = await fs.stat(sourceMediaPath);
-                if (stat.size > 0) {
-                  const videoDestFilename = `${uuid}-slide-${String(slideNum).padStart(3, "0")}${targetExt}`;
-                  const videoDestPath = path.join(videosDir, videoDestFilename);
-                  await fs.copyFile(sourceMediaPath, videoDestPath);
+          // Inspect slide relationship files to map embedded videos to exact slide numbers
+          const relsDir = path.join(unpackedDir, "ppt", "slides", "_rels");
+          const relsFiles = await fs.readdir(relsDir).catch(() => [] as string[]);
 
-                  const webVideoPath = `/uploads/presentations/videos/${videoDestFilename}`;
-                  slideMediaMap.set(slideNum, {
-                    videoUrl: webVideoPath,
-                    videoType: targetExt === ".webm" ? "video/webm" : "video/mp4",
-                    localVideoPath: videoDestPath,
-                    targetExt,
-                  });
-                  console.log(`[presentationProcessor] Extracted embedded video for Slide ${slideNum}: ${webVideoPath}`);
-                  break;
+          for (const relFile of relsFiles) {
+            const match = relFile.match(/^slide(\d+)\.xml\.rels$/);
+            if (!match) continue;
+            const slideNum = parseInt(match[1], 10);
+
+            const relContent = await fs.readFile(path.join(relsDir, relFile), "utf8");
+            const relationshipRegex = /<Relationship\s+[^>]*Target="([^"]+)"[^>]*>/gi;
+            let m: RegExpExecArray | null;
+
+            while ((m = relationshipRegex.exec(relContent)) !== null) {
+              const target = m[1];
+              const targetExt = path.extname(target).toLowerCase();
+              const isVideoFile = [".mp4", ".mov", ".webm", ".m4v", ".avi", ".mkv"].includes(targetExt);
+
+              if (isVideoFile && target.includes("media/")) {
+                const mediaFilename = path.basename(target);
+                const sourceMediaPath = path.join(unpackedDir, "ppt", "media", mediaFilename);
+
+                try {
+                  const stat = await fs.stat(sourceMediaPath);
+                  if (stat.size > 0) {
+                    const videoDestFilename = `${uuid}-slide-${String(slideNum).padStart(3, "0")}${targetExt}`;
+                    const videoDestPath = path.join(videosDir, videoDestFilename);
+                    await fs.copyFile(sourceMediaPath, videoDestPath);
+
+                    const webVideoPath = `/uploads/presentations/videos/${videoDestFilename}`;
+                    slideMediaMap.set(slideNum, {
+                      videoUrl: webVideoPath,
+                      videoType: targetExt === ".webm" ? "video/webm" : "video/mp4",
+                      localVideoPath: videoDestPath,
+                      targetExt,
+                    });
+                    console.log(`[presentationProcessor] Extracted embedded video for Slide ${slideNum}: ${webVideoPath}`);
+                    break;
+                  }
+                } catch (statErr) {
+                  console.warn(`[presentationProcessor] Could not read media file ${sourceMediaPath}:`, statErr);
                 }
-              } catch (statErr) {
-                console.warn(`[presentationProcessor] Could not read media file ${sourceMediaPath}:`, statErr);
               }
             }
           }
+        } catch (unzipErr) {
+          console.error("Failed to unzip PPTX for media inspection:", unzipErr);
         }
-      } catch (unzipErr) {
-        console.error("Failed to unzip PPTX for media inspection:", unzipErr);
       }
 
-      onProgress?.(20, "Converting presentation to PDF...");
-      await execAsync(
-        `soffice --headless --convert-to pdf --outdir "${tempDir}" "${filePath}"`
-      );
-
-      // Find the converted PDF
-      const files = await fs.readdir(tempDir);
-      const convertedPdfFile = files.find((f) => f.endsWith(".pdf"));
-      if (!convertedPdfFile) {
-        throw new Error("Presentation conversion failed (PDF not generated)");
+      // 1.25 Intelligent Font Detection & Dynamic Acquisition:
+      // Scan presentation typography and automatically acquire missing Google/Microsoft fonts
+      onProgress?.(15, "Inspecting typography & acquiring missing presentation fonts...");
+      try {
+        const pyScript = path.join(process.cwd(), "scripts", "ensure_presentation_fonts.py");
+        const scanTarget = unpackedDir || filePath;
+        const fontRes = await execAsync(`python3 "${pyScript}" "${scanTarget}"`);
+        const fontData = JSON.parse(fontRes.stdout || "{}");
+        if (fontData.downloaded_files?.length > 0) {
+          console.log(`[presentationProcessor] Auto-downloaded ${fontData.downloaded_files.length} missing font(s):`, fontData.downloaded_files);
+          onProgress?.(18, `Installed ${fontData.downloaded_files.length} presentation font(s)...`);
+        }
+      } catch (fontErr) {
+        console.warn("[presentationProcessor] Font discovery warning:", fontErr);
       }
-      pdfPath = path.join(tempDir, convertedPdfFile);
+
+      if (ext === ".pptx") {
+        onProgress?.(20, "Converting presentation to PDF with exact fonts...");
+        const loProfileDir = path.join(tempDir, "lo_profile");
+        await execAsync(
+          `soffice "-env:UserInstallation=file://${loProfileDir}" --headless --convert-to pdf --outdir "${tempDir}" "${filePath}"`
+        );
+
+        // Find the converted PDF
+        const files = await fs.readdir(tempDir);
+        const convertedPdfFile = files.find((f) => f.endsWith(".pdf"));
+        if (!convertedPdfFile) {
+          throw new Error("Presentation conversion failed (PDF not generated)");
+        }
+        pdfPath = path.join(tempDir, convertedPdfFile);
+      }
+
+      // 1.5 Attempt to extract native text layer from PDF (if file size is < 20MB)
+      try {
+        const stats = await fs.stat(pdfPath);
+        const sizeMB = stats.size / (1024 * 1024);
+        if (sizeMB > 20) {
+          console.warn(`[presentationProcessor] PDF file size is ${sizeMB.toFixed(2)}MB (> 20MB). Skipping native text extraction to prevent OOM.`);
+        } else {
+          onProgress?.(30, "Extracting native sermon text...");
+          const pdfBuffer = await fs.readFile(pdfPath);
+          const pdfData = await pdfParse(pdfBuffer);
+          extractedText = pdfData.text || "";
+        }
+      } catch (err) {
+        console.error("Failed to extract native text:", err);
+      }
+
+      // 2. Convert PDF pages to JPEGs using pdftoppm
+      onProgress?.(40, "Extracting pages as slide images...");
+      const pagePrefix = path.join(tempDir, "page");
+      await execAsync(`pdftoppm -jpeg -r 150 "${pdfPath}" "${pagePrefix}"`);
     }
-
-    // 1.5 Attempt to extract native text layer from PDF (if file size is < 20MB)
-    let extractedText = "";
-    try {
-      const stats = await fs.stat(pdfPath);
-      const sizeMB = stats.size / (1024 * 1024);
-      if (sizeMB > 20) {
-        console.warn(`[presentationProcessor] PDF file size is ${sizeMB.toFixed(2)}MB (> 20MB). Skipping native text extraction to prevent OOM.`);
-      } else {
-        onProgress?.(30, "Extracting native sermon text...");
-        const pdfBuffer = await fs.readFile(pdfPath);
-        const pdfData = await pdfParse(pdfBuffer);
-        extractedText = pdfData.text || "";
-      }
-    } catch (err) {
-      console.error("Failed to extract native text:", err);
-    }
-
-    // 2. Convert PDF pages to JPEGs using pdftoppm
-    onProgress?.(40, "Extracting pages as slide images...");
-    const pagePrefix = path.join(tempDir, "page");
-    await execAsync(`pdftoppm -jpeg -r 150 "${pdfPath}" "${pagePrefix}"`);
 
     // 3. Read extracted page JPEGs
     const tempFiles = await fs.readdir(tempDir);

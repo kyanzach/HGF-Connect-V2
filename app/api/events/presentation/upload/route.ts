@@ -59,9 +59,9 @@ export async function POST(req: NextRequest) {
 
     // Validate file extension
     const ext = path.extname(file.name).toLowerCase();
-    if (ext !== ".pdf" && ext !== ".pptx") {
+    if (ext !== ".pdf" && ext !== ".pptx" && ext !== ".zip") {
       return NextResponse.json(
-        { error: "Invalid file type. Only PDF and PPTX are allowed." },
+        { error: "Invalid file type. Only PDF, PPTX, and Canva ZIP archives are allowed." },
         { status: 400 }
       );
     }

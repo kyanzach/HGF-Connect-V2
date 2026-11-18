@@ -1,3 +1,18 @@
+## [v2.86.0] — 2026-11-18
+### Added / Changed / Fixed
+- **Canva Slideshow ZIP Upload Support (`lib/presentationProcessor.ts`, `app/api/events/presentation/upload/route.ts`, `components/AddEventModal.tsx`, `app/admin/events/AdminEventsClient.tsx`)**:
+  - Allowed uploading `.zip` files containing exported Canva slideshow images (`.jpg`, `.jpeg`, `.png`, `.webp`) in addition to `.pdf` and `.pptx`.
+  - Added recursive image discovery with natural numerical sorting (e.g. `1.jpg`, `2.jpg` ... `10.jpg` or `Slide 1`, `Slide 2`), bypassing LibreOffice entirely for 100% pixel-perfect fonts, layouts, shadows, and design fidelity from Canva.
+  - Automatically runs Tesseract OCR and OpenAI AI sermon commentary generation on the Canva slides, generates a 16:9 companion PPTX deck, and packages a ProPresenter 7 ZIP package with individual slides, extracted media videos, and the original Canva archive.
+- **Dynamic PPTX/PDF Presentation Font Acquisition & Caching Engine (`scripts/ensure_presentation_fonts.py`, `lib/presentationProcessor.ts`)**:
+  - Solved headless Linux LibreOffice font substitution and text overflow issues where missing Windows/designer fonts caused slide text boxes to misalign and collide.
+  - Implemented dynamic typography inspection that scans PPTX XML (`<a:latin typeface="...">`, `<p:font name="...">`) and PDF non-embedded fonts before LibreOffice renders.
+  - Automatically queries Google Fonts and community font repositories to download missing TrueType (`.ttf`) fonts directly into `/usr/local/share/fonts/hgf_fonts/` or the local font cache, refreshing `fc-cache -f` on the fly.
+  - Pre-installed metric-compatible Microsoft fonts (`fonts-crosextra-carlito` for Calibri, `fonts-crosextra-caladea` for Cambria) and official TrueType files for `Aptos` and `Aptos Display` on the production server.
+  - Configured LibreOffice with isolated profile directories (`-env:UserInstallation=file://${loProfileDir}`) to prevent profile lock collisions and stale font cache reuse.
+- **Strict Anti-Vibe-Coding Compliance**:
+  - Removed emoji decorations on action buttons in event creation modals and simplified drop zone helper text.
+
 ## [v2.85.2] — 2026-11-10
 ### Changed
 - **Quiz schedule: Wednesday and Saturday swapped (`lib/quiz-helpers.ts`, `components/quiz/QuizPlayer.tsx`, `mobile/app/church.tsx`, `app/(app)/quiz/admin/page.tsx`, `scripts/swap-day3-day6.sql`, `mobile/v1.9.2`)**: Wednesday and Sunday both had writing-style answers. Day 3 (Wed) is now Balloon Pop (`MULTIPLE_CHOICE`) and Day 6 (Sat) is the writing question (`SHORT_ANSWER`). Updated the AI generator prompt, day labels, and swapped Day 3/Day 6 questions plus their feed post "Day N" text for all 6 existing quizzes in production MySQL.
