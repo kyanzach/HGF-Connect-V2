@@ -1,3 +1,11 @@
+## [v2.87.1] — 2026-11-19
+### Fixed / Added
+- **Alphanumeric Sub-Sequence Sorting (`2a`, `2b. title`, `2-1`, `2.1`) for Hybrid Presentation ZIPs (`lib/presentationProcessor.ts`, `app/api/events/[id]/presentation/download/route.ts`)**:
+  - Fixed `parseSequenceKey()` and `compareSequenceEntries()` where sub-letter filenames like `2a.jpg` and `2b. when you mad but a Christian.mp4` had no space between the digit and attached letter, causing `seqNum` to parse as `null` and sorting them to the very end of the deck.
+  - Added structured tuple sorting (`seqNum`, `subNum`, `subAlpha`, `cleanLabel`) supporting attached sub-letters (`2a.jpg`, `2b. title.mp4`, `10a.mp4`), separated sub-letters (`2.a`, `2-b`), integer sub-numbers (`2-1`, `2.2`, `2.10`), and untouched base numbers (`2.jpg` + `2a.mp4` or `2.jpg` + `2.mp4`) without requiring creators to renumber the rest of their Canva slides, while preserving English ordinals (`1st`, `2nd`, `3rd`, `4th`).
+  - Changed `/api/events/[id]/presentation/download` `Cache-Control` header from `public, max-age=86400` to `private, no-cache` so updated presentation packages are always served fresh.
+  - Backfilled Event `#115` (*"Gratitude That Worships"* — `Gratitude Through Worship with vid.zip`) in production MySQL and rebuilt its ProPresenter 7 `.zip` (`01 - Slide 01.jpg`, `02 - Slide 02.jpg`, `03 - when you mad but a Christian.mp4`, `04 - Slide 04.jpg` ... `38 - Slide 38.jpg`) in place with zero re-upload needed.
+
 ## [v2.87.0] — 2026-11-18
 ### Added / Changed / Fixed
 - **Hybrid Sequential Canva JPG/PNG + Video MP4/MOV ZIP Support (`lib/presentationProcessor.ts`)**:

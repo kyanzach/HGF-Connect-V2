@@ -77,7 +77,7 @@ export async function GET(
         "Content-Type": contentType,
         "Content-Length": stat.size.toString(),
         "Content-Disposition": `attachment; filename="${asciiFilename}"; filename*=UTF-8''${encodeURIComponent(finalFilename)}`,
-        "Cache-Control": "public, max-age=86400",
+        "Cache-Control": "private, no-cache",
       },
     });
   } catch (error: any) {

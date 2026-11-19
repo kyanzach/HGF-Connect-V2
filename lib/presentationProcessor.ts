@@ -30,6 +30,13 @@ export interface ProcessedPresentation {
   commentary?: string | null;
 }
 
+export interface SequenceKey {
+  seqNum: number | null;
+  subNum: number | null;
+  subAlpha: string;
+  cleanLabel: string;
+}
+
 interface UnifiedZipMediaEntry {
   fullPath: string;
   relPath: string;
@@ -37,6 +44,8 @@ interface UnifiedZipMediaEntry {
   ext: string;
   kind: "image" | "video";
   seqNum: number | null;
+  subNum: number | null;
+  subAlpha: string;
   cleanLabel: string;
 }
 
@@ -81,53 +90,94 @@ async function getFilesRecursively(dir: string, rootDir: string = dir): Promise<
   return results;
 }
 
+function isOrdinalSuffix(numStr: string, alpha: string): boolean {
+  const lower = alpha.toLowerCase();
+  if (!["st", "nd", "rd", "th"].includes(lower)) return false;
+  const n = parseInt(numStr, 10) % 100;
+  if (n >= 11 && n <= 13) return lower === "th";
+  if (n % 10 === 1) return lower === "st";
+  if (n % 10 === 2) return lower === "nd";
+  if (n % 10 === 3) return lower === "rd";
+  return lower === "th";
+}
+
 /**
- * Extracts a numerical sequence index and human-readable label from filenames like:
- * - "01 slide.jpg" -> { seqNum: 1, cleanLabel: "slide" }
- * - "02 video.mp4" -> { seqNum: 2, cleanLabel: "video" }
- * - "10 - Worship Intro.mp4" -> { seqNum: 10, cleanLabel: "Worship Intro" }
- * - "Slide 3.jpg" -> { seqNum: 3, cleanLabel: "Slide" }
- * - "Sermon Deck (12).png" -> { seqNum: 12, cleanLabel: "Sermon Deck" }
- * - "1.jpg" -> { seqNum: 1, cleanLabel: "" }
+ * Extracts a primary number, optional sub-number / sub-letter, and human-readable label:
+ * - "1.jpg" -> { seqNum: 1, subNum: null, subAlpha: "", cleanLabel: "" }
+ * - "2a.jpg" -> { seqNum: 2, subNum: null, subAlpha: "a", cleanLabel: "" }
+ * - "2b. when you mad but a Christian.mp4" -> { seqNum: 2, subNum: null, subAlpha: "b", cleanLabel: "when you mad but a Christian" }
+ * - "2-1 slide.jpg" / "2.2 video.mp4" -> { seqNum: 2, subNum: 1|2, subAlpha: "", cleanLabel: "slide"|"video" }
+ * - "01 slide.jpg" -> { seqNum: 1, subNum: null, subAlpha: "", cleanLabel: "slide" }
+ * - "Slide 2a - Intro.mp4" -> { seqNum: 2, subNum: null, subAlpha: "a", cleanLabel: "Intro" }
  */
-export function parseSequenceKey(filename: string): { seqNum: number | null; cleanLabel: string } {
+export function parseSequenceKey(filename: string): SequenceKey {
   const ext = path.extname(filename);
   const stem = path.basename(filename, ext).trim();
 
-  // 1. Leading number: "01 slide", "02 - video", "10_clip", "3", "02.5 insert"
-  const leadingMatch = stem.match(/^(\d+(?:\.\d+)?)(?:[\s._-]+(.*))?$/);
+  // 1a. Leading primary + secondary sub-number: "2.1", "2.10 extra", "02-01 slide", "2_2_video"
+  const subNumMatch = stem.match(/^(\d+)[._-](\d+)([a-zA-Z]{1,2})?(?=$|[\s._\-()])(?:[\s._-]+(.*))?$/);
+  if (subNumMatch) {
+    const seqNum = parseInt(subNumMatch[1], 10);
+    const subNum = parseInt(subNumMatch[2], 10);
+    const subAlpha = (subNumMatch[3] || "").toLowerCase();
+    const cleanLabel = (subNumMatch[4] || "").trim();
+    return { seqNum, subNum, subAlpha, cleanLabel };
+  }
+
+  // 1b. Leading number + dot/dash/underscore single sub-letter: "2.a", "2-b. title", "2_b - clip"
+  const sepAlphaMatch = stem.match(/^(\d+)[._-]([a-zA-Z])(?=$|[._-]|\s+[-–—])(?:[\s._–—-]+(.*))?$/);
+  if (sepAlphaMatch) {
+    const seqNum = parseInt(sepAlphaMatch[1], 10);
+    const subAlpha = sepAlphaMatch[2].toLowerCase();
+    const cleanLabel = (sepAlphaMatch[3] || "").trim();
+    return { seqNum, subNum: null, subAlpha, cleanLabel };
+  }
+
+  // 1c. Leading number + optional attached sub-letter(s): "2a", "2b. title", "01 slide", "3"
+  const leadingMatch = stem.match(/^(\d+)([a-zA-Z]{1,2})?(?=$|[\s._\-()])(?:[\s._-]+(.*))?$/);
   if (leadingMatch) {
-    const seqNum = parseFloat(leadingMatch[1]);
-    const cleanLabel = (leadingMatch[2] || "").trim();
-    return { seqNum: Number.isFinite(seqNum) ? seqNum : null, cleanLabel };
+    const seqNum = parseInt(leadingMatch[1], 10);
+    const rawAlpha = leadingMatch[2] || "";
+    const subAlpha = rawAlpha && !isOrdinalSuffix(leadingMatch[1], rawAlpha) ? rawAlpha.toLowerCase() : "";
+    const cleanLabel = (leadingMatch[3] || "").trim();
+    return { seqNum, subNum: null, subAlpha, cleanLabel };
   }
 
-  // 2. Keyword + number: "Slide 01", "Page 2 - Intro", "Video 10"
-  const keywordMatch = stem.match(/^(slide|page|item|frame|img|image|vid|video)[\s._-]*(\d+(?:\.\d+)?)(?:[\s._-]+(.*))?$/i);
+  // 2. Keyword + number (+ optional sub-number / sub-letter): "Slide 2a", "Page 2 - Intro", "Video 10b"
+  const keywordMatch = stem.match(
+    /^(slide|page|item|frame|img|image|vid|video)[\s._-]*(\d+)(?:[._-](\d+))?([a-zA-Z]{1,2})?(?=$|[\s._\-()])(?:[\s._-]+(.*))?$/i
+  );
   if (keywordMatch) {
-    const seqNum = parseFloat(keywordMatch[2]);
-    const suffix = (keywordMatch[3] || "").trim();
-    const cleanLabel = suffix || keywordMatch[1];
-    return { seqNum: Number.isFinite(seqNum) ? seqNum : null, cleanLabel };
+    const seqNum = parseInt(keywordMatch[2], 10);
+    const subNum = keywordMatch[3] ? parseInt(keywordMatch[3], 10) : null;
+    const rawAlpha = keywordMatch[4] || "";
+    const subAlpha = rawAlpha && !isOrdinalSuffix(keywordMatch[2], rawAlpha) ? rawAlpha.toLowerCase() : "";
+    const suffix = (keywordMatch[5] || "").trim();
+    const cleanLabel = suffix || (subAlpha ? "" : keywordMatch[1]);
+    return { seqNum, subNum, subAlpha, cleanLabel };
   }
 
-  // 3. Trailing parenthesized number (common Canva/OS duplicate style): "Sermon (1)", "Sermon (10)"
-  const parenMatch = stem.match(/^(.*?)\s*\((\d+)\)\s*$/);
+  // 3. Trailing parenthesized number (+ optional sub-number / sub-letter): "Sermon (2a)", "Sermon (10)"
+  const parenMatch = stem.match(/^(.*?)\s*\((\d+)(?:[._-](\d+))?([a-zA-Z]{1,2})?\)\s*$/);
   if (parenMatch) {
     const seqNum = parseInt(parenMatch[2], 10);
+    const subNum = parenMatch[3] ? parseInt(parenMatch[3], 10) : null;
+    const subAlpha = (parenMatch[4] || "").toLowerCase();
     const cleanLabel = (parenMatch[1] || "").trim();
-    return { seqNum: Number.isFinite(seqNum) ? seqNum : null, cleanLabel };
+    return { seqNum, subNum, subAlpha, cleanLabel };
   }
 
-  // 4. Trailing number after separator: "Canva_Slide_10"
-  const trailingMatch = stem.match(/^(.*?)[\s._-]+(\d+)$/);
+  // 4. Trailing number (+ optional sub-letter) after separator: "Canva_Slide_2a", "Canva_Slide_10"
+  const trailingMatch = stem.match(/^(.*?)[\s._-]+(\d+)([a-zA-Z]{1,2})?$/);
   if (trailingMatch) {
     const seqNum = parseInt(trailingMatch[2], 10);
+    const rawAlpha = trailingMatch[3] || "";
+    const subAlpha = rawAlpha && !isOrdinalSuffix(trailingMatch[2], rawAlpha) ? rawAlpha.toLowerCase() : "";
     const cleanLabel = (trailingMatch[1] || "").trim();
-    return { seqNum: Number.isFinite(seqNum) ? seqNum : null, cleanLabel };
+    return { seqNum, subNum: null, subAlpha, cleanLabel };
   }
 
-  return { seqNum: null, cleanLabel: stem };
+  return { seqNum: null, subNum: null, subAlpha: "", cleanLabel: stem };
 }
 
 function compareSequenceEntries(a: UnifiedZipMediaEntry, b: UnifiedZipMediaEntry): number {
@@ -135,7 +185,31 @@ function compareSequenceEntries(a: UnifiedZipMediaEntry, b: UnifiedZipMediaEntry
     if (a.seqNum !== b.seqNum) {
       return a.seqNum - b.seqNum;
     }
-    // Tie-breaker if two files share the exact same number (e.g. "02.jpg" and "02b.mp4")
+
+    // Compare optional secondary sub-number (e.g. "2" < "2.1" < "2.2" < "2.10")
+    if (a.subNum !== b.subNum) {
+      if (a.subNum === null) return -1;
+      if (b.subNum === null) return 1;
+      return a.subNum - b.subNum;
+    }
+
+    // Compare optional attached sub-letter (e.g. "2" < "2a" < "2b" < "2c" < "2aa")
+    if (a.subAlpha !== b.subAlpha) {
+      if (a.subAlpha === "") return -1;
+      if (b.subAlpha === "") return 1;
+      if (a.subAlpha.length !== b.subAlpha.length) {
+        return a.subAlpha.length - b.subAlpha.length;
+      }
+      return a.subAlpha.localeCompare(b.subAlpha);
+    }
+
+    // If identical stem number (e.g. "2.jpg" + "2.mp4"), place slide image before video, else natural name sort
+    const stemA = path.basename(a.baseName, a.ext).toLowerCase();
+    const stemB = path.basename(b.baseName, b.ext).toLowerCase();
+    if (stemA === stemB && a.kind !== b.kind) {
+      return a.kind === "image" ? -1 : 1;
+    }
+
     const cmpName = a.baseName.localeCompare(b.baseName, undefined, { numeric: true, sensitivity: "base" });
     if (cmpName !== 0) return cmpName;
     if (a.kind !== b.kind) return a.kind === "image" ? -1 : 1;
@@ -283,7 +357,7 @@ export async function processPresentation(
         if (!isImg && !isVid) continue;
 
         const baseName = path.basename(item.fullPath);
-        const { seqNum, cleanLabel } = parseSequenceKey(baseName);
+        const { seqNum, subNum, subAlpha, cleanLabel } = parseSequenceKey(baseName);
 
         mediaEntries.push({
           fullPath: item.fullPath,
@@ -292,6 +366,8 @@ export async function processPresentation(
           ext: itemExt,
           kind: isImg ? "image" : "video",
           seqNum,
+          subNum,
+          subAlpha,
           cleanLabel,
         });
       }
