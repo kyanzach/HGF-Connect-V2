@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { createNotification } from "@/lib/notify";
 
-/** Accept URLs produced by our upload endpoint: /uploads/prayer_audio/prayer_<anything>.ext */
+export const dynamic = "force-dynamic";
+
+/** Accept URLs produced by our upload endpoint: /uploads/prayer_audio/prayer_<anything>.<audioExt> */
 const AUDIO_URL_PATTERN =
-  /^\/uploads\/prayer_audio\/prayer_[\w]+\.\w{1,5}$/;
+  /^\/uploads\/prayer_audio\/prayer_[\w]+\.(webm|mp4|m4a|ogg|aac|wav|mp3)$/i;
 
 const MAX_MESSAGE_LENGTH = 500;
 
@@ -42,8 +45,8 @@ export async function POST(
     const body = await request.json().catch(() => ({}));
 
     const rawMessage = typeof body.message === "string" ? body.message : "";
-    const message =
-      rawMessage.slice(0, MAX_MESSAGE_LENGTH).trim() || "🙏 Prayed";
+    const trimmedMessage = rawMessage.slice(0, MAX_MESSAGE_LENGTH).trim();
+    const message = trimmedMessage || "🙏 Prayed";
 
     // Only allow URLs that match our upload endpoint pattern
     const audioUrl =
@@ -55,7 +58,7 @@ export async function POST(
     // ── Verify the prayer request exists ─────────────────────────────
     const prayerRequest = await db.prayerRequest.findUnique({
       where: { id: requestId },
-      select: { id: true, authorId: true },
+      select: { id: true, authorId: true, request: true },
     });
     if (!prayerRequest) {
       return NextResponse.json(
@@ -89,17 +92,33 @@ export async function POST(
       }),
     ]);
 
+    // ── Notify prayer author (non-critical) ──────────────────────────
+    if (prayerRequest.authorId && prayerRequest.authorId !== authorId) {
+      const responderName = session.user.name || "A church member";
+      const notifBody = trimmedMessage && trimmedMessage !== "🙏 Prayed"
+        ? `"${trimmedMessage.slice(0, 100)}"`
+        : audioUrl
+          ? "Sent you a voice prayer"
+          : prayerRequest.request.slice(0, 100);
+      createNotification({
+        memberId: prayerRequest.authorId,
+        type: "general",
+        title: `🙏 ${responderName} prayed for your request`,
+        body: notifBody,
+        link: `/prayer/${requestId}`,
+        actorId: authorId,
+      }).catch(() => {});
+    }
+
     // ── Badge evaluation (non-critical) ──────────────────────────────
     try {
       const [totalPrayers, totalVoice, uniqueMembers] = await Promise.all([
         (db as any).prayerResponse.count({
           where: { authorId, type: "PRAYER" },
         }),
-        // FIX: filter by type:"PRAYER" — only voice *prayers* count
         (db as any).prayerResponse.count({
           where: { authorId, type: "PRAYER", audioUrl: { not: null } },
         }),
-        // FIX: filter by type:"PRAYER" — only prayer responses count
         (db as any).prayerResponse.findMany({
           where: { authorId, type: "PRAYER" },
           select: { request: { select: { authorId: true } } },
@@ -107,7 +126,6 @@ export async function POST(
         }),
       ]);
 
-      // FIX: exclude self-prayers from the unique-member count
       const uniqueCount = new Set(
         uniqueMembers
           .map((r: any) => r.request.authorId as number)
@@ -121,7 +139,6 @@ export async function POST(
       if (totalPrayers >= 100 && totalVoice >= 15 && uniqueCount >= 25)
         badgesToAward.push("PRAYER_WARRIOR_3");
 
-      // Batch all badge upserts into one transaction
       if (badgesToAward.length > 0) {
         await db.$transaction(
           badgesToAward.map((badgeType) =>
@@ -137,12 +154,11 @@ export async function POST(
       }
     } catch (badgeErr) {
       console.error("[badge eval]", badgeErr);
-      // Non-critical — don't fail the prayer response
     }
 
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("[api/prayer/[id]/pray]", error);
-    return NextResponse.json({ ok: false }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Failed to submit prayer" }, { status: 500 });
   }
 }

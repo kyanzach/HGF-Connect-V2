@@ -17,20 +17,35 @@ import {
   AppState,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, usePathname } from 'expo-router';
-import client from '@/api/client';
+import { FontAwesome } from '@expo/vector-icons';
+import * as SecureStore from 'expo-secure-store';
+import {
+  useAudioRecorder,
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+} from 'expo-audio';
+import client, { API_BASE } from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import { SkeletonPrayerLoading } from '@/components/ui/SkeletonPulse';
 import AlertPromptModal, { AlertType } from '@/components/ui/AlertPromptModal';
+import VoicePrayerPlayer from '@/components/ui/VoicePrayerPlayer';
 
 const PRIMARY = '#4EB1CB';
 const ACCENT_DARK = '#0284c7';
+const MAX_PRAYER_NOTE_LEN = 500;
+const MAX_VOICE_SECONDS = 60;
 
 interface PrayerResponseItem {
   id: number;
   message?: string | null;
   prayer?: string | null;
+  audioUrl?: string | null;
   createdAt: string;
+  authorId?: number;
+  authorName?: string;
+  authorAvatar?: string | null;
   author?: {
     id: number;
     firstName: string;
@@ -135,6 +150,12 @@ export default function PrayerWallScreen() {
   const [prayModal, setPrayModal] = useState<PrayerItem | null>(null);
   const [prayNote, setPrayNote] = useState('');
   const [praying, setPraying] = useState(false);
+  const [prayModalError, setPrayModalError] = useState<string | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordedUri, setRecordedUri] = useState<string | null>(null);
+  const [recSeconds, setRecSeconds] = useState(0);
+  const recTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
 
   // Inline Expandable Prayer Responses State
   const [expandedPrayerIds, setExpandedPrayerIds] = useState<Record<number, boolean>>({});
@@ -292,23 +313,103 @@ export default function PrayerWallScreen() {
     }
   };
 
+  const stopVoiceRecording = useCallback(async () => {
+    if (recTimerRef.current) {
+      clearInterval(recTimerRef.current);
+      recTimerRef.current = null;
+    }
+    try {
+      await audioRecorder.stop();
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
+      if (audioRecorder.uri) {
+        setRecordedUri(audioRecorder.uri);
+      }
+    } catch {
+      // ignore stop errors
+    } finally {
+      setIsRecording(false);
+    }
+  }, [audioRecorder]);
+
+  const startVoiceRecording = useCallback(async () => {
+    setPrayModalError(null);
+    try {
+      const perm = await requestRecordingPermissionsAsync();
+      if (!perm.granted) {
+        setPrayModalError(
+          'Microphone permission is required to record a voice prayer. Enable it in Settings.'
+        );
+        return;
+      }
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await audioRecorder.prepareToRecordAsync();
+      audioRecorder.record();
+      setIsRecording(true);
+      setRecordedUri(null);
+      setRecSeconds(0);
+      if (recTimerRef.current) clearInterval(recTimerRef.current);
+      recTimerRef.current = setInterval(() => {
+        setRecSeconds((s) => {
+          if (s >= MAX_VOICE_SECONDS - 1) {
+            stopVoiceRecording();
+            return MAX_VOICE_SECONDS;
+          }
+          return s + 1;
+        });
+      }, 1000);
+    } catch {
+      setIsRecording(false);
+      setPrayModalError('Could not start voice recording. Please try again.');
+    }
+  }, [audioRecorder, stopVoiceRecording]);
+
+  const closePrayModal = useCallback(() => {
+    if (praying) return;
+    if (recTimerRef.current) {
+      clearInterval(recTimerRef.current);
+      recTimerRef.current = null;
+    }
+    if (isRecording) {
+      audioRecorder.stop().catch(() => {});
+      setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => {});
+      setIsRecording(false);
+    }
+    setPrayModalError(null);
+    setRecordedUri(null);
+    setRecSeconds(0);
+    setPrayModal(null);
+  }, [praying, isRecording, audioRecorder]);
+
+  useEffect(() => {
+    return () => {
+      if (recTimerRef.current) {
+        clearInterval(recTimerRef.current);
+        recTimerRef.current = null;
+      }
+    };
+  }, []);
+
   const handleInlinePrayerReply = async (item: PrayerItem) => {
     if (!user) {
       router.push('/login');
       return;
     }
-    const text = (inlineNoteMap[item.id] || '').trim();
+    const text = (inlineNoteMap[item.id] || '').trim().slice(0, MAX_PRAYER_NOTE_LEN);
     setInlineSubmittingMap((prev) => ({ ...prev, [item.id]: true }));
     try {
-      await client.post('/prayer', {
+      const { data } = await client.post('/prayer', {
         action: 'pray',
         prayerId: item.id,
         message: text || undefined,
       });
-      const optimisticResp: PrayerResponseItem = {
+      const serverResp = data?.data?.response;
+      const optimisticResp: PrayerResponseItem = serverResp || {
         id: Date.now(),
-        message: text || null,
+        message: text || '🙏 Prayed',
         createdAt: new Date().toISOString(),
+        authorId: Number(user.id),
+        authorName: user.fullName || `${user.firstName || 'You'} ${user.lastName || ''}`.trim(),
+        authorAvatar: getAvatarUrl(user.profilePicture),
         author: {
           id: Number(user.id),
           firstName: user.firstName || user.fullName?.split(' ')[0] || 'You',
@@ -318,7 +419,7 @@ export default function PrayerWallScreen() {
       };
       setInlineResponsesMap((prev) => ({
         ...prev,
-        [item.id]: [...(prev[item.id] || item.responses || []), optimisticResp],
+        [item.id]: [optimisticResp, ...(prev[item.id] || item.responses || [])],
       }));
       setInlineNoteMap((prev) => ({ ...prev, [item.id]: '' }));
       setPrayers((prev) =>
@@ -333,6 +434,17 @@ export default function PrayerWallScreen() {
             : p
         )
       );
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        'Could not send prayer response. Please try again.';
+      setAlertModal({
+        visible: true,
+        type: 'error',
+        title: 'Prayer Response Failed',
+        message: msg,
+      });
     } finally {
       setInlineSubmittingMap((prev) => ({ ...prev, [item.id]: false }));
     }
@@ -341,18 +453,60 @@ export default function PrayerWallScreen() {
   const handlePrayCommit = async () => {
     if (!prayModal) return;
     if (!user) {
-      setPrayModal(null);
+      closePrayModal();
       router.push('/login');
+      return;
+    }
+    if (isRecording) {
+      setPrayModalError('Please stop your voice recording before submitting.');
       return;
     }
 
     setPraying(true);
+    setPrayModalError(null);
     try {
-      await client.post('/prayer', {
+      let uploadedAudioUrl: string | undefined;
+
+      if (recordedUri) {
+        const token = await SecureStore.getItemAsync('hgf_token');
+        const ext = recordedUri.split('.').pop()?.toLowerCase() || 'm4a';
+        const mimeType =
+          ext === 'webm'
+            ? 'audio/webm'
+            : ext === 'ogg'
+              ? 'audio/ogg'
+              : ext === 'wav'
+                ? 'audio/wav'
+                : 'audio/mp4';
+        const formData = new FormData();
+        formData.append('audio', {
+          uri: recordedUri,
+          name: `prayer_${Date.now()}.${ext}`,
+          type: mimeType,
+        } as any);
+
+        const uploadUrl = `${API_BASE.replace(/\/api\/mobile\/?$/, '')}/api/prayer/upload-audio`;
+        const uploadRes = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          body: formData,
+        });
+        const uploadData = await uploadRes.json().catch(() => ({}));
+        if (!uploadRes.ok || !uploadData?.url) {
+          setPrayModalError(uploadData?.error || 'Could not upload voice prayer. Please try again.');
+          return;
+        }
+        uploadedAudioUrl = uploadData.url;
+      }
+
+      const { data } = await client.post('/prayer', {
         action: 'pray',
         prayerId: prayModal.id,
-        message: prayNote.trim() || undefined,
+        message: prayNote.trim().slice(0, MAX_PRAYER_NOTE_LEN) || undefined,
+        audioUrl: uploadedAudioUrl,
       });
+
+      const createdResp = data?.data?.response;
       setPrayers((prev) =>
         prev.map((p) =>
           p.id === prayModal.id
@@ -365,14 +519,28 @@ export default function PrayerWallScreen() {
             : p
         )
       );
-      if (detailItem && detailItem.id === prayModal.id) {
-        openPrayerDetail(prayModal);
+      if (createdResp && expandedPrayerIds[prayModal.id]) {
+        setInlineResponsesMap((prev) => ({
+          ...prev,
+          [prayModal.id]: [createdResp, ...(prev[prayModal.id] || [])],
+        }));
       }
-      setPrayModal(null);
+      if (detailItem && detailItem.id === prayModal.id) {
+        if (createdResp) {
+          setDetailResponses((prev) => [createdResp, ...prev]);
+        }
+      }
       setPrayNote('');
-    } catch {
-      fetchPrayers();
+      setRecordedUri(null);
+      setRecSeconds(0);
+      setPrayModalError(null);
       setPrayModal(null);
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        'Could not submit your prayer. Please check your connection and try again.';
+      setPrayModalError(msg);
     } finally {
       setPraying(false);
     }
@@ -800,14 +968,20 @@ export default function PrayerWallScreen() {
               <View style={{ gap: 8, marginBottom: 10 }}>
                 {(inlineResponsesMap[item.id] || item.responses || []).map((r) => {
                   const rAuthor = r.author || r.member;
-                  const rName = rAuthor
-                    ? `${rAuthor.firstName || ''} ${rAuthor.lastName || ''}`.trim()
-                    : 'Church Member';
+                  const rAuthorId = rAuthor?.id || r.authorId;
+                  const rName =
+                    (rAuthor
+                      ? `${rAuthor.firstName || ''} ${rAuthor.lastName || ''}`.trim()
+                      : '') ||
+                    r.authorName ||
+                    'Church Member';
+                  const nameParts = rName.split(' ').filter(Boolean);
                   const rInitials =
-                    `${rAuthor?.firstName?.[0] || ''}${rAuthor?.lastName?.[0] || ''}`.toUpperCase() ||
-                    '🙏';
-                  const rAvatar = getAvatarUrl(rAuthor?.profilePicture);
-                  const noteText = r.message || r.prayer;
+                    `${nameParts[0]?.[0] || ''}${nameParts[1]?.[0] || ''}`.toUpperCase() || 'P';
+                  const rAvatar =
+                    getAvatarUrl(rAuthor?.profilePicture) || getAvatarUrl(r.authorAvatar);
+                  const rawNote = (r.message || r.prayer || '').trim();
+                  const hasCustomNote = Boolean(rawNote && rawNote !== '🙏 Prayed');
                   return (
                     <View
                       key={r.id}
@@ -815,8 +989,8 @@ export default function PrayerWallScreen() {
                     >
                       <TouchableOpacity
                         onPress={() => {
-                          if (rAuthor?.id) {
-                            router.push(`/church?tab=member&id=${rAuthor.id}` as any);
+                          if (rAuthorId) {
+                            router.push(`/church?tab=member&id=${rAuthorId}` as any);
                           }
                         }}
                         style={{
@@ -866,11 +1040,11 @@ export default function PrayerWallScreen() {
                             {timeAgo(r.createdAt)}
                           </Text>
                         </View>
-                        {noteText ? (
+                        {hasCustomNote ? (
                           <Text style={{ fontSize: 13, color: '#1e293b', lineHeight: 18 }}>
-                            {noteText}
+                            {rawNote}
                           </Text>
-                        ) : (
+                        ) : !r.audioUrl ? (
                           <Text
                             style={{
                               fontSize: 12,
@@ -878,9 +1052,10 @@ export default function PrayerWallScreen() {
                               color: '#64748b',
                             }}
                           >
-                            🙏 Committed to pray
+                            Committed to pray
                           </Text>
-                        )}
+                        ) : null}
+                        {r.audioUrl ? <VoicePrayerPlayer uri={r.audioUrl} compact /> : null}
                       </View>
                     </View>
                   );
@@ -1003,50 +1178,132 @@ export default function PrayerWallScreen() {
         visible={Boolean(prayModal)}
         transparent
         animationType="fade"
-        onRequestClose={() => setPrayModal(null)}
+        onRequestClose={closePrayModal}
       >
         <KeyboardAvoidingView
           style={styles.modalBackdrop}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>
-              🙏 Pray for{' '}
-              {prayModal?.member?.firstName ||
-                prayModal?.author?.firstName ||
-                prayModal?.author?.name?.split(' ')[0] ||
-                'Member'}
-            </Text>
-            <View style={styles.modalQuoteBox}>
-              <Text style={styles.modalQuoteText} numberOfLines={4}>
-                &ldquo;{prayModal?.request}&rdquo;
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              <Text style={styles.modalTitle}>
+                Lift Up{' '}
+                {prayModal?.member?.firstName ||
+                  prayModal?.author?.firstName ||
+                  prayModal?.author?.name?.split(' ')[0] ||
+                  'Member'}{' '}
+                in Prayer
               </Text>
-            </View>
-            <TextInput
-              style={styles.modalTextarea}
-              placeholder="Write a short prayer or encouragement (optional)…"
-              placeholderTextColor="#9ca3af"
-              multiline
-              value={prayNote}
-              onChangeText={setPrayNote}
-            />
-            <View style={styles.modalBtnRow}>
-              <TouchableOpacity
-                style={styles.modalCancelBtn}
-                onPress={() => setPrayModal(null)}
+              <Text style={styles.modalSub}>
+                Even a silent prayer counts.
+              </Text>
+
+              {/* Full Prayer Request (scrollable, never truncated) */}
+              <ScrollView
+                style={styles.modalQuoteBox}
+                nestedScrollEnabled
+                showsVerticalScrollIndicator
               >
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalCommitBtn}
-                onPress={handlePrayCommit}
-                disabled={praying}
-              >
-                <Text style={styles.modalCommitText}>
-                  {praying ? 'Committing…' : '🙏 Commit to Pray'}
+                <Text style={styles.modalQuoteText}>
+                  &ldquo;{prayModal?.request}&rdquo;
                 </Text>
-              </TouchableOpacity>
-            </View>
+              </ScrollView>
+
+              {prayModalError ? (
+                <View style={styles.modalErrorBox}>
+                  <Text style={styles.modalErrorText}>{prayModalError}</Text>
+                </View>
+              ) : null}
+
+              <View style={styles.modalLabelRow}>
+                <Text style={styles.modalLabel}>Word of encouragement (optional)</Text>
+                <Text style={styles.modalCounter}>
+                  {prayNote.length}/{MAX_PRAYER_NOTE_LEN}
+                </Text>
+              </View>
+              <TextInput
+                style={styles.modalTextarea}
+                placeholder="Praying for you, may God give you peace..."
+                placeholderTextColor="#9ca3af"
+                multiline
+                maxLength={MAX_PRAYER_NOTE_LEN}
+                value={prayNote}
+                onChangeText={setPrayNote}
+              />
+
+              {/* Voice Prayer Recorder */}
+              <Text style={[styles.modalLabel, { marginBottom: 6 }]}>
+                Voice prayer (optional, max 60s)
+              </Text>
+              {!recordedUri ? (
+                <TouchableOpacity
+                  style={[styles.voiceBtn, isRecording && styles.voiceBtnRecording]}
+                  onPress={isRecording ? stopVoiceRecording : startVoiceRecording}
+                  activeOpacity={0.8}
+                >
+                  <FontAwesome
+                    name={isRecording ? 'stop-circle' : 'microphone'}
+                    size={15}
+                    color={isRecording ? '#dc2626' : '#334155'}
+                  />
+                  <Text
+                    style={[
+                      styles.voiceBtnText,
+                      isRecording && { color: '#dc2626' },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {isRecording
+                      ? `Stop (${recSeconds}s / ${MAX_VOICE_SECONDS}s)`
+                      : 'Tap to Record'}
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.voicePreviewRow}>
+                  <View style={{ flex: 1 }}>
+                    <VoicePrayerPlayer uri={recordedUri} compact />
+                  </View>
+                  <TouchableOpacity
+                    style={styles.voiceRemoveBtn}
+                    onPress={() => {
+                      setRecordedUri(null);
+                      setRecSeconds(0);
+                    }}
+                  >
+                    <Text style={styles.voiceRemoveText} numberOfLines={1}>
+                      Remove
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              <View style={[styles.modalBtnRow, { marginTop: 14 }]}>
+                <TouchableOpacity
+                  style={styles.modalCancelBtn}
+                  onPress={closePrayModal}
+                  disabled={praying}
+                >
+                  <Text style={styles.modalCancelText} numberOfLines={1}>
+                    Later
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.modalCommitBtn,
+                    (praying || isRecording) && { opacity: 0.6 },
+                  ]}
+                  onPress={handlePrayCommit}
+                  disabled={praying || isRecording}
+                >
+                  <Text style={styles.modalCommitText} numberOfLines={1}>
+                    {praying ? 'Submitting...' : 'I Prayed'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -1157,11 +1414,16 @@ export default function PrayerWallScreen() {
               ) : (
                 detailResponses.map((resp) => {
                   const rAuthor = resp.author || resp.member;
-                  const rName = rAuthor
-                    ? `${rAuthor.firstName || ''} ${rAuthor.lastName || ''}`.trim()
-                    : 'Church Member';
-                  const rAvatar = getAvatarUrl(rAuthor?.profilePicture);
-                  const rMsg = resp.message || resp.prayer || '';
+                  const rName =
+                    (rAuthor
+                      ? `${rAuthor.firstName || ''} ${rAuthor.lastName || ''}`.trim()
+                      : '') ||
+                    resp.authorName ||
+                    'Church Member';
+                  const rAvatar =
+                    getAvatarUrl(rAuthor?.profilePicture) || getAvatarUrl(resp.authorAvatar);
+                  const rawMsg = (resp.message || resp.prayer || '').trim();
+                  const hasCustomMsg = Boolean(rawMsg && rawMsg !== '🙏 Prayed');
                   return (
                     <View
                       key={resp.id}
@@ -1194,7 +1456,7 @@ export default function PrayerWallScreen() {
                           {timeAgo(resp.createdAt)}
                         </Text>
                       </View>
-                      {rMsg ? (
+                      {hasCustomMsg ? (
                         <Text
                           style={{
                             fontSize: 13.5,
@@ -1204,9 +1466,9 @@ export default function PrayerWallScreen() {
                             paddingLeft: 36,
                           }}
                         >
-                          {rMsg}
+                          {rawMsg}
                         </Text>
-                      ) : (
+                      ) : !resp.audioUrl ? (
                         <Text
                           style={{
                             fontSize: 12.5,
@@ -1216,9 +1478,14 @@ export default function PrayerWallScreen() {
                             paddingLeft: 36,
                           }}
                         >
-                          🙏 Committed to pray
+                          Committed to pray
                         </Text>
-                      )}
+                      ) : null}
+                      {resp.audioUrl ? (
+                        <View style={{ paddingLeft: 36, marginTop: 4 }}>
+                          <VoicePrayerPlayer uri={resp.audioUrl} />
+                        </View>
+                      ) : null}
                     </View>
                   );
                 })
@@ -1456,38 +1723,118 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 22,
     padding: 20,
+    maxHeight: '88%',
     shadowColor: '#000',
     shadowOpacity: 0.16,
     shadowRadius: 16,
     elevation: 8,
   },
   modalTitle: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '800',
-    color: '#1a1a2e',
-    marginBottom: 6,
+    color: '#0f172a',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  modalSub: {
+    fontSize: 12.5,
+    color: '#64748b',
+    textAlign: 'center',
+    marginBottom: 12,
   },
   modalQuoteBox: {
     backgroundColor: '#f0f9ff',
-    borderRadius: 10,
+    borderRadius: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: PRIMARY,
     padding: 12,
-    marginBottom: 14,
+    maxHeight: 180,
+    marginBottom: 12,
   },
   modalQuoteText: {
-    fontSize: 13,
-    color: '#475569',
-    lineHeight: 19,
+    fontSize: 13.5,
+    color: '#1e293b',
+    lineHeight: 20,
+  },
+  modalErrorBox: {
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginBottom: 10,
+  },
+  modalErrorText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#b91c1c',
+    lineHeight: 17,
+  },
+  modalLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  modalLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748b',
+  },
+  modalCounter: {
+    fontSize: 11,
+    color: '#94a3b8',
   },
   modalTextarea: {
-    borderWidth: 1.5,
-    borderColor: '#e5e7eb',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
     borderRadius: 12,
     padding: 12,
-    minHeight: 80,
+    minHeight: 74,
     textAlignVertical: 'top',
     fontSize: 14,
-    color: '#111827',
+    color: '#0f172a',
     marginBottom: 12,
+  },
+  voiceBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 8,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    borderRadius: 99,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    backgroundColor: '#f8fafc',
+  },
+  voiceBtnRecording: {
+    borderColor: '#ef4444',
+    backgroundColor: '#fef2f2',
+  },
+  voiceBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#334155',
+  },
+  voicePreviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  voiceRemoveBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 99,
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  voiceRemoveText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#dc2626',
   },
   modalBtnRow: {
     flexDirection: 'row',

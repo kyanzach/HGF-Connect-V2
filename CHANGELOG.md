@@ -1,3 +1,16 @@
+## [v2.88.0] — 2026-11-20
+### Added / Changed / Fixed
+- **Full Prayer Request Details & Cross-Platform Text + Voice Prayer Overhaul (`v2.88.0`, `mobile/v1.10.0`)**:
+  - **Removed Prayer Text Truncation (`components/prayer/PrayCommitModal.tsx`, `mobile/app/(tabs)/prayer.tsx`)**: Replaced the 150-character web slice and 4-line mobile truncation in the "Lift Up in Prayer" modal with the complete prayer request text (preserving line breaks) inside a scrollable container so intercessors can read every detail while praying.
+  - **Web Cross-Browser Voice Recording & Error Handling (`components/prayer/PrayCommitModal.tsx`, `app/api/prayer/upload-audio/route.ts`, `app/api/prayer/[id]/pray/route.ts`)**:
+    - Added runtime `MediaRecorder.isTypeSupported` MIME detection (`audio/mp4`, `audio/webm;codecs=opus`, `audio/ogg`, fallback) to fix `NotSupportedError` crashes on iOS Safari and macOS Safari, plus proper microphone stream, timer, and `URL.revokeObjectURL` cleanup on modal close/unmount.
+    - Checked `res.ok` on both `/api/prayer/upload-audio` and `/api/prayer/[id]/pray` so failed audio uploads or `403`/`500` responses never silently drop audio or fake success; replaced native `alert()` calls with an inline error banner, added `500`-char counter, added `createNotification()` for web prayer responses, and replaced banned purple/emoji button styling with brand teal (`#4EB1CB`) and crisp SVG icons.
+    - Upgraded `/api/prayer/upload-audio` to accept both Web NextAuth sessions and Mobile Bearer JWTs with strict MIME/extension whitelisting (`webm`, `mp4`, `m4a`, `ogg`, `aac`, `wav`, `mp3`) and empty-file rejection.
+  - **Native iOS & Android Voice Prayer Recording, Playback & Bug Fixes (`mobile/app/(tabs)/prayer.tsx`, `mobile/components/ui/VoicePrayerPlayer.tsx`, `mobile/app.json`, `mobile/package.json`, `app/api/mobile/prayer/route.ts`)**:
+    - Installed `expo-audio`, configured `NSMicrophoneUsageDescription` (iOS) and `RECORD_AUDIO` (Android, removing it from `blockedPermissions`), and built `<VoicePrayerPlayer />` + 60s voice recorder with preview/remove inside the mobile Pray Commit modal and audio playback on inline & detail prayer responses.
+    - Upgraded `/api/mobile/prayer` (`action: "pray"`) to accept/validate `audioUrl`, block self-praying (`403`), enforce the 500-char limit, evaluate Prayer Warrior badges, and return nested `author` alongside flat author fields.
+    - Fixed the `"Church Member"` responder name/avatar bug in mobile inline and detail threads, added error handling (`AlertPromptModal` + inline modal error banner) to `handleInlinePrayerReply` and `handlePrayCommit`, and fixed Android keyboard avoidance (`behavior="height"` + inner `ScrollView`).
+
 ## [v2.87.1] — 2026-11-19
 ### Fixed / Added
 - **Alphanumeric Sub-Sequence Sorting (`2a`, `2b. title`, `2-1`, `2.1`) for Hybrid Presentation ZIPs (`lib/presentationProcessor.ts`, `app/api/events/[id]/presentation/download/route.ts`)**:

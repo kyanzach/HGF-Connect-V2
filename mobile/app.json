@@ -2,7 +2,7 @@
   "expo": {
     "name": "HGF Connect",
     "slug": "hgf-connect",
-    "version": "1.9.2",
+    "version": "1.10.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "hgfconnect",
@@ -19,7 +19,8 @@
       "buildNumber": "2",
       "infoPlist": {
         "NSCameraUsageDescription": "HGF Connect requires access to your camera so you can take photos for your member profile and community posts.",
-        "NSPhotoLibraryUsageDescription": "HGF Connect requires access to your photo library so you can select photos for your member profile, testimonies, and StewardShop listings."
+        "NSPhotoLibraryUsageDescription": "HGF Connect requires access to your photo library so you can select photos for your member profile, testimonies, and StewardShop listings.",
+        "NSMicrophoneUsageDescription": "HGF Connect requires access to your microphone so you can record optional voice prayers for church members."
       }
     },
     "android": {
@@ -35,10 +36,8 @@
         "CAMERA",
         "READ_MEDIA_IMAGES",
         "READ_EXTERNAL_STORAGE",
-        "POST_NOTIFICATIONS"
-      ],
-      "blockedPermissions": [
-        "android.permission.RECORD_AUDIO"
+        "POST_NOTIFICATIONS",
+        "RECORD_AUDIO"
       ]
     },
     "web": {
@@ -66,7 +65,13 @@
       ],
       "expo-font",
       "expo-web-browser",
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "HGF Connect requires access to your microphone so you can record optional voice prayers for church members."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

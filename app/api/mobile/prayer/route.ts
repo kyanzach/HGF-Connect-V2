@@ -49,6 +49,14 @@ function mapPrayer(r: any, currentMemberId?: number) {
           ? resp.author.profilePicture
           : `https://connect.houseofgrace.ph/uploads/profile_pictures/${resp.author.profilePicture}`
         : null,
+      author: resp.author
+        ? {
+            id: resp.author.id,
+            firstName: resp.author.firstName,
+            lastName: resp.author.lastName,
+            profilePicture: resp.author.profilePicture,
+          }
+        : undefined,
     })),
   };
 }
@@ -219,37 +227,117 @@ export async function POST(req: NextRequest) {
 
     if (action === "pray") {
       const prayerId = Number(body?.prayerId);
-      if (!prayerId) {
+      if (!prayerId || isNaN(prayerId) || prayerId <= 0) {
         return NextResponse.json({ success: false, message: "Invalid prayer ID" }, { status: 400 });
       }
-      const updated = await db.prayerRequest.update({
-        where: { id: prayerId },
-        data: { prayerCount: { increment: 1 } },
-      });
-      const msgText = body?.message ? String(body.message).trim() : "";
 
-      const createdResp = await db.prayerResponse.create({
-        data: {
-          requestId: prayerId,
-          authorId: member.id,
-          message: msgText || "",
-          type: "PRAYER",
-        },
-        include: {
-          author: { select: { id: true, firstName: true, lastName: true, profilePicture: true } },
-        },
+      const existing = await db.prayerRequest.findUnique({
+        where: { id: prayerId },
+        select: { id: true, authorId: true, request: true },
       });
+      if (!existing) {
+        return NextResponse.json({ success: false, message: "Prayer request not found" }, { status: 404 });
+      }
+      if (existing.authorId === member.id) {
+        return NextResponse.json(
+          { success: false, message: "You cannot pray for your own request." },
+          { status: 403 }
+        );
+      }
+
+      const rawMsg = typeof body?.message === "string" ? body.message : "";
+      const msgText = rawMsg.slice(0, 500).trim();
+      const savedMessage = msgText || "🙏 Prayed";
+
+      const AUDIO_URL_PATTERN =
+        /^\/uploads\/prayer_audio\/prayer_[\w]+\.(webm|mp4|m4a|ogg|aac|wav|mp3)$/i;
+      let normalizedAudioUrl: string | null = null;
+      if (typeof body?.audioUrl === "string" && body.audioUrl.trim()) {
+        const stripped = body.audioUrl.trim().replace(/^https?:\/\/[^/]+/, "");
+        if (AUDIO_URL_PATTERN.test(stripped)) {
+          normalizedAudioUrl = stripped;
+        }
+      }
+
+      const [createdResp, updated] = await db.$transaction([
+        db.prayerResponse.create({
+          data: {
+            requestId: prayerId,
+            authorId: member.id,
+            message: savedMessage,
+            audioUrl: normalizedAudioUrl,
+            type: "PRAYER",
+          },
+          include: {
+            author: { select: { id: true, firstName: true, lastName: true, profilePicture: true } },
+          },
+        }),
+        db.prayerRequest.update({
+          where: { id: prayerId },
+          data: { prayerCount: { increment: 1 } },
+        }),
+      ]);
 
       if (updated.authorId && updated.authorId !== member.id) {
+        const notifBody =
+          msgText && msgText !== "🙏 Prayed"
+            ? `"${msgText.slice(0, 100)}"`
+            : normalizedAudioUrl
+              ? "Sent you a voice prayer"
+              : updated.request.slice(0, 100);
         createNotification({
           memberId: updated.authorId,
           type: "general",
           title: `🙏 ${member.firstName} ${member.lastName} prayed for your request`,
-          body: msgText ? `"${msgText.slice(0, 100)}"` : updated.request.slice(0, 100),
+          body: notifBody,
           link: `/prayer/${prayerId}`,
           actorId: member.id,
         }).catch(() => {});
       }
+
+      // Badge evaluation (non-critical)
+      try {
+        const [totalPrayers, totalVoice, uniqueMembers] = await Promise.all([
+          db.prayerResponse.count({ where: { authorId: member.id, type: "PRAYER" } }),
+          db.prayerResponse.count({
+            where: { authorId: member.id, type: "PRAYER", audioUrl: { not: null } },
+          }),
+          db.prayerResponse.findMany({
+            where: { authorId: member.id, type: "PRAYER" },
+            select: { request: { select: { authorId: true } } },
+            distinct: ["requestId"],
+          }),
+        ]);
+        const uniqueCount = new Set(
+          uniqueMembers
+            .map((r: any) => r.request.authorId as number)
+            .filter((rid: number) => rid !== member.id)
+        ).size;
+
+        const badgesToAward: string[] = [];
+        if (totalPrayers >= 10) badgesToAward.push("PRAYER_WARRIOR_1");
+        if (totalPrayers >= 50 && totalVoice >= 5) badgesToAward.push("PRAYER_WARRIOR_2");
+        if (totalPrayers >= 100 && totalVoice >= 15 && uniqueCount >= 25) {
+          badgesToAward.push("PRAYER_WARRIOR_3");
+        }
+        if (badgesToAward.length > 0) {
+          await db.$transaction(
+            badgesToAward.map((badgeType) =>
+              (db as any).memberBadge.upsert({
+                where: { memberId_badgeType: { memberId: member.id, badgeType } },
+                create: { memberId: member.id, badgeType },
+                update: {},
+              })
+            )
+          );
+        }
+      } catch (badgeErr) {
+        console.error("[mobile badge eval]", badgeErr);
+      }
+
+      const fullAudioUrl = createdResp.audioUrl
+        ? `https://connect.houseofgrace.ph${createdResp.audioUrl}`
+        : null;
 
       return NextResponse.json({
         success: true,
@@ -258,10 +346,22 @@ export async function POST(req: NextRequest) {
           response: {
             id: createdResp.id,
             message: createdResp.message,
+            audioUrl: fullAudioUrl,
             type: createdResp.type,
             createdAt: createdResp.createdAt.toISOString(),
             authorId: createdResp.author.id,
             authorName: `${createdResp.author.firstName} ${createdResp.author.lastName}`.trim(),
+            authorAvatar: createdResp.author.profilePicture
+              ? createdResp.author.profilePicture.startsWith("http")
+                ? createdResp.author.profilePicture
+                : `https://connect.houseofgrace.ph/uploads/profile_pictures/${createdResp.author.profilePicture}`
+              : null,
+            author: {
+              id: createdResp.author.id,
+              firstName: createdResp.author.firstName,
+              lastName: createdResp.author.lastName,
+              profilePicture: createdResp.author.profilePicture,
+            },
           },
         },
       });
