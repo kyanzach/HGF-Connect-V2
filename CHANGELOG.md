@@ -1,3 +1,9 @@
+## [v2.90.1] — 2026-11-25
+### Fixed
+- **Active Section Rail Auto-Detection After Clicking Shortcut (`app/band/components/SongSheet.tsx`)**:
+  - Fixed the bug where clicking any section shortcut (`V1`, `PC1`, `INST`, etc.) locked `activeSectionId` permanently and prevented subsequent manual or auto-scroll from updating the highlighted/glowing pill.
+  - Added `data-section-id` attributes to section headers, computed true section offsets via `getBoundingClientRect()` relative to `#sheetWrapper` (accounting for the song header & leader space), and synced both `activeSectionId` and `activeSectionName` via `syncActiveSectionAtScroll()` with a brief 700ms post-jump lock so tapping a shortcut glows immediately and scroll tracking seamlessly resumes right after.
+
 ## [v2.90.0] — 2026-11-25
 ### Changed / Fixed
 - **Band Stage Toolbar Hierarchy, Compact Far-Right Section Rail & Pro GPU Auto-Scroll Engine (`app/band/components/StageTopBar.tsx`, `app/band/components/NavigationDock.tsx`, `app/band/components/AutoScrollBar.tsx`, `app/band/components/SongSheet.tsx`, `app/band/page.tsx`)**:

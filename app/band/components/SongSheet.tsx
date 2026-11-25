@@ -261,8 +261,10 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   const baseScrollTopRef = useRef<number>(0);
   const virtualOffsetRef = useRef<number>(0);
   const maxScrollRef = useRef<number>(0);
-  const sectionOffsetsRef = useRef<{ title: string; top: number }[]>([]);
+  const sectionOffsetsRef = useRef<{ id: string; title: string; top: number }[]>([]);
   const activeSectionNameRef = useRef<string>('');
+  const activeSectionIdRef = useRef<string>('');
+  const jumpLockUntilRef = useRef<number>(0);
   const elapsedMsRef = useRef<number>(0);
   const lastReportedSecRef = useRef<number>(-1);
   const isUserInteractingRef = useRef<boolean>(false);
@@ -378,16 +380,42 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     20: 215.0,// 20x: Maximum teleprompter scrub
   };
 
-  // Cache container maxScroll & section header offsets via ResizeObserver (zero forced reflows in rAF)
+  // Cache container maxScroll & true section header offsets via ResizeObserver (zero forced reflows in rAF)
   const refreshLayoutMetrics = useCallback(() => {
     const el = containerRef.current;
     if (!el) return;
     maxScrollRef.current = Math.max(0, el.scrollHeight - el.clientHeight);
+    const cRect = el.getBoundingClientRect();
+    const currentVirtualScroll = el.scrollTop + virtualOffsetRef.current;
     const headers = Array.from(el.querySelectorAll<HTMLElement>('[data-section-title]'));
     sectionOffsetsRef.current = headers.map((h) => ({
+      id: h.getAttribute('data-section-id') || '',
       title: h.getAttribute('data-section-title') || h.textContent || '',
-      top: h.offsetTop,
+      top: h.getBoundingClientRect().top - cRect.top + currentVirtualScroll,
     }));
+  }, []);
+
+  const syncActiveSectionAtScroll = useCallback((scrollY: number) => {
+    if (Date.now() < jumpLockUntilRef.current) return;
+    const offsets = sectionOffsetsRef.current;
+    if (offsets.length === 0) return;
+    const probeY = scrollY + 80;
+    let found = offsets[0];
+    for (let i = 0; i < offsets.length; i++) {
+      if (offsets[i].top <= probeY) {
+        found = offsets[i];
+      } else {
+        break;
+      }
+    }
+    if (found.id && found.id !== activeSectionIdRef.current) {
+      activeSectionIdRef.current = found.id;
+      setActiveSectionId(found.id);
+    }
+    if (found.title && found.title !== activeSectionNameRef.current) {
+      activeSectionNameRef.current = found.title;
+      setActiveSectionName(found.title);
+    }
   }, []);
 
   // Atomically commit GPU virtual translate3d offset back into native scrollTop
@@ -438,6 +466,10 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     }
     elapsedMsRef.current = 0;
     lastReportedSecRef.current = 0;
+    activeSectionIdRef.current = '';
+    activeSectionNameRef.current = '';
+    setActiveSectionId('');
+    setActiveSectionName('');
     onUpdateElapsedRef.current?.(0);
     refreshLayoutMetrics();
   }, [song?.id, refreshLayoutMetrics]);
@@ -499,22 +531,9 @@ export const SongSheet: React.FC<SongSheetProps> = ({
 
     // Lightweight throttled section detection using cached offsets (zero forced reflows)
     const now = Date.now();
-    if (now - lastSectionCheckTimeRef.current > 400) {
+    if (now - lastSectionCheckTimeRef.current > 120) {
       lastSectionCheckTimeRef.current = now;
-      const offsets = sectionOffsetsRef.current;
-      const scrollY = currentScroll + virtualOffsetRef.current + 60;
-      let foundSection = '';
-      for (let i = 0; i < offsets.length; i++) {
-        if (offsets[i].top <= scrollY) {
-          foundSection = offsets[i].title;
-        } else {
-          break;
-        }
-      }
-      if (foundSection && foundSection !== activeSectionNameRef.current) {
-        activeSectionNameRef.current = foundSection;
-        setActiveSectionName(foundSection);
-      }
+      syncActiveSectionAtScroll(currentScroll + virtualOffsetRef.current);
     }
 
     if (isUserInteractingRef.current) {
@@ -623,23 +642,10 @@ export const SongSheet: React.FC<SongSheetProps> = ({
           virtualOffsetRef.current = Math.max(0, scrollPosRef.current - baseScrollTopRef.current);
           body.style.transform = `translate3d(0, ${-virtualOffsetRef.current.toFixed(3)}px, 0)`;
 
-          // Lightweight active-section rail sync every 500ms using cached offsets (zero reflow)
-          if (now - lastSectionPoll > 500) {
+          // Lightweight active-section rail sync every 250ms using cached offsets (zero reflow)
+          if (now - lastSectionPoll > 250) {
             lastSectionPoll = now;
-            const offsets = sectionOffsetsRef.current;
-            const virtualY = scrollPosRef.current + 60;
-            let foundSection = '';
-            for (let i = 0; i < offsets.length; i++) {
-              if (offsets[i].top <= virtualY) {
-                foundSection = offsets[i].title;
-              } else {
-                break;
-              }
-            }
-            if (foundSection && foundSection !== activeSectionNameRef.current) {
-              activeSectionNameRef.current = foundSection;
-              setActiveSectionName(foundSection);
-            }
+            syncActiveSectionAtScroll(scrollPosRef.current);
           }
 
           if (
@@ -661,7 +667,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
       cancelAnimationFrame(animId);
       commitVirtualScroll();
     };
-  }, [isAutoScrolling, commitVirtualScroll, refreshLayoutMetrics]);
+  }, [isAutoScrolling, commitVirtualScroll, refreshLayoutMetrics, syncActiveSectionAtScroll]);
 
   const [activeSectionName, setActiveSectionName] = useState<string>('');
   const [activeSectionId, setActiveSectionId] = useState<string>('');
@@ -768,9 +774,17 @@ export const SongSheet: React.FC<SongSheetProps> = ({
       behavior: 'smooth',
     });
 
+    // Lock auto-detection briefly while smooth scroll finishes, then let scroll tracking take over again
+    jumpLockUntilRef.current = Date.now() + 700;
     activeSectionNameRef.current = name;
     setActiveSectionName(name);
-    if (sectionId) setActiveSectionId(sectionId);
+    if (sectionId) {
+      activeSectionIdRef.current = sectionId;
+      setActiveSectionId(sectionId);
+    } else {
+      activeSectionIdRef.current = '';
+      setActiveSectionId('');
+    }
 
     // Visual feedback highlight on target section line
     try {
@@ -1450,6 +1464,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
 
             if (line.type === 'section') {
               currentSectionTitle = line.sectionName || line.raw || '';
+              const rawSecName = currentSectionTitle.replace(/^[\[|\s#]+|[\]|\s]+$/g, '').trim();
               return (
                 <div
                   key={lIdx}
@@ -1458,6 +1473,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
                   data-sheet-line-index={lIdx}
                   data-section-name={currentSectionTitle}
                   data-section-title={line.sectionName}
+                  data-section-id={`sec-${lIdx}-${rawSecName}`}
                   style={{
                     fontSize: `${Math.max(14, Math.round(fontSizePx * 0.65))}px`,
                     fontWeight: 800,
