@@ -491,25 +491,39 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
             })}
           </select>
 
-          {/* Search Input */}
-          <input
-            type="text"
-            placeholder="Search song title or artist..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              width: '100%',
-              height: '34px',
-              borderRadius: '8px',
-              background: '#131c2e',
-              border: '1px solid #2d3f5e',
-              color: '#fff',
-              padding: '0 10px',
-              fontSize: '13px',
-              boxSizing: 'border-box',
-              outline: 'none',
+          {/* Search Input (Press Enter or Mobile Search key when no local match to auto-search Ultimate Guitar) */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const q = searchQuery.trim();
+              if (q && displayList.length === 0) {
+                (document.activeElement as HTMLElement | null)?.blur?.();
+                onClose();
+                onOpenScraper(q);
+              }
             }}
-          />
+            style={{ width: '100%', margin: 0 }}
+          >
+            <input
+              type="search"
+              enterKeyHint="search"
+              placeholder="Search song title or artist..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                width: '100%',
+                height: '38px',
+                borderRadius: '8px',
+                background: '#131c2e',
+                border: '1px solid #2d3f5e',
+                color: '#fff',
+                padding: '0 10px',
+                fontSize: '13px',
+                boxSizing: 'border-box',
+                outline: 'none',
+              }}
+            />
+          </form>
 
           {/* Scrape Online Tabs Trigger Button */}
           {searchQuery.trim() ? (

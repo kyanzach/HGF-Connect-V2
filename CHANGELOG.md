@@ -1,3 +1,8 @@
+## [v2.91.1] — 2026-11-25
+### Added
+- **Press Enter / Mobile Search to Auto-Search Ultimate Guitar (`app/band/components/SetlistSidebar.tsx`)**:
+  - Wrapped the Songbook Library search input in a `<form>` with `type="search"` and `enterKeyHint="search"` so pressing Enter on laptop or Search/Go on iOS/Android keyboards when no local song matches automatically closes the sidebar, opens `SongScraperModal`, and searches Ultimate Guitar for the typed query.
+
 ## [v2.91.0] — 2026-11-25
 ### Added / Changed / Performance
 - **Band Stage Performance & UI Polish Overhaul (`app/api/worship/route.ts`, `app/api/worship/setlists/route.ts`, `app/band/hooks/useSetlist.ts`, `app/band/page.tsx`, `app/band/components/SongSheet.tsx`, `app/band/components/StageTopBar.tsx`, `app/band/components/NavigationDock.tsx`, `app/band/layout.tsx`)**:
