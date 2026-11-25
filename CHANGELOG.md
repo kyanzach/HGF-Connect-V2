@@ -1,3 +1,11 @@
+## [v2.91.0] — 2026-11-25
+### Added / Changed / Performance
+- **Band Stage Performance & UI Polish Overhaul (`app/api/worship/route.ts`, `app/api/worship/setlists/route.ts`, `app/band/hooks/useSetlist.ts`, `app/band/page.tsx`, `app/band/components/SongSheet.tsx`, `app/band/components/StageTopBar.tsx`, `app/band/components/NavigationDock.tsx`, `app/band/layout.tsx`)**:
+  - **In-Memory Cache + `ETag` / `304 Not Modified`**: Added in-memory caching with automatic invalidation on `POST`/`DELETE` to `/api/worship` and `/api/worship/setlists` plus `If-None-Match` in `useSetlist.ts` so unchanged background sync polls transfer 0 bytes in `<10ms`.
+  - **Lazy-Loaded Modals & 1-Tap Auto-Scroll Reopen Pill**: Converted all 13 `/band` modals to `next/dynamic` lazy imports mounted only when opened, and added a minimal bottom-center `Auto-Scroll` reopen pill whenever `AutoScrollBar` is dismissed via `✕`.
+  - **Memoized SongSheet Lyrics**: Memoized the rendered chord/lyric token tree on `[parsedLines, fontSizePx, isLyricsOnly]` so scrolling and section-rail highlights never re-parse or re-diff the lyrics DOM.
+  - **StageTopBar Spacing, Proper Hamburger, Official HGF Favicon & Anti-Vibe Polish**: Replaced the ugly `🎼` emoji and `/band` favicon with the official HGF Connect app icon (`/HGF-icon-v1.0.png`), upgraded the menu button to a crisp 3-bar SVG hamburger, enlarged Row 1 controls to `40px` with `12px` separation between Burger/Logo and App/Profile to prevent accidental mis-taps, and replaced legacy emojis and purple accents across `StageTopBar`, `SongSheet`, and `NavigationDock` with brand teal (`#4EB1CB`) and crisp SVGs.
+
 ## [v2.90.4] — 2026-11-25
 ### Fixed / Performance
 - **Eliminated Chrome GPU Memory Leak & Band Stage CPU/Network Storms (`app/band/components/DrawingCanvas.tsx`, `app/band/hooks/useMetronome.ts`, `app/band/hooks/useSetlist.ts`, `app/band/page.tsx`)**:

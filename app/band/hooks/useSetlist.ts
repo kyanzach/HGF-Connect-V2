@@ -105,6 +105,8 @@ export function useSetlist() {
   useEffect(() => {
     let isMounted = true;
     let inFlight = false;
+    let songsEtag = '';
+    let setlistsEtag = '';
 
     const fingerprintSongs = (list: Song[]) =>
       list
@@ -125,13 +127,21 @@ export function useSetlist() {
       inFlight = true;
       try {
         const [songsRes, setlistsRes] = await Promise.all([
-          fetch('/api/worship', { cache: 'no-store' }),
-          fetch('/api/worship/setlists', { cache: 'no-store' }),
+          fetch('/api/worship', {
+            cache: 'no-store',
+            headers: songsEtag ? { 'If-None-Match': songsEtag } : undefined,
+          }),
+          fetch('/api/worship/setlists', {
+            cache: 'no-store',
+            headers: setlistsEtag ? { 'If-None-Match': setlistsEtag } : undefined,
+          }),
         ]);
         if (!isMounted) return;
 
-        // Skip updating songs if local user just imported or added a song (< 8s ago)
-        if (songsRes.ok && Date.now() - lastSongMutationTimeRef.current > 8000) {
+        // Skip parsing completely on 304 Not Modified (0 bytes transferred!)
+        if (songsRes.status === 200 && Date.now() - lastSongMutationTimeRef.current > 8000) {
+          const nextEtag = songsRes.headers.get('etag');
+          if (nextEtag) songsEtag = nextEtag;
           const remoteSongs: Song[] = await songsRes.json();
           const remoteFp = fingerprintSongs(remoteSongs);
           setSongs((prev) => {
@@ -146,8 +156,9 @@ export function useSetlist() {
           });
         }
 
-        // Skip updating setlists if local user just reordered or changed setlist (< 8s ago)
-        if (setlistsRes.ok && Date.now() - lastSetlistMutationTimeRef.current > 8000) {
+        if (setlistsRes.status === 200 && Date.now() - lastSetlistMutationTimeRef.current > 8000) {
+          const nextEtag = setlistsRes.headers.get('etag');
+          if (nextEtag) setlistsEtag = nextEtag;
           const remoteSetlists: Setlist[] = await setlistsRes.json();
           const sorted = sortSetlistsUpcomingFirst(remoteSetlists);
           const remoteSetFp = fingerprintSetlists(sorted);

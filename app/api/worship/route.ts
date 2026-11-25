@@ -1,11 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
+import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
 const DATA_DIR = path.join(process.cwd(), 'data', 'worship');
 const SONGS_DIR = path.join(DATA_DIR, 'songs');
+
+const globalCache = global as unknown as {
+  __worshipSongsCache?: { json: string; etag: string };
+  __worshipSetlistsCache?: { json: string; etag: string };
+};
+
+function invalidateSongsCache() {
+  globalCache.__worshipSongsCache = undefined;
+}
 
 function sanitize(name: string): string {
   return name.replace(/[^\w\s\-().]/g, '_').substring(0, 120).trim();
@@ -31,46 +41,70 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // List all songs
-    const files = await fs.readdir(SONGS_DIR);
-    const songs = [];
-    for (const f of files) {
-      if (!f.endsWith('.json')) continue;
-      try {
-        const raw = await fs.readFile(path.join(SONGS_DIR, f), 'utf-8');
-        const s = JSON.parse(raw);
-        songs.push({
-          id: s.id || f.replace('.json', ''),
-          title: s.title || 'Untitled Song',
-          alternativeTitle: s.alternativeTitle || '',
-          artist: s.artist || '',
-          key: s.key || '',
-          originalKey: s.originalKey || s.key || '',
-          chords: s.chords || '',
-          chordFormat: s.chordFormat || 'chords_over_lyrics',
-          capo: s.capo || '0',
-          tempo: s.tempo || null,
-          timeSignature: s.timeSignature || '4/4',
-          duration: s.duration || '',
-          sectionOrder: s.sectionOrder || '',
-          songNumber: s.songNumber || '',
-          copyright: s.copyright || '',
-          webUrl: s.webUrl || '',
-          notes: s.notes || '',
-          exhortation: s.exhortation || '',
-          lyrics: s.lyrics || '',
-          proPresenterLyrics: s.proPresenterLyrics || '',
-          tags: s.tags || [],
-          audioTrack: s.audioTrack || null,
-          useBacktrack: s.useBacktrack !== undefined ? !!s.useBacktrack : true,
-          drawingStrokes: s.drawingStrokes || [],
-          updatedAt: s.updatedAt || Date.now(),
-        });
-      } catch {}
+    // List all songs (served from in-memory cache with ETag / 304 support)
+    if (!globalCache.__worshipSongsCache) {
+      const files = await fs.readdir(SONGS_DIR);
+      const songs = [];
+      for (const f of files) {
+        if (!f.endsWith('.json')) continue;
+        try {
+          const raw = await fs.readFile(path.join(SONGS_DIR, f), 'utf-8');
+          const s = JSON.parse(raw);
+          songs.push({
+            id: s.id || f.replace('.json', ''),
+            title: s.title || 'Untitled Song',
+            alternativeTitle: s.alternativeTitle || '',
+            artist: s.artist || '',
+            key: s.key || '',
+            originalKey: s.originalKey || s.key || '',
+            chords: s.chords || '',
+            chordFormat: s.chordFormat || 'chords_over_lyrics',
+            capo: s.capo || '0',
+            tempo: s.tempo || null,
+            timeSignature: s.timeSignature || '4/4',
+            duration: s.duration || '',
+            sectionOrder: s.sectionOrder || '',
+            songNumber: s.songNumber || '',
+            copyright: s.copyright || '',
+            webUrl: s.webUrl || '',
+            notes: s.notes || '',
+            exhortation: s.exhortation || '',
+            lyrics: s.lyrics || '',
+            proPresenterLyrics: s.proPresenterLyrics || '',
+            tags: s.tags || [],
+            audioTrack: s.audioTrack || null,
+            useBacktrack: s.useBacktrack !== undefined ? !!s.useBacktrack : true,
+            drawingStrokes: s.drawingStrokes || [],
+            updatedAt: s.updatedAt || Date.now(),
+          });
+        } catch {}
+      }
+
+      songs.sort((a, b) => a.title.localeCompare(b.title));
+      const json = JSON.stringify(songs);
+      const etag = `"${crypto.createHash('md5').update(json).digest('hex')}"`;
+      globalCache.__worshipSongsCache = { json, etag };
     }
 
-    songs.sort((a, b) => a.title.localeCompare(b.title));
-    return NextResponse.json(songs);
+    const cached = globalCache.__worshipSongsCache;
+    if (req.headers.get('if-none-match') === cached.etag) {
+      return new NextResponse(null, {
+        status: 304,
+        headers: {
+          ETag: cached.etag,
+          'Cache-Control': 'no-cache',
+        },
+      });
+    }
+
+    return new NextResponse(cached.json, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        ETag: cached.etag,
+        'Cache-Control': 'no-cache',
+      },
+    });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Server error' }, { status: 500 });
   }
@@ -153,6 +187,7 @@ export async function POST(req: NextRequest) {
     };
 
     await fs.writeFile(filePath, JSON.stringify(songData, null, 2), 'utf-8');
+    invalidateSongsCache();
 
     return NextResponse.json({ ok: true, song: songData });
   } catch (err: any) {
@@ -199,6 +234,8 @@ export async function DELETE(req: NextRequest) {
       }
     } catch (_) {}
 
+    invalidateSongsCache();
+    globalCache.__worshipSetlistsCache = undefined;
     return NextResponse.json({ ok: true });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Delete failed' }, { status: 500 });

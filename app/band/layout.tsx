@@ -7,8 +7,8 @@ export const metadata: Metadata = {
     'Official worship team companion app for House of Grace Fellowship. Real-time setlist sync, live chord transposer, ambient worship pads, and audio track playback.',
   manifest: '/manifest-band.json',
   icons: {
-    icon: '/favicon.ico',
-    shortcut: '/favicon-32x32.png',
+    icon: '/HGF-icon-v1.0.png',
+    shortcut: '/HGF-icon-v1.0.png',
     apple: '/icons/icon-180.png',
   },
   appleWebApp: {

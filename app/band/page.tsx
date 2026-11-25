@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
 import ConfirmModal from '@/components/ConfirmModal';
 import { useSetlist } from './hooks/useSetlist';
@@ -20,19 +21,19 @@ import { AudioPlaybackDock } from './components/AudioPlaybackDock';
 import { NavigationDock } from './components/NavigationDock';
 import { AutoScrollBar } from './components/AutoScrollBar';
 
-import { SongEditorModal } from './components/modals/SongEditorModal';
-import { KeyPickerModal } from './components/modals/KeyPickerModal';
-import { AmbientPadModal } from './components/modals/AmbientPadModal';
-import { AudioStorageModal } from './components/modals/AudioStorageModal';
-import { SetlistAdminModal } from './components/modals/SetlistAdminModal';
-import { ScratchpadModal } from './components/modals/ScratchpadModal';
-import { BandAuthModal } from './components/modals/BandAuthModal';
-import { BandAdminModal } from './components/modals/BandAdminModal';
-import { MetronomeModal } from './components/modals/MetronomeModal';
-import { SongScraperModal } from './components/modals/SongScraperModal';
-import { AudioChaptersModal } from './components/modals/AudioChaptersModal';
-import { DurationPickerModal } from './components/modals/DurationPickerModal';
-import { BandInstallModal } from './components/modals/BandInstallModal';
+const SongEditorModal = dynamic(() => import('./components/modals/SongEditorModal').then((m) => m.SongEditorModal), { ssr: false });
+const KeyPickerModal = dynamic(() => import('./components/modals/KeyPickerModal').then((m) => m.KeyPickerModal), { ssr: false });
+const AmbientPadModal = dynamic(() => import('./components/modals/AmbientPadModal').then((m) => m.AmbientPadModal), { ssr: false });
+const AudioStorageModal = dynamic(() => import('./components/modals/AudioStorageModal').then((m) => m.AudioStorageModal), { ssr: false });
+const SetlistAdminModal = dynamic(() => import('./components/modals/SetlistAdminModal').then((m) => m.SetlistAdminModal), { ssr: false });
+const ScratchpadModal = dynamic(() => import('./components/modals/ScratchpadModal').then((m) => m.ScratchpadModal), { ssr: false });
+const BandAuthModal = dynamic(() => import('./components/modals/BandAuthModal').then((m) => m.BandAuthModal), { ssr: false });
+const BandAdminModal = dynamic(() => import('./components/modals/BandAdminModal').then((m) => m.BandAdminModal), { ssr: false });
+const MetronomeModal = dynamic(() => import('./components/modals/MetronomeModal').then((m) => m.MetronomeModal), { ssr: false });
+const SongScraperModal = dynamic(() => import('./components/modals/SongScraperModal').then((m) => m.SongScraperModal), { ssr: false });
+const AudioChaptersModal = dynamic(() => import('./components/modals/AudioChaptersModal').then((m) => m.AudioChaptersModal), { ssr: false });
+const DurationPickerModal = dynamic(() => import('./components/modals/DurationPickerModal').then((m) => m.DurationPickerModal), { ssr: false });
+const BandInstallModal = dynamic(() => import('./components/modals/BandInstallModal').then((m) => m.BandInstallModal), { ssr: false });
 
 import { BandUser, Song, Setlist, AudioTrack, AudioMarker, DrawingStroke } from './types/band';
 import { getCachedAudioMarkers, saveCachedAudioMarkers } from './lib/audioAnalysis';
@@ -1997,6 +1998,53 @@ export default function BandStagePage() {
         onStepDurationSeconds={handleStepDuration}
       />
 
+      {/* 1-TAP REOPEN PILL WHEN AUTO-SCROLL BAR IS DISMISSED */}
+      {!showAutoScrollBar && (
+        <button
+          type="button"
+          data-interactive="true"
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowAutoScrollBar(true);
+          }}
+          aria-label="Show auto-scroll controls"
+          style={{
+            position: 'fixed',
+            bottom: isImmersionMode
+              ? isPlaybackDockVisible
+                ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 66px)'
+                : 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 16px)'
+              : isPlaybackDockVisible
+              ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 148px)'
+              : 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 18px)',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 64,
+            minHeight: '40px',
+            padding: '0 16px',
+            borderRadius: '999px',
+            backgroundColor: 'rgba(12, 16, 23, 0.86)',
+            border: '1px solid rgba(78, 177, 203, 0.4)',
+            color: '#4EB1CB',
+            fontSize: '12px',
+            fontWeight: 800,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '7px',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            boxShadow: '0 6px 20px rgba(0, 0, 0, 0.6)',
+          }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M7 4.8v14.4c0 1 1.1 1.6 1.9 1.1l11.2-7.2c.8-.5.8-1.7 0-2.2L8.9 3.7C8.1 3.2 7 3.8 7 4.8z" />
+          </svg>
+          <span>Auto-Scroll</span>
+        </button>
+      )}
+
       {/* FLOATING AUDIO SCRUBBER DOCK (Standard Stage Mode - MD Only) */}
       {!isImmersionMode && isPlaybackDockVisible && (
         <AudioPlaybackDock
@@ -2161,182 +2209,210 @@ export default function BandStagePage() {
         currentUser={currentUser}
       />
 
-      {/* MODALS */}
-      <SongEditorModal
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        song={editingSong || effectiveSong}
-        onSaveSong={async (saved) => {
-          await handleSaveSong(saved);
-          selectSong(saved.id);
-        }}
-        onDeleteSong={handleDeleteSong}
-        onOpenScraper={(q) => {
-          if (!currentUser) {
-            setLoginPrompt({ open: true, feature: 'add_song' });
-            return;
-          }
-          setScraperQuery(q || '');
-          setIsScraperOpen(true);
-        }}
-        currentUser={currentUser}
-        isUserMD={Boolean(isUserMD || currentUser?.role === 'admin')}
-        hasCustomLyrics={Boolean(effectiveSong?.hasCustomLyrics)}
-        onRevertToMasterLyrics={() => handleRevertToMasterLyrics(editingSong?.id || currentSong?.id)}
-      />
+      {/* LAZY-MOUNTED MODALS (Only downloaded & mounted when opened) */}
+      {isEditModalOpen && (
+        <SongEditorModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          song={editingSong || effectiveSong}
+          onSaveSong={async (saved) => {
+            await handleSaveSong(saved);
+            selectSong(saved.id);
+          }}
+          onDeleteSong={handleDeleteSong}
+          onOpenScraper={(q) => {
+            if (!currentUser) {
+              setLoginPrompt({ open: true, feature: 'add_song' });
+              return;
+            }
+            setScraperQuery(q || '');
+            setIsScraperOpen(true);
+          }}
+          currentUser={currentUser}
+          isUserMD={Boolean(isUserMD || currentUser?.role === 'admin')}
+          hasCustomLyrics={Boolean(effectiveSong?.hasCustomLyrics)}
+          onRevertToMasterLyrics={() => handleRevertToMasterLyrics(editingSong?.id || currentSong?.id)}
+        />
+      )}
 
-      <KeyPickerModal
-        isOpen={isKeyPickerOpen}
-        onClose={() => setIsKeyPickerOpen(false)}
-        currentKey={effectiveKey}
-        capo={capo}
-        onSelectKey={(newKey) => handleKeyChangeRequest(newKey)}
-        onSelectCapo={setCapo}
-        isBandAdmin={Boolean(isUserMD || currentUser?.role === 'admin')}
-        onSaveAsMdKey={() => handleSaveAsMdKey(effectiveKey)}
-      />
+      {isKeyPickerOpen && (
+        <KeyPickerModal
+          isOpen={isKeyPickerOpen}
+          onClose={() => setIsKeyPickerOpen(false)}
+          currentKey={effectiveKey}
+          capo={capo}
+          onSelectKey={(newKey) => handleKeyChangeRequest(newKey)}
+          onSelectCapo={setCapo}
+          isBandAdmin={Boolean(isUserMD || currentUser?.role === 'admin')}
+          onSaveAsMdKey={() => handleSaveAsMdKey(effectiveKey)}
+        />
+      )}
 
-      <AmbientPadModal
-        isOpen={isAmbientPadOpen}
-        onClose={() => setIsAmbientPadOpen(false)}
-        isPlaying={isPadPlaying}
-        isFadingOut={isPadFadingOut}
-        activeKey={activePadKey}
-        volume={padVolume}
-        onPlayPad={playPad}
-        onSelectKey={selectPadKey}
-        onStopPad={stopPad}
-        onTogglePad={togglePad}
-        onChangeVolume={setPadVolume}
-      />
+      {isAmbientPadOpen && (
+        <AmbientPadModal
+          isOpen={isAmbientPadOpen}
+          onClose={() => setIsAmbientPadOpen(false)}
+          isPlaying={isPadPlaying}
+          isFadingOut={isPadFadingOut}
+          activeKey={activePadKey}
+          volume={padVolume}
+          onPlayPad={playPad}
+          onSelectKey={selectPadKey}
+          onStopPad={stopPad}
+          onTogglePad={togglePad}
+          onChangeVolume={setPadVolume}
+        />
+      )}
 
-      <AudioStorageModal
-        isOpen={isAudioStorageOpen}
-        onClose={() => setIsAudioStorageOpen(false)}
-        currentSong={currentSong}
-        currentUser={currentUser}
-        onAttachTrack={handleAttachTrack}
-      />
+      {isAudioStorageOpen && (
+        <AudioStorageModal
+          isOpen={isAudioStorageOpen}
+          onClose={() => setIsAudioStorageOpen(false)}
+          currentSong={currentSong}
+          currentUser={currentUser}
+          onAttachTrack={handleAttachTrack}
+        />
+      )}
 
-      <SetlistAdminModal
-        isOpen={isSetlistAdminOpen}
-        onClose={() => setIsSetlistAdminOpen(false)}
-        setlists={setlists}
-        allSongs={songs}
-        onSaveSetlist={handleSaveSetlist}
-        onDeleteSetlist={handleDeleteSetlist}
-        onSelectActiveSetlist={handleSelectSetlist}
-      />
+      {isSetlistAdminOpen && (
+        <SetlistAdminModal
+          isOpen={isSetlistAdminOpen}
+          onClose={() => setIsSetlistAdminOpen(false)}
+          setlists={setlists}
+          allSongs={songs}
+          onSaveSetlist={handleSaveSetlist}
+          onDeleteSetlist={handleDeleteSetlist}
+          onSelectActiveSetlist={handleSelectSetlist}
+        />
+      )}
 
-      <ScratchpadModal
-        isOpen={isScratchpadOpen}
-        onClose={() => setIsScratchpadOpen(false)}
-        currentSong={currentSong}
-        currentUser={currentUser}
-        onOpenAuthModal={() => setIsAuthModalOpen(true)}
-      />
+      {isScratchpadOpen && (
+        <ScratchpadModal
+          isOpen={isScratchpadOpen}
+          onClose={() => setIsScratchpadOpen(false)}
+          currentSong={currentSong}
+          currentUser={currentUser}
+          onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        />
+      )}
 
-      <BandAuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        currentUser={currentUser}
-        onSelectUser={handleSelectUser}
-        onLogout={handleLogoutUser}
-        onOpenAdminModal={() => setIsBandAdminOpen(true)}
-      />
+      {isAuthModalOpen && (
+        <BandAuthModal
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+          currentUser={currentUser}
+          onSelectUser={handleSelectUser}
+          onLogout={handleLogoutUser}
+          onOpenAdminModal={() => setIsBandAdminOpen(true)}
+        />
+      )}
 
-      <BandAdminModal
-        isOpen={isBandAdminOpen}
-        onClose={() => setIsBandAdminOpen(false)}
-        currentUser={currentUser}
-        onUserUpdated={handleUserUpdated}
-      />
+      {isBandAdminOpen && (
+        <BandAdminModal
+          isOpen={isBandAdminOpen}
+          onClose={() => setIsBandAdminOpen(false)}
+          currentUser={currentUser}
+          onUserUpdated={handleUserUpdated}
+        />
+      )}
 
-      <BandInstallModal
-        isOpen={isInstallModalOpen}
-        onClose={() => setIsInstallModalOpen(false)}
-      />
+      {isInstallModalOpen && (
+        <BandInstallModal
+          isOpen={isInstallModalOpen}
+          onClose={() => setIsInstallModalOpen(false)}
+        />
+      )}
 
-      <MetronomeModal
-        isOpen={isMetronomeModalOpen}
-        onClose={() => setIsMetronomeModalOpen(false)}
-        bpm={tempo}
-        onBpmChange={handleBpmChange}
-        timeSignature={metronomeSignature}
-        onTimeSignatureChange={handleTimeSignatureChange}
-        isAudioActive={isMetronomeAudioActive}
-        onToggleAudio={toggleMetronomeAudio}
-        isPulsing={isPulsing}
-      />
+      {isMetronomeModalOpen && (
+        <MetronomeModal
+          isOpen={isMetronomeModalOpen}
+          onClose={() => setIsMetronomeModalOpen(false)}
+          bpm={tempo}
+          onBpmChange={handleBpmChange}
+          timeSignature={metronomeSignature}
+          onTimeSignatureChange={handleTimeSignatureChange}
+          isAudioActive={isMetronomeAudioActive}
+          onToggleAudio={toggleMetronomeAudio}
+          isPulsing={isPulsing}
+        />
+      )}
 
-      <SongScraperModal
-        isOpen={isScraperOpen}
-        onClose={() => setIsScraperOpen(false)}
-        initialQuery={scraperQuery}
-        activeSetlist={activeSetlist}
-        onImportSong={handleImportScrapedSong}
-        isEditingExisting={isEditModalOpen && !!editingSong}
-        onOverwriteChords={(chords, title, artist, key, tempo) => {
-          if (editingSong) {
-            setEditingSong({
-              ...editingSong,
-              chords,
-              title: title || editingSong.title,
-              artist: artist || editingSong.artist,
-              key: key || editingSong.key,
-              tempo: tempo || editingSong.tempo,
-            });
-          }
-        }}
-      />
+      {isScraperOpen && (
+        <SongScraperModal
+          isOpen={isScraperOpen}
+          onClose={() => setIsScraperOpen(false)}
+          initialQuery={scraperQuery}
+          activeSetlist={activeSetlist}
+          onImportSong={handleImportScrapedSong}
+          isEditingExisting={isEditModalOpen && !!editingSong}
+          onOverwriteChords={(chords, title, artist, key, tempo) => {
+            if (editingSong) {
+              setEditingSong({
+                ...editingSong,
+                chords,
+                title: title || editingSong.title,
+                artist: artist || editingSong.artist,
+                key: key || editingSong.key,
+                tempo: tempo || editingSong.tempo,
+              });
+            }
+          }}
+        />
+      )}
 
       {/* Login Prompt Modal for Draw, Notes, Adding Songs & Setlists */}
-      <ConfirmModal
-        open={loginPrompt.open}
-        title="Band Login Required"
-        message={
-          loginPrompt.feature === 'draw'
-            ? 'You must be logged in to draw live stage annotations and synchronize them with your band.'
-            : loginPrompt.feature === 'notes'
-            ? 'You must be logged in to access and add private musician notes.'
-            : loginPrompt.feature === 'add_song'
-            ? 'You must be logged in with a band account to add songs to the church music library.'
-            : loginPrompt.feature === 'audio'
-            ? 'You must be logged in with a band account to access the Band Cloud Server, manage backing tracks, or link tracks to this song.'
-            : 'You must be logged in with a band account to create or manage setlists.'
-        }
-        confirmLabel="Log In Now"
-        confirmColor="#4EB1CB"
-        cancelLabel="Cancel"
-        onConfirm={() => {
-          setLoginPrompt({ open: false, feature: null });
-          setIsAuthModalOpen(true);
-        }}
-        onCancel={() => setLoginPrompt({ open: false, feature: null })}
-      />
+      {loginPrompt.open && (
+        <ConfirmModal
+          open={loginPrompt.open}
+          title="Band Login Required"
+          message={
+            loginPrompt.feature === 'draw'
+              ? 'You must be logged in to draw live stage annotations and synchronize them with your band.'
+              : loginPrompt.feature === 'notes'
+              ? 'You must be logged in to access and add private musician notes.'
+              : loginPrompt.feature === 'add_song'
+              ? 'You must be logged in with a band account to add songs to the church music library.'
+              : loginPrompt.feature === 'audio'
+              ? 'You must be logged in with a band account to access the Band Cloud Server, manage backing tracks, or link tracks to this song.'
+              : 'You must be logged in with a band account to create or manage setlists.'
+          }
+          confirmLabel="Log In Now"
+          confirmColor="#4EB1CB"
+          cancelLabel="Cancel"
+          onConfirm={() => {
+            setLoginPrompt({ open: false, feature: null });
+            setIsAuthModalOpen(true);
+          }}
+          onCancel={() => setLoginPrompt({ open: false, feature: null })}
+        />
+      )}
 
       {/* Audio Chapter Timings & Cues Calibration Modal */}
-      <AudioChaptersModal
-        isOpen={isAudioChaptersModalOpen}
-        onClose={() => setIsAudioChaptersModalOpen(false)}
-        markers={audioMarkers}
-        onSaveMarkers={handleUpdateMarkers}
-        currentTime={backtrackCurrentTime}
-        duration={backtrackDuration}
-        onSeek={seekBacktrack}
-        songTitle={currentSong?.title}
-        isBandAdmin={currentUser?.role === 'admin' || isUserMD}
-      />
+      {isAudioChaptersModalOpen && (
+        <AudioChaptersModal
+          isOpen={isAudioChaptersModalOpen}
+          onClose={() => setIsAudioChaptersModalOpen(false)}
+          markers={audioMarkers}
+          onSaveMarkers={handleUpdateMarkers}
+          currentTime={backtrackCurrentTime}
+          duration={backtrackDuration}
+          onSeek={seekBacktrack}
+          songTitle={currentSong?.title}
+          isBandAdmin={currentUser?.role === 'admin' || isUserMD}
+        />
+      )}
 
       {/* Arrangement Duration Picker Modal */}
-      <DurationPickerModal
-        isOpen={isDurationModalOpen}
-        onClose={() => setIsDurationModalOpen(false)}
-        currentDuration={currentSongDuration}
-        songTitle={currentSong?.title}
-        onApplyDuration={handleApplyDuration}
-        isBandAdmin={currentUser?.role === 'admin' || isUserMD}
-      />
+      {isDurationModalOpen && (
+        <DurationPickerModal
+          isOpen={isDurationModalOpen}
+          onClose={() => setIsDurationModalOpen(false)}
+          currentDuration={currentSongDuration}
+          songTitle={currentSong?.title}
+          onApplyDuration={handleApplyDuration}
+          isBandAdmin={currentUser?.role === 'admin' || isUserMD}
+        />
+      )}
     </div>
   );
 }

@@ -117,13 +117,13 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
         zIndex: 50,
         backgroundColor: '#0a0d14',
         borderBottom: '1px solid #1e293b',
-        paddingTop: 'env(safe-area-inset-top, 0px)',
-        paddingLeft: '12px',
-        paddingRight: '12px',
-        paddingBottom: '8px',
+        paddingTop: 'calc(env(safe-area-inset-top, 0px) + 6px)',
+        paddingLeft: '14px',
+        paddingRight: '14px',
+        paddingBottom: '10px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '6px',
+        gap: '8px',
         userSelect: 'none',
       }}
     >
@@ -133,40 +133,44 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
           to { transform: rotate(360deg); }
         }
       `}</style>
-      {/* ROW 1: BRAND, SETLIST SELECTOR, PROFILE */}
+      {/* ROW 1: BURGER, OFFICIAL HGF LOGO, SETLIST SELECTOR, APP & PROFILE */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           width: '100%',
-          gap: '8px',
-          height: '40px',
+          gap: '10px',
+          minHeight: '42px',
         }}
       >
-        {/* Left: Sidebar Toggle & Band Emoji */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+        {/* Left: Proper SVG Hamburger Menu & Official HGF Connect Logo */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
           <button
+            type="button"
             onClick={onToggleSidebar}
             title="Toggle Setlist & Songs Library"
+            aria-label="Open setlist and songs menu"
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: '34px',
-              height: '34px',
-              borderRadius: '8px',
+              width: '40px',
+              height: '40px',
+              borderRadius: '10px',
               border: '1px solid #334155',
               background: '#1e293b',
               color: '#f8fafc',
-              fontSize: '15px',
               cursor: 'pointer',
               flexShrink: 0,
             }}
           >
-            ☰
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" aria-hidden="true">
+              <path d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
           </button>
           <button
+            type="button"
             onClick={handleCopyAndRefresh}
             title={
               isUpdatingApp
@@ -175,45 +179,57 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
                 ? 'Link copied! Updating app to latest version...'
                 : 'HGF Worship Team Setlist & Chords (Tap to copy hgfapp.link/chords & reload/update app)'
             }
+            aria-label="Copy link and refresh HGF Connect"
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: '34px',
-              height: '34px',
-              borderRadius: '8px',
+              width: '40px',
+              height: '40px',
+              padding: 0,
+              borderRadius: '10px',
               border: `1px solid ${copiedLink || isUpdatingApp ? '#10b981' : '#2d3f5e'}`,
               background: copiedLink || isUpdatingApp ? 'rgba(16, 185, 129, 0.2)' : 'rgba(78, 177, 203, 0.12)',
-              fontSize: '17px',
               cursor: isUpdatingApp ? 'wait' : 'pointer',
               flexShrink: 0,
               transition: 'all 0.2s ease',
+              overflow: 'hidden',
             }}
           >
             {isUpdatingApp ? (
-              <span style={{ display: 'inline-block', animation: 'spinRefresh 0.75s linear infinite' }}>🔄</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ animation: 'spinRefresh 0.75s linear infinite' }}>
+                <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                <path d="M21 3v6h-6" />
+              </svg>
             ) : copiedLink ? (
-              '🔗'
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M20 6L9 17l-5-5" />
+              </svg>
             ) : (
-              '🎼'
+              <img
+                src="/HGF-icon-v1.0.png"
+                alt="HGF Connect"
+                style={{ width: '28px', height: '28px', objectFit: 'contain', borderRadius: '6px' }}
+              />
             )}
           </button>
         </div>
 
-        {/* Center: Setlist Dropdown (now has ample room) */}
-        <div style={{ flex: 1, minWidth: 0, margin: '0 6px' }}>
+        {/* Center: Setlist Dropdown */}
+        <div style={{ flex: 1, minWidth: 0, margin: '0 4px' }}>
           <select
             value={activeSetlistId || ''}
             onChange={(e) => onSelectSetlist(e.target.value ? e.target.value : null)}
+            aria-label="Select setlist"
             style={{
               width: '100%',
-              height: '34px',
-              borderRadius: '8px',
+              height: '40px',
+              borderRadius: '10px',
               background: '#131c2e',
               border: '1px solid #2d3f5e',
               color: '#e2e8f0',
-              padding: '0 8px',
-              fontSize: '12.5px',
+              padding: '0 10px',
+              fontSize: '13px',
               fontWeight: 600,
               cursor: 'pointer',
               outline: 'none',
@@ -229,59 +245,67 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
               const hasDateInName = dateTag && s.name.toLowerCase().includes(dateTag.toLowerCase());
               return (
                 <option key={s.id} value={s.id}>
-                  {isUpcoming ? '✨ ' : '🎼 '}{s.name}{dateTag && !hasDateInName ? ` • ${dateTag}` : ''}{s.leader ? ` (${s.leader})` : ''}
+                  {isUpcoming ? '★ ' : ''}{s.name}{dateTag && !hasDateInName ? ` • ${dateTag}` : ''}{s.leader ? ` (${s.leader})` : ''}
                 </option>
               );
             })}
           </select>
         </div>
 
-        {/* Right: Install App & Musician Profile Icon */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+        {/* Right: Install App & Musician Profile Icon (generous gap to prevent mis-taps) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
           {onOpenInstallModal && (
             <button
+              type="button"
               onClick={onOpenInstallModal}
               title="Install HGF Worship App (Android APK / iPad)"
               style={{
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
-                gap: '4px',
-                height: '34px',
-                padding: '0 8px',
-                borderRadius: '8px',
+                gap: '6px',
+                height: '40px',
+                padding: '0 12px',
+                borderRadius: '10px',
                 background: 'rgba(78, 177, 203, 0.15)',
-                border: '1px solid rgba(78, 177, 203, 0.4)',
+                border: '1px solid rgba(78, 177, 203, 0.45)',
                 color: '#4EB1CB',
-                fontSize: '12px',
+                fontSize: '12.5px',
                 fontWeight: 700,
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
                 flexShrink: 0,
               }}
             >
-              <span>📲</span>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="5" y="2" width="14" height="20" rx="2" />
+                <path d="M12 18h.01" />
+              </svg>
               <span>App</span>
             </button>
           )}
           <button
+            type="button"
             onClick={onOpenAuthModal}
             title={currentUser ? `${currentUser.displayName} (${currentUser.role || 'musician'})` : 'Login'}
+            aria-label={currentUser ? `Account: ${currentUser.displayName}` : 'Login'}
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: '34px',
-              height: '34px',
+              width: '40px',
+              height: '40px',
               borderRadius: '50%',
-              background: currentUser ? 'rgba(78, 177, 203, 0.15)' : '#1e293b',
-              border: `1px solid ${currentUser ? '#4EB1CB' : '#334155'}`,
+              background: currentUser ? 'rgba(78, 177, 203, 0.16)' : '#1e293b',
+              border: `1.5px solid ${currentUser ? '#4EB1CB' : '#334155'}`,
               color: currentUser ? '#4EB1CB' : '#cbd5e1',
-              fontSize: '15px',
               cursor: 'pointer',
               flexShrink: 0,
             }}
           >
-            <span>👤</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
           </button>
         </div>
       </div>
@@ -391,16 +415,17 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
         </div>
 
         {/* Stage Action Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
           <button
+            type="button"
             onClick={onOpenEditSong}
             title="Edit Song Lyrics & Chords"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '5px',
-              padding: '0 10px',
-              height: '34px',
+              gap: '6px',
+              padding: '0 11px',
+              height: '36px',
               borderRadius: '8px',
               background: '#1e293b',
               border: '1px solid #334155',
@@ -411,7 +436,10 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
               whiteSpace: 'nowrap',
             }}
           >
-            <span>✏️</span>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+            </svg>
             <span>Edit</span>
           </button>
           <button
@@ -421,9 +449,9 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '5px',
-              padding: '0 10px',
-              height: '34px',
+              gap: '6px',
+              padding: '0 11px',
+              height: '36px',
               borderRadius: '8px',
               background: '#1e293b',
               border: '1px solid #334155',
@@ -434,22 +462,25 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
               whiteSpace: 'nowrap',
             }}
           >
-            <span>🎹</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="2" y="5" width="20" height="14" rx="2" />
+              <path d="M6 5v8M10 5v8M14 5v8M18 5v8" />
+            </svg>
             <span>Pad</span>
           </button>
           {onToggleStageTools && (
             <button
               type="button"
               onClick={onToggleStageTools}
-              title={showStageTools ? 'Hide stage tools dock' : 'Show stage tools (BPM, Auto-Scroll, Chords, Font Size)'}
+              title={showStageTools ? 'Hide stage tools dock' : 'Show stage tools (BPM, Chords, Font Size)'}
               aria-label={showStageTools ? 'Hide stage tools' : 'Show stage tools'}
               aria-pressed={showStageTools}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                width: '36px',
-                height: '34px',
+                width: '38px',
+                height: '36px',
                 borderRadius: '8px',
                 background: showStageTools ? 'rgba(78, 177, 203, 0.22)' : '#1e293b',
                 border: `1px solid ${showStageTools ? '#4EB1CB' : '#334155'}`,
@@ -466,14 +497,15 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
             </button>
           )}
           <button
+            type="button"
             onClick={onToggleDrawing}
             title="Draw / Annotate with Finger or Apple Pencil"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '5px',
-              padding: '0 10px',
-              height: '34px',
+              gap: '6px',
+              padding: '0 11px',
+              height: '36px',
               borderRadius: '8px',
               background: isDrawingActive ? 'rgba(78, 177, 203, 0.25)' : '#1e293b',
               border: `1px solid ${isDrawingActive ? '#4EB1CB' : '#334155'}`,
@@ -484,18 +516,21 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
               whiteSpace: 'nowrap',
             }}
           >
-            <span>🎨</span>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" />
+            </svg>
             <span>Draw</span>
           </button>
           <button
+            type="button"
             onClick={onOpenAudioManager}
             title="Backing Tracks & Audio Manager (Cloud Server / Device)"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '5px',
-              padding: '0 10px',
-              height: '34px',
+              gap: '6px',
+              padding: '0 11px',
+              height: '36px',
               borderRadius: '8px',
               background: '#1e293b',
               border: '1px solid #334155',
@@ -506,10 +541,14 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
               whiteSpace: 'nowrap',
             }}
           >
-            <span>🎧</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
+              <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
+            </svg>
             <span>Track</span>
           </button>
           <button
+            type="button"
             onClick={() => {
               if (!currentUser) {
                 onOpenAuthModal();
@@ -521,9 +560,9 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '5px',
-              padding: '0 10px',
-              height: '34px',
+              gap: '6px',
+              padding: '0 11px',
+              height: '36px',
               borderRadius: '8px',
               background: '#1e293b',
               border: '1px solid #334155',
@@ -534,12 +573,16 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
               whiteSpace: 'nowrap',
             }}
           >
-            <span>🗒️</span>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <path d="M14 2v6h6M8 13h8M8 17h6" />
+            </svg>
             <span>Notes</span>
           </button>
           {onCopyProPresenter && (
             <div style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
               <button
+                type="button"
                 onClick={onCopyProPresenter}
                 disabled={isCleaningProPresenter}
                 title={
@@ -548,18 +591,18 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
                     : isCopiedProPresenter
                     ? 'Copied to clipboard! In ProPresenter 7, go to File > Import > Text from Clipboard.'
                     : hasSavedProPresenterLyrics
-                    ? 'Copy AI-cleaned lyrics formatted for ProPresenter 7 (Saved on server). Click the sparkle icon to re-clean.'
-                    : '1-click: Clean with AI, save to server, & copy formatted for ProPresenter 7 (2 lines per slide, Verse/Chorus/Bridge groups)'
+                    ? 'Copy AI-cleaned lyrics formatted for ProPresenter 7 (Saved on server).'
+                    : '1-click: Clean with AI, save to server, & copy formatted for ProPresenter 7'
                 }
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '5px',
-                  padding: '0 10px',
-                  height: '34px',
+                  gap: '6px',
+                  padding: '0 11px',
+                  height: '36px',
                   borderRadius: hasSavedProPresenterLyrics && onReCleanProPresenter ? '8px 0 0 8px' : '8px',
                   background: isCleaningProPresenter
-                    ? 'rgba(168, 85, 247, 0.2)'
+                    ? 'rgba(78, 177, 203, 0.22)'
                     : isCopiedProPresenter
                     ? 'rgba(16, 185, 129, 0.2)'
                     : hasSavedProPresenterLyrics
@@ -567,7 +610,7 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
                     : '#1e293b',
                   border: `1px solid ${
                     isCleaningProPresenter
-                      ? '#a855f7'
+                      ? '#4EB1CB'
                       : isCopiedProPresenter
                       ? '#10b981'
                       : hasSavedProPresenterLyrics
@@ -575,7 +618,7 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
                       : '#334155'
                   }`,
                   color: isCleaningProPresenter
-                    ? '#c084fc'
+                    ? '#4EB1CB'
                     : isCopiedProPresenter
                     ? '#10b981'
                     : hasSavedProPresenterLyrics
@@ -589,14 +632,15 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
                   opacity: isCleaningProPresenter ? 0.85 : 1,
                 }}
               >
-                <span>
-                  {isCleaningProPresenter ? '✨' : isCopiedProPresenter ? '✅' : hasSavedProPresenterLyrics ? '📋' : '✨'}
-                </span>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <rect x="9" y="9" width="13" height="13" rx="2" />
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                </svg>
                 <span>
                   {isCleaningProPresenter
-                    ? 'Cleaning with AI...'
+                    ? 'Cleaning...'
                     : isCopiedProPresenter
-                    ? 'Copied Pro7!'
+                    ? 'Copied Pro7'
                     : hasSavedProPresenterLyrics
                     ? 'ProPresenter'
                     : 'AI Pro7'}
@@ -604,29 +648,32 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
               </button>
               {hasSavedProPresenterLyrics && onReCleanProPresenter && !isCleaningProPresenter && (
                 <button
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     onReCleanProPresenter();
                   }}
-                  title="Re-clean lyrics with AI (lowest credit) and update saved version"
+                  title="Re-clean lyrics with AI and update saved version"
+                  aria-label="Re-clean ProPresenter lyrics"
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    width: '24px',
-                    height: '34px',
+                    width: '30px',
+                    height: '36px',
                     borderRadius: '0 8px 8px 0',
                     border: '1px solid #38bdf8',
                     borderLeft: 'none',
                     background: 'rgba(56, 189, 248, 0.15)',
                     color: '#38bdf8',
-                    fontSize: '11px',
-                    fontWeight: 700,
                     cursor: 'pointer',
                     transition: 'all 0.18s ease',
                   }}
                 >
-                  ✨
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                    <path d="M21 3v6h-6" />
+                  </svg>
                 </button>
               )}
             </div>

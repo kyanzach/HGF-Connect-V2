@@ -98,7 +98,7 @@ export const NavigationDock: React.FC<NavigationDockProps> = ({
       style={{
         position: 'fixed',
         right: 'calc(env(safe-area-inset-right, 0px) + 68px)',
-        top: 'calc(env(safe-area-inset-top, 0px) + 114px)',
+        top: 'calc(env(safe-area-inset-top, 0px) + 124px)',
         display: 'flex',
         flexDirection: 'column',
         gap: '10px',
@@ -267,9 +267,9 @@ export const NavigationDock: React.FC<NavigationDockProps> = ({
             width: '46px',
             height: '46px',
             borderRadius: '50%',
-            backgroundColor: isLyricsOnly ? '#9333ea' : 'rgba(22, 28, 38, 0.85)',
+            backgroundColor: isLyricsOnly ? '#0e7490' : 'rgba(22, 28, 38, 0.85)',
             backdropFilter: 'blur(10px)',
-            border: `1.5px solid ${isLyricsOnly ? '#c084fc' : '#334155'}`,
+            border: `1.5px solid ${isLyricsOnly ? '#4EB1CB' : '#334155'}`,
             color: isLyricsOnly ? '#fff' : '#cbd5e1',
             display: 'flex',
             flexDirection: 'column',
@@ -277,7 +277,7 @@ export const NavigationDock: React.FC<NavigationDockProps> = ({
             justifyContent: 'center',
             cursor: 'pointer',
             boxShadow: isLyricsOnly
-              ? '0 0 16px rgba(168, 85, 247, 0.65), 0 6px 16px rgba(0,0,0,0.5)'
+              ? '0 0 16px rgba(78, 177, 203, 0.55), 0 6px 16px rgba(0,0,0,0.5)'
               : '0 6px 16px rgba(0,0,0,0.5)',
             transition: 'all 0.18s ease',
           }}

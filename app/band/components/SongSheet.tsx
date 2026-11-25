@@ -911,6 +911,215 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     }
   };
 
+  // Memoize the heavy chord/lyric token tree so scrolling, active-section pill highlights,
+  // and Play/Pause toggles NEVER re-parse or re-diff every lyric line in the song
+  const renderedLyricsBody = useMemo(() => {
+    let currentSectionTitle = '';
+    return parsedLines.map((line, lIdx) => {
+      if (line.type === 'empty') {
+        return (
+          <div
+            key={lIdx}
+            id={`sheet-line-${lIdx}`}
+            className="hgf-sheet-line"
+            data-sheet-line-index={lIdx}
+            data-section-name={currentSectionTitle}
+            style={{ height: '14px' }}
+          />
+        );
+      }
+
+      if (line.type === 'section') {
+        currentSectionTitle = line.sectionName || line.raw || '';
+        const rawSecName = currentSectionTitle.replace(/^[\[|\s#]+|[\]|\s]+$/g, '').trim();
+        return (
+          <div
+            key={lIdx}
+            id={`sheet-line-${lIdx}`}
+            className="hgf-sheet-line"
+            data-sheet-line-index={lIdx}
+            data-section-name={currentSectionTitle}
+            data-section-title={line.sectionName}
+            data-section-id={`sec-${lIdx}-${rawSecName}`}
+            style={{
+              fontSize: `${Math.max(14, Math.round(fontSizePx * 0.65))}px`,
+              fontWeight: 800,
+              color: '#38bdf8',
+              textTransform: 'uppercase',
+              letterSpacing: '0.8px',
+              marginTop: `${Math.max(16, Math.round(fontSizePx * 0.6))}px`,
+              marginBottom: `${Math.max(6, Math.round(fontSizePx * 0.25))}px`,
+              borderLeft: `${Math.max(3, Math.round(fontSizePx * 0.1))}px solid #38bdf8`,
+              paddingLeft: `${Math.max(8, Math.round(fontSizePx * 0.25))}px`,
+            }}
+          >
+            {line.sectionName || line.raw}
+          </div>
+        );
+      }
+
+      if (line.pairs && line.pairs.length > 0) {
+        const isPureInstrumental = line.pairs.every((p) => !p.lyric.trim());
+        if (isLyricsOnly && isPureInstrumental) {
+          return null;
+        }
+
+        if (isLyricsOnly) {
+          const fullLyric = line.pairs.map((p) => p.lyric).join('');
+          if (!fullLyric.trim()) return null;
+          return (
+            <div
+              key={lIdx}
+              id={`sheet-line-${lIdx}`}
+              className="hgf-sheet-line"
+              data-sheet-line-index={lIdx}
+              data-section-name={currentSectionTitle}
+              style={{
+                color: '#f1f5f9',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                overflowWrap: 'break-word',
+                lineHeight: 1.45,
+                marginBottom: `${Math.max(4, Math.round(fontSizePx * 0.25))}px`,
+              }}
+            >
+              {fullLyric.trimStart()}
+            </div>
+          );
+        }
+
+        const wrappableTokens = line.pairs.flatMap((pair) =>
+          splitPairIntoWrappableTokens(pair.chord, pair.lyric)
+        );
+
+        return (
+          <div
+            key={lIdx}
+            id={`sheet-line-${lIdx}`}
+            className="hgf-sheet-line"
+            data-sheet-line-index={lIdx}
+            data-section-name={currentSectionTitle}
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'flex-end',
+              rowGap: `${Math.max(6, Math.round(fontSizePx * 0.35))}px`,
+              columnGap: '0px',
+              minHeight: '1.4em',
+              marginBottom: `${Math.max(6, Math.round(fontSizePx * 0.35))}px`,
+              wordBreak: 'break-word',
+            }}
+          >
+            {wrappableTokens.map((token, tIdx) => (
+              <span
+                key={tIdx}
+                style={{
+                  display: 'inline-flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  verticalAlign: 'bottom',
+                }}
+              >
+                <span
+                  onClick={() => token.chord && onOpenChordDiagram && onOpenChordDiagram(token.chord)}
+                  style={{
+                    fontSize: '0.82em',
+                    fontWeight: 800,
+                    color: '#f59e0b',
+                    cursor: token.chord ? 'pointer' : 'default',
+                    minHeight: '1.2em',
+                    lineHeight: 1.2,
+                    whiteSpace: 'pre',
+                    paddingRight: token.chord ? '4px' : '0px',
+                    userSelect: token.chord ? 'none' : 'text',
+                  }}
+                >
+                  {token.chord || ''}
+                </span>
+                <span
+                  style={{
+                    color: '#f1f5f9',
+                    whiteSpace: 'pre',
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {token.lyric}
+                </span>
+              </span>
+            ))}
+          </div>
+        );
+      }
+
+      if (line.type === 'chord_line' || line.type === 'chordpro') {
+        if (isLyricsOnly) return null;
+        return (
+          <div
+            key={lIdx}
+            id={`sheet-line-${lIdx}`}
+            className="hgf-sheet-line"
+            data-sheet-line-index={lIdx}
+            data-section-name={currentSectionTitle}
+            style={{
+              minHeight: '1.5em',
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              overflowWrap: 'break-word',
+              lineHeight: 1.4,
+              marginBottom: `${Math.max(4, Math.round(fontSizePx * 0.25))}px`,
+            }}
+          >
+            {line.items?.map((item, iIdx) =>
+              item.isChord ? (
+                <span
+                  key={iIdx}
+                  onClick={() => onOpenChordDiagram && onOpenChordDiagram(item.text)}
+                  style={{
+                    fontWeight: 800,
+                    color: '#f59e0b',
+                    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                    padding: '1px 4px',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    display: 'inline-block',
+                    marginRight: '2px',
+                  }}
+                >
+                  {item.text}
+                </span>
+              ) : (
+                <span key={iIdx} style={{ color: '#e2e8f0' }}>
+                  {item.text}
+                </span>
+              )
+            )}
+          </div>
+        );
+      }
+
+      return (
+        <div
+          key={lIdx}
+          id={`sheet-line-${lIdx}`}
+          className="hgf-sheet-line"
+          data-sheet-line-index={lIdx}
+          data-section-name={currentSectionTitle}
+          style={{
+            color: '#f1f5f9',
+            minHeight: '1.4em',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            overflowWrap: 'break-word',
+            lineHeight: 1.45,
+            marginBottom: `${Math.max(4, Math.round(fontSizePx * 0.25))}px`,
+          }}
+        >
+          {line.raw}
+        </div>
+      );
+    });
+  }, [parsedLines, fontSizePx, isLyricsOnly, onOpenChordDiagram]);
+
   if (!song) {
     return (
       <div
@@ -1042,19 +1251,18 @@ export const SongSheet: React.FC<SongSheetProps> = ({
                   style={{
                     padding: '2px 8px',
                     borderRadius: '6px',
-                    background: 'rgba(168, 85, 247, 0.25)',
-                    border: '1px solid #a855f7',
-                    color: '#d8b4fe',
+                    background: 'rgba(78, 177, 203, 0.22)',
+                    border: '1px solid #4EB1CB',
+                    color: '#a5f3fc',
                     fontSize: '11px',
                     fontWeight: 800,
                     cursor: 'pointer',
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: '4px',
-                    boxShadow: '0 0 10px rgba(168, 85, 247, 0.35)',
+                    boxShadow: '0 0 10px rgba(78, 177, 203, 0.3)',
                   }}
                 >
-                  <span>🎤</span>
                   <span>LYRICS ONLY</span>
                 </span>
               )}
@@ -1195,9 +1403,9 @@ export const SongSheet: React.FC<SongSheetProps> = ({
                   style={{
                     padding: '2px 8px',
                     borderRadius: '6px',
-                    background: 'rgba(192, 132, 252, 0.15)',
-                    border: '1px solid rgba(192, 132, 252, 0.4)',
-                    color: '#c084fc',
+                    background: 'rgba(78, 177, 203, 0.16)',
+                    border: '1px solid rgba(78, 177, 203, 0.45)',
+                    color: '#67e8f9',
                     fontSize: '11px',
                     fontWeight: 700,
                     display: 'flex',
@@ -1205,7 +1413,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
                     gap: '4px',
                   }}
                 >
-                  <span>{currentUser ? '👤 My Sheet' : '📱 Device Sheet'}</span>
+                  <span>{currentUser ? 'My Sheet' : 'Device Sheet'}</span>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -1215,7 +1423,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
                     style={{
                       border: 'none',
                       background: 'none',
-                      color: '#c084fc',
+                      color: '#67e8f9',
                       fontSize: '12px',
                       cursor: 'pointer',
                       padding: 0,
@@ -1262,7 +1470,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
             marginBottom: '20px',
             padding: '14px 16px',
             borderRadius: '14px',
-            background: 'linear-gradient(135deg, rgba(78, 177, 203, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%)',
+            background: 'linear-gradient(135deg, rgba(78, 177, 203, 0.12) 0%, rgba(15, 23, 42, 0.65) 100%)',
             border: '1.5px solid rgba(78, 177, 203, 0.35)',
             boxShadow: '0 6px 20px rgba(0, 0, 0, 0.35)',
             position: 'relative',
@@ -1324,9 +1532,9 @@ export const SongSheet: React.FC<SongSheetProps> = ({
                     style={{
                       padding: '3px 8px',
                       borderRadius: '6px',
-                      background: 'rgba(168, 85, 247, 0.15)',
-                      border: '1px solid rgba(168, 85, 247, 0.35)',
-                      color: '#d8b4fe',
+                      background: 'rgba(78, 177, 203, 0.14)',
+                      border: '1px solid rgba(78, 177, 203, 0.35)',
+                      color: '#67e8f9',
                       fontSize: '11px',
                       fontWeight: 700,
                       cursor: 'pointer',
@@ -1447,217 +1655,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
           position: 'relative',
         }}
       >
-        {(() => {
-          let currentSectionTitle = '';
-          return parsedLines.map((line, lIdx) => {
-            if (line.type === 'empty') {
-              return (
-                <div
-                  key={lIdx}
-                  id={`sheet-line-${lIdx}`}
-                  className="hgf-sheet-line"
-                  data-sheet-line-index={lIdx}
-                  data-section-name={currentSectionTitle}
-                  style={{ height: '14px' }}
-                />
-              );
-            }
-
-            if (line.type === 'section') {
-              currentSectionTitle = line.sectionName || line.raw || '';
-              const rawSecName = currentSectionTitle.replace(/^[\[|\s#]+|[\]|\s]+$/g, '').trim();
-              return (
-                <div
-                  key={lIdx}
-                  id={`sheet-line-${lIdx}`}
-                  className="hgf-sheet-line"
-                  data-sheet-line-index={lIdx}
-                  data-section-name={currentSectionTitle}
-                  data-section-title={line.sectionName}
-                  data-section-id={`sec-${lIdx}-${rawSecName}`}
-                  style={{
-                    fontSize: `${Math.max(14, Math.round(fontSizePx * 0.65))}px`,
-                    fontWeight: 800,
-                    color: '#38bdf8',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.8px',
-                    marginTop: `${Math.max(16, Math.round(fontSizePx * 0.6))}px`,
-                    marginBottom: `${Math.max(6, Math.round(fontSizePx * 0.25))}px`,
-                    borderLeft: `${Math.max(3, Math.round(fontSizePx * 0.1))}px solid #38bdf8`,
-                    paddingLeft: `${Math.max(8, Math.round(fontSizePx * 0.25))}px`,
-                  }}
-                >
-                  {line.sectionName || line.raw}
-                </div>
-              );
-            }
-
-            // Atomic interlocked chord-lyric pairs: Chords locked above words, wrapping together seamlessly
-            if (line.pairs && line.pairs.length > 0) {
-              const isPureInstrumental = line.pairs.every((p) => !p.lyric.trim());
-              if (isLyricsOnly && isPureInstrumental) {
-                return null;
-              }
-
-              // Lyrics-Only Mode: render whole line as single continuous text to prevent word wrapping glitches at huge font sizes
-              if (isLyricsOnly) {
-                const fullLyric = line.pairs.map((p) => p.lyric).join('');
-                if (!fullLyric.trim()) return null;
-                return (
-                  <div
-                    key={lIdx}
-                    id={`sheet-line-${lIdx}`}
-                    className="hgf-sheet-line"
-                    data-sheet-line-index={lIdx}
-                    data-section-name={currentSectionTitle}
-                    style={{
-                      color: '#f1f5f9',
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                      overflowWrap: 'break-word',
-                      lineHeight: 1.45,
-                      marginBottom: `${Math.max(4, Math.round(fontSizePx * 0.25))}px`,
-                    }}
-                  >
-                    {fullLyric.trimStart()}
-                  </div>
-                );
-              }
-
-              // Chords Mode: decompose pairs into wrappable atomic tokens so lines wrap naturally without breaking chord alignment
-              const wrappableTokens = line.pairs.flatMap((pair) =>
-                splitPairIntoWrappableTokens(pair.chord, pair.lyric)
-              );
-
-              return (
-                <div
-                  key={lIdx}
-                  id={`sheet-line-${lIdx}`}
-                  className="hgf-sheet-line"
-                  data-sheet-line-index={lIdx}
-                  data-section-name={currentSectionTitle}
-                  style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    alignItems: 'flex-end',
-                    rowGap: `${Math.max(6, Math.round(fontSizePx * 0.35))}px`,
-                    columnGap: '0px',
-                    minHeight: '1.4em',
-                    marginBottom: `${Math.max(6, Math.round(fontSizePx * 0.35))}px`,
-                    wordBreak: 'break-word',
-                  }}
-                >
-                  {wrappableTokens.map((token, tIdx) => (
-                    <span
-                      key={tIdx}
-                      style={{
-                        display: 'inline-flex',
-                        flexDirection: 'column',
-                        alignItems: 'flex-start',
-                        verticalAlign: 'bottom',
-                      }}
-                    >
-                      <span
-                        onClick={() => token.chord && onOpenChordDiagram && onOpenChordDiagram(token.chord)}
-                        style={{
-                          fontSize: '0.82em',
-                          fontWeight: 800,
-                          color: '#f59e0b',
-                          cursor: token.chord ? 'pointer' : 'default',
-                          minHeight: '1.2em',
-                          lineHeight: 1.2,
-                          whiteSpace: 'pre',
-                          paddingRight: token.chord ? '4px' : '0px',
-                          userSelect: token.chord ? 'none' : 'text',
-                        }}
-                      >
-                        {token.chord || ''}
-                      </span>
-                      <span
-                        style={{
-                          color: '#f1f5f9',
-                          whiteSpace: 'pre',
-                          lineHeight: 1.4,
-                        }}
-                      >
-                        {token.lyric}
-                      </span>
-                    </span>
-                  ))}
-                </div>
-              );
-            }
-
-            // Fallback chord line rendering
-            if (line.type === 'chord_line' || line.type === 'chordpro') {
-              if (isLyricsOnly) return null;
-              return (
-                <div
-                  key={lIdx}
-                  id={`sheet-line-${lIdx}`}
-                  className="hgf-sheet-line"
-                  data-sheet-line-index={lIdx}
-                  data-section-name={currentSectionTitle}
-                  style={{
-                    minHeight: '1.5em',
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                    overflowWrap: 'break-word',
-                    lineHeight: 1.4,
-                    marginBottom: `${Math.max(4, Math.round(fontSizePx * 0.25))}px`,
-                  }}
-                >
-                  {line.items?.map((item, iIdx) =>
-                    item.isChord ? (
-                      <span
-                        key={iIdx}
-                        onClick={() => onOpenChordDiagram && onOpenChordDiagram(item.text)}
-                        style={{
-                          fontWeight: 800,
-                          color: '#f59e0b',
-                          backgroundColor: 'rgba(245, 158, 11, 0.12)',
-                          padding: '1px 4px',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          display: 'inline-block',
-                          marginRight: '2px',
-                        }}
-                      >
-                        {item.text}
-                      </span>
-                    ) : (
-                      <span key={iIdx} style={{ color: '#e2e8f0' }}>
-                        {item.text}
-                      </span>
-                    )
-                  )}
-                </div>
-              );
-            }
-
-            // Lyric line
-            return (
-              <div
-                key={lIdx}
-                id={`sheet-line-${lIdx}`}
-                className="hgf-sheet-line"
-                data-sheet-line-index={lIdx}
-                data-section-name={currentSectionTitle}
-                style={{
-                  color: '#f1f5f9',
-                  minHeight: '1.4em',
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word',
-                  overflowWrap: 'break-word',
-                  lineHeight: 1.45,
-                  marginBottom: `${Math.max(4, Math.round(fontSizePx * 0.25))}px`,
-                }}
-              >
-                {line.raw}
-              </div>
-            );
-          });
-        })()}
+        {renderedLyricsBody}
       </div>
       </div>
     </div>
@@ -1672,7 +1670,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
             right: 'calc(env(safe-area-inset-right, 0px) + 10px)',
             top: isImmersionMode
               ? 'calc(env(safe-area-inset-top, 0px) + 20px)'
-              : 'calc(env(safe-area-inset-top, 0px) + 114px)',
+              : 'calc(env(safe-area-inset-top, 0px) + 124px)',
             bottom: isImmersionMode
               ? hasPlaybackDock
                 ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 148px)'
