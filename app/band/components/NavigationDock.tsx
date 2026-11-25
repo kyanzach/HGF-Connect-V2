@@ -98,19 +98,13 @@ export const NavigationDock: React.FC<NavigationDockProps> = ({
       style={{
         position: 'fixed',
         right: 'calc(env(safe-area-inset-right, 0px) + 68px)',
-        bottom: hasPlaybackDock
-          ? hasAutoScrollBar
-            ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 230px)'
-            : 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 148px)'
-          : hasAutoScrollBar
-          ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 104px)'
-          : 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 20px)',
+        top: 'calc(env(safe-area-inset-top, 0px) + 114px)',
         display: 'flex',
         flexDirection: 'column',
         gap: '10px',
         zIndex: 60,
         userSelect: 'none',
-        transition: 'bottom 0.25s cubic-bezier(0.16, 1, 0.3, 1), right 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+        transition: 'top 0.2s ease, right 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
       }}
     >
       {/* Ambient Worship Pad FAB (Solo Performer Ambient Bed) */}

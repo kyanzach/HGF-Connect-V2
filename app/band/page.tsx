@@ -431,7 +431,7 @@ export default function BandStagePage() {
   const [fontSizePx, setFontSizePx] = useState<number>(17);
   const [isAutoScrolling, setIsAutoScrolling] = useState<boolean>(false);
   const [autoScrollSpeed, setAutoScrollSpeed] = useState<number>(3);
-  const [showAutoScrollBar, setShowAutoScrollBar] = useState<boolean>(false);
+  const [showAutoScrollBar, setShowAutoScrollBar] = useState<boolean>(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [isDrawingActive, setIsDrawingActive] = useState<boolean>(false);
 

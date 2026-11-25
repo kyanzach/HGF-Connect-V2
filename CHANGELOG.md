@@ -1,3 +1,9 @@
+## [v2.90.3] — 2026-11-25
+### Changed
+- **Top-Aligned Stage Tools Dock, Open-by-Default Auto-Scroll Bar & Cleaner Right Rail (`app/band/components/NavigationDock.tsx`, `app/band/components/SongSheet.tsx`, `app/band/page.tsx`)**:
+  - Moved `NavigationDock` (Pad, BPM, Chords, Font Size) from bottom-anchored to top-aligned (`top: 114px`) alongside the far-right section rail with clean breathing room below `StageTopBar`.
+  - Enabled the bottom fluid `AutoScrollBar` open by default (`showAutoScrollBar = true`) and removed the redundant yellow Play/Pause FAB above `INT` on the section rail.
+
 ## [v2.90.2] — 2026-11-25
 ### Changed
 - **Persistent Auto-Scroll Play Button Above Section Rail (`app/band/components/SongSheet.tsx`, `app/band/components/NavigationDock.tsx`)**:
