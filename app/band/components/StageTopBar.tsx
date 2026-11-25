@@ -123,6 +123,7 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
         paddingBottom: '10px',
         display: 'flex',
         flexDirection: 'column',
+        flexShrink: 0,
         gap: '8px',
         userSelect: 'none',
       }}

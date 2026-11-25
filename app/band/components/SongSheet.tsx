@@ -252,6 +252,8 @@ export const SongSheet: React.FC<SongSheetProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollBodyRef = useRef<HTMLDivElement>(null);
+  const sectionRailRef = useRef<HTMLElement | null>(null);
+  const sectionRailDraggedRef = useRef<boolean>(false);
   const lastSectionCheckTimeRef = useRef<number>(0);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
@@ -792,6 +794,114 @@ export const SongSheet: React.FC<SongSheetProps> = ({
       };
     });
   }, [songSections, sectionParts]);
+
+  // Native touch-drag + inertia scrolling for the right-side Song Sections rail
+  // Fixes iOS Safari & iOS Chrome (WebKit) ignoring vertical finger drags started on <button> pills inside fixed navs
+  useEffect(() => {
+    const rail = sectionRailRef.current;
+    if (!rail || allSections.length === 0) return;
+
+    let startY = 0;
+    let lastY = 0;
+    let lastTime = 0;
+    let startScrollTop = 0;
+    let velocityY = 0;
+    let dragged = false;
+    let glideRafId: number | null = null;
+    let clearDragTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const cancelGlide = () => {
+      if (glideRafId !== null) {
+        cancelAnimationFrame(glideRafId);
+        glideRafId = null;
+      }
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      cancelGlide();
+      if (clearDragTimer) {
+        clearTimeout(clearDragTimer);
+        clearDragTimer = null;
+      }
+      startY = e.touches[0].clientY;
+      lastY = startY;
+      lastTime = performance.now();
+      startScrollTop = rail.scrollTop;
+      velocityY = 0;
+      dragged = false;
+      sectionRailDraggedRef.current = false;
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      const y = e.touches[0].clientY;
+      const deltaFromStart = y - startY;
+
+      if (!dragged && Math.abs(deltaFromStart) > 5) {
+        dragged = true;
+        sectionRailDraggedRef.current = true;
+      }
+
+      if (dragged) {
+        if (e.cancelable) {
+          e.preventDefault();
+        }
+        e.stopPropagation();
+
+        const now = performance.now();
+        const dt = Math.max(1, now - lastTime);
+        const dy = y - lastY;
+        velocityY = (-dy / dt) * 16;
+        lastY = y;
+        lastTime = now;
+
+        const maxScroll = Math.max(0, rail.scrollHeight - rail.clientHeight);
+        rail.scrollTop = Math.max(0, Math.min(maxScroll, startScrollTop - deltaFromStart));
+      }
+    };
+
+    const onTouchEnd = () => {
+      if (!dragged) return;
+
+      const stepGlide = () => {
+        if (Math.abs(velocityY) < 0.4) {
+          glideRafId = null;
+          return;
+        }
+        const maxScroll = Math.max(0, rail.scrollHeight - rail.clientHeight);
+        const next = Math.max(0, Math.min(maxScroll, rail.scrollTop + velocityY));
+        rail.scrollTop = next;
+        if (next <= 0 || next >= maxScroll) {
+          glideRafId = null;
+          return;
+        }
+        velocityY *= 0.92;
+        glideRafId = requestAnimationFrame(stepGlide);
+      };
+      if (Math.abs(velocityY) > 1.2) {
+        glideRafId = requestAnimationFrame(stepGlide);
+      }
+
+      clearDragTimer = setTimeout(() => {
+        sectionRailDraggedRef.current = false;
+      }, 150);
+    };
+
+    rail.addEventListener('touchstart', onTouchStart, { passive: true });
+    rail.addEventListener('touchmove', onTouchMove, { passive: false });
+    rail.addEventListener('touchend', onTouchEnd, { passive: true });
+    rail.addEventListener('touchcancel', onTouchEnd, { passive: true });
+
+    return () => {
+      cancelGlide();
+      if (clearDragTimer) clearTimeout(clearDragTimer);
+      rail.removeEventListener('touchstart', onTouchStart);
+      rail.removeEventListener('touchmove', onTouchMove);
+      rail.removeEventListener('touchend', onTouchEnd);
+      rail.removeEventListener('touchcancel', onTouchEnd);
+    };
+  }, [allSections.length]);
 
   const jumpToSection = (name: string, targetLineIdx?: number, occurrenceIndex?: number, sectionId?: string) => {
     if (!containerRef.current || !name) return;
@@ -1723,6 +1833,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
       {/* FAR-RIGHT VERTICAL SECTION QUICK-JUMP RAIL (Prominent on far right with top clearance) */}
       {allSections.length > 0 && (
         <nav
+          ref={sectionRailRef}
           data-testid="section-jump-dock"
           aria-label="Song sections"
           style={{
@@ -1743,10 +1854,9 @@ export const SongSheet: React.FC<SongSheetProps> = ({
               ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 104px)'
               : 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 24px)',
             zIndex: 55,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-end',
+            display: 'block',
             overflowY: 'auto',
+            overflowX: 'hidden',
             WebkitOverflowScrolling: 'touch',
             touchAction: 'pan-y',
             overscrollBehaviorY: 'contain',
@@ -1762,7 +1872,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
               flexDirection: 'column',
               alignItems: 'flex-end',
               gap: '8px',
-              padding: '0 0 8px',
+              padding: '0 0 16px',
             }}
           >
             {allSections.map((sec, idx) => {
@@ -1805,6 +1915,10 @@ export const SongSheet: React.FC<SongSheetProps> = ({
                   data-interactive="true"
                   onClick={(e) => {
                     e.stopPropagation();
+                    if (sectionRailDraggedRef.current) {
+                      e.preventDefault();
+                      return;
+                    }
                     jumpToSection(sec.name, sec.lineIdx >= 0 ? sec.lineIdx : undefined, idx, sec.id);
                   }}
                   onDoubleClick={(e) => e.stopPropagation()}
@@ -1813,6 +1927,9 @@ export const SongSheet: React.FC<SongSheetProps> = ({
                   aria-current={isMatch ? 'location' : undefined}
                   style={{
                     pointerEvents: 'auto',
+                    touchAction: 'pan-y',
+                    userSelect: 'none',
+                    WebkitUserSelect: 'none',
                     flexShrink: 0,
                     minHeight: '40px',
                     minWidth: '48px',

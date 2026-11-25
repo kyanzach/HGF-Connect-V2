@@ -1,3 +1,12 @@
+## [v2.91.7] — 2026-11-25
+### Fixed
+- **iOS Safari Top Header Clipped Under Dynamic Island (`app/band/layout.tsx`, `app/band/page.tsx`, `app/band/components/StageTopBar.tsx`)**:
+  - Replaced `minHeight: '100vh'` in `app/band/layout.tsx` (which exceeds iOS Safari's visible `100dvh` and allowed the outer document to scroll Row 1 of `StageTopBar` underneath the iPhone status bar / Dynamic Island) with a locked `position: fixed; inset: 0; height: 100dvh` app shell and `flexShrink: 0` on `StageTopBar`.
+- **Song Sections Rail Touch-Dragging on iPhone Safari, iPhone Chrome, & Tablets (`app/band/components/SongSheet.tsx`)**:
+  - Switched `<nav data-testid="section-jump-dock">` from `display: flex` to `display: block` (`overflowY: auto`, `overflowX: hidden`) to eliminate the iOS WebKit fixed flex-column scroll bug, and added a dedicated native touch-drag + inertia glide handler so dragging anywhere on the section pills scrolls smoothly 1:1 on phones and tablets while preserving crisp taps to jump to a section.
+- **iPhone AutoScrollBar Slider Overflow (`app/band/components/AutoScrollBar.tsx`)**:
+  - Replaced `width: '100%'` on `<input type="range">` with `flex: '1 1 0px'; width: 0; minWidth: '24px'` so WebKit's intrinsic range input width no longer pushes `+` and `3x` on top of the `×` close button on narrow iPhone viewports.
+
 ## [v2.91.6] — 2026-11-25
 ### Fixed
 - **Draggable Song Sections Rail & Mobile AutoScrollBar Overlap (`app/band/components/SongSheet.tsx`, `app/band/components/AutoScrollBar.tsx`)**:

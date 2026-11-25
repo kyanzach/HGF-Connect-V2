@@ -62,8 +62,8 @@ export default function BandLayout({ children }: { children: React.ReactNode }) 
     <div
       style={{
         backgroundColor: '#0a0d14',
-        minHeight: '100vh',
-        width: '100vw',
+        height: '100dvh',
+        width: '100%',
         overflow: 'hidden',
         color: '#f8fafc',
       }}

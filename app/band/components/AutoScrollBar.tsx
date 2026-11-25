@@ -293,14 +293,14 @@ export const AutoScrollBar: React.FC<AutoScrollBarProps> = ({
             title="Slower"
             aria-label="Decrease scroll speed"
             style={{
-              minWidth: '40px',
-              width: 'clamp(40px, 9vw, 56px)',
-              height: '44px',
+              minWidth: '34px',
+              width: 'clamp(34px, 8.5vw, 52px)',
+              height: '42px',
               borderRadius: '12px',
               border: '1.5px solid #475569',
               background: '#162033',
               color: '#f8fafc',
-              fontSize: '22px',
+              fontSize: '20px',
               fontWeight: 800,
               lineHeight: 1,
               cursor: 'pointer',
@@ -323,9 +323,10 @@ export const AutoScrollBar: React.FC<AutoScrollBarProps> = ({
             aria-label="Scroll speed"
             onChange={(e) => onChangeSpeed(parseInt(e.target.value, 10) || 1)}
             style={{
-              flex: 1,
-              minWidth: '36px',
-              width: '100%',
+              flex: '1 1 0px',
+              width: 0,
+              minWidth: '24px',
+              maxWidth: '100%',
               height: '40px',
               accentColor: '#4EB1CB',
               cursor: 'pointer',
@@ -338,14 +339,14 @@ export const AutoScrollBar: React.FC<AutoScrollBarProps> = ({
             title="Faster"
             aria-label="Increase scroll speed"
             style={{
-              minWidth: '40px',
-              width: 'clamp(40px, 9vw, 56px)',
-              height: '44px',
+              minWidth: '34px',
+              width: 'clamp(34px, 8.5vw, 52px)',
+              height: '42px',
               borderRadius: '12px',
               border: '1.5px solid #475569',
               background: '#162033',
               color: '#f8fafc',
-              fontSize: '22px',
+              fontSize: '20px',
               fontWeight: 800,
               lineHeight: 1,
               cursor: 'pointer',

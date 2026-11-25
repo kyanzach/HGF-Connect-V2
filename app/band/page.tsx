@@ -1825,11 +1825,13 @@ export default function BandStagePage() {
   return (
     <div
       style={{
+        position: 'fixed',
+        inset: 0,
         display: 'flex',
         flexDirection: 'column',
-        height: 'var(--app-viewport-height, 100dvh)',
-        maxHeight: 'var(--app-viewport-height, 100dvh)',
-        width: '100vw',
+        height: '100dvh',
+        maxHeight: '100dvh',
+        width: '100%',
         overflow: 'hidden',
         overscrollBehavior: 'none',
         overscrollBehaviorY: 'none',
