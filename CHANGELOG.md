@@ -1,3 +1,9 @@
+## [v2.91.4] — 2026-11-25
+### Added
+- **MacBook 2-Finger Trackpad Horizontal Swipe for Next/Prev Song (`app/band/components/SongSheet.tsx`)**:
+  - Added a non-passive `wheel` horizontal gesture detector on `#sheetWrapper` matching the existing iOS/Android/iPad touch swipe behavior: 2-finger swipe left moves to the next song, 2-finger swipe right moves to the previous song.
+  - Prevents accidental Chrome/Safari browser Back/Forward navigation on horizontal swipes and applies a `750ms` momentum cooldown so macOS trackpad inertia moves strictly 1 song per gesture without ever interfering with vertical lyrics scrolling.
+
 ## [v2.91.3] — 2026-11-25
 ### Fixed
 - **Transpose Intro / Instrumental Lines Containing Repeat Markers (`x2`, `(2x)`, `|`, `N.C.`) (`app/band/lib/musicTheory.ts`)**:

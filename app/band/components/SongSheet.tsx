@@ -278,12 +278,18 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   const effectiveTargetSecRef = useRef<number>(targetDurationSec > 0 ? targetDurationSec : 240);
   const onUpdateElapsedRef = useRef(onUpdateElapsed);
   const onAutoScrollCompleteRef = useRef(onAutoScrollComplete);
+  const onSwipeLeftRef = useRef(onSwipeLeft);
+  const onSwipeRightRef = useRef(onSwipeRight);
+  const isDrawingActiveRef = useRef(isDrawingActive);
 
   scrollSpeedRef.current = scrollSpeed;
   scrollModeRef.current = scrollMode;
   effectiveTargetSecRef.current = targetDurationSec > 0 ? targetDurationSec : 240;
   onUpdateElapsedRef.current = onUpdateElapsed;
   onAutoScrollCompleteRef.current = onAutoScrollComplete;
+  onSwipeLeftRef.current = onSwipeLeft;
+  onSwipeRightRef.current = onSwipeRight;
+  isDrawingActiveRef.current = isDrawingActive;
 
   // Worship Leader Space & Notes State
   const [isEditingLeaderNotes, setIsEditingLeaderNotes] = useState<boolean>(false);
@@ -518,9 +524,61 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     el.addEventListener('touchstart', onTouchStartNative, { passive: true });
     el.addEventListener('touchmove', onTouchMoveNative, { passive: false });
 
+    // MacBook / laptop 2-finger horizontal trackpad swipe -> Next / Previous song
+    // Uses { passive: false } to prevent Chrome/Safari browser Back/Forward swipe navigation
+    // and includes a 750ms cooldown to absorb macOS trackpad momentum tail (strictly 1 song per swipe)
+    let wheelAccX = 0;
+    let wheelCooldownUntil = 0;
+    let wheelResetTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const onWheelNative = (e: WheelEvent) => {
+      if (isDrawingActiveRef.current) return;
+      const absX = Math.abs(e.deltaX);
+      const absY = Math.abs(e.deltaY);
+
+      // Only intercept clearly horizontal 2-finger swipes (never block vertical lyrics scrolling)
+      if (absX <= absY * 1.35 || absX < 4) return;
+
+      const target = e.target as HTMLElement | null;
+      if (target?.closest('input, select, textarea')) return;
+
+      if (e.cancelable) {
+        e.preventDefault();
+      }
+
+      const now = Date.now();
+      if (now < wheelCooldownUntil) {
+        wheelAccX = 0;
+        return;
+      }
+
+      wheelAccX += e.deltaX;
+      if (wheelResetTimer) clearTimeout(wheelResetTimer);
+      wheelResetTimer = setTimeout(() => {
+        wheelAccX = 0;
+      }, 160);
+
+      if (Math.abs(wheelAccX) >= 85) {
+        const direction = wheelAccX;
+        wheelAccX = 0;
+        wheelCooldownUntil = now + 750;
+        // On macOS Natural Scrolling: 2-finger swipe left -> positive deltaX (Next song),
+        // 2-finger swipe right -> negative deltaX (Previous song)
+        if (direction > 0) {
+          onSwipeLeftRef.current?.();
+        } else {
+          onSwipeRightRef.current?.();
+        }
+      }
+    };
+
+    el.addEventListener('wheel', onWheelNative, { passive: false });
+
     return () => {
+      if (wheelResetTimer) clearTimeout(wheelResetTimer);
       el.removeEventListener('touchstart', onTouchStartNative);
       el.removeEventListener('touchmove', onTouchMoveNative);
+      el.removeEventListener('wheel', onWheelNative);
     };
   }, []);
 
