@@ -1748,9 +1748,11 @@ export const SongSheet: React.FC<SongSheetProps> = ({
             alignItems: 'flex-end',
             overflowY: 'auto',
             WebkitOverflowScrolling: 'touch',
+            touchAction: 'pan-y',
+            overscrollBehaviorY: 'contain',
             scrollbarWidth: 'none',
             msOverflowStyle: 'none',
-            pointerEvents: 'none',
+            pointerEvents: 'auto',
             transition: 'top 0.2s ease, bottom 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
         >

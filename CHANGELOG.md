@@ -1,3 +1,9 @@
+## [v2.91.6] — 2026-11-25
+### Fixed
+- **Draggable Song Sections Rail & Mobile AutoScrollBar Overlap (`app/band/components/SongSheet.tsx`, `app/band/components/AutoScrollBar.tsx`)**:
+  - Enabled `pointerEvents: 'auto'`, `touchAction: 'pan-y'`, and `overscrollBehaviorY: 'contain'` on the far-right Song Sections rail so users can smoothly drag/scroll it up and down to view off-screen sections on long songs.
+  - Tuned `AutoScrollBar` responsive `clamp()` sizing so `+`, `1x`, and `×` never overlap on narrow mobile screens (down to `360px` wide) while remaining large and fluid on tablets and laptops.
+
 ## [v2.91.5] — 2026-11-25
 ### Fixed
 - **MacBook 2-Finger Trackpad Swipe Listener Attachment (`app/band/components/SongSheet.tsx`)**:
