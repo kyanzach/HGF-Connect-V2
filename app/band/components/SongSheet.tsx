@@ -43,6 +43,7 @@ interface SongSheetProps {
   onRevertToMasterLyrics?: () => void;
   hasPlaybackDock?: boolean;
   hasAutoScrollBar?: boolean;
+  showStageTools?: boolean;
 }
 
 function findSectionElement(
@@ -148,13 +149,26 @@ function findSectionElement(
 }
 
 function formatSectionRailLabel(raw: string): string {
-  return raw
-    .trim()
-    .replace(/\bpre[\s-]*chorus\b/gi, 'PRE-CH')
-    .replace(/\binstrumental\b/gi, 'INST')
-    .replace(/\binterlude\b/gi, 'INTER')
-    .replace(/\bturnaround\b/gi, 'TURN')
-    .replace(/\s+/g, ' ');
+  const cleaned = raw.trim().replace(/\s+/g, ' ');
+  const numMatch = cleaned.match(/(\d+[a-z]?)$/i);
+  const num = numMatch ? numMatch[1].toUpperCase() : '';
+  const lower = cleaned.toLowerCase();
+
+  if (lower.startsWith('intro')) return `INT${num}`;
+  if (/^pre[\s-]*chorus/i.test(cleaned) || /^pc\b/i.test(cleaned)) return `PC${num}`;
+  if (lower.startsWith('verse') || /^v\s*\d/i.test(cleaned)) return `V${num || ''}`.trim() || 'V';
+  if (lower.startsWith('chorus') || /^c\s*\d/i.test(cleaned)) return `C${num || ''}`.trim() || 'C';
+  if (lower.startsWith('bridge') || /^b\s*\d/i.test(cleaned)) return num ? `B${num}` : 'BR';
+  if (lower.startsWith('instrumental')) return `INST${num}`;
+  if (lower.startsWith('interlude')) return `INTL${num}`;
+  if (lower.startsWith('outro') || lower.startsWith('ending')) return `OUT${num}`;
+  if (lower.startsWith('coda')) return `CODA${num}`;
+  if (lower.startsWith('tag')) return `TAG${num}`;
+  if (lower.startsWith('vamp')) return `VMP${num}`;
+  if (lower.startsWith('refrain')) return `REF${num}`;
+  if (lower.startsWith('turnaround')) return `TRN${num}`;
+
+  return cleaned.length > 6 ? cleaned.slice(0, 5).toUpperCase() : cleaned.toUpperCase();
 }
 
 function splitPairIntoWrappableTokens(chord?: string, lyric?: string): { chord?: string; lyric: string }[] {
@@ -233,6 +247,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   onRevertToMasterLyrics,
   hasPlaybackDock = false,
   hasAutoScrollBar = false,
+  showStageTools = false,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollBodyRef = useRef<HTMLDivElement>(null);
@@ -243,10 +258,16 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   const lastTapPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const lastHandledTouchTapRef = useRef<number>(0);
   const scrollPosRef = useRef<number>(0);
+  const baseScrollTopRef = useRef<number>(0);
+  const virtualOffsetRef = useRef<number>(0);
+  const maxScrollRef = useRef<number>(0);
+  const sectionOffsetsRef = useRef<{ title: string; top: number }[]>([]);
+  const activeSectionNameRef = useRef<string>('');
   const elapsedMsRef = useRef<number>(0);
   const lastReportedSecRef = useRef<number>(-1);
   const isUserInteractingRef = useRef<boolean>(false);
   const userInteractionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const touchSafetyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Dynamic prop refs so animation loop never tears down on state/prop updates
   const scrollSpeedRef = useRef<number>(scrollSpeed);
@@ -332,40 +353,94 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     }
   };
 
-  // Calibrated gradual musical scroll speeds (1x - 20x in px/sec)
+  // Calibrated smooth musical scroll speeds (1x - 20x in px/sec)
+  // Tuned so 1x-4x slow worship ballads glide visibly without feeling frozen
   const SPEED_MAP: Record<number, number> = {
-    1: 2.0,   // 1x: Super slow acoustic ballad crawl (~21s per line)
-    2: 3.5,   // 2x: Very slow crawl (~12s per line)
-    3: 5.5,   // 3x: Gentle acoustic pace (~8s per line)
-    4: 8.0,   // 4x: Slow worship reading (~5s per line)
-    5: 11.0,  // 5x: Relaxed worship pace (~4s per line)
-    6: 15.0,  // 6x: Moderate slow (~3s per line)
-    7: 20.0,  // 7x: Standard steady pace
-    8: 26.0,  // 8x: Comfortable reading
-    9: 33.0,  // 9x: Moderate reading
-    10: 41.0, // 10x: Mid-tempo standard
-    11: 50.0, // 11x: Moderate brisk
-    12: 60.0, // 12x: Lively praise
-    13: 72.0, // 13x: Upbeat
-    14: 85.0, // 14x: Brisk praise
-    15: 100.0,// 15x: High speed
-    16: 118.0,// 16x: Fast scrub
-    17: 138.0,// 17x: Rapid
-    18: 160.0,// 18x: Very rapid
-    19: 185.0,// 19x: Teleprompter scrub
+    1: 4.0,   // 1x: Gentle acoustic ballad crawl (~10s per line)
+    2: 6.5,   // 2x: Slow worship crawl (~6.5s per line)
+    3: 9.5,   // 3x: Soft worship pace (~4.5s per line)
+    4: 13.0,  // 4x: Relaxed worship reading (~3.3s per line)
+    5: 17.0,  // 5x: Moderate slow
+    6: 22.0,  // 6x: Steady ballad
+    7: 28.0,  // 7x: Standard steady pace
+    8: 35.0,  // 8x: Comfortable reading
+    9: 43.0,  // 9x: Moderate reading
+    10: 52.0, // 10x: Mid-tempo standard
+    11: 62.0, // 11x: Moderate brisk
+    12: 73.0, // 12x: Lively praise
+    13: 85.0, // 13x: Upbeat
+    14: 98.0, // 14x: Brisk praise
+    15: 112.0,// 15x: High speed
+    16: 128.0,// 16x: Fast scrub
+    17: 146.0,// 17x: Rapid
+    18: 166.0,// 18x: Very rapid
+    19: 190.0,// 19x: Teleprompter scrub
     20: 215.0,// 20x: Maximum teleprompter scrub
   };
+
+  // Cache container maxScroll & section header offsets via ResizeObserver (zero forced reflows in rAF)
+  const refreshLayoutMetrics = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    maxScrollRef.current = Math.max(0, el.scrollHeight - el.clientHeight);
+    const headers = Array.from(el.querySelectorAll<HTMLElement>('[data-section-title]'));
+    sectionOffsetsRef.current = headers.map((h) => ({
+      title: h.getAttribute('data-section-title') || h.textContent || '',
+      top: h.offsetTop,
+    }));
+  }, []);
+
+  // Atomically commit GPU virtual translate3d offset back into native scrollTop
+  const commitVirtualScroll = useCallback(() => {
+    const el = containerRef.current;
+    const body = scrollBodyRef.current;
+    if (!el) return;
+    if (virtualOffsetRef.current !== 0) {
+      const maxS = Math.max(0, el.scrollHeight - el.clientHeight);
+      maxScrollRef.current = maxS;
+      const target = Math.max(0, Math.min(maxS, baseScrollTopRef.current + virtualOffsetRef.current));
+      el.scrollTop = Math.round(target);
+      baseScrollTopRef.current = el.scrollTop;
+      virtualOffsetRef.current = 0;
+      scrollPosRef.current = el.scrollTop;
+    } else {
+      baseScrollTopRef.current = el.scrollTop;
+      scrollPosRef.current = el.scrollTop;
+    }
+    if (body) {
+      body.style.transform = '';
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshLayoutMetrics();
+    const el = containerRef.current;
+    const body = scrollBodyRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => {
+      refreshLayoutMetrics();
+    });
+    ro.observe(el);
+    if (body) ro.observe(body);
+    return () => ro.disconnect();
+  }, [refreshLayoutMetrics, song?.id, fontSizePx, parsedLines.length, isImmersionMode, isLyricsOnly, showStageTools]);
 
   // Sync scrollPosRef & elapsedMs on mount or song change
   useEffect(() => {
     if (containerRef.current) {
       containerRef.current.scrollTop = 0;
       scrollPosRef.current = 0;
+      baseScrollTopRef.current = 0;
+      virtualOffsetRef.current = 0;
+    }
+    if (scrollBodyRef.current) {
+      scrollBodyRef.current.style.transform = '';
     }
     elapsedMsRef.current = 0;
     lastReportedSecRef.current = 0;
     onUpdateElapsedRef.current?.(0);
-  }, [song?.id]);
+    refreshLayoutMetrics();
+  }, [song?.id, refreshLayoutMetrics]);
 
   // Recalibrate elapsedMs proportionally when targetDurationSec changes (e.g. from 4:00 to 7:00) so pace does not freeze or reset
   useEffect(() => {
@@ -418,34 +493,38 @@ export const SongSheet: React.FC<SongSheetProps> = ({
 
   // Handle user manual scroll: update scrollPosRef and sync elapsed timer only when user actively touches/scrolls
   const handleScroll = () => {
-    if (!containerRef.current) return;
-    const currentScroll = containerRef.current.scrollTop;
+    const el = containerRef.current;
+    if (!el) return;
+    const currentScroll = el.scrollTop;
 
-    // Throttle section detection to prevent layout reflow thrashing on every scroll event
+    // Lightweight throttled section detection using cached offsets (zero forced reflows)
     const now = Date.now();
-    if (now - lastSectionCheckTimeRef.current > 350) {
+    if (now - lastSectionCheckTimeRef.current > 400) {
       lastSectionCheckTimeRef.current = now;
-      const headers = Array.from(containerRef.current.querySelectorAll<HTMLElement>('[data-section-title]'));
-      const scrollY = currentScroll + 60;
+      const offsets = sectionOffsetsRef.current;
+      const scrollY = currentScroll + virtualOffsetRef.current + 60;
       let foundSection = '';
-      for (const h of headers) {
-        if (h.offsetTop <= scrollY) {
-          foundSection = h.getAttribute('data-section-title') || h.textContent || '';
+      for (let i = 0; i < offsets.length; i++) {
+        if (offsets[i].top <= scrollY) {
+          foundSection = offsets[i].title;
         } else {
           break;
         }
       }
-      if (foundSection && foundSection !== activeSectionName) {
+      if (foundSection && foundSection !== activeSectionNameRef.current) {
+        activeSectionNameRef.current = foundSection;
         setActiveSectionName(foundSection);
       }
     }
 
     if (isUserInteractingRef.current) {
+      baseScrollTopRef.current = currentScroll;
+      virtualOffsetRef.current = 0;
       scrollPosRef.current = currentScroll;
-      if (scrollBodyRef.current) {
+      if (scrollBodyRef.current && scrollBodyRef.current.style.transform) {
         scrollBodyRef.current.style.transform = '';
       }
-      const maxScroll = containerRef.current.scrollHeight - containerRef.current.clientHeight;
+      const maxScroll = maxScrollRef.current;
       if (maxScroll > 0) {
         const totalMs = effectiveTargetSecRef.current * 1000;
         const ratio = Math.min(1, Math.max(0, currentScroll / maxScroll));
@@ -459,21 +538,29 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     }
   };
 
-  // Resilient, abuse-proof Auto-Scroll loop (60fps/120fps requestAnimationFrame with GPU Subpixel Compositing)
+  // Pro Teleprompter GPU Auto-Scroll Engine:
+  // Uses pure GPU-composited translate3d(0, -offset, 0) during glide with ZERO scrollTop writes
+  // and ZERO layout reflows inside rAF — completely eliminating 1x-4x subpixel jitter and freezes.
+  // Atomically commits back to native scrollTop on touch, wheel, section jump, or pause.
   useEffect(() => {
     if (!isAutoScrolling || !containerRef.current) {
-      if (scrollBodyRef.current) {
-        scrollBodyRef.current.style.transform = '';
-      }
+      commitVirtualScroll();
       return;
     }
+
     const container = containerRef.current;
-    const maxScroll = container.scrollHeight - container.clientHeight;
+    refreshLayoutMetrics();
+    const maxScroll = maxScrollRef.current;
     const totalMs = effectiveTargetSecRef.current * 1000;
+
+    // Ensure no stale interaction lock blocks playback start
+    isUserInteractingRef.current = false;
 
     // If starting at the very bottom, restart smoothly from top
     if (maxScroll > 0 && container.scrollTop >= maxScroll - 4) {
       container.scrollTop = 0;
+      baseScrollTopRef.current = 0;
+      virtualOffsetRef.current = 0;
       scrollPosRef.current = 0;
       elapsedMsRef.current = 0;
       lastReportedSecRef.current = 0;
@@ -482,6 +569,8 @@ export const SongSheet: React.FC<SongSheetProps> = ({
         scrollBodyRef.current.style.transform = '';
       }
     } else {
+      baseScrollTopRef.current = container.scrollTop;
+      virtualOffsetRef.current = 0;
       scrollPosRef.current = container.scrollTop;
       if (maxScroll > 0) {
         elapsedMsRef.current = (container.scrollTop / maxScroll) * totalMs;
@@ -490,75 +579,76 @@ export const SongSheet: React.FC<SongSheetProps> = ({
 
     let animId: number;
     let lastTime = performance.now();
+    let lastSectionPoll = lastTime;
 
     const frame = (now: number) => {
-      // Clamped delta ms to prevent huge jumps or freezes on frame hiccups
-      const dt = Math.min(64, Math.max(1, now - lastTime));
+      // Clamped delta ms (max 50ms) prevents huge jumps after tab switch or OS frame drop
+      const dt = Math.min(50, Math.max(0.5, now - lastTime));
       lastTime = now;
 
-      if (containerRef.current) {
-        const el = containerRef.current;
-        const currentMaxScroll = el.scrollHeight - el.clientHeight;
+      const el = containerRef.current;
+      const body = scrollBodyRef.current;
+
+      if (el && body) {
+        const currentMaxScroll = maxScrollRef.current;
         const currentTotalMs = effectiveTargetSecRef.current * 1000;
 
         if (isUserInteractingRef.current) {
-          // User is dragging or touching the screen: synchronize position without fighting user
+          // User is actively touching/wheeling: let native scroll lead cleanly
+          baseScrollTopRef.current = el.scrollTop;
+          virtualOffsetRef.current = 0;
           scrollPosRef.current = el.scrollTop;
-          if (scrollBodyRef.current) {
-            scrollBodyRef.current.style.transform = '';
-          }
+          if (body.style.transform) body.style.transform = '';
           if (currentMaxScroll > 0) {
             elapsedMsRef.current = (el.scrollTop / currentMaxScroll) * currentTotalMs;
           }
         } else if (currentMaxScroll > 0) {
           if (scrollModeRef.current === 'duration') {
-            // Pace / Duration Mode: advances smoothly according to arrangement duration
             elapsedMsRef.current = Math.min(currentTotalMs, elapsedMsRef.current + dt);
             const ratio = elapsedMsRef.current / currentTotalMs;
             scrollPosRef.current = Math.min(currentMaxScroll, ratio * currentMaxScroll);
 
-            const intScroll = Math.floor(scrollPosRef.current);
-            const subpixel = scrollPosRef.current - intScroll;
-            el.scrollTop = intScroll;
-            if (scrollBodyRef.current) {
-              scrollBodyRef.current.style.transform = `translate3d(0, ${-subpixel.toFixed(3)}px, 0)`;
-            }
-
-            // Report elapsed seconds to UI
             const currentSec = Math.floor(elapsedMsRef.current / 1000);
             if (currentSec !== lastReportedSecRef.current) {
               lastReportedSecRef.current = currentSec;
               onUpdateElapsedRef.current?.(currentSec);
             }
-
-            if (elapsedMsRef.current >= currentTotalMs || scrollPosRef.current >= currentMaxScroll - 1) {
-              if (scrollBodyRef.current) scrollBodyRef.current.style.transform = '';
-              onAutoScrollCompleteRef.current?.();
-              return;
-            }
           } else {
-            // Speed Mode: continuous subpixel GPU accumulation with calibrated gradual speeds
             const currentSpeed = scrollSpeedRef.current;
-            const pxPerSec = SPEED_MAP[currentSpeed] || (currentSpeed <= 1 ? 2.0 : currentSpeed * 10);
+            const pxPerSec = SPEED_MAP[currentSpeed] || (currentSpeed <= 1 ? 4.0 : currentSpeed * 10);
             scrollPosRef.current = Math.min(currentMaxScroll, scrollPosRef.current + (dt / 1000) * pxPerSec);
+          }
 
-            // Subpixel GPU rendering:
-            // el.scrollTop handles integer scrolling (keeps bounds & native touch gestures aligned)
-            // translate3d handles subpixel fractional rendering (eliminates discrete 1-pixel stepped jumps)
-            const targetPos = scrollPosRef.current;
-            const intScroll = Math.floor(targetPos);
-            const subpixel = targetPos - intScroll;
+          // Pure GPU subpixel transform — zero scrollTop mutations during playback
+          virtualOffsetRef.current = Math.max(0, scrollPosRef.current - baseScrollTopRef.current);
+          body.style.transform = `translate3d(0, ${-virtualOffsetRef.current.toFixed(3)}px, 0)`;
 
-            el.scrollTop = intScroll;
-            if (scrollBodyRef.current) {
-              scrollBodyRef.current.style.transform = `translate3d(0, ${-subpixel.toFixed(3)}px, 0)`;
+          // Lightweight active-section rail sync every 500ms using cached offsets (zero reflow)
+          if (now - lastSectionPoll > 500) {
+            lastSectionPoll = now;
+            const offsets = sectionOffsetsRef.current;
+            const virtualY = scrollPosRef.current + 60;
+            let foundSection = '';
+            for (let i = 0; i < offsets.length; i++) {
+              if (offsets[i].top <= virtualY) {
+                foundSection = offsets[i].title;
+              } else {
+                break;
+              }
             }
-
-            if (scrollPosRef.current >= currentMaxScroll - 0.5) {
-              if (scrollBodyRef.current) scrollBodyRef.current.style.transform = '';
-              onAutoScrollCompleteRef.current?.();
-              return;
+            if (foundSection && foundSection !== activeSectionNameRef.current) {
+              activeSectionNameRef.current = foundSection;
+              setActiveSectionName(foundSection);
             }
+          }
+
+          if (
+            scrollPosRef.current >= currentMaxScroll - 0.5 ||
+            (scrollModeRef.current === 'duration' && elapsedMsRef.current >= currentTotalMs)
+          ) {
+            commitVirtualScroll();
+            onAutoScrollCompleteRef.current?.();
+            return;
           }
         }
       }
@@ -569,11 +659,9 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     animId = requestAnimationFrame(frame);
     return () => {
       cancelAnimationFrame(animId);
-      if (scrollBodyRef.current) {
-        scrollBodyRef.current.style.transform = '';
-      }
+      commitVirtualScroll();
     };
-  }, [isAutoScrolling]);
+  }, [isAutoScrolling, commitVirtualScroll, refreshLayoutMetrics]);
 
   const [activeSectionName, setActiveSectionName] = useState<string>('');
   const [activeSectionId, setActiveSectionId] = useState<string>('');
@@ -640,6 +728,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
 
   const jumpToSection = (name: string, targetLineIdx?: number, occurrenceIndex?: number, sectionId?: string) => {
     if (!containerRef.current || !name) return;
+    commitVirtualScroll();
     const container = containerRef.current;
     const targetEl = findSectionElement(container, name, targetLineIdx, occurrenceIndex);
 
@@ -648,12 +737,15 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     const cRect = container.getBoundingClientRect();
     const tRect = targetEl.getBoundingClientRect();
     const maxScroll = container.scrollHeight - container.clientHeight;
+    maxScrollRef.current = Math.max(0, maxScroll);
     const currentTotalMs = effectiveTargetSecRef.current * 1000;
 
     const relativeOffset = tRect.top - cRect.top;
     const targetScrollTop = Math.max(0, Math.min(maxScroll, container.scrollTop + relativeOffset - 24));
 
     // Immediately synchronize auto-scroll position refs so animation frame doesn't fight or revert
+    baseScrollTopRef.current = targetScrollTop;
+    virtualOffsetRef.current = 0;
     scrollPosRef.current = targetScrollTop;
     if (maxScroll > 0) {
       elapsedMsRef.current = (targetScrollTop / maxScroll) * currentTotalMs;
@@ -664,13 +756,19 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     isUserInteractingRef.current = true;
     userInteractionTimeoutRef.current = setTimeout(() => {
       isUserInteractingRef.current = false;
-    }, 700);
+      if (containerRef.current) {
+        baseScrollTopRef.current = containerRef.current.scrollTop;
+        scrollPosRef.current = containerRef.current.scrollTop;
+        virtualOffsetRef.current = 0;
+      }
+    }, 650);
 
     container.scrollTo({
       top: targetScrollTop,
       behavior: 'smooth',
     });
 
+    activeSectionNameRef.current = name;
     setActiveSectionName(name);
     if (sectionId) setActiveSectionId(sectionId);
 
@@ -687,6 +785,18 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     } catch (_) {}
   };
 
+  const armTouchSafetyRelease = useCallback(() => {
+    if (touchSafetyTimeoutRef.current) clearTimeout(touchSafetyTimeoutRef.current);
+    touchSafetyTimeoutRef.current = setTimeout(() => {
+      isUserInteractingRef.current = false;
+      if (containerRef.current) {
+        baseScrollTopRef.current = containerRef.current.scrollTop;
+        scrollPosRef.current = containerRef.current.scrollTop;
+        virtualOffsetRef.current = 0;
+      }
+    }, 5000);
+  }, []);
+
   const handleTouchStart = (e: React.TouchEvent) => {
     try {
       if (typeof window !== 'undefined' && (window as any).AndroidBand?.setSwipeRefreshEnabled) {
@@ -694,19 +804,48 @@ export const SongSheet: React.FC<SongSheetProps> = ({
       }
     } catch (_) {}
 
+    commitVirtualScroll();
     if (userInteractionTimeoutRef.current) clearTimeout(userInteractionTimeoutRef.current);
     isUserInteractingRef.current = true;
+    armTouchSafetyRelease();
     if (isDrawingActive) return;
 
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
   };
 
+  const handleTouchMove = () => {
+    if (isUserInteractingRef.current) {
+      armTouchSafetyRelease();
+    }
+  };
+
+  const handleTouchCancel = () => {
+    if (touchSafetyTimeoutRef.current) clearTimeout(touchSafetyTimeoutRef.current);
+    if (userInteractionTimeoutRef.current) clearTimeout(userInteractionTimeoutRef.current);
+    touchStartX.current = null;
+    touchStartY.current = null;
+    userInteractionTimeoutRef.current = setTimeout(() => {
+      isUserInteractingRef.current = false;
+      if (containerRef.current) {
+        baseScrollTopRef.current = containerRef.current.scrollTop;
+        scrollPosRef.current = containerRef.current.scrollTop;
+        virtualOffsetRef.current = 0;
+      }
+    }, 120);
+  };
+
   const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchSafetyTimeoutRef.current) clearTimeout(touchSafetyTimeoutRef.current);
     if (userInteractionTimeoutRef.current) clearTimeout(userInteractionTimeoutRef.current);
     userInteractionTimeoutRef.current = setTimeout(() => {
       isUserInteractingRef.current = false;
-    }, 120);
+      if (containerRef.current) {
+        baseScrollTopRef.current = containerRef.current.scrollTop;
+        scrollPosRef.current = containerRef.current.scrollTop;
+        virtualOffsetRef.current = 0;
+      }
+    }, 150);
 
     if (isDrawingActive) return;
 
@@ -783,7 +922,9 @@ export const SongSheet: React.FC<SongSheetProps> = ({
         ref={containerRef}
       id="sheetWrapper"
       onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchCancel}
       onDoubleClick={(e) => {
         if (isDrawingActive) return;
         // Suppress synthetic mouse dblclick on touch devices that already handled touch double-tap
@@ -793,11 +934,17 @@ export const SongSheet: React.FC<SongSheetProps> = ({
         onDoubleTap?.();
       }}
       onWheel={() => {
+        commitVirtualScroll();
         if (userInteractionTimeoutRef.current) clearTimeout(userInteractionTimeoutRef.current);
         isUserInteractingRef.current = true;
         userInteractionTimeoutRef.current = setTimeout(() => {
           isUserInteractingRef.current = false;
-        }, 200);
+          if (containerRef.current) {
+            baseScrollTopRef.current = containerRef.current.scrollTop;
+            scrollPosRef.current = containerRef.current.scrollTop;
+            virtualOffsetRef.current = 0;
+          }
+        }, 220);
       }}
       onScroll={handleScroll}
       style={{
@@ -809,12 +956,12 @@ export const SongSheet: React.FC<SongSheetProps> = ({
         paddingTop: isImmersionMode ? 'calc(env(safe-area-inset-top, 0px) + 24px)' : '16px',
         paddingLeft: 'calc(env(safe-area-inset-left, 0px) + 20px)',
         paddingRight: allSections.length > 0
-          ? isImmersionMode
-            ? 'calc(env(safe-area-inset-right, 0px) + 114px)'
-            : 'calc(env(safe-area-inset-right, 0px) + 174px)'
-          : isImmersionMode
-          ? '20px'
-          : 'calc(env(safe-area-inset-right, 0px) + 76px)',
+          ? !isImmersionMode && showStageTools
+            ? 'calc(env(safe-area-inset-right, 0px) + 126px)'
+            : 'calc(env(safe-area-inset-right, 0px) + 70px)'
+          : !isImmersionMode && showStageTools
+          ? 'calc(env(safe-area-inset-right, 0px) + 74px)'
+          : '20px',
         paddingBottom: isImmersionMode
           ? hasPlaybackDock
             ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 168px)'
@@ -838,6 +985,15 @@ export const SongSheet: React.FC<SongSheetProps> = ({
         overscrollBehaviorY: 'none',
       }}
     >
+      {/* GPU-Composited Scrollable Content Layer (Header + Leader Space + Lyrics glide as one unified layer) */}
+      <div
+        ref={scrollBodyRef}
+        style={{
+          position: 'relative',
+          willChange: isAutoScrolling ? 'transform' : 'auto',
+          backfaceVisibility: 'hidden',
+        }}
+      >
       {/* Persistent Full-Sheet Annotation Canvas */}
       {drawingCanvasElement}
 
@@ -1269,13 +1425,11 @@ export const SongSheet: React.FC<SongSheetProps> = ({
       {/* CHORD & LYRIC BODY */}
       <div
         id="sheetScrollBody"
-        ref={scrollBodyRef}
         style={{
           fontSize: `${fontSizePx}px`,
           lineHeight: '1.6',
           whiteSpace: 'pre-wrap',
           position: 'relative',
-          willChange: isAutoScrolling ? 'transform' : 'auto',
         }}
       >
         {(() => {
@@ -1488,21 +1642,20 @@ export const SongSheet: React.FC<SongSheetProps> = ({
           });
         })()}
       </div>
+      </div>
     </div>
 
-      {/* RIGHT-SIDE VERTICAL SECTION QUICK-JUMP RAIL (Works in both standard & focus modes) */}
+      {/* FAR-RIGHT VERTICAL SECTION QUICK-JUMP RAIL (Prominent on far right in both standard & focus modes) */}
       {allSections.length > 0 && (
         <nav
           data-testid="section-jump-dock"
           aria-label="Song sections"
           style={{
             position: 'fixed',
-            right: isImmersionMode
-              ? 'calc(env(safe-area-inset-right, 0px) + 12px)'
-              : 'calc(env(safe-area-inset-right, 0px) + 74px)',
+            right: 'calc(env(safe-area-inset-right, 0px) + 10px)',
             top: isImmersionMode
-              ? 'calc(env(safe-area-inset-top, 0px) + 18px)'
-              : 'calc(env(safe-area-inset-top, 0px) + 68px)',
+              ? 'calc(env(safe-area-inset-top, 0px) + 16px)'
+              : 'calc(env(safe-area-inset-top, 0px) + 92px)',
             bottom: isImmersionMode
               ? hasPlaybackDock
                 ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 148px)'
@@ -1523,7 +1676,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
             scrollbarWidth: 'none',
             msOverflowStyle: 'none',
             pointerEvents: 'none',
-            transition: 'right 0.25s cubic-bezier(0.16, 1, 0.3, 1), bottom 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+            transition: 'top 0.2s ease, bottom 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
         >
           <div
@@ -1532,7 +1685,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'flex-end',
-              gap: '10px',
+              gap: '8px',
               padding: '4px 0',
             }}
           >
@@ -1585,16 +1738,16 @@ export const SongSheet: React.FC<SongSheetProps> = ({
                   style={{
                     pointerEvents: 'auto',
                     flexShrink: 0,
-                    minHeight: '44px',
-                    minWidth: '68px',
-                    padding: '8px 13px',
-                    borderRadius: '14px',
+                    minHeight: '40px',
+                    minWidth: '48px',
+                    padding: '6px 9px',
+                    borderRadius: '12px',
                     backgroundColor: badgeBg,
                     border: `1.5px solid ${badgeBorder}`,
                     color: badgeColor,
-                    fontSize: '12px',
+                    fontSize: '11.5px',
                     fontWeight: 800,
-                    letterSpacing: '0.3px',
+                    letterSpacing: '0.25px',
                     textTransform: 'uppercase',
                     cursor: 'pointer',
                     whiteSpace: 'nowrap',
@@ -1607,7 +1760,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
                     boxShadow: isMatch
                       ? '0 4px 14px rgba(78, 177, 203, 0.35)'
                       : '0 2px 8px rgba(0, 0, 0, 0.35)',
-                    transform: isMatch ? 'scale(1.03)' : 'scale(1)',
+                    transform: isMatch ? 'scale(1.04)' : 'scale(1)',
                     transition: 'all 0.15s ease',
                   }}
                 >

@@ -575,6 +575,7 @@ export default function BandStagePage() {
   // Clean Stage Immersion Mode (double-tap anywhere to hide all toolbars, sidebar, docks)
   const [isImmersionMode, setIsImmersionMode] = useState<boolean>(false);
   const [isImmersionPlaybackExpanded, setIsImmersionPlaybackExpanded] = useState<boolean>(false);
+  const [showStageTools, setShowStageTools] = useState<boolean>(false);
   const lastToggleImmersionTimeRef = useRef<number>(0);
 
   const handleToggleImmersionMode = useCallback(() => {
@@ -1846,6 +1847,8 @@ export default function BandStagePage() {
           isCleaningProPresenter={isCleaningProPresenter}
           hasSavedProPresenterLyrics={Boolean(currentSong?.proPresenterLyrics && currentSong.proPresenterLyrics.trim())}
           onReCleanProPresenter={handleReCleanProPresenter}
+          showStageTools={showStageTools}
+          onToggleStageTools={() => setShowStageTools((prev) => !prev)}
         />
       )}
 
@@ -1885,6 +1888,7 @@ export default function BandStagePage() {
         onUpdateSongNotes={handleSaveSongNotes}
         hasPlaybackDock={isPlaybackDockVisible}
         hasAutoScrollBar={showAutoScrollBar}
+        showStageTools={showStageTools}
         drawingCanvasElement={
           <DrawingCanvas
             key={`drawing_${currentSong?.id}_${currentUser?.id || 'guest'}`}
@@ -1897,8 +1901,8 @@ export default function BandStagePage() {
         }
       />
 
-      {/* FLOATING NAVIGATION DOCK */}
-      {!isImmersionMode && (
+      {/* FLOATING NAVIGATION DOCK (Hidden by default; toggled via Settings gear icon next to Pad) */}
+      {!isImmersionMode && showStageTools && (
         <NavigationDock
           onPrevSong={prevSong}
           onNextSong={nextSong}
@@ -1915,6 +1919,7 @@ export default function BandStagePage() {
           onOpenMetronome={() => setIsMetronomeModalOpen(true)}
           isMetronomeAudioActive={isMetronomeAudioActive}
           hasPlaybackDock={isPlaybackDockVisible}
+          hasAutoScrollBar={showAutoScrollBar}
           duration={currentSongDuration}
           onOpenDurationPicker={() => setIsDurationModalOpen(true)}
           isLyricsOnly={isLyricsOnly}

@@ -19,6 +19,7 @@ interface NavigationDockProps {
   onOpenMetronome?: () => void;
   isMetronomeAudioActive?: boolean;
   hasPlaybackDock?: boolean;
+  hasAutoScrollBar?: boolean;
   duration?: string;
   onOpenDurationPicker?: () => void;
   isLyricsOnly?: boolean;
@@ -46,6 +47,7 @@ export const NavigationDock: React.FC<NavigationDockProps> = ({
   onOpenMetronome,
   isMetronomeAudioActive = false,
   hasPlaybackDock = false,
+  hasAutoScrollBar = false,
   duration,
   onOpenDurationPicker,
   isLyricsOnly = false,
@@ -90,18 +92,25 @@ export const NavigationDock: React.FC<NavigationDockProps> = ({
 
   return (
     <div
+      data-interactive="true"
+      onClick={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => e.stopPropagation()}
       style={{
         position: 'fixed',
-        right: '16px',
+        right: 'calc(env(safe-area-inset-right, 0px) + 68px)',
         bottom: hasPlaybackDock
-          ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 148px)'
+          ? hasAutoScrollBar
+            ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 230px)'
+            : 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 148px)'
+          : hasAutoScrollBar
+          ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 104px)'
           : 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 20px)',
         display: 'flex',
         flexDirection: 'column',
         gap: '10px',
         zIndex: 60,
         userSelect: 'none',
-        transition: 'bottom 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+        transition: 'bottom 0.25s cubic-bezier(0.16, 1, 0.3, 1), right 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
       }}
     >
       {/* Ambient Worship Pad FAB (Solo Performer Ambient Bed) */}
@@ -393,68 +402,6 @@ export const NavigationDock: React.FC<NavigationDockProps> = ({
           A-
         </button>
       </div>
-
-      {/* Next / Prev Stepper */}
-      {totalSongs > 1 && (
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            backgroundColor: 'rgba(22, 28, 38, 0.85)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid #334155',
-            borderRadius: '22px',
-            overflow: 'hidden',
-            boxShadow: '0 6px 16px rgba(0,0,0,0.5)',
-          }}
-        >
-          <button
-            onClick={onPrevSong}
-            disabled={!canPrev}
-            title="Previous Song"
-            style={{
-              width: '44px',
-              height: '40px',
-              border: 'none',
-              background: 'transparent',
-              color: canPrev ? '#38bdf8' : '#475569',
-              fontSize: '16px',
-              cursor: canPrev ? 'pointer' : 'not-allowed',
-            }}
-          >
-            ▲
-          </button>
-          <div
-            style={{
-              textAlign: 'center',
-              fontSize: '10px',
-              fontWeight: 800,
-              color: '#94a3b8',
-              padding: '2px 0',
-              borderTop: '1px solid #334155',
-              borderBottom: '1px solid #334155',
-            }}
-          >
-            {currentIndex + 1}/{totalSongs}
-          </div>
-          <button
-            onClick={onNextSong}
-            disabled={!canNext}
-            title="Next Song"
-            style={{
-              width: '44px',
-              height: '40px',
-              border: 'none',
-              background: 'transparent',
-              color: canNext ? '#38bdf8' : '#475569',
-              fontSize: '16px',
-              cursor: canNext ? 'pointer' : 'not-allowed',
-            }}
-          >
-            ▼
-          </button>
-        </div>
-      )}
     </div>
   );
 };

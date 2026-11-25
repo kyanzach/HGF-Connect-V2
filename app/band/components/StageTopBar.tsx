@@ -37,6 +37,8 @@ interface StageTopBarProps {
   isCleaningProPresenter?: boolean;
   hasSavedProPresenterLyrics?: boolean;
   onReCleanProPresenter?: () => void;
+  showStageTools?: boolean;
+  onToggleStageTools?: () => void;
 }
 
 export const StageTopBar: React.FC<StageTopBarProps> = ({
@@ -65,6 +67,8 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
   isCleaningProPresenter = false,
   hasSavedProPresenterLyrics = false,
   onReCleanProPresenter,
+  showStageTools = false,
+  onToggleStageTools,
 }) => {
   const [copiedLink, setCopiedLink] = React.useState(false);
   const [isUpdatingApp, setIsUpdatingApp] = React.useState(false);
@@ -411,6 +415,57 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
             <span>Edit</span>
           </button>
           <button
+            type="button"
+            onClick={onOpenAmbientPad}
+            title="Ambient Worship Pads"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              padding: '0 10px',
+              height: '34px',
+              borderRadius: '8px',
+              background: '#1e293b',
+              border: '1px solid #334155',
+              color: '#f8fafc',
+              fontSize: '12px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <span>🎹</span>
+            <span>Pad</span>
+          </button>
+          {onToggleStageTools && (
+            <button
+              type="button"
+              onClick={onToggleStageTools}
+              title={showStageTools ? 'Hide stage tools dock' : 'Show stage tools (BPM, Auto-Scroll, Chords, Font Size)'}
+              aria-label={showStageTools ? 'Hide stage tools' : 'Show stage tools'}
+              aria-pressed={showStageTools}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '36px',
+                height: '34px',
+                borderRadius: '8px',
+                background: showStageTools ? 'rgba(78, 177, 203, 0.22)' : '#1e293b',
+                border: `1px solid ${showStageTools ? '#4EB1CB' : '#334155'}`,
+                color: showStageTools ? '#4EB1CB' : '#cbd5e1',
+                cursor: 'pointer',
+                flexShrink: 0,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+            </button>
+          )}
+          <button
             onClick={onToggleDrawing}
             title="Draw / Annotate with Finger or Apple Pencil"
             style={{
@@ -576,28 +631,6 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
               )}
             </div>
           )}
-          <button
-            onClick={onOpenAmbientPad}
-            title="Ambient Worship Pads"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '5px',
-              padding: '0 10px',
-              height: '34px',
-              borderRadius: '8px',
-              background: '#1e293b',
-              border: '1px solid #334155',
-              color: '#f8fafc',
-              fontSize: '12px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            <span>🎹</span>
-            <span>Pad</span>
-          </button>
         </div>
       </div>
     </header>

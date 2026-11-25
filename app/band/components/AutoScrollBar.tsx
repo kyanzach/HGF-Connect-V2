@@ -74,9 +74,7 @@ export const AutoScrollBar: React.FC<AutoScrollBarProps> = ({
         position: 'fixed',
         bottom: bottomOffset,
         left: 'calc(env(safe-area-inset-left, 0px) + 12px)',
-        right: isImmersionMode
-          ? 'calc(env(safe-area-inset-right, 0px) + 12px)'
-          : 'calc(env(safe-area-inset-right, 0px) + 76px)',
+        right: 'calc(env(safe-area-inset-right, 0px) + 12px)',
         margin: '0 auto',
         maxWidth: '960px',
         zIndex: 65,

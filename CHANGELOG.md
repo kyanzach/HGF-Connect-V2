@@ -1,3 +1,10 @@
+## [v2.90.0] — 2026-11-25
+### Changed / Fixed
+- **Band Stage Toolbar Hierarchy, Compact Far-Right Section Rail & Pro GPU Auto-Scroll Engine (`app/band/components/StageTopBar.tsx`, `app/band/components/NavigationDock.tsx`, `app/band/components/AutoScrollBar.tsx`, `app/band/components/SongSheet.tsx`, `app/band/page.tsx`)**:
+  - **Toolbar & Settings Gear Toggle (`StageTopBar.tsx`, `page.tsx`)**: Moved `Pad` directly next to `Edit` and added a crisp SVG Settings gear toggle right next to `Pad` to show/hide the stage tools dock (`NavigationDock`), which is now hidden by default.
+  - **Prominent Far-Right Section Rail & Secondary Tools Dock (`SongSheet.tsx`, `NavigationDock.tsx`, `AutoScrollBar.tsx`)**: Abbreviated section shortcut labels (`INT`, `V1`, `PC1`, `C2`, `INST`, `BR`, `CODA`, etc.) into compact `40×48px` pills anchored permanently to the far right (`right: 10px`) with tighter sheet right padding so lyrics never break awkwardly; removed the Next/Prev song stepper (`▲ 25/87 ▼`) from `NavigationDock`; positioned `NavigationDock` in the secondary column (`right: 68px`) when toggled open; and expanded `AutoScrollBar` to full liquid width across both modes.
+  - **Fixed 1x–4x Slow Auto-Scroll Jitter & Freezes (`SongSheet.tsx`)**: Replaced per-frame `scrollTop` + `translate3d` hybrid writes (which caused 1-frame compositor desync at every pixel boundary) with a pure GPU-composited `translate3d(0, -offset, 0)` virtual scroll engine during playback that atomically commits back to native `scrollTop` on touch, wheel, section jump, or pause; cached `maxScroll` and section header offsets via `ResizeObserver` to eliminate forced layout reflows inside `requestAnimationFrame`; added `onTouchCancel` + 5s touch watchdog to prevent stuck `isUserInteractingRef` freezes on mobile WebViews; and recalibrated `1x`–`4x` speeds (`4.0`–`13.0 px/s`) for silky-smooth slow worship ballads.
+
 ## [v2.89.0] — 2026-11-25
 ### Changed / Improved
 - **Band Stage Auto-Scroll Bar, Focus Mode & Right-Side Section Rail (`app/band/components/AutoScrollBar.tsx`, `app/band/page.tsx`, `app/band/components/SongSheet.tsx`)**:
