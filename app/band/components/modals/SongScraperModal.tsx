@@ -48,6 +48,30 @@ interface SongScraperModalProps {
   isEditingExisting?: boolean;
 }
 
+const FLAT_TO_SHARP_PICKER: Record<string, string> = {
+  Bb: 'A#',
+  Eb: 'D#',
+  Ab: 'G#',
+  Db: 'C#',
+  Gb: 'F#',
+};
+
+const PREFER_FLAT_TARGET_KEYS = new Set(['F', 'Bb', 'A#', 'Eb', 'D#', 'Ab', 'G#', 'Db', 'Gb']);
+
+function normalizeToPickerKey(rawKey?: string | null): string {
+  if (!rawKey) return 'C';
+  const m = String(rawKey).trim().match(/^([A-G])([b#]?)/i);
+  if (!m) return 'C';
+  const root = `${m[1].toUpperCase()}${m[2] ? (m[2] === '#' ? '#' : 'b') : ''}`;
+  return FLAT_TO_SHARP_PICKER[root] || root;
+}
+
+function getWrittenTabKey(data: ScrapedDetail, rawChords: string): string {
+  const detected = detectRootKeyFromChords(rawChords);
+  if (detected) return detected;
+  return data.original_key || data.key || 'C';
+}
+
 export const SongScraperModal: React.FC<SongScraperModalProps> = ({
   isOpen,
   onClose,
@@ -126,8 +150,9 @@ export const SongScraperModal: React.FC<SongScraperModalProps> = ({
       if (data && (data.chords_over_lyrics || data.chords_text || data.lyrics)) {
         setPreviewData(data);
         const rawChords = data.chords_over_lyrics || data.chords_text || data.lyrics || '';
-        const detected = data.original_key || data.key || detectRootKeyFromChords(rawChords) || 'C';
-        setTargetKey(detected);
+        const writtenKey = getWrittenTabKey(data, rawChords);
+        const initialConcertKey = data.original_key || data.key || writtenKey;
+        setTargetKey(normalizeToPickerKey(initialConcertKey));
         setStatusText('');
       } else {
         setStatusText('Could not extract chord sheet from this tab version.');
@@ -145,9 +170,10 @@ export const SongScraperModal: React.FC<SongScraperModalProps> = ({
 
     try {
       const rawChords = previewData.chords_over_lyrics || previewData.chords_text || previewData.lyrics || '';
-      const originalScrapedKey = previewData.original_key || previewData.key || detectRootKeyFromChords(rawChords) || 'C';
-      const diff = calculateSemitoneDistance(originalScrapedKey, targetKey);
-      const finalChords = diff !== 0 ? transposeChordSheetText(rawChords, diff, FLAT_KEYS.includes(targetKey)) : rawChords;
+      const writtenTabKey = getWrittenTabKey(previewData, rawChords);
+      const diff = calculateSemitoneDistance(writtenTabKey, targetKey);
+      const preferFlats = FLAT_KEYS.includes(targetKey) || PREFER_FLAT_TARGET_KEYS.has(targetKey);
+      const finalChords = diff !== 0 ? transposeChordSheetText(rawChords, diff, preferFlats) : rawChords;
 
       const newSong: Song = {
         id: `song-${Date.now()}`,
@@ -155,7 +181,7 @@ export const SongScraperModal: React.FC<SongScraperModalProps> = ({
         artist: previewData.artist_name || 'HGF Worship',
         key: targetKey,
         originalKey: targetKey,
-        capo: String(previewData.capo || 0),
+        capo: diff !== 0 ? '0' : String(previewData.capo || 0),
         tempo: previewData.bpm ? parseInt(String(previewData.bpm), 10) : 72,
         timeSignature: '4/4',
         chords: finalChords.trim(),
@@ -177,9 +203,10 @@ export const SongScraperModal: React.FC<SongScraperModalProps> = ({
   const handleOverwrite = () => {
     if (!previewData || !onOverwriteChords) return;
     const rawChords = previewData.chords_over_lyrics || previewData.chords_text || previewData.lyrics || '';
-    const originalScrapedKey = previewData.original_key || previewData.key || detectRootKeyFromChords(rawChords) || 'C';
-    const diff = calculateSemitoneDistance(originalScrapedKey, targetKey);
-    const finalChords = diff !== 0 ? transposeChordSheetText(rawChords, diff, FLAT_KEYS.includes(targetKey)) : rawChords;
+    const writtenTabKey = getWrittenTabKey(previewData, rawChords);
+    const diff = calculateSemitoneDistance(writtenTabKey, targetKey);
+    const preferFlats = FLAT_KEYS.includes(targetKey) || PREFER_FLAT_TARGET_KEYS.has(targetKey);
+    const finalChords = diff !== 0 ? transposeChordSheetText(rawChords, diff, preferFlats) : rawChords;
 
     onOverwriteChords(
       finalChords.trim(),
@@ -490,10 +517,11 @@ export const SongScraperModal: React.FC<SongScraperModalProps> = ({
               {/* Target Key Selection Bar before Importing */}
               {(() => {
                 const rawPreviewChords = previewData.chords_over_lyrics || previewData.chords_text || previewData.lyrics || '';
-                const originalScrapedKey = previewData.original_key || previewData.key || detectRootKeyFromChords(rawPreviewChords) || 'C';
-                const previewDiff = calculateSemitoneDistance(originalScrapedKey, targetKey);
+                const writtenTabKey = getWrittenTabKey(previewData, rawPreviewChords);
+                const previewDiff = calculateSemitoneDistance(writtenTabKey, targetKey);
+                const preferFlats = FLAT_KEYS.includes(targetKey) || PREFER_FLAT_TARGET_KEYS.has(targetKey);
                 const displayedPreviewChords = previewDiff !== 0
-                  ? transposeChordSheetText(rawPreviewChords, previewDiff, FLAT_KEYS.includes(targetKey))
+                  ? transposeChordSheetText(rawPreviewChords, previewDiff, preferFlats)
                   : rawPreviewChords;
 
                 return (
@@ -514,7 +542,7 @@ export const SongScraperModal: React.FC<SongScraperModalProps> = ({
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span style={{ fontSize: '12px', fontWeight: 700, color: '#94a3b8' }}>
-                          Original Tab:
+                          Tab Chords:
                         </span>
                         <span
                           style={{
@@ -527,7 +555,7 @@ export const SongScraperModal: React.FC<SongScraperModalProps> = ({
                             border: '1px solid #334155',
                           }}
                         >
-                          Key of {originalScrapedKey}
+                          Key of {writtenTabKey}
                         </span>
                         {previewDiff !== 0 && (
                           <span style={{ fontSize: '11px', fontWeight: 700, color: '#38bdf8' }}>

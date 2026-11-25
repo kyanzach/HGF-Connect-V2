@@ -1,3 +1,9 @@
+## [v2.91.2] — 2026-11-25
+### Fixed
+- **Live Chord Transposition in Tab Preview Modal (`app/band/components/modals/SongScraperModal.tsx`)**:
+  - Detected the tab's actual written chord key via `detectRootKeyFromChords()` before falling back to Ultimate Guitar's concert-key metadata (fixing Capo tabs like "More Like Jesus" where UG reports `Key: Bb` while written chords are in `G`, previously causing `0` semitone diff and leaving preview chords untransposed).
+  - Normalized enharmonic flat keys (`Bb → A#`, `Eb → D#`, etc.) to match the `Import in Key` dropdown options, enabled proper flat chord spelling (`Bb`, `Eb`, `Ab`, `Db`) when transposing into flat keys, and reset `capo` to `0` when importing transposed concert-key chords.
+
 ## [v2.91.1] — 2026-11-25
 ### Added
 - **Press Enter / Mobile Search to Auto-Search Ultimate Guitar (`app/band/components/SetlistSidebar.tsx`)**:
