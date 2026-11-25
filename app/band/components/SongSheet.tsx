@@ -147,6 +147,16 @@ function findSectionElement(
   return null;
 }
 
+function formatSectionRailLabel(raw: string): string {
+  return raw
+    .trim()
+    .replace(/\bpre[\s-]*chorus\b/gi, 'PRE-CH')
+    .replace(/\binstrumental\b/gi, 'INST')
+    .replace(/\binterlude\b/gi, 'INTER')
+    .replace(/\bturnaround\b/gi, 'TURN')
+    .replace(/\s+/g, ' ');
+}
+
 function splitPairIntoWrappableTokens(chord?: string, lyric?: string): { chord?: string; lyric: string }[] {
   const c = chord || '';
   const l = lyric || '';
@@ -798,14 +808,27 @@ export const SongSheet: React.FC<SongSheetProps> = ({
         scrollBehavior: 'auto',
         paddingTop: isImmersionMode ? 'calc(env(safe-area-inset-top, 0px) + 24px)' : '16px',
         paddingLeft: 'calc(env(safe-area-inset-left, 0px) + 20px)',
-        paddingRight: isImmersionMode ? '20px' : 'calc(env(safe-area-inset-right, 0px) + 76px)',
+        paddingRight: allSections.length > 0
+          ? isImmersionMode
+            ? 'calc(env(safe-area-inset-right, 0px) + 114px)'
+            : 'calc(env(safe-area-inset-right, 0px) + 174px)'
+          : isImmersionMode
+          ? '20px'
+          : 'calc(env(safe-area-inset-right, 0px) + 76px)',
         paddingBottom: isImmersionMode
-          ? 'calc(env(safe-area-inset-bottom, 0px) + 80px)'
+          ? hasPlaybackDock
+            ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 168px)'
+            : hasAutoScrollBar
+            ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 124px)'
+            : 'calc(env(safe-area-inset-bottom, 0px) + 80px)'
           : hasPlaybackDock
           ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 290px)'
           : hasAutoScrollBar
-          ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 220px)'
-          : 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 160px)',
+          ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 140px)'
+          : 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 100px)',
+        scrollPaddingBottom: hasAutoScrollBar
+          ? 'calc(env(safe-area-inset-bottom, 0px) + 110px)'
+          : 'calc(env(safe-area-inset-bottom, 0px) + 48px)',
         backgroundColor: '#0a0d14',
         color: '#f8fafc',
         fontFamily: 'monospace, system-ui',
@@ -1467,106 +1490,133 @@ export const SongSheet: React.FC<SongSheetProps> = ({
       </div>
     </div>
 
-      {/* FLOATING BOTTOM SECTION QUICK-JUMP DOCK */}
-      {allSections.length > 0 && !isImmersionMode && (
-        <div
+      {/* RIGHT-SIDE VERTICAL SECTION QUICK-JUMP RAIL (Works in both standard & focus modes) */}
+      {allSections.length > 0 && (
+        <nav
           data-testid="section-jump-dock"
+          aria-label="Song sections"
           style={{
             position: 'fixed',
-            left: '16px',
-            bottom: hasPlaybackDock
-              ? hasAutoScrollBar
-                ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 206px)'
-                : 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 148px)'
+            right: isImmersionMode
+              ? 'calc(env(safe-area-inset-right, 0px) + 12px)'
+              : 'calc(env(safe-area-inset-right, 0px) + 74px)',
+            top: isImmersionMode
+              ? 'calc(env(safe-area-inset-top, 0px) + 18px)'
+              : 'calc(env(safe-area-inset-top, 0px) + 68px)',
+            bottom: isImmersionMode
+              ? hasPlaybackDock
+                ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 148px)'
+                : hasAutoScrollBar
+                ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 98px)'
+                : 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 24px)'
+              : hasPlaybackDock
+              ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 228px)'
               : hasAutoScrollBar
-              ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 78px)'
-              : 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 20px)',
-            transition: 'bottom 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-            maxWidth: 'calc(100vw - 86px)',
+              ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 104px)'
+              : 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 24px)',
             zIndex: 55,
             display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '4px 6px',
-            borderRadius: '24px',
-            backgroundColor: 'rgba(15, 23, 42, 0.88)',
-            backdropFilter: 'blur(14px)',
-            WebkitBackdropFilter: 'blur(14px)',
-            border: '1px solid rgba(255, 255, 255, 0.12)',
-            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.35)',
-            overflowX: 'auto',
+            flexDirection: 'column',
+            alignItems: 'flex-end',
+            overflowY: 'auto',
             WebkitOverflowScrolling: 'touch',
             scrollbarWidth: 'none',
             msOverflowStyle: 'none',
+            pointerEvents: 'none',
+            transition: 'right 0.25s cubic-bezier(0.16, 1, 0.3, 1), bottom 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
         >
-          {allSections.map((sec, idx) => {
-            const isMatch =
-              activeSectionId === sec.id ||
-              (!activeSectionId &&
-                activeSectionName &&
-                activeSectionName.toLowerCase().replace(/[^a-z0-9]/g, '').includes(sec.cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')));
+          <div
+            style={{
+              margin: 'auto 0',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-end',
+              gap: '10px',
+              padding: '4px 0',
+            }}
+          >
+            {allSections.map((sec, idx) => {
+              const isMatch =
+                activeSectionId === sec.id ||
+                (!activeSectionId &&
+                  activeSectionName &&
+                  activeSectionName.toLowerCase().replace(/[^a-z0-9]/g, '').includes(sec.cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')));
 
-            let badgeBg = 'rgba(255, 255, 255, 0.08)';
-            let badgeBorder = 'rgba(255, 255, 255, 0.16)';
-            let badgeColor = '#cbd5e1';
+              let badgeBg = 'rgba(15, 23, 42, 0.56)';
+              let badgeBorder = 'rgba(148, 163, 184, 0.28)';
+              let badgeColor = '#cbd5e1';
 
-            if (sec.type === 'chorus') {
-              badgeBg = isMatch ? '#9333ea' : 'rgba(168, 85, 247, 0.18)';
-              badgeBorder = isMatch ? '#c084fc' : 'rgba(168, 85, 247, 0.45)';
-              badgeColor = isMatch ? '#fff' : '#d8b4fe';
-            } else if (sec.type === 'bridge') {
-              badgeBg = isMatch ? '#d97706' : 'rgba(245, 158, 11, 0.18)';
-              badgeBorder = isMatch ? '#fbbf24' : 'rgba(245, 158, 11, 0.45)';
-              badgeColor = isMatch ? '#fff' : '#fde047';
-            } else if (sec.type === 'verse') {
-              badgeBg = isMatch ? '#0284c7' : 'rgba(14, 165, 233, 0.16)';
-              badgeBorder = isMatch ? '#38bdf8' : 'rgba(14, 165, 233, 0.4)';
-              badgeColor = isMatch ? '#fff' : '#7dd3fc';
-            } else if (sec.type === 'prechorus') {
-              badgeBg = isMatch ? '#0d9488' : 'rgba(20, 184, 166, 0.16)';
-              badgeBorder = isMatch ? '#2dd4bf' : 'rgba(20, 184, 166, 0.4)';
-              badgeColor = isMatch ? '#fff' : '#5eead4';
-            } else if (sec.type === 'intro' || sec.type === 'outro' || sec.type === 'interlude') {
-              badgeBg = isMatch ? '#475569' : 'rgba(148, 163, 184, 0.12)';
-              badgeBorder = isMatch ? '#94a3b8' : 'rgba(148, 163, 184, 0.25)';
-              badgeColor = isMatch ? '#fff' : '#94a3b8';
-            }
+              if (sec.type === 'chorus') {
+                badgeBg = isMatch ? '#0e7490' : 'rgba(78, 177, 203, 0.14)';
+                badgeBorder = isMatch ? '#67e8f9' : 'rgba(78, 177, 203, 0.42)';
+                badgeColor = isMatch ? '#ffffff' : '#a5f3fc';
+              } else if (sec.type === 'bridge') {
+                badgeBg = isMatch ? '#b45309' : 'rgba(245, 158, 11, 0.13)';
+                badgeBorder = isMatch ? '#fbbf24' : 'rgba(245, 158, 11, 0.38)';
+                badgeColor = isMatch ? '#ffffff' : '#fde68a';
+              } else if (sec.type === 'verse') {
+                badgeBg = isMatch ? '#0369a1' : 'rgba(14, 165, 233, 0.13)';
+                badgeBorder = isMatch ? '#38bdf8' : 'rgba(14, 165, 233, 0.36)';
+                badgeColor = isMatch ? '#ffffff' : '#bae6fd';
+              } else if (sec.type === 'prechorus') {
+                badgeBg = isMatch ? '#047857' : 'rgba(16, 185, 129, 0.13)';
+                badgeBorder = isMatch ? '#34d399' : 'rgba(16, 185, 129, 0.36)';
+                badgeColor = isMatch ? '#ffffff' : '#a7f3d0';
+              } else if (sec.type === 'intro' || sec.type === 'outro' || sec.type === 'interlude') {
+                badgeBg = isMatch ? '#334155' : 'rgba(15, 23, 42, 0.52)';
+                badgeBorder = isMatch ? '#94a3b8' : 'rgba(148, 163, 184, 0.26)';
+                badgeColor = isMatch ? '#ffffff' : '#94a3b8';
+              }
 
-            return (
-              <button
-                key={sec.id}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  jumpToSection(sec.name, sec.lineIdx >= 0 ? sec.lineIdx : undefined, idx, sec.id);
-                }}
-                title={`Jump to ${sec.name}`}
-                style={{
-                  flexShrink: 0,
-                  padding: '5px 11px',
-                  borderRadius: '16px',
-                  backgroundColor: badgeBg,
-                  border: `1.5px solid ${badgeBorder}`,
-                  color: badgeColor,
-                  fontSize: '11px',
-                  fontWeight: 800,
-                  letterSpacing: '0.2px',
-                  textTransform: 'uppercase',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  boxShadow: isMatch ? '0 0 10px rgba(78, 177, 203, 0.5)' : 'none',
-                  transform: isMatch ? 'scale(1.04)' : 'scale(1)',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                {sec.cleanName}
-              </button>
-            );
-          })}
-        </div>
+              return (
+                <button
+                  key={sec.id}
+                  type="button"
+                  data-interactive="true"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    jumpToSection(sec.name, sec.lineIdx >= 0 ? sec.lineIdx : undefined, idx, sec.id);
+                  }}
+                  onDoubleClick={(e) => e.stopPropagation()}
+                  title={`Jump to ${sec.name}`}
+                  aria-label={`Jump to ${sec.name}`}
+                  aria-current={isMatch ? 'location' : undefined}
+                  style={{
+                    pointerEvents: 'auto',
+                    flexShrink: 0,
+                    minHeight: '44px',
+                    minWidth: '68px',
+                    padding: '8px 13px',
+                    borderRadius: '14px',
+                    backgroundColor: badgeBg,
+                    border: `1.5px solid ${badgeBorder}`,
+                    color: badgeColor,
+                    fontSize: '12px',
+                    fontWeight: 800,
+                    letterSpacing: '0.3px',
+                    textTransform: 'uppercase',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backdropFilter: 'blur(8px)',
+                    WebkitBackdropFilter: 'blur(8px)',
+                    opacity: isMatch ? 1 : 0.78,
+                    boxShadow: isMatch
+                      ? '0 4px 14px rgba(78, 177, 203, 0.35)'
+                      : '0 2px 8px rgba(0, 0, 0, 0.35)',
+                    transform: isMatch ? 'scale(1.03)' : 'scale(1)',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {formatSectionRailLabel(sec.cleanName)}
+                </button>
+              );
+            })}
+          </div>
+        </nav>
       )}
     </>
   );

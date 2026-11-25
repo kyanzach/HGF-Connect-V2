@@ -588,6 +588,7 @@ export default function BandStagePage() {
       if (next) {
         setIsSidebarOpen(false);
         setIsImmersionPlaybackExpanded(false);
+        setShowAutoScrollBar(true);
       }
       return next;
     });
@@ -1926,28 +1927,27 @@ export default function BandStagePage() {
         />
       )}
 
-      {/* AUTO-SCROLL CONTROL BAR */}
-      {!isImmersionMode && (
-        <AutoScrollBar
-          isVisible={showAutoScrollBar}
-          isPlaying={isAutoScrolling}
-          speed={autoScrollSpeed}
-          onTogglePlay={() => setIsAutoScrolling(!isAutoScrolling)}
-          onChangeSpeed={setAutoScrollSpeed}
-          onClose={() => {
-            setIsAutoScrolling(false);
-            setShowAutoScrollBar(false);
-          }}
-          hasPlaybackDock={isPlaybackDockVisible}
-          scrollMode={scrollMode}
-          onToggleScrollMode={() => setScrollMode((prev) => (prev === 'duration' ? 'speed' : 'duration'))}
-          duration={currentSongDuration}
-          elapsedSeconds={elapsedScrollSeconds}
-          targetDurationSec={targetDurationSec}
-          onOpenDurationPicker={() => setIsDurationModalOpen(true)}
-          onStepDurationSeconds={handleStepDuration}
-        />
-      )}
+      {/* AUTO-SCROLL CONTROL BAR (Stays floating in both standard and focus/immersion modes) */}
+      <AutoScrollBar
+        isVisible={showAutoScrollBar}
+        isPlaying={isAutoScrolling}
+        speed={autoScrollSpeed}
+        onTogglePlay={() => setIsAutoScrolling(!isAutoScrolling)}
+        onChangeSpeed={setAutoScrollSpeed}
+        onClose={() => {
+          setIsAutoScrolling(false);
+          setShowAutoScrollBar(false);
+        }}
+        hasPlaybackDock={isPlaybackDockVisible}
+        isImmersionMode={isImmersionMode}
+        scrollMode={scrollMode}
+        onToggleScrollMode={() => setScrollMode((prev) => (prev === 'duration' ? 'speed' : 'duration'))}
+        duration={currentSongDuration}
+        elapsedSeconds={elapsedScrollSeconds}
+        targetDurationSec={targetDurationSec}
+        onOpenDurationPicker={() => setIsDurationModalOpen(true)}
+        onStepDurationSeconds={handleStepDuration}
+      />
 
       {/* FLOATING AUDIO SCRUBBER DOCK (Standard Stage Mode - MD Only) */}
       {!isImmersionMode && isPlaybackDockVisible && (
@@ -2043,38 +2043,6 @@ export default function BandStagePage() {
         </div>
       )}
 
-      {/* IMMERSION MODE FLOATING "SHOW TOOLS" RESTORE BUTTON */}
-      {isImmersionMode && (
-        <button
-          type="button"
-          onClick={handleToggleImmersionMode}
-          title="Restore toolbars, sidebar, and controls"
-          style={{
-            position: 'fixed',
-            top: 'calc(14px + env(safe-area-inset-top, 0px))',
-            right: '16px',
-            zIndex: 95,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '7px 14px',
-            borderRadius: '20px',
-            backgroundColor: 'rgba(15, 23, 42, 0.88)',
-            border: '1px solid rgba(78, 177, 203, 0.5)',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.65)',
-            color: '#38bdf8',
-            fontSize: '0.78rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
-            transition: 'all 0.15s ease',
-          }}
-        >
-          <span style={{ fontSize: '0.85rem' }}>👁️</span>
-          <span>Show Tools</span>
-        </button>
-      )}
 
 
 

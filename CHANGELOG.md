@@ -1,3 +1,10 @@
+## [v2.89.0] — 2026-11-25
+### Changed / Improved
+- **Band Stage Auto-Scroll Bar, Focus Mode & Right-Side Section Rail (`app/band/components/AutoScrollBar.tsx`, `app/band/page.tsx`, `app/band/components/SongSheet.tsx`)**:
+  - **Fluid Full-Width Auto-Scroll Bar**: Expanded `AutoScrollBar` into a liquid full-width bar (up to `960px` centered, respecting safe-area insets and clearing `NavigationDock` in standard mode) with larger `48px` play/pause, `−`/`+`, and close touch targets, fluid flex slider, generous `clamp(12px, 2.2vw, 24px)` button separation to prevent accidental mis-taps on stage, and crisp SVG icons.
+  - **Focus Mode (`isImmersionMode`) Cleanup**: Removed the floating top-right `Show Tools` button (double-tap toggles Focus Mode on/off) and kept the `AutoScrollBar` floating at the bottom in Focus Mode so speed/play controls remain accessible without exiting Focus Mode.
+  - **Right-Side Vertical Section Shortcut Rail**: Moved the section quick-jump shortcuts (Intro, Verse, Pre-Chorus, Chorus, Bridge, etc.) from the bottom overlay into a clean vertical rail along the right margin in both standard and Focus modes, with `44px` tall touch buttons, `10px` spacing, calm translucent styling (replacing purple Chorus pills with brand teal `#4EB1CB`), and reserved right/bottom sheet padding so lyrics are never covered.
+
 ## [v2.88.0] — 2026-11-20
 ### Added / Changed / Fixed
 - **Full Prayer Request Details & Cross-Platform Text + Voice Prayer Overhaul (`v2.88.0`, `mobile/v1.10.0`)**:
