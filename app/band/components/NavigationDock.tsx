@@ -260,39 +260,6 @@ export const NavigationDock: React.FC<NavigationDockProps> = ({
         </button>
       )}
 
-      {/* Auto-scroll FAB: Yellow Play / Pause Button */}
-      <div style={{ position: 'relative' }}>
-        <button
-          onClick={onToggleAutoScroll}
-          title={isAutoScrolling ? 'Pause Auto-Scroll (Playing)' : 'Start Auto-Scroll (Play)'}
-          style={{
-            width: '46px',
-            height: '46px',
-            borderRadius: '50%',
-            backgroundColor: isAutoScrolling ? '#facc15' : 'rgba(245, 158, 11, 0.16)',
-            backdropFilter: 'blur(10px)',
-            border: `1.5px solid ${isAutoScrolling ? '#facc15' : '#f59e0b'}`,
-            color: isAutoScrolling ? '#000' : '#fbbf24',
-            fontSize: '16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            boxShadow: isAutoScrolling
-              ? '0 0 16px rgba(250, 204, 21, 0.65), 0 6px 16px rgba(0,0,0,0.5)'
-              : '0 4px 12px rgba(245, 158, 11, 0.25), 0 6px 16px rgba(0,0,0,0.5)',
-            transform: isAutoScrolling ? 'scale(1.05)' : 'scale(1)',
-            transition: 'all 0.15s ease',
-          }}
-        >
-          {isAutoScrolling ? (
-            <span style={{ fontSize: '15px', fontWeight: 900, lineHeight: 1 }}>⏸</span>
-          ) : (
-            <span style={{ fontSize: '15px', fontWeight: 900, lineHeight: 1, marginLeft: '2px' }}>▶</span>
-          )}
-        </button>
-      </div>
-
       {/* Lyrics-Only Mode Toggle (Singers / Vocalists Tool) */}
       {onToggleLyricsOnly && (
         <button

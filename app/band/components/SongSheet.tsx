@@ -218,6 +218,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   fontSizePx,
   isAutoScrolling,
   scrollSpeed = 3,
+  onToggleAutoScroll,
   onOpenChordDiagram,
   onSwipeLeft,
   onSwipeRight,
@@ -1661,48 +1662,99 @@ export const SongSheet: React.FC<SongSheetProps> = ({
       </div>
     </div>
 
-      {/* FAR-RIGHT VERTICAL SECTION QUICK-JUMP RAIL (Prominent on far right in both standard & focus modes) */}
-      {allSections.length > 0 && (
-        <nav
-          data-testid="section-jump-dock"
-          aria-label="Song sections"
-          style={{
-            position: 'fixed',
-            right: 'calc(env(safe-area-inset-right, 0px) + 10px)',
-            top: isImmersionMode
-              ? 'calc(env(safe-area-inset-top, 0px) + 16px)'
-              : 'calc(env(safe-area-inset-top, 0px) + 92px)',
-            bottom: isImmersionMode
-              ? hasPlaybackDock
-                ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 148px)'
-                : hasAutoScrollBar
-                ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 98px)'
-                : 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 24px)'
-              : hasPlaybackDock
-              ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 228px)'
+      {/* FAR-RIGHT PERSISTENT PLAY BUTTON + VERTICAL SECTION QUICK-JUMP RAIL */}
+      <nav
+        data-testid="section-jump-dock"
+        aria-label="Auto-scroll and song sections"
+        style={{
+          position: 'fixed',
+          right: 'calc(env(safe-area-inset-right, 0px) + 10px)',
+          top: isImmersionMode
+            ? 'calc(env(safe-area-inset-top, 0px) + 16px)'
+            : 'calc(env(safe-area-inset-top, 0px) + 92px)',
+          bottom: isImmersionMode
+            ? hasPlaybackDock
+              ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 148px)'
               : hasAutoScrollBar
-              ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 104px)'
-              : 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 24px)',
-            zIndex: 55,
+              ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 98px)'
+              : 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 24px)'
+            : hasPlaybackDock
+            ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 228px)'
+            : hasAutoScrollBar
+            ? 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 104px)'
+            : 'calc(env(safe-area-inset-bottom, 0px) + var(--browser-dock-offset, 0px) + 24px)',
+          zIndex: 55,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '10px',
+          pointerEvents: 'none',
+          transition: 'top 0.2s ease, bottom 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+        }}
+      >
+        {/* Persistent Auto-Scroll Play / Pause FAB pinned above sections */}
+        <button
+          type="button"
+          data-interactive="true"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleAutoScroll();
+          }}
+          onDoubleClick={(e) => e.stopPropagation()}
+          title={isAutoScrolling ? 'Pause Auto-Scroll (Playing)' : 'Start Auto-Scroll (Play)'}
+          aria-label={isAutoScrolling ? 'Pause Auto-Scroll' : 'Start Auto-Scroll'}
+          aria-pressed={isAutoScrolling}
+          style={{
+            pointerEvents: 'auto',
+            flexShrink: 0,
+            width: '48px',
+            height: '48px',
+            minWidth: '48px',
+            minHeight: '48px',
+            borderRadius: '50%',
+            backgroundColor: isAutoScrolling ? '#facc15' : 'rgba(245, 158, 11, 0.18)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            border: `1.5px solid ${isAutoScrolling ? '#facc15' : '#f59e0b'}`,
+            color: isAutoScrolling ? '#0a0d14' : '#fbbf24',
             display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-end',
-            overflowY: 'auto',
-            WebkitOverflowScrolling: 'touch',
-            scrollbarWidth: 'none',
-            msOverflowStyle: 'none',
-            pointerEvents: 'none',
-            transition: 'top 0.2s ease, bottom 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            boxShadow: isAutoScrolling
+              ? '0 0 18px rgba(250, 204, 21, 0.65), 0 6px 16px rgba(0,0,0,0.5)'
+              : '0 4px 12px rgba(245, 158, 11, 0.25), 0 6px 16px rgba(0,0,0,0.5)',
+            transform: isAutoScrolling ? 'scale(1.05)' : 'scale(1)',
+            transition: 'all 0.15s ease',
           }}
         >
+          {isAutoScrolling ? (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <rect x="6" y="4" width="4.5" height="16" rx="1.5" />
+              <rect x="13.5" y="4" width="4.5" height="16" rx="1.5" />
+            </svg>
+          ) : (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={{ marginLeft: '2px' }}>
+              <path d="M7 4.8v14.4c0 1 1.1 1.6 1.9 1.1l11.2-7.2c.8-.5.8-1.7 0-2.2L8.9 3.7C8.1 3.2 7 3.8 7 4.8z" />
+            </svg>
+          )}
+        </button>
+
+        {/* Scrollable Section Shortcuts underneath the pinned Play button */}
+        {allSections.length > 0 && (
           <div
             style={{
-              margin: 'auto 0',
+              flex: 1,
+              minHeight: 0,
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'flex-end',
               gap: '8px',
-              padding: '4px 0',
+              padding: '2px 0 4px',
+              overflowY: 'auto',
+              WebkitOverflowScrolling: 'touch',
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
             }}
           >
             {allSections.map((sec, idx) => {
@@ -1785,8 +1837,8 @@ export const SongSheet: React.FC<SongSheetProps> = ({
               );
             })}
           </div>
-        </nav>
-      )}
+        )}
+      </nav>
     </>
   );
 };

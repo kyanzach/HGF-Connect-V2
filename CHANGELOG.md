@@ -1,3 +1,8 @@
+## [v2.90.2] — 2026-11-25
+### Changed
+- **Persistent Auto-Scroll Play Button Above Section Rail (`app/band/components/SongSheet.tsx`, `app/band/components/NavigationDock.tsx`)**:
+  - Moved the yellow Auto-Scroll Play/Pause FAB out of `NavigationDock` and pinned it persistently at the top of the far-right rail (directly above `INT` / section shortcuts) in both standard and Focus modes, remaining fixed above the scrollable section list even on long songs or songs with no section headers.
+
 ## [v2.90.1] — 2026-11-25
 ### Fixed
 - **Active Section Rail Auto-Detection After Clicking Shortcut (`app/band/components/SongSheet.tsx`)**:
