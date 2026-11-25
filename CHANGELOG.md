@@ -1,3 +1,9 @@
+## [v2.91.5] — 2026-11-25
+### Fixed
+- **MacBook 2-Finger Trackpad Swipe Listener Attachment (`app/band/components/SongSheet.tsx`)**:
+  - Fixed empty `[]` dependency array on the native `wheel` / `touchmove` effect where `containerRef.current` was `null` during initial loading (`song === null`), preventing the 2-finger swipe listener from ever attaching once the song rendered.
+  - Added `[hasSong]` dependency and tuned horizontal threshold (`55px`) for effortless MacBook trackpad swiping.
+
 ## [v2.91.4] — 2026-11-25
 ### Added
 - **MacBook 2-Finger Trackpad Horizontal Swipe for Next/Prev Song (`app/band/components/SongSheet.tsx`)**:

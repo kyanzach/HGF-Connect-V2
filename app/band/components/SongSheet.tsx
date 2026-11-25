@@ -496,8 +496,10 @@ export const SongSheet: React.FC<SongSheetProps> = ({
     }
   }, [targetDurationSec]);
 
-  // Bulletproof block against Android browser pull-to-refresh:
-  // Intercept touchmove when already at scrollTop <= 0 and dragging downward, preventing native browser reload gesture
+  const hasSong = Boolean(song);
+
+  // Bulletproof block against Android browser pull-to-refresh + MacBook 2-finger horizontal swipe
+  // Re-runs when hasSong transitions false -> true so containerRef.current is guaranteed mounted
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -537,7 +539,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
       const absY = Math.abs(e.deltaY);
 
       // Only intercept clearly horizontal 2-finger swipes (never block vertical lyrics scrolling)
-      if (absX <= absY * 1.35 || absX < 4) return;
+      if (absX <= absY * 1.25 || absX < 2) return;
 
       const target = e.target as HTMLElement | null;
       if (target?.closest('input, select, textarea')) return;
@@ -556,9 +558,9 @@ export const SongSheet: React.FC<SongSheetProps> = ({
       if (wheelResetTimer) clearTimeout(wheelResetTimer);
       wheelResetTimer = setTimeout(() => {
         wheelAccX = 0;
-      }, 160);
+      }, 180);
 
-      if (Math.abs(wheelAccX) >= 85) {
+      if (Math.abs(wheelAccX) >= 55) {
         const direction = wheelAccX;
         wheelAccX = 0;
         wheelCooldownUntil = now + 750;
@@ -580,7 +582,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
       el.removeEventListener('touchmove', onTouchMoveNative);
       el.removeEventListener('wheel', onWheelNative);
     };
-  }, []);
+  }, [hasSong]);
 
   // Handle user manual scroll: update scrollPosRef and sync elapsed timer only when user actively touches/scrolls
   const handleScroll = () => {
