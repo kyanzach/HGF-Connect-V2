@@ -1,3 +1,8 @@
+## [v2.91.3] — 2026-11-25
+### Fixed
+- **Transpose Intro / Instrumental Lines Containing Repeat Markers (`x2`, `(2x)`, `|`, `N.C.`) (`app/band/lib/musicTheory.ts`)**:
+  - Updated `isPureChordLineWords()` in `parseAndTransposeSheetLines()` to recognize repeat cues (`x2`, `2x`, `(2x)`, `(x4)`), barlines/separators, wrapped chords (`(G)`, `|G`), and `N.C.` markers so intro/interlude lines like `G  G  C  C  x2` transpose cleanly in both Tab Preview and live stage transposition (`Bb  Bb  Eb  Eb  x2`) instead of staying stuck in the original key.
+
 ## [v2.91.2] — 2026-11-25
 ### Fixed
 - **Live Chord Transposition in Tab Preview Modal (`app/band/components/modals/SongScraperModal.tsx`)**:
