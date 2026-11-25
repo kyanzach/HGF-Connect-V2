@@ -1,3 +1,11 @@
+## [v2.90.4] — 2026-11-25
+### Fixed / Performance
+- **Eliminated Chrome GPU Memory Leak & Band Stage CPU/Network Storms (`app/band/components/DrawingCanvas.tsx`, `app/band/hooks/useMetronome.ts`, `app/band/hooks/useSetlist.ts`, `app/band/page.tsx`)**:
+  - **Fixed 33 GB GPU Texture Leak (`DrawingCanvas.tsx`)**: Replaced `wrapper.scrollHeight` measurement (which caused an infinite 60fps `ResizeObserver` growth feedback loop when `<canvas>` sat inside `scrollBodyRef`) with in-flow `parentElement.clientWidth` / `offsetHeight` + strict bitmap caps (`4096×8192`), removed the `subtree: true` `MutationObserver`, coalesced resize updates via `requestAnimationFrame`, and skipped mounting/allocating the `<canvas>` completely when Draw mode is off and there are zero strokes (0 bytes VRAM idle).
+  - **Stopped 144–240 Full-Page Re-Renders/Min (`useMetronome.ts`)**: Stopped auto-starting `MetronomeEngine` on mount when metronome audio is muted; engine and React beat pulse now run only when metronome audio is actively toggled on.
+  - **Eliminated 460 KB/4s Main-Thread Poll Stalls (`useSetlist.ts`)**: Increased background song/setlist poll from `4s` to `30s` (+ instant refresh on tab focus/online), added an in-flight guard, and replaced double-`JSON.stringify()` of ~920 KB with O(n) lightweight fingerprinting.
+  - **Reduced Idle Request Storm by 84% (`app/band/page.tsx`)**: Converted `pollSync` (`600ms`) and `pollLiveDrawings` (`400ms`) to adaptive `setTimeout` chains (`800ms`/`700ms` active, `2500ms`/`3000ms` idle) with in-flight guards and `document.hidden` pauses.
+
 ## [v2.90.3] — 2026-11-25
 ### Changed
 - **Top-Aligned Stage Tools Dock, Open-by-Default Auto-Scroll Bar & Cleaner Right Rail (`app/band/components/NavigationDock.tsx`, `app/band/components/SongSheet.tsx`, `app/band/page.tsx`)**:

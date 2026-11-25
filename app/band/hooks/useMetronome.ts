@@ -12,17 +12,20 @@ export function useMetronome(initialTempo: number = 72, initialSignature: string
   const [isAudioActive, setIsAudioActive] = useState<boolean>(false);
 
   const engineRef = useRef<MetronomeEngine | null>(null);
+  const pulseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const engine = new MetronomeEngine(tempo, timeSignature, (beat, _isDownbeat) => {
       setCurrentBeat(beat);
       setIsPulsing(true);
-      setTimeout(() => setIsPulsing(false), 120);
+      if (pulseTimeoutRef.current) clearTimeout(pulseTimeoutRef.current);
+      pulseTimeoutRef.current = setTimeout(() => setIsPulsing(false), 120);
     });
     engineRef.current = engine;
-    engine.start();
+    // Do NOT auto-start on mount when audio is muted — prevents 144-240 full-page React re-renders/min
 
     return () => {
+      if (pulseTimeoutRef.current) clearTimeout(pulseTimeoutRef.current);
       engine.stop();
     };
   }, []);
@@ -47,6 +50,12 @@ export function useMetronome(initialTempo: number = 72, initialSignature: string
     if (!engineRef.current) return;
     const next = !engineRef.current.getAudioActive();
     engineRef.current.setAudioActive(next);
+    if (next) {
+      engineRef.current.start();
+    } else {
+      engineRef.current.stop();
+      setIsPulsing(false);
+    }
     setIsAudioActive(next);
   }, []);
 

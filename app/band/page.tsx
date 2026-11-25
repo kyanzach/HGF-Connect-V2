@@ -872,8 +872,28 @@ export default function BandStagePage() {
     }
 
     let isSubscribed = true;
+    let inFlight = false;
+    let timerId: ReturnType<typeof setTimeout> | null = null;
+
+    const scheduleNext = () => {
+      if (!isSubscribed) return;
+      if (timerId) clearTimeout(timerId);
+      // Fast 800ms polling while MD sync is actively playing; calm 2500ms when idle
+      const delay = liveSyncStateRef.current?.isPlaying ? 800 : 2500;
+      timerId = setTimeout(pollSync, delay);
+    };
 
     const pollSync = async () => {
+      if (!isSubscribed) return;
+      if (typeof document !== 'undefined' && document.hidden) {
+        scheduleNext();
+        return;
+      }
+      if (inFlight) {
+        scheduleNext();
+        return;
+      }
+      inFlight = true;
       try {
         const res = await fetch(`/api/worship/sync?setlistId=${encodeURIComponent(effectiveSetlistId)}`, {
           cache: 'no-store',
@@ -933,12 +953,13 @@ export default function BandStagePage() {
         }
       } catch (_) {
         // Resilient to offline drops; will jump to current position once reconnected
+      } finally {
+        inFlight = false;
+        scheduleNext();
       }
     };
 
     pollSync();
-    // Sub-second 600ms polling for instantaneous stage reaction
-    const interval = setInterval(pollSync, 600);
 
     // Instant polling trigger on reconnection / phone wake-up
     const handleReconnect = () => {
@@ -956,7 +977,7 @@ export default function BandStagePage() {
 
     return () => {
       isSubscribed = false;
-      clearInterval(interval);
+      if (timerId) clearTimeout(timerId);
       window.removeEventListener('online', handleReconnect);
       window.removeEventListener('focus', handleReconnect);
       document.removeEventListener('visibilitychange', handleVisibility);
@@ -1662,16 +1683,34 @@ export default function BandStagePage() {
     }
   };
 
-  // Follower Live Drawing Poller: fetches MD whiteboard strokes live (sub-second streaming)
+  // Follower Live Drawing Poller: adaptive polling (700ms when active, 3000ms idle) with in-flight guard
   useEffect(() => {
     if (!currentSong?.id || isUserMD) return;
     const songId = currentSong.id;
     let isSubscribed = true;
+    let inFlight = false;
+    let lastStrokeChangeAt = 0;
+    let timerId: ReturnType<typeof setTimeout> | null = null;
+
+    const scheduleNext = () => {
+      if (!isSubscribed) return;
+      if (timerId) clearTimeout(timerId);
+      const isActivelyDrawing = Date.now() - lastStrokeChangeAt < 15000;
+      timerId = setTimeout(pollLiveDrawings, isActivelyDrawing ? 700 : 3000);
+    };
 
     const pollLiveDrawings = async () => {
-      if (typeof document !== 'undefined' && document.hidden) return;
-      if (Date.now() - lastLocalStrokeTimeRef.current < 2000) return;
+      if (!isSubscribed) return;
+      if (typeof document !== 'undefined' && document.hidden) {
+        scheduleNext();
+        return;
+      }
+      if (inFlight || Date.now() - lastLocalStrokeTimeRef.current < 2000) {
+        scheduleNext();
+        return;
+      }
 
+      inFlight = true;
       try {
         const res = await fetch(`/api/worship/drawings/live?songId=${encodeURIComponent(songId)}`, {
           cache: 'no-store',
@@ -1684,20 +1723,24 @@ export default function BandStagePage() {
           setMdGlobalStrokesMap((prev) => {
             const existing = prev[songId] || [];
             if (existing.length !== data.strokes.length || JSON.stringify(existing) !== JSON.stringify(data.strokes)) {
+              lastStrokeChangeAt = Date.now();
               return { ...prev, [songId]: data.strokes };
             }
             return prev;
           });
         }
-      } catch (_) {}
+      } catch (_) {
+      } finally {
+        inFlight = false;
+        scheduleNext();
+      }
     };
 
     pollLiveDrawings();
-    const interval = setInterval(pollLiveDrawings, 400);
 
     return () => {
       isSubscribed = false;
-      clearInterval(interval);
+      if (timerId) clearTimeout(timerId);
     };
   }, [currentSong?.id, isUserMD]);
 

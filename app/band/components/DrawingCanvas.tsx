@@ -179,27 +179,28 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     redraw();
   }, [redraw]);
 
-  // Sync canvas size with parent scrollable container (#sheetWrapper)
+  // Sync canvas size strictly to its parent content layer (never wrapper.scrollHeight, which causes infinite ResizeObserver loops)
   const updateCanvasSize = useCallback(() => {
     if (isDrawing.current || isPanning.current) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const wrapper = containerRef?.current || document.getElementById('sheetWrapper');
-    if (!wrapper) return;
+    const host = canvas.parentElement || containerRef?.current || document.getElementById('sheetWrapper');
+    if (!host) return;
 
-    const contentW = Math.max(wrapper.scrollWidth, wrapper.clientWidth);
-    const contentH = Math.max(wrapper.scrollHeight, wrapper.clientHeight);
+    // offsetHeight / clientWidth measure in-flow content only — immune to absolute canvas overflow feedback loops
+    const contentW = Math.min(Math.max(host.clientWidth, 1), 4096);
+    const contentH = Math.min(Math.max(host.offsetHeight, host.clientHeight, 1), 6000);
 
     if (contentW <= 0 || contentH <= 0) return;
 
     canvas.style.width = `${contentW}px`;
     canvas.style.height = `${contentH}px`;
 
-    // High-resolution bitmap scaling (crisp rendering on Retina / iPad / mobile)
+    // High-resolution bitmap scaling capped safely to prevent GPU texture OOM
     const dpr = Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1, 2);
-    const bitmapW = Math.round(contentW * dpr);
-    const bitmapH = Math.round(contentH * dpr);
+    const bitmapW = Math.min(Math.round(contentW * dpr), 4096);
+    const bitmapH = Math.min(Math.round(contentH * dpr), 8192);
 
     if (Math.abs(canvas.width - bitmapW) > 2 || Math.abs(canvas.height - bitmapH) > 2) {
       canvas.width = bitmapW;
@@ -208,43 +209,38 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     }
   }, [containerRef, redraw]);
 
-  useEffect(() => {
-    updateCanvasSize();
-    const handleResize = () => updateCanvasSize();
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('orientationchange', handleResize);
+  const shouldMountCanvas = isActive || strokes.length > 0;
 
-    const wrapper = containerRef?.current || document.getElementById('sheetWrapper');
+  useEffect(() => {
+    if (!shouldMountCanvas) return;
+
+    let rafId: number | null = null;
+    const scheduleResize = () => {
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        updateCanvasSize();
+      });
+    };
+
+    scheduleResize();
+    window.addEventListener('resize', scheduleResize);
+    window.addEventListener('orientationchange', scheduleResize);
+
+    const host = canvasRef.current?.parentElement || containerRef?.current || document.getElementById('sheetWrapper');
     let ro: ResizeObserver | null = null;
-    let mo: MutationObserver | null = null;
-    if (wrapper) {
-      if (typeof ResizeObserver !== 'undefined') {
-        ro = new ResizeObserver(() => {
-          updateCanvasSize();
-        });
-        ro.observe(wrapper);
-        // Observe direct children so dynamically loaded lyrics/sections immediately resize canvas
-        Array.from(wrapper.children).forEach((child) => {
-          if (child !== canvasRef.current) {
-            ro?.observe(child);
-          }
-        });
-      }
-      if (typeof MutationObserver !== 'undefined') {
-        mo = new MutationObserver(() => {
-          updateCanvasSize();
-        });
-        mo.observe(wrapper, { childList: true, subtree: true });
-      }
+    if (host && typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(scheduleResize);
+      ro.observe(host);
     }
 
     return () => {
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('orientationchange', handleResize);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', scheduleResize);
+      window.removeEventListener('orientationchange', scheduleResize);
       if (ro) ro.disconnect();
-      if (mo) mo.disconnect();
     };
-  }, [updateCanvasSize, containerRef]);
+  }, [shouldMountCanvas, updateCanvasSize, containerRef]);
 
   // Whenever isActive changes to true, ensure dimensions & redraw
   useEffect(() => {
@@ -1043,6 +1039,10 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       </button>
     </div>
   );
+
+  if (!shouldMountCanvas) {
+    return null;
+  }
 
   return (
     <>

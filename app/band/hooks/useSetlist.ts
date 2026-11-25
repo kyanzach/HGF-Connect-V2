@@ -101,11 +101,28 @@ export function useSetlist() {
   }, [refreshData]);
 
   // Background auto-sync polling for setlist & song changes made by MD across all devices
+  // Uses 30s interval + in-flight guard + lightweight fingerprint (avoids 460KB/4s polling & main-thread JSON.stringify)
   useEffect(() => {
     let isMounted = true;
+    let inFlight = false;
+
+    const fingerprintSongs = (list: Song[]) =>
+      list
+        .map(
+          (s) =>
+            `${s.id}:${s.title}:${s.key}:${s.tempo ?? ''}:${s.duration ?? ''}:${s.chords?.length ?? 0}:${s.notes?.length ?? 0}:${s.exhortation?.length ?? 0}:${s.proPresenterLyrics?.length ?? 0}`
+        )
+        .join('|');
+
+    const fingerprintSetlists = (list: Setlist[]) =>
+      list
+        .map((sl) => `${sl.id}:${sl.name}:${sl.serviceDate ?? ''}:${sl.leader ?? ''}:${(sl.songs || []).length}:${JSON.stringify(sl.songs || [])}`)
+        .join('|');
 
     const silentPoll = async () => {
+      if (inFlight) return;
       if (typeof document !== 'undefined' && document.hidden) return;
+      inFlight = true;
       try {
         const [songsRes, setlistsRes] = await Promise.all([
           fetch('/api/worship', { cache: 'no-store' }),
@@ -116,8 +133,9 @@ export function useSetlist() {
         // Skip updating songs if local user just imported or added a song (< 8s ago)
         if (songsRes.ok && Date.now() - lastSongMutationTimeRef.current > 8000) {
           const remoteSongs: Song[] = await songsRes.json();
+          const remoteFp = fingerprintSongs(remoteSongs);
           setSongs((prev) => {
-            if (JSON.stringify(prev) !== JSON.stringify(remoteSongs)) {
+            if (fingerprintSongs(prev) !== remoteFp) {
               saveSongsOffline(remoteSongs).catch(() => {});
               if (typeof window !== 'undefined') {
                 localStorage.setItem(STORAGE_LOCAL_SONGS, JSON.stringify(remoteSongs));
@@ -132,8 +150,9 @@ export function useSetlist() {
         if (setlistsRes.ok && Date.now() - lastSetlistMutationTimeRef.current > 8000) {
           const remoteSetlists: Setlist[] = await setlistsRes.json();
           const sorted = sortSetlistsUpcomingFirst(remoteSetlists);
+          const remoteSetFp = fingerprintSetlists(sorted);
           setSetlists((prev) => {
-            if (JSON.stringify(prev) !== JSON.stringify(sorted)) {
+            if (fingerprintSetlists(prev) !== remoteSetFp) {
               if (typeof window !== 'undefined') {
                 localStorage.setItem(STORAGE_LOCAL_SETLISTS, JSON.stringify(sorted));
               }
@@ -142,13 +161,26 @@ export function useSetlist() {
             return prev;
           });
         }
-      } catch (_) {}
+      } catch (_) {
+      } finally {
+        inFlight = false;
+      }
     };
 
-    const intervalId = setInterval(silentPoll, 4000);
+    const intervalId = setInterval(silentPoll, 30000);
+    const handleVisibility = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        silentPoll();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('online', silentPoll);
+
     return () => {
       isMounted = false;
       clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('online', silentPoll);
     };
   }, []);
 
