@@ -1,3 +1,8 @@
+## [v2.93.1] — 2026-11-26
+### Fixed
+- **Auto-Clear Setlist Search After Adding Song (`app/band/components/SetlistSidebar.tsx`)**:
+  - Tapping **`+ Add`** on a cross-library search match inside an active setlist now immediately clears the search input so the full setlist (including the newly added song) is visible right away.
+
 ## [v2.93.0] — 2026-11-26
 ### Changed / Removed
 - **Setlist-Level Key Persistence & Removal of Worship Leader Key Lock (`app/band/hooks/useSetlist.ts`, `app/band/page.tsx`, `app/band/components/StageTopBar.tsx`, `app/band/components/SongSheet.tsx`, `app/band/components/modals/KeyPickerModal.tsx`)**:

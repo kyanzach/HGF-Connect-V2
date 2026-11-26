@@ -1283,6 +1283,7 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
                         onClick={(e) => {
                           e.stopPropagation();
                           onAddSongToSetlist?.(song.id, activeSetlist.id);
+                          setSearchQuery('');
                         }}
                         style={{
                           height: '28px',
