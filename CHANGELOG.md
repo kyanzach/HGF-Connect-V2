@@ -1,3 +1,8 @@
+## [v2.95.1] — 2026-11-26
+### Improved
+- **Prominent Search Bar in Setlist Sidebar (`app/band/components/SetlistSidebar.tsx`)**:
+  - Simplified placeholder text to **"Search"** and upgraded the input to a larger, high-contrast `44px` bar (`15px` font, brighter `1.5px` border, teal active focus ring, and bolder magnifying-glass icon).
+
 ## [v2.95.0] — 2026-11-26
 ### Added
 - **Interactive Tap-to-View Guitar Chord Diagrams & Web Audio Strum Player (`app/band/lib/guitarChords.ts`, `app/band/components/GuitarChordPopover.tsx`, `app/band/components/SongSheet.tsx`, `app/band/page.tsx`)**:

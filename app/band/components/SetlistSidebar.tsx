@@ -602,21 +602,22 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
             style={{ width: '100%', margin: 0, position: 'relative' }}
           >
             <svg
-              width="15"
-              height="15"
+              width="17"
+              height="17"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="#64748b"
-              strokeWidth="2.2"
+              stroke={searchQuery ? '#4EB1CB' : '#94a3b8'}
+              strokeWidth="2.3"
               strokeLinecap="round"
               strokeLinejoin="round"
               aria-hidden="true"
               style={{
                 position: 'absolute',
-                left: '11px',
+                left: '13px',
                 top: '50%',
                 transform: 'translateY(-50%)',
                 pointerEvents: 'none',
+                transition: 'stroke 0.15s ease',
               }}
             >
               <circle cx="11" cy="11" r="8" />
@@ -625,21 +626,24 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
             <input
               type="text"
               enterKeyHint="search"
-              placeholder={activeSetlist ? 'Find or add song to setlist...' : 'Search song title or artist...'}
+              placeholder="Search"
+              aria-label="Search songs"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
                 width: '100%',
-                height: '38px',
-                borderRadius: '10px',
-                background: '#0e1524',
-                border: `1px solid ${searchQuery ? '#4EB1CB' : '#233147'}`,
+                height: '44px',
+                borderRadius: '11px',
+                background: '#111a2c',
+                border: `1.5px solid ${searchQuery ? '#4EB1CB' : '#2d405c'}`,
                 color: '#fff',
-                padding: searchQuery ? '0 34px 0 34px' : '0 12px 0 34px',
-                fontSize: '13px',
+                padding: searchQuery ? '0 38px 0 40px' : '0 14px 0 40px',
+                fontSize: '15px',
+                fontWeight: 500,
                 boxSizing: 'border-box',
                 outline: 'none',
-                transition: 'border-color 0.15s ease',
+                boxShadow: searchQuery ? '0 0 0 3px rgba(78, 177, 203, 0.16)' : 'inset 0 1px 2px rgba(0,0,0,0.35)',
+                transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
               }}
             />
             {searchQuery && (
