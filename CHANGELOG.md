@@ -1,3 +1,12 @@
+## [v2.97.0] — 2026-11-26
+### Added
+- **ProPresenter 2-Line vs 1-Line Copy Options (`app/band/lib/propresenterExport.ts`, `app/band/components/StageTopBar.tsx`, `app/band/page.tsx`)**:
+  - Added a clean dropdown on the **`ProPresenter`** button with two slide layout choices: **2 Lines / Slide** (paired 2-line slides with blank spacing) and **1 Line / Slide** (continuous lines with zero blank lines inside sections), plus **Re-clean with AI**.
+### Fixed
+- **ProPresenter Copy Strips Chord-Only Intros, Repeat Markers & Tabs (`app/band/lib/propresenterExport.ts`, `app/api/worship/ai-clean-lyrics/route.ts`, `app/band/page.tsx`)**:
+  - Updated chord-line detection to recognize repeat/no-chord tokens (`x2`, `2x`, `(2x)`, `N.C.`), guitar tab lines (`e|---`), and capo/tempo lines so chord-only lines like `Bb Bb Eb Eb x2` are never copied into ProPresenter lyrics.
+  - Applied `formatProPresenterSlideLayout()` / `sanitizeProPresenterLyrics()` on both cached and fresh AI lyrics to strip empty/instrumental-only section headers (such as `[Intro]` with no sung lyrics).
+
 ## [v2.96.0] — 2026-11-26
 ### Added
 - **Dual Key Sort Modes — Flow (Circle of Fifths) & Scale (Chromatic C–B) (`app/band/components/SetlistSidebar.tsx`)**:

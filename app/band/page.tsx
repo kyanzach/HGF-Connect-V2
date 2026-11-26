@@ -38,7 +38,7 @@ const GuitarChordPopover = dynamic(() => import('./components/GuitarChordPopover
 
 import { BandUser, Song, Setlist, AudioTrack, AudioMarker, DrawingStroke } from './types/band';
 import { getCachedAudioMarkers, saveCachedAudioMarkers } from './lib/audioAnalysis';
-import { formatSongForProPresenter, copyTextToClipboard, cleanSongWithAi } from './lib/propresenterExport';
+import { formatSongForProPresenter, formatProPresenterSlideLayout, copyTextToClipboard, cleanSongWithAi } from './lib/propresenterExport';
 
 function parseDurationToSec(dur?: string): number {
   if (!dur) return 0;
@@ -464,32 +464,38 @@ export default function BandStagePage() {
   const [isCopiedProPresenter, setIsCopiedProPresenter] = useState<boolean>(false);
   const [isCleaningProPresenter, setIsCleaningProPresenter] = useState<boolean>(false);
 
-  const handleCopyProPresenter = useCallback(async (forceRefresh = false) => {
+  const handleCopyProPresenter = useCallback(async (forceRefresh = false, linesPerSlide: 1 | 2 = 2) => {
     if (!currentSong) return;
 
-    // 1. If already cleaned & saved and not forcing refresh, copy immediately (0 AI requests)
+    // 1. If already cleaned & saved and not forcing refresh, sanitize + format to chosen slide layout & copy immediately (0 AI requests)
     if (!forceRefresh && currentSong.proPresenterLyrics && currentSong.proPresenterLyrics.trim()) {
-      const success = await copyTextToClipboard(currentSong.proPresenterLyrics.trim());
+      const formatted = formatProPresenterSlideLayout(currentSong.proPresenterLyrics, linesPerSlide);
+      const success = await copyTextToClipboard(formatted);
       if (success) {
         setIsCopiedProPresenter(true);
+        setRefreshToast(`Copied for ProPresenter (${linesPerSlide === 1 ? '1 line / no spacing' : '2 lines / slide'})`);
         setTimeout(() => setIsCopiedProPresenter(false), 2500);
+        setTimeout(() => setRefreshToast(null), 2500);
       }
       return;
     }
 
-    // 2. 1 process when clicked: AI cleans, saves separately to server, and copies to clipboard
+    // 2. 1 process when clicked: AI cleans, saves separately to server, formats to chosen layout, and copies to clipboard
     setIsCleaningProPresenter(true);
     try {
       const { text } = await cleanSongWithAi(currentSong, forceRefresh);
       if (text) {
-        // Update song state and cache so subsequent clicks are instantaneous
-        const updatedSong = { ...currentSong, proPresenterLyrics: text };
+        const canonicalTwoLine = formatProPresenterSlideLayout(text, 2);
+        const updatedSong = { ...currentSong, proPresenterLyrics: canonicalTwoLine };
         updateSongInMemory(updatedSong);
 
-        const success = await copyTextToClipboard(text);
+        const formatted = formatProPresenterSlideLayout(canonicalTwoLine, linesPerSlide);
+        const success = await copyTextToClipboard(formatted);
         if (success) {
           setIsCopiedProPresenter(true);
+          setRefreshToast(`Copied for ProPresenter (${linesPerSlide === 1 ? '1 line / no spacing' : '2 lines / slide'})`);
           setTimeout(() => setIsCopiedProPresenter(false), 2500);
+          setTimeout(() => setRefreshToast(null), 2500);
         }
       }
     } catch (err) {
@@ -497,10 +503,10 @@ export default function BandStagePage() {
     } finally {
       setIsCleaningProPresenter(false);
     }
-  }, [currentSong]);
+  }, [currentSong, updateSongInMemory]);
 
-  const handleReCleanProPresenter = useCallback(() => {
-    handleCopyProPresenter(true);
+  const handleReCleanProPresenter = useCallback((linesPerSlide: 1 | 2 = 2) => {
+    handleCopyProPresenter(true, linesPerSlide);
   }, [handleCopyProPresenter]);
 
   // Login Gate Modal
@@ -1822,11 +1828,11 @@ export default function BandStagePage() {
           onOpenAmbientPad={() => setIsAmbientPadOpen(true)}
           onToggleSidebar={() => setIsSidebarOpen(true)}
           onOpenInstallModal={() => setIsInstallModalOpen(true)}
-          onCopyProPresenter={() => handleCopyProPresenter(false)}
+          onCopyProPresenter={(linesPerSlide = 2) => handleCopyProPresenter(false, linesPerSlide)}
           isCopiedProPresenter={isCopiedProPresenter}
           isCleaningProPresenter={isCleaningProPresenter}
           hasSavedProPresenterLyrics={Boolean(currentSong?.proPresenterLyrics && currentSong.proPresenterLyrics.trim())}
-          onReCleanProPresenter={handleReCleanProPresenter}
+          onReCleanProPresenter={(linesPerSlide = 2) => handleReCleanProPresenter(linesPerSlide)}
           showStageTools={showStageTools}
           onToggleStageTools={() => setShowStageTools((prev) => !prev)}
         />

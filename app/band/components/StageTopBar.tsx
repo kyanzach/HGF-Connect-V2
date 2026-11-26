@@ -29,11 +29,11 @@ interface StageTopBarProps {
   onOpenAmbientPad: () => void;
   onToggleSidebar: () => void;
   onOpenInstallModal?: () => void;
-  onCopyProPresenter?: () => void;
+  onCopyProPresenter?: (linesPerSlide?: 1 | 2) => void;
   isCopiedProPresenter?: boolean;
   isCleaningProPresenter?: boolean;
   hasSavedProPresenterLyrics?: boolean;
-  onReCleanProPresenter?: () => void;
+  onReCleanProPresenter?: (linesPerSlide?: 1 | 2) => void;
   showStageTools?: boolean;
   onToggleStageTools?: () => void;
 }
@@ -66,6 +66,7 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
 }) => {
   const [copiedLink, setCopiedLink] = React.useState(false);
   const [isUpdatingApp, setIsUpdatingApp] = React.useState(false);
+  const [showProMenu, setShowProMenu] = React.useState(false);
   const sortedSetlists = useMemo(() => sortSetlistsUpcomingFirst(setlists), [setlists]);
   const todayStr = useMemo(() => getTodayDateString(), []);
 
@@ -548,27 +549,19 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
             <span>Notes</span>
           </button>
           {onCopyProPresenter && (
-            <div style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
+            <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
               <button
                 type="button"
-                onClick={onCopyProPresenter}
+                onClick={() => setShowProMenu((prev) => !prev)}
                 disabled={isCleaningProPresenter}
-                title={
-                  isCleaningProPresenter
-                    ? 'AI is cleaning chords, asterisks, and dynamics notes...'
-                    : isCopiedProPresenter
-                    ? 'Copied to clipboard! In ProPresenter 7, go to File > Import > Text from Clipboard.'
-                    : hasSavedProPresenterLyrics
-                    ? 'Copy AI-cleaned lyrics formatted for ProPresenter 7 (Saved on server).'
-                    : '1-click: Clean with AI, save to server, & copy formatted for ProPresenter 7'
-                }
+                title="Copy formatted lyrics for ProPresenter 7 (2 lines or 1 line)"
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '6px',
                   padding: '0 11px',
                   height: '36px',
-                  borderRadius: hasSavedProPresenterLyrics && onReCleanProPresenter ? '8px 0 0 8px' : '8px',
+                  borderRadius: '8px',
                   background: isCleaningProPresenter
                     ? 'rgba(78, 177, 203, 0.22)'
                     : isCopiedProPresenter
@@ -609,40 +602,116 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
                     ? 'Cleaning...'
                     : isCopiedProPresenter
                     ? 'Copied Pro7'
-                    : hasSavedProPresenterLyrics
-                    ? 'ProPresenter'
-                    : 'AI Pro7'}
+                    : 'ProPresenter'}
                 </span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
               </button>
-              {hasSavedProPresenterLyrics && onReCleanProPresenter && !isCleaningProPresenter && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onReCleanProPresenter();
-                  }}
-                  title="Re-clean lyrics with AI and update saved version"
-                  aria-label="Re-clean ProPresenter lyrics"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '30px',
-                    height: '36px',
-                    borderRadius: '0 8px 8px 0',
-                    border: '1px solid #38bdf8',
-                    borderLeft: 'none',
-                    background: 'rgba(56, 189, 248, 0.15)',
-                    color: '#38bdf8',
-                    cursor: 'pointer',
-                    transition: 'all 0.18s ease',
-                  }}
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="M21 12a9 9 0 1 1-2.64-6.36" />
-                    <path d="M21 3v6h-6" />
-                  </svg>
-                </button>
+
+              {showProMenu && !isCleaningProPresenter && (
+                <>
+                  <div
+                    onClick={() => setShowProMenu(false)}
+                    style={{ position: 'fixed', inset: 0, zIndex: 140 }}
+                  />
+                  <div
+                    style={{
+                      position: 'fixed',
+                      top: 'calc(env(safe-area-inset-top, 0px) + 106px)',
+                      right: '14px',
+                      zIndex: 150,
+                      width: '215px',
+                      background: '#0f172a',
+                      border: '1px solid #334155',
+                      borderRadius: '11px',
+                      padding: '6px',
+                      boxShadow: '0 14px 36px rgba(0, 0, 0, 0.8)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px',
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowProMenu(false);
+                        onCopyProPresenter(2);
+                      }}
+                      style={{
+                        width: '100%',
+                        textAlign: 'left',
+                        padding: '8px 10px',
+                        borderRadius: '7px',
+                        border: 'none',
+                        background: 'rgba(78, 177, 203, 0.14)',
+                        color: '#f8fafc',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '2px',
+                      }}
+                    >
+                      <span style={{ fontSize: '12.5px', fontWeight: 800, color: '#4EB1CB' }}>2 Lines / Slide</span>
+                      <span style={{ fontSize: '10.5px', color: '#94a3b8' }}>Paired 2 lines with blank space</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowProMenu(false);
+                        onCopyProPresenter(1);
+                      }}
+                      style={{
+                        width: '100%',
+                        textAlign: 'left',
+                        padding: '8px 10px',
+                        borderRadius: '7px',
+                        border: 'none',
+                        background: '#131c2e',
+                        color: '#f8fafc',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '2px',
+                      }}
+                    >
+                      <span style={{ fontSize: '12.5px', fontWeight: 800, color: '#e2e8f0' }}>1 Line / Slide</span>
+                      <span style={{ fontSize: '10.5px', color: '#94a3b8' }}>Continuous lines, no spacing</span>
+                    </button>
+                    {hasSavedProPresenterLyrics && onReCleanProPresenter && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowProMenu(false);
+                          onReCleanProPresenter(2);
+                        }}
+                        style={{
+                          width: '100%',
+                          textAlign: 'left',
+                          padding: '7px 10px',
+                          marginTop: '2px',
+                          border: 'none',
+                          borderTop: '1px solid #1e293b',
+                          borderRadius: '0 0 6px 6px',
+                          background: 'transparent',
+                          color: '#94a3b8',
+                          fontSize: '11.5px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                          <path d="M21 3v6h-6" />
+                        </svg>
+                        <span>Re-clean with AI</span>
+                      </button>
+                    )}
+                  </div>
+                </>
               )}
             </div>
           )}

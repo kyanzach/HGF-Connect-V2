@@ -28,10 +28,20 @@ export function decodeHtmlEntities(str: string): string {
 const CHORD_REGEX = /^[A-G][b#]?(?:m|min|maj|sus|add|dim|aug|[0-9]|\/[0-9])*(?:\/[A-G][b#]?(?:m|min|maj|sus|add|dim|aug|[0-9])*)?$/i;
 
 function isChordToken(w: string): boolean {
-  return CHORD_REGEX.test(w) || /^[-–—()|/]+$/.test(w);
+  const cleaned = w.replace(/^[\(\[\{]+|[\)\]\},.:;]+$/g, '');
+  if (!cleaned) return true;
+  if (CHORD_REGEX.test(cleaned)) return true;
+  if (/^(?:x\d+|\d+x|n\.?c\.?|tacet|rest)$/i.test(cleaned)) return true;
+  if (/^[-–—()|/:.,•·]+$/.test(w)) return true;
+  return false;
+}
+
+function isGuitarTabLine(l: string): boolean {
+  return /^[eBGDAE]\s*\|[-0-9hpb/\\~xX|\s'^()]+$/.test(l) || /\|[-0-9hpb/\\~'\s]{4,}\|/.test(l);
 }
 
 function isChordLine(l: string): boolean {
+  if (isGuitarTabLine(l)) return true;
   const unbracketed = l.replace(/\[[A-G][b#]?[^\]]*\]/g, '').trim();
   if (!unbracketed) return true;
   const words = unbracketed.split(/\s+/);
@@ -39,10 +49,12 @@ function isChordLine(l: string): boolean {
 }
 
 function isPerformanceCue(l: string): boolean {
+  if (isGuitarTabLine(l)) return true;
   if (/^\*.*\*?$/.test(l)) return true;
   if (/\*(?:piano|drum|guitar|bass|synth|acoustic|cymbal|swell|groove|breakdown|vamp|marching|snare|tom|layers|dynamics|build|all in|dropdown|hits|tempo|soft|loud)\b/i.test(l)) return true;
   if (/^(?:guitar|marching|breakdown|instrumental|vamp|intro|interlude|outro|coda|solo):?$/i.test(l)) return true;
-  if (/^\((?:repeat|instrumental|solo|key\s+change|\d+x|all|band|drums|build|to verse)[^)]*\)$/i.test(l)) return true;
+  if (/^(?:capo\s+on|capo\s*:|tuning\s*:|tempo\s*:|bpm\s*:)/i.test(l)) return true;
+  if (/^\((?:repeat|instrumental|solo|key\s+change|\d+x|x\d+|all|band|drums|build|to verse)[^)]*\)$/i.test(l)) return true;
   if (/^[A-G][b#]?=\d+/i.test(l)) return true;
   return false;
 }

@@ -18,10 +18,20 @@ export function decodeHtmlEntities(str: string): string {
 const CHORD_REGEX = /^[A-G][b#]?(?:m|min|maj|sus|add|dim|aug|[0-9]|\/[0-9])*(?:\/[A-G][b#]?(?:m|min|maj|sus|add|dim|aug|[0-9])*)?$/i;
 
 function isChordToken(w: string): boolean {
-  return CHORD_REGEX.test(w) || /^[-–—()|/]+$/.test(w);
+  const cleaned = w.replace(/^[\(\[\{]+|[\)\]\},.:;]+$/g, '');
+  if (!cleaned) return true;
+  if (CHORD_REGEX.test(cleaned)) return true;
+  if (/^(?:x\d+|\d+x|n\.?c\.?|tacet|rest)$/i.test(cleaned)) return true;
+  if (/^[-–—()|/:.,•·]+$/.test(w)) return true;
+  return false;
+}
+
+function isGuitarTabLine(l: string): boolean {
+  return /^[eBGDAE]\s*\|[-0-9hpb/\\~xX|\s'^()]+$/.test(l) || /\|[-0-9hpb/\\~'\s]{4,}\|/.test(l);
 }
 
 function isChordLine(l: string): boolean {
+  if (isGuitarTabLine(l)) return true;
   const unbracketed = l.replace(/\[[A-G][b#]?[^\]]*\]/g, '').trim();
   if (!unbracketed) return true;
   const words = unbracketed.split(/\s+/);
@@ -29,12 +39,101 @@ function isChordLine(l: string): boolean {
 }
 
 function isPerformanceCue(l: string): boolean {
+  if (isGuitarTabLine(l)) return true;
   if (/^\*.*\*?$/.test(l)) return true;
   if (/\*(?:piano|drum|guitar|bass|synth|acoustic|cymbal|swell|groove|breakdown|vamp|marching|snare|tom|layers|dynamics|build|all in|dropdown|hits|tempo|soft|loud)\b/i.test(l)) return true;
   if (/^(?:guitar|marching|breakdown|instrumental|vamp|intro|interlude|outro|coda|solo):?$/i.test(l)) return true;
-  if (/^\((?:repeat|instrumental|solo|key\s+change|\d+x|all|band|drums|build|to verse)[^)]*\)$/i.test(l)) return true;
+  if (/^(?:capo\s+on|capo\s*:|tuning\s*:|tempo\s*:|bpm\s*:)/i.test(l)) return true;
+  if (/^\((?:repeat|instrumental|solo|key\s+change|\d+x|x\d+|all|band|drums|build|to verse)[^)]*\)$/i.test(l)) return true;
   if (/^[A-G][b#]?=\d+/i.test(l)) return true;
   return false;
+}
+
+/**
+ * Post-processes any ProPresenter lyrics string (including cached AI output)
+ * to strip stray chord-only lines (e.g. "Bb Bb Eb Eb x2"), guitar tabs,
+ * and empty/instrumental-only section headers (e.g. "[Intro]" with no lyrics).
+ */
+export function sanitizeProPresenterLyrics(raw: string): string {
+  if (!raw || !raw.trim()) return '';
+  const blocks = raw.trim().split(/\r?\n\r?\n+/);
+  const cleanedBlocks: string[] = [];
+
+  for (const block of blocks) {
+    const rawLines = block.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const keptLines: string[] = [];
+    let header: string | null = null;
+
+    for (let i = 0; i < rawLines.length; i++) {
+      const line = rawLines[i];
+      if (i === 0 && /^\[[^\]]+\]$/.test(line)) {
+        header = line;
+        continue;
+      }
+      if (isPerformanceCue(line) || isChordLine(line)) continue;
+      keptLines.push(line);
+    }
+
+    if (header) {
+      if (keptLines.length > 0) {
+        cleanedBlocks.push(`${header}\n${keptLines.join('\n')}`);
+      }
+      // If a header block has 0 lyric lines (e.g. [Intro] followed only by chords), drop it unless next block is a continuation without a header
+    } else if (keptLines.length > 0) {
+      cleanedBlocks.push(keptLines.join('\n'));
+    }
+  }
+
+  return cleanedBlocks.join('\n\n');
+}
+
+/**
+ * Formats sanitized ProPresenter lyrics into either:
+ * - linesPerSlide = 2: pairs of 2 lines separated by a blank line (\n\n) per slide
+ * - linesPerSlide = 1: continuous lines with NO blank lines inside each section (1 line per slide)
+ */
+export function formatProPresenterSlideLayout(raw: string, linesPerSlide: 1 | 2 = 2): string {
+  const sanitized = sanitizeProPresenterLyrics(raw);
+  if (!sanitized) return '';
+
+  const allLines = sanitized.split(/\r?\n/).map((l) => l.trim());
+  const groups: { header: string; lines: string[] }[] = [];
+  let current: { header: string; lines: string[] } | null = null;
+
+  for (const line of allLines) {
+    if (!line) continue;
+    if (/^\[[^\]]+\]$/.test(line)) {
+      if (current && current.lines.length > 0) {
+        groups.push(current);
+      }
+      current = { header: line, lines: [] };
+      continue;
+    }
+    if (!current) {
+      current = { header: '[Verse 1]', lines: [] };
+    }
+    current.lines.push(line);
+  }
+  if (current && current.lines.length > 0) {
+    groups.push(current);
+  }
+
+  return groups
+    .map((g) => {
+      if (linesPerSlide === 1) {
+        return `${g.header}\n${g.lines.join('\n')}`;
+      }
+      const slides: string[] = [];
+      for (let i = 0; i < g.lines.length; i += 2) {
+        if (i + 1 < g.lines.length) {
+          slides.push(`${g.lines[i]}\n${g.lines[i + 1]}`);
+        } else {
+          slides.push(g.lines[i]);
+        }
+      }
+      return `${g.header}\n${slides.join('\n\n')}`;
+    })
+    .join('\n\n');
 }
 
 export function matchSectionHeader(raw: string): string | null {
@@ -81,9 +180,9 @@ export function normalizeProPresenterHeader(rawHeader: string): string {
 export function formatSongForProPresenter(song: Song | null, parsedLines?: SheetLine[]): string {
   if (!song) return '';
 
-  // If already saved with AI cleanup, return immediately
+  // If already saved with AI cleanup, sanitize & return immediately
   if (song.proPresenterLyrics && song.proPresenterLyrics.trim()) {
-    return song.proPresenterLyrics.trim();
+    return sanitizeProPresenterLyrics(song.proPresenterLyrics);
   }
 
   const rawText = (song.lyrics && song.lyrics.trim()) || (song.chords && song.chords.trim()) || '';
@@ -184,7 +283,7 @@ export async function cleanSongWithAi(
   forceRefresh: boolean = false
 ): Promise<{ text: string; cached: boolean }> {
   if (!forceRefresh && song.proPresenterLyrics && song.proPresenterLyrics.trim()) {
-    return { text: song.proPresenterLyrics.trim(), cached: true };
+    return { text: sanitizeProPresenterLyrics(song.proPresenterLyrics), cached: true };
   }
 
   try {
@@ -203,7 +302,7 @@ export async function cleanSongWithAi(
     if (res.ok) {
       const data = await res.json();
       if (data.proPresenterLyrics) {
-        return { text: data.proPresenterLyrics.trim(), cached: Boolean(data.cached) };
+        return { text: sanitizeProPresenterLyrics(data.proPresenterLyrics), cached: Boolean(data.cached) };
       }
     }
   } catch (err) {
@@ -212,7 +311,7 @@ export async function cleanSongWithAi(
 
   // Fallback to local rule-based cleaner
   const fallbackText = formatSongForProPresenter(song);
-  return { text: fallbackText, cached: false };
+  return { text: sanitizeProPresenterLyrics(fallbackText), cached: false };
 }
 
 /**
