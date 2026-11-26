@@ -247,11 +247,15 @@ export default function BandStagePage() {
     ((session?.user as any)?.role || '').toUpperCase() === 'MD'
   );
 
-  // Scope backtrack playback dock: visible to all band instrument players / members or MD when audio track is present
+  // Floating backing track player dock is hidden by default; toggled via Backing Tracks & Audio Manager modal
+  const [showAudioDock, setShowAudioDock] = useState<boolean>(false);
+
+  // Scope backtrack playback dock: visible only when explicitly shown by user and audio track is present
   const isPlaybackDockVisible = useMemo(() => {
+    if (!showAudioDock) return false;
     if (!hasAudio || !currentSong?.audioTrack) return false;
     return Boolean(currentUser || isUserMD);
-  }, [hasAudio, currentSong?.audioTrack, currentUser, isUserMD]);
+  }, [showAudioDock, hasAudio, currentSong?.audioTrack, currentUser, isUserMD]);
 
   // Permanently disable native Android SwipeRefreshLayout in HGFBandApp APK bridge
   useEffect(() => {
@@ -2197,6 +2201,8 @@ export default function BandStagePage() {
           currentSong={currentSong}
           currentUser={currentUser}
           onAttachTrack={handleAttachTrack}
+          showAudioDock={showAudioDock}
+          onToggleAudioDock={() => setShowAudioDock((prev) => !prev)}
         />
       )}
 

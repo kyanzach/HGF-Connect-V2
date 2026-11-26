@@ -3,7 +3,7 @@
 
 import React, { useMemo } from 'react';
 import { Setlist, BandUser } from '../types/band';
-import { sortSetlistsUpcomingFirst, formatServiceDate, getTodayDateString } from '../lib/sortSetlists';
+import { sortSetlistsUpcomingFirst, formatSetlistLabel, getTodayDateString } from '../lib/sortSetlists';
 
 interface StageTopBarProps {
   currentKey: string;
@@ -236,11 +236,9 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
             <option value="">All Songs</option>
             {sortedSetlists.map((s) => {
               const isUpcoming = Boolean(s.serviceDate && s.serviceDate >= todayStr);
-              const dateTag = formatServiceDate(s.serviceDate);
-              const hasDateInName = dateTag && s.name.toLowerCase().includes(dateTag.toLowerCase());
               return (
                 <option key={s.id} value={s.id}>
-                  {isUpcoming ? '★ ' : ''}{s.name}{dateTag && !hasDateInName ? ` • ${dateTag}` : ''}{s.leader ? ` (${s.leader})` : ''}
+                  {isUpcoming ? '★ ' : ''}{formatSetlistLabel(s, { includeLeader: true })}
                 </option>
               );
             })}

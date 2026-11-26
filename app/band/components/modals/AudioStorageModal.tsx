@@ -18,6 +18,8 @@ interface AudioStorageModalProps {
   currentSong: Song | null;
   currentUser?: BandUser | null;
   onAttachTrack: (track: AudioTrack | null) => Promise<void>;
+  showAudioDock?: boolean;
+  onToggleAudioDock?: () => void;
 }
 
 export const AudioStorageModal: React.FC<AudioStorageModalProps> = ({
@@ -26,6 +28,8 @@ export const AudioStorageModal: React.FC<AudioStorageModalProps> = ({
   currentSong,
   currentUser,
   onAttachTrack,
+  showAudioDock = false,
+  onToggleAudioDock,
 }) => {
   const [storageMode, setStorageMode] = useState<'local' | 'cloud'>('local');
   const [audioFiles, setAudioFiles] = useState<any[]>([]);
@@ -254,22 +258,60 @@ export const AudioStorageModal: React.FC<AudioStorageModalProps> = ({
                 )}
               </div>
               {currentSong.audioTrack && (
-                <button
-                  onClick={() => onAttachTrack(null)}
-                  style={{
-                    marginTop: '10px',
-                    padding: '4px 10px',
-                    borderRadius: '6px',
-                    background: 'rgba(239, 68, 68, 0.15)',
-                    border: '1px solid #ef4444',
-                    color: '#f87171',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Detach Track
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
+                  {onToggleAudioDock && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const willShow = !showAudioDock;
+                        onToggleAudioDock();
+                        if (willShow) onClose();
+                      }}
+                      style={{
+                        height: '32px',
+                        padding: '0 12px',
+                        borderRadius: '7px',
+                        background: showAudioDock ? 'rgba(148, 163, 184, 0.14)' : '#4EB1CB',
+                        border: showAudioDock ? '1px solid #475569' : 'none',
+                        color: showAudioDock ? '#e2e8f0' : '#000',
+                        fontSize: '12px',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        {showAudioDock ? (
+                          <path d="M6 5h4v14H6zm8 0h4v14h-4z" />
+                        ) : (
+                          <path d="M7 4.8v14.4c0 1 1.1 1.6 1.9 1.1l11.2-7.2c.8-.5.8-1.7 0-2.2L8.9 3.7C8.1 3.2 7 3.8 7 4.8z" />
+                        )}
+                      </svg>
+                      <span>{showAudioDock ? 'Hide Player' : 'Show Player'}</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => onAttachTrack(null)}
+                    style={{
+                      height: '32px',
+                      padding: '0 12px',
+                      borderRadius: '7px',
+                      background: 'rgba(239, 68, 68, 0.15)',
+                      border: '1px solid rgba(239, 68, 68, 0.5)',
+                      color: '#f87171',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    Detach Track
+                  </button>
+                </div>
               )}
             </div>
           )}

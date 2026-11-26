@@ -30,6 +30,66 @@ export function formatServiceDate(dateStr?: string): string {
 }
 
 /**
+ * Returns "Sunday Service" for Sundays (day 0), "Grace Night" for Wednesdays (day 3), or "" otherwise.
+ */
+export function getServiceTypeLabel(dateStr?: string): string {
+  if (!dateStr) return '';
+  const parts = dateStr.trim().split('-');
+  if (parts.length !== 3) return '';
+  const y = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10);
+  const d = parseInt(parts[2], 10);
+  if (isNaN(y) || isNaN(m) || isNaN(d)) return '';
+  const dayOfWeek = new Date(y, m - 1, d).getDay();
+  if (dayOfWeek === 0) return 'Sunday Service';
+  if (dayOfWeek === 3) return 'Grace Night';
+  return '';
+}
+
+/**
+ * Formats a setlist's service type + date metadata without duplicating words already in the name.
+ * Example: "Sunday Service • Nov 29" or "Grace Night • Nov 25".
+ */
+export function formatSetlistMeta(setlist: Pick<Setlist, 'name' | 'serviceDate'>): string {
+  const lowerName = (setlist.name || '').toLowerCase();
+  const serviceType = getServiceTypeLabel(setlist.serviceDate);
+  const dateTag = formatServiceDate(setlist.serviceDate);
+
+  const parts: string[] = [];
+  if (serviceType) {
+    const alreadyMentionsType =
+      (serviceType === 'Sunday Service' && lowerName.includes('sunday')) ||
+      (serviceType === 'Grace Night' && (lowerName.includes('grace night') || lowerName.includes('wednesday')));
+    if (!alreadyMentionsType) {
+      parts.push(serviceType);
+    }
+  }
+  if (dateTag && !lowerName.includes(dateTag.toLowerCase())) {
+    parts.push(dateTag);
+  }
+  return parts.join(' • ');
+}
+
+/**
+ * Formats a setlist's full display label for dropdowns and pickers.
+ * Example: "Ryan • Sunday Service • Nov 29 (3)"
+ */
+export function formatSetlistLabel(
+  setlist: Pick<Setlist, 'name' | 'serviceDate' | 'songs' | 'leader'>,
+  options?: { includeCount?: boolean; includeLeader?: boolean }
+): string {
+  const meta = formatSetlistMeta(setlist);
+  let label = meta ? `${setlist.name} • ${meta}` : setlist.name;
+  if (options?.includeLeader && setlist.leader && !setlist.name.toLowerCase().includes(setlist.leader.toLowerCase())) {
+    label += ` (${setlist.leader})`;
+  }
+  if (options?.includeCount) {
+    label += ` (${setlist.songs?.length || 0})`;
+  }
+  return label;
+}
+
+/**
  * Sorts setlists so future/upcoming dates come first, ordered from closest upcoming to furthest upcoming,
  * followed by past dates in reverse chronological order (most recent first), and finally undated drafts.
  */

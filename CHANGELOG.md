@@ -1,3 +1,16 @@
+## [v2.94.0] — 2026-11-26
+### Changed / Improved
+- **Floating Backing Track Player Hidden by Default (`app/band/page.tsx`, `app/band/components/modals/AudioStorageModal.tsx`)**:
+  - Hid `AudioPlaybackDock` by default (`showAudioDock = false`) so it doesn't clutter or overlap the Auto-Scroll bar during stage use.
+  - Added a **`Show Player` / `Hide Player`** toggle button inside the **Backing Tracks & Audio Manager** modal right next to `Detach Track`.
+- **Smart Service Type Labels (`app/band/lib/sortSetlists.ts`, `app/band/components/StageTopBar.tsx`, `app/band/components/SetlistSidebar.tsx`)**:
+  - Automatically appends **Sunday Service** for Sunday setlist dates and **Grace Night** for Wednesday setlist dates (avoiding duplicate words when already in the setlist name).
+- **Removed Redundant `✓ Set` Pill Inside Setlists (`app/band/components/SetlistSidebar.tsx`)**:
+  - Removed the redundant green `✓ Set` button when viewing inside a specific setlist (where `✕` already removes the song), while keeping the `✓ N Sets` / `+ Set` multi-setlist picker in **All Songs**.
+- **Modernized Setlist Sidebar Header, Search & Controls (`app/band/components/SetlistSidebar.tsx`)**:
+  - Replaced the dark musical-note emoji with a crisp vector **Microphone** icon badge + 1-line service/song-count subtitle.
+  - Replaced the cluttered idle Ultimate Guitar banner and `SORT:` label with a clean icon-prefixed search input (with inline clear `×`), contextual Ultimate Guitar shortcut while typing, a modern segmented sort bar, and clean vector-icon footer actions.
+
 ## [v2.93.1] — 2026-11-26
 ### Fixed
 - **Auto-Clear Setlist Search After Adding Song (`app/band/components/SetlistSidebar.tsx`)**:

@@ -4,7 +4,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import ConfirmModal from '@/components/ConfirmModal';
 import { Song, Setlist, BandUser } from '../types/band';
-import { sortSetlistsUpcomingFirst, formatServiceDate, getTodayDateString } from '../lib/sortSetlists';
+import { sortSetlistsUpcomingFirst, formatSetlistLabel, formatSetlistMeta, getTodayDateString } from '../lib/sortSetlists';
 
 type SortOption = 'order' | 'title' | 'key' | 'artist' | 'recent';
 
@@ -465,67 +465,130 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
         {/* HEADER */}
         <div
           style={{
-            padding: '16px',
+            padding: '14px 16px',
             borderBottom: '1px solid #1e293b',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            paddingTop: 'max(16px, env(safe-area-inset-top))',
+            gap: '10px',
+            paddingTop: 'max(14px, env(safe-area-inset-top))',
           }}
         >
-          <div style={{ fontWeight: 800, fontSize: '16px', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>🎼</span>
-            <span>{activeSetlist ? activeSetlist.name : 'Songbook Library'}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+            <div
+              style={{
+                width: '34px',
+                height: '34px',
+                borderRadius: '10px',
+                background: 'rgba(78, 177, 203, 0.14)',
+                border: '1px solid rgba(78, 177, 203, 0.32)',
+                color: '#4EB1CB',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              {activeSetlist ? (
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                  <line x1="12" y1="19" x2="12" y2="22" />
+                </svg>
+              ) : (
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+                  <path d="M9 10h6" />
+                  <path d="M9 6h6" />
+                </svg>
+              )}
+            </div>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div
+                style={{
+                  fontWeight: 800,
+                  fontSize: '15.5px',
+                  color: '#f8fafc',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  lineHeight: 1.2,
+                }}
+              >
+                {activeSetlist ? activeSetlist.name : 'Songbook Library'}
+              </div>
+              <div
+                style={{
+                  fontSize: '11.5px',
+                  color: '#94a3b8',
+                  marginTop: '2px',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {activeSetlist
+                  ? `${formatSetlistMeta(activeSetlist) ? `${formatSetlistMeta(activeSetlist)} • ` : ''}${activeSetlist.songs?.length || 0} ${(activeSetlist.songs?.length || 0) === 1 ? 'song' : 'songs'}`
+                  : `${songs.length} songs in library`}
+              </div>
+            </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Close sidebar"
             style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '8px',
-              border: 'none',
-              background: '#1e293b',
+              width: '34px',
+              height: '34px',
+              borderRadius: '9px',
+              border: '1px solid #1e293b',
+              background: '#131c2e',
               color: '#94a3b8',
-              fontSize: '16px',
               cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
             }}
           >
-            ✕
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" aria-hidden="true">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
           </button>
         </div>
 
-        {/* SETLIST PICKER & ACTIONS */}
-        <div style={{ padding: '12px 16px', borderBottom: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {/* SETLIST PICKER & SEARCH */}
+        <div style={{ padding: '12px 14px', borderBottom: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '9px' }}>
           <select
             value={activeSetlistId || ''}
             onChange={(e) => onSelectSetlist(e.target.value ? e.target.value : null)}
+            aria-label="Switch setlist"
             style={{
               width: '100%',
-              height: '36px',
-              borderRadius: '8px',
-              background: '#1e293b',
-              border: '1px solid #334155',
-              color: '#e2e8f0',
+              height: '38px',
+              borderRadius: '10px',
+              background: '#131c2e',
+              border: '1px solid #26354d',
+              color: '#f1f5f9',
               padding: '0 10px',
               fontSize: '13px',
               fontWeight: 600,
               cursor: 'pointer',
+              outline: 'none',
             }}
           >
             <option value="">All Songs ({songs.length})</option>
             {sortedSetlists.map((s) => {
               const isUpcoming = Boolean(s.serviceDate && s.serviceDate >= todayStr);
-              const dateTag = formatServiceDate(s.serviceDate);
-              const hasDateInName = dateTag && s.name.toLowerCase().includes(dateTag.toLowerCase());
               return (
                 <option key={s.id} value={s.id}>
-                  {isUpcoming ? '✨ ' : '🎼 '}{s.name}{dateTag && !hasDateInName ? ` • ${dateTag}` : ''} ({s.songs?.length || 0})
+                  {isUpcoming ? '★ ' : ''}{formatSetlistLabel(s, { includeCount: true })}
                 </option>
               );
             })}
           </select>
 
-          {/* Search Input (Press Enter or Mobile Search key when no local match to auto-search Ultimate Guitar) */}
+          {/* Unified Search Input with leading SVG icon & inline clear button */}
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -536,32 +599,82 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
                 onOpenScraper(q);
               }
             }}
-            style={{ width: '100%', margin: 0 }}
+            style={{ width: '100%', margin: 0, position: 'relative' }}
           >
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#64748b"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                left: '11px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                pointerEvents: 'none',
+              }}
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
             <input
-              type="search"
+              type="text"
               enterKeyHint="search"
-              placeholder="Search song title or artist..."
+              placeholder={activeSetlist ? 'Find or add song to setlist...' : 'Search song title or artist...'}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
                 width: '100%',
                 height: '38px',
-                borderRadius: '8px',
-                background: '#131c2e',
-                border: '1px solid #2d3f5e',
+                borderRadius: '10px',
+                background: '#0e1524',
+                border: `1px solid ${searchQuery ? '#4EB1CB' : '#233147'}`,
                 color: '#fff',
-                padding: '0 10px',
+                padding: searchQuery ? '0 34px 0 34px' : '0 12px 0 34px',
                 fontSize: '13px',
                 boxSizing: 'border-box',
                 outline: 'none',
+                transition: 'border-color 0.15s ease',
               }}
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                aria-label="Clear search"
+                style={{
+                  position: 'absolute',
+                  right: '7px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: 'rgba(148, 163, 184, 0.14)',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            )}
           </form>
 
-          {/* Scrape Online Tabs Trigger Button */}
-          {searchQuery.trim() ? (
+          {/* Compact Online Chords shortcut — only shown while actively typing a query */}
+          {searchQuery.trim() && (
             <button
+              type="button"
               onClick={() => {
                 onClose();
                 onOpenScraper(searchQuery.trim());
@@ -569,64 +682,48 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
               style={{
                 width: '100%',
                 padding: '7px 10px',
-                borderRadius: '6px',
-                background: 'rgba(59, 130, 246, 0.14)',
-                border: '1px solid rgba(59, 130, 246, 0.35)',
-                color: '#60a5fa',
-                fontSize: '11px',
+                borderRadius: '8px',
+                background: 'rgba(78, 177, 203, 0.12)',
+                border: '1px solid rgba(78, 177, 203, 0.32)',
+                color: '#7dd3fc',
+                fontSize: '11.5px',
                 fontWeight: 700,
                 textAlign: 'left',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
+                gap: '7px',
               }}
             >
-              <span>🎸</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+                <circle cx="12" cy="12" r="10" />
+                <path d="M2 12h20" />
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+              </svg>
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                Search &quot;<strong>{searchQuery}</strong>&quot; on Ultimate Guitar...
+                Search &quot;<strong>{searchQuery.trim()}</strong>&quot; on Ultimate Guitar
               </span>
-            </button>
-          ) : (
-            <button
-              onClick={() => {
-                onClose();
-                onOpenScraper('');
-              }}
-              style={{
-                width: '100%',
-                padding: '6px 10px',
-                borderRadius: '6px',
-                background: 'rgba(78, 177, 203, 0.1)',
-                border: '1px solid rgba(78, 177, 203, 0.25)',
-                color: '#4EB1CB',
-                fontSize: '11px',
-                fontWeight: 700,
-                textAlign: 'center',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-              }}
-            >
-              <span>🔍</span>
-              <span>Search Online Chords (Ultimate Guitar)</span>
             </button>
           )}
 
-          {/* Sort By Pills */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-            <span style={{ fontSize: '10px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginRight: '4px' }}>
-              Sort:
-            </span>
+          {/* Segmented Sort Control */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '3px',
+              padding: '3px',
+              borderRadius: '9px',
+              background: '#090d15',
+              border: '1px solid #1a2436',
+            }}
+          >
             {activeSetlist && !currentUser ? (
               <div
                 style={{
                   flex: 1,
-                  height: '24px',
+                  height: '26px',
                   borderRadius: '6px',
-                  border: '1px solid rgba(78, 177, 203, 0.3)',
                   background: 'rgba(78, 177, 203, 0.1)',
                   color: '#4EB1CB',
                   fontSize: '11px',
@@ -639,13 +736,12 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
                 }}
                 title="Setlist order is locked for guest viewers"
               >
-                <span>🔒</span>
-                <span>Setlist Order (Locked)</span>
+                <span>Setlist Order</span>
               </div>
             ) : (
               (activeSetlist
                 ? [
-                    { id: 'order' as SortOption, label: 'Setlist' },
+                    { id: 'order' as SortOption, label: 'Order' },
                     { id: 'title' as SortOption, label: 'A-Z' },
                     { id: 'key' as SortOption, label: 'Key' },
                     { id: 'artist' as SortOption, label: 'Artist' },
@@ -661,17 +757,19 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
                 return (
                   <button
                     key={st.id}
+                    type="button"
                     onClick={() => setSortBy(st.id)}
                     style={{
                       flex: 1,
-                      height: '24px',
+                      height: '26px',
                       borderRadius: '6px',
-                      border: `1px solid ${active ? '#4EB1CB' : '#334155'}`,
-                      background: active ? 'rgba(78, 177, 203, 0.2)' : '#1e293b',
-                      color: active ? '#4EB1CB' : '#94a3b8',
-                      fontSize: '11px',
-                      fontWeight: 700,
+                      border: active ? '1px solid rgba(78, 177, 203, 0.35)' : '1px solid transparent',
+                      background: active ? '#152236' : 'transparent',
+                      color: active ? '#4EB1CB' : '#8596ad',
+                      fontSize: '11.5px',
+                      fontWeight: active ? 800 : 600,
                       cursor: 'pointer',
+                      whiteSpace: 'nowrap',
                       transition: 'all 0.15s ease',
                     }}
                   >
@@ -897,59 +995,8 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
                       {song.key || 'C'}
                     </span>
 
-                    {/* Quick Setlist Action */}
-                    {activeSetlist ? (
-                      inCurSetlist ? (
-                        <button
-                          title={`Remove from ${activeSetlist.name}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (onRemoveSongFromSetlist) {
-                              onRemoveSongFromSetlist(song.id, activeSetlist.id);
-                            }
-                          }}
-                          style={{
-                            height: '22px',
-                            padding: '0 6px',
-                            borderRadius: '5px',
-                            border: '1px solid rgba(16, 185, 129, 0.35)',
-                            background: 'rgba(16, 185, 129, 0.15)',
-                            color: '#10b981',
-                            fontSize: '10px',
-                            fontWeight: 800,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '2px',
-                          }}
-                        >
-                          ✓ Set
-                        </button>
-                      ) : (
-                        <button
-                          title={`Add to ${activeSetlist.name}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (onAddSongToSetlist) {
-                              onAddSongToSetlist(song.id, activeSetlist.id);
-                            }
-                          }}
-                          style={{
-                            height: '22px',
-                            padding: '0 6px',
-                            borderRadius: '5px',
-                            border: '1px solid rgba(78, 177, 203, 0.4)',
-                            background: 'rgba(78, 177, 203, 0.15)',
-                            color: '#4EB1CB',
-                            fontSize: '10px',
-                            fontWeight: 800,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          + Set
-                        </button>
-                      )
-                    ) : (
+                    {/* Quick Setlist Action (only in All Songs view — inside an active setlist, the ✕ button removes the song) */}
+                    {!activeSetlist && (
                       /* In "All Songs" view: multi-setlist toggle picker */
                       (() => {
                         const memberSetIds = songSetlistIdsMap.get(song.id);
@@ -1062,8 +1109,6 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
                               ) : (
                                 sortedSetlists.map((st) => {
                                   const isInSet = Boolean(memberSetIds?.has(st.id));
-                                  const dateTag = formatServiceDate(st.serviceDate);
-                                  const hasDateInName = dateTag && st.name.toLowerCase().includes(dateTag.toLowerCase());
                                   return (
                                     <button
                                       key={st.id}
@@ -1100,7 +1145,7 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
                                       }}
                                     >
                                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                        {st.name}{dateTag && !hasDateInName ? ` • ${dateTag}` : ''}
+                                        {formatSetlistLabel(st)}
                                       </span>
                                       <span
                                         style={{
@@ -1312,72 +1357,105 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
         {/* FOOTER ACTIONS */}
         <div
           style={{
-            padding: '12px 16px',
+            padding: '10px 14px',
             borderTop: '1px solid #1e293b',
             display: 'flex',
             gap: '6px',
-            paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
+            paddingBottom: 'max(10px, env(safe-area-inset-bottom))',
           }}
         >
           <button
+            type="button"
             onClick={() => {
               if (currentUser) onClose();
               onOpenNewSongModal();
             }}
-            title={currentUser ? "Add a new song to the church library" : "Login required to add songs (View-Only Mode)"}
+            title={currentUser ? 'Add a new song to the church library' : 'Login required to add songs'}
             style={{
               flex: 1,
-              height: '36px',
-              borderRadius: '8px',
+              height: '38px',
+              borderRadius: '9px',
               background: currentUser ? '#4EB1CB' : 'rgba(78, 177, 203, 0.15)',
               border: currentUser ? 'none' : '1px dashed rgba(78, 177, 203, 0.4)',
               color: currentUser ? '#000' : '#4EB1CB',
               fontWeight: 800,
-              fontSize: '11px',
+              fontSize: '11.5px',
               cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '5px',
+              whiteSpace: 'nowrap',
             }}
           >
-            {currentUser ? '+ Add Song' : '🔒 + Add Song'}
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            <span>New Song</span>
           </button>
           <button
+            type="button"
             onClick={() => {
               if (currentUser) onClose();
               onOpenScraper('');
             }}
-            title={currentUser ? "Search & scrape chord charts" : "Login required to scrape chords"}
+            title={currentUser ? 'Search Ultimate Guitar chord charts' : 'Login required to search online chords'}
             style={{
               flex: 1,
-              height: '36px',
-              borderRadius: '8px',
-              background: 'rgba(59, 130, 246, 0.18)',
-              border: '1px solid rgba(59, 130, 246, 0.35)',
-              color: '#60a5fa',
-              fontWeight: 800,
-              fontSize: '11px',
+              height: '38px',
+              borderRadius: '9px',
+              background: 'rgba(56, 189, 248, 0.12)',
+              border: '1px solid rgba(56, 189, 248, 0.3)',
+              color: '#7dd3fc',
+              fontWeight: 700,
+              fontSize: '11.5px',
               cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '5px',
+              whiteSpace: 'nowrap',
             }}
           >
-            {currentUser ? '🔍 Search' : '🔒 Search'}
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+            <span>Online</span>
           </button>
           <button
+            type="button"
             onClick={() => {
               if (currentUser) onClose();
               onOpenSetlistAdmin();
             }}
-            title={currentUser ? "Manage & create setlists" : "Login required to manage setlists"}
+            title={currentUser ? 'Manage & create setlists' : 'Login required to manage setlists'}
             style={{
               flex: 1,
-              height: '36px',
-              borderRadius: '8px',
-              background: '#1e293b',
-              border: '1px solid #334155',
-              color: '#fff',
+              height: '38px',
+              borderRadius: '9px',
+              background: '#131c2e',
+              border: '1px solid #26354d',
+              color: '#e2e8f0',
               fontWeight: 700,
-              fontSize: '11px',
+              fontSize: '11.5px',
               cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '5px',
+              whiteSpace: 'nowrap',
             }}
           >
-            {currentUser ? 'Setlists' : '🔒 Setlists'}
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <line x1="8" y1="6" x2="21" y2="6" />
+              <line x1="8" y1="12" x2="21" y2="12" />
+              <line x1="8" y1="18" x2="21" y2="18" />
+              <line x1="3" y1="6" x2="3.01" y2="6" />
+              <line x1="3" y1="12" x2="3.01" y2="12" />
+              <line x1="3" y1="18" x2="3.01" y2="18" />
+            </svg>
+            <span>Setlists</span>
           </button>
         </div>
       </aside>
