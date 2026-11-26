@@ -1,3 +1,9 @@
+## [v2.103.0] — 2026-11-26
+### Upgraded
+- **Real Three.js 3D Interactive Quiz Stages for Quiz 4 & Quiz 6 (`components/quiz/LanternCatchStage.tsx`, `components/quiz/WordHarvestTreeStage.tsx`, `package.json`)**:
+  - **Quiz 4 — Floating Lanterns (Real Three.js 3D Sky-Lantern Festival)**: Replaced the 2D canvas + flat rectangle buttons with a full-screen interactive Three.js WebGL night-sky scene featuring 4 sculpted `LatheGeometry` glowing paper lanterns (with bamboo/brass rims, flickering candle flame cores, dynamic `PointLight` illumination, swaying gold silk tassels, twinkling 3D starfield, moon halo, reflective dark water, and 36 distant rising lanterns). Players can **drag to orbit the 3D sky**, **tap directly on any 3D lantern** (`THREE.Raycaster`) or its live 3D-projected floating glass label tag to catch it with a golden spark burst & chime, and watch the chosen lantern ascend into the sky on submit.
+  - **Quiz 6 — 3D Word Harvest (Real Three.js 3D Blooming Tree of Life)**: Upgraded the 2D dot tree into an interactive drag-to-spin Three.js 3D sculpted tree (tapered bark trunk, forked boughs, moss sanctuary island with golden ring, 56 faceted emerald-to-gold canopy clusters, orbiting fireflies, and tappable hanging 3D golden word-fruit orbs) paired with organic leaf-shaped botanical phrase chips, an illuminated harvest verse ribbon with live bloom percentage (`0% → 100% Full Bloom`), and ascending pentatonic pluck chimes.
+
 ## [v2.102.1] — 2026-11-26
 ### Improved
 - **Zero-Friction Continue Prompt After Quiz 7 (`app/api/quiz/status/route.ts`, `app/(app)/quiz/page.tsx`)**:
