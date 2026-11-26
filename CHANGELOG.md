@@ -1,3 +1,8 @@
+## [v2.98.1] — 2026-11-26
+### Added
+- **Quick `+ New Setlist` Button in Setlist Picker Header (`app/band/components/modals/SetlistPickerModal.tsx`, `app/band/page.tsx`)**:
+  - Added a **`+ New Setlist`** button right next to the close button in the **Choose Setlist** modal header so users can create a new setlist directly from either the top bar or sidebar picker.
+
 ## [v2.98.0] — 2026-11-26
 ### Added
 - **Touch-Friendly Setlist Picker Modal with Search, Filters & Sort (`app/band/components/modals/SetlistPickerModal.tsx`, `app/band/components/StageTopBar.tsx`, `app/band/components/SetlistSidebar.tsx`, `app/band/page.tsx`)**:

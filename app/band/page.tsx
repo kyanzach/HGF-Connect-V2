@@ -2192,6 +2192,13 @@ export default function BandStagePage() {
           activeSetlistId={activeSetlistId}
           totalSongCount={songs.length}
           onSelectSetlist={handleSelectSetlist}
+          onCreateSetlist={() => {
+            if (!currentUser) {
+              setLoginPrompt({ open: true, feature: 'setlist' });
+              return;
+            }
+            setIsSetlistAdminOpen(true);
+          }}
         />
       )}
 

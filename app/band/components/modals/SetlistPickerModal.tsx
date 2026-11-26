@@ -17,6 +17,7 @@ interface SetlistPickerModalProps {
   activeSetlistId: string | null;
   totalSongCount: number;
   onSelectSetlist: (id: string | null) => void;
+  onCreateSetlist?: () => void;
 }
 
 type FilterType = 'all' | 'upcoming' | 'sunday' | 'grace';
@@ -29,6 +30,7 @@ export const SetlistPickerModal: React.FC<SetlistPickerModalProps> = ({
   activeSetlistId,
   totalSongCount,
   onSelectSetlist,
+  onCreateSetlist,
 }) => {
   const [query, setQuery] = useState('');
   const [filterBy, setFilterBy] = useState<FilterType>('all');
@@ -150,28 +152,59 @@ export const SetlistPickerModal: React.FC<SetlistPickerModalProps> = ({
               {setlists.length} setlists • {totalSongCount} songs in library
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close setlist picker"
-            style={{
-              width: '38px',
-              height: '38px',
-              borderRadius: '10px',
-              border: '1px solid #26354d',
-              background: '#131c2e',
-              color: '#94a3b8',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
-              <path d="M18 6L6 18M6 6l12 12" />
-            </svg>
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+            {onCreateSetlist && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onCreateSetlist();
+                }}
+                style={{
+                  height: '38px',
+                  padding: '0 13px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: '#4EB1CB',
+                  color: '#061018',
+                  fontSize: '12.5px',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                <span>New Setlist</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close setlist picker"
+              style={{
+                width: '38px',
+                height: '38px',
+                borderRadius: '10px',
+                border: '1px solid #26354d',
+                background: '#131c2e',
+                color: '#94a3b8',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Search + Filter + Sort Controls */}
