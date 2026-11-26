@@ -7,6 +7,7 @@ import { Song, Setlist, BandUser } from '../types/band';
 import { sortSetlistsUpcomingFirst, formatSetlistLabel, formatSetlistMeta, getTodayDateString } from '../lib/sortSetlists';
 
 type SortOption = 'order' | 'title' | 'key' | 'artist' | 'recent';
+type KeySortMode = 'fifths' | 'chromatic';
 
 // Musical chromatic pitch order (C -> B) with enharmonic grouping (e.g. A# === Bb)
 const KEY_PITCH_RANK: Record<string, number> = {
@@ -14,12 +15,19 @@ const KEY_PITCH_RANK: Record<string, number> = {
   'F#': 6, Gb: 6, G: 7, 'G#': 8, Ab: 8, A: 9, 'A#': 10, Bb: 10, B: 11,
 };
 
-function getKeySortRank(rawKey?: string): number {
+// Circle of Fifths worship-flow order (C -> G -> D -> A -> E -> B -> F# -> Db -> Ab -> Eb -> Bb -> F)
+const KEY_FIFTHS_RANK: Record<string, number> = {
+  C: 0, G: 1, D: 2, A: 3, E: 4, B: 5,
+  'F#': 6, Gb: 6, 'C#': 7, Db: 7, 'G#': 8, Ab: 8, 'D#': 9, Eb: 9, 'A#': 10, Bb: 10, F: 11,
+};
+
+function getKeySortRank(rawKey?: string, mode: KeySortMode = 'chromatic'): number {
   if (!rawKey) return 999;
   const m = rawKey.trim().match(/^([A-G])([#b]?)(m|min)?/i);
   if (!m) return 999;
   const root = `${m[1].toUpperCase()}${m[2] ? (m[2] === '#' ? '#' : 'b') : ''}`;
-  const pitch = KEY_PITCH_RANK[root];
+  const table = mode === 'fifths' ? KEY_FIFTHS_RANK : KEY_PITCH_RANK;
+  const pitch = table[root];
   if (pitch === undefined) return 999;
   return pitch * 2 + (m[3] ? 1 : 0);
 }
@@ -120,6 +128,7 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [sortBy, setSortBy] = useState<SortOption>('order');
+  const [keySortMode, setKeySortMode] = useState<KeySortMode>('fifths');
 
   const sortedSetlists = useMemo(() => sortSetlistsUpcomingFirst(setlists), [setlists]);
   const todayStr = useMemo(() => getTodayDateString(), []);
@@ -128,8 +137,10 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
   useEffect(() => {
     if (activeSetlist) {
       setSortBy('order');
+      setKeySortMode('fifths');
     } else {
       setSortBy('title');
+      setKeySortMode('chromatic');
     }
   }, [activeSetlist?.id]);
 
@@ -378,7 +389,7 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
 
     // Apply sorting
     const compareByKey = (a: Song, b: Song) => {
-      const diff = getKeySortRank(a.key) - getKeySortRank(b.key);
+      const diff = getKeySortRank(a.key, keySortMode) - getKeySortRank(b.key, keySortMode);
       return diff !== 0 ? diff : a.title.localeCompare(b.title);
     };
     if (activeSetlist) {
@@ -403,7 +414,7 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
     }
 
     return list;
-  }, [activeSetlist, songs, searchQuery, sortBy]);
+  }, [activeSetlist, songs, searchQuery, sortBy, keySortMode]);
 
   const displayListRef = useRef<Song[]>([]);
   displayListRef.current = displayList;
@@ -803,6 +814,53 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
               })
             )}
           </div>
+
+          {/* Dual Key Sort Sub-Toggle (shown only when Key sort is active) */}
+          {sortBy === 'key' && (!activeSetlist || Boolean(currentUser)) && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '3px',
+                borderRadius: '8px',
+                background: '#0b1220',
+                border: '1px solid rgba(78, 177, 203, 0.22)',
+              }}
+            >
+              {(
+                [
+                  { id: 'fifths' as KeySortMode, label: 'Flow (5ths)', title: 'Circle of Fifths: C → G → D → A → E (smooth live transitions)' },
+                  { id: 'chromatic' as KeySortMode, label: 'Scale (C–B)', title: 'Chromatic low to high: C → C# → D → ... → B' },
+                ] as const
+              ).map((opt) => {
+                const isSelected = keySortMode === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    title={opt.title}
+                    onClick={() => setKeySortMode(opt.id)}
+                    style={{
+                      flex: 1,
+                      height: '24px',
+                      borderRadius: '5px',
+                      border: 'none',
+                      background: isSelected ? 'rgba(78, 177, 203, 0.18)' : 'transparent',
+                      color: isSelected ? '#67e8f9' : '#64748b',
+                      fontSize: '11px',
+                      fontWeight: isSelected ? 800 : 600,
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* SONG LIST */}

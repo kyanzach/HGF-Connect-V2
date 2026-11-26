@@ -1,3 +1,8 @@
+## [v2.96.0] — 2026-11-26
+### Added
+- **Dual Key Sort Modes — Flow (Circle of Fifths) & Scale (Chromatic C–B) (`app/band/components/SetlistSidebar.tsx`)**:
+  - When **`Key`** sort is active, displays a compact inline toggle between **Flow (5ths)** (`C → G → D → A → E...`, default inside active setlists for seamless transitions) and **Scale (C–B)** (`C → C# → D... → B`, default in All Songs).
+
 ## [v2.95.3] — 2026-11-26
 ### Improved
 - **Musical Chromatic Key Sorting (`app/band/components/SetlistSidebar.tsx`)**:
