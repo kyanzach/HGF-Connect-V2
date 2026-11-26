@@ -40,6 +40,13 @@ interface QuizStatus {
   active: boolean;
   attended?: boolean;
   openAccess?: boolean;
+  nextUnfinishedQuiz?: {
+    id: number;
+    title: string;
+    sermonDate: string;
+    nextDayNumber: number;
+    remainingCount: number;
+  } | null;
   message?: string;
   isActiveQuiz?: boolean;
   isCatchup?: boolean;
@@ -116,6 +123,11 @@ export default function MemberQuizPage() {
     open: boolean;
     day: QuizDay | null;
   }>({ open: false, day: null });
+
+  const [nextQuizModal, setNextQuizModal] = useState<{
+    open: boolean;
+    nextQuiz: NonNullable<QuizStatus["nextUnfinishedQuiz"]> | null;
+  }>({ open: false, nextQuiz: null });
 
   const loadStatus = useCallback(async () => {
     try {
@@ -1131,7 +1143,7 @@ export default function MemberQuizPage() {
                     )}
                     {isAvailable && (
                       <span style={{ background: `${PRIMARY}20`, color: PRIMARY, fontSize: "0.6rem", fontWeight: 800, padding: "2px 6px", borderRadius: "10px", textTransform: "uppercase" }}>
-                        Catch-up
+                        {quizStatus?.openAccess ? "Open" : "Catch-up"}
                       </span>
                     )}
                   </div>
@@ -1199,12 +1211,54 @@ export default function MemberQuizPage() {
           question={activeQuestion}
           openAccess={quizStatus?.openAccess ?? true}
           onComplete={() => {
+            const finishedDay = activeQuestion.dayNumber;
+            const willCompleteAll = (quizStatus?.progress?.completed ?? 0) + 1 >= 7;
+            const nextQuiz = quizStatus?.nextUnfinishedQuiz || null;
             setActiveQuestion(null);
             loadStatus();
+            if (quizStatus?.openAccess && (finishedDay === 7 || willCompleteAll) && nextQuiz) {
+              setNextQuizModal({ open: true, nextQuiz });
+            }
           }}
           onClose={() => setActiveQuestion(null)}
         />
       )}
+
+      {/* Continue to Next Sermon Quiz Modal (zero-friction flow after Quiz 7) */}
+      <ConfirmModal
+        open={nextQuizModal.open}
+        title="Continue to Next Quiz?"
+        message={
+          nextQuizModal.nextQuiz ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px", textAlign: "left" }}>
+              <p style={{ margin: 0, color: "#0f172a", fontWeight: 700, fontSize: "0.95rem" }}>
+                {nextQuizModal.nextQuiz.title.split(/ — | - /)[0]}
+              </p>
+              <p style={{ margin: 0, color: "#475569", fontSize: "0.85rem", lineHeight: 1.45 }}>
+                {new Date(nextQuizModal.nextQuiz.sermonDate).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}{" "}
+                · {nextQuizModal.nextQuiz.remainingCount} item{nextQuizModal.nextQuiz.remainingCount > 1 ? "s" : ""} ready to play.
+              </p>
+            </div>
+          ) : (
+            "Ready for the next Sunday sermon quiz?"
+          )
+        }
+        confirmLabel="Continue"
+        cancelLabel="Not Now"
+        confirmColor={PRIMARY}
+        onConfirm={() => {
+          const target = nextQuizModal.nextQuiz;
+          setNextQuizModal({ open: false, nextQuiz: null });
+          if (target) {
+            window.location.href = `/quiz?quizId=${target.id}&day=${target.nextDayNumber}`;
+          }
+        }}
+        onCancel={() => setNextQuizModal({ open: false, nextQuiz: null })}
+      />
 
       {/* Custom Info Modal */}
       <ConfirmModal

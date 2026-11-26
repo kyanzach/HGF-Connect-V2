@@ -1,3 +1,9 @@
+## [v2.102.1] — 2026-11-26
+### Improved
+- **Zero-Friction Continue Prompt After Quiz 7 (`app/api/quiz/status/route.ts`, `app/(app)/quiz/page.tsx`)**:
+  - When a member finishes Quiz 7 (or completes all 7 items of a sermon quiz) in Open Access Mode, automatically prompts **Continue / Not Now** with the next unfinished Sunday sermon quiz and jumps straight into its next open item with zero extra navigation.
+  - Updated the `Catch-up` pill on `/quiz` cards to **`Open`** when Open Access Mode is active.
+
 ## [v2.102.0] — 2026-11-26
 ### Added
 - **7-for-7 Unique Interactive Quiz Game Lineup — Zero Repeats (`components/quiz/MillionaireStage.tsx`, `components/quiz/LanternCatchStage.tsx`, `components/quiz/ScaleOfTruthStage.tsx`, `components/quiz/WordHarvestTreeStage.tsx`, `components/quiz/LanternOfGraceStage.tsx`, `components/quiz/QuizPlayer.tsx`)**:

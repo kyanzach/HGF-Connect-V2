@@ -207,10 +207,62 @@ export async function GET(request: Request) {
     // Determine week status label for the client
     const quizWeekStatus = isExpired ? "COMPLETED" : "ACTIVE";
 
+    // In Open Access Mode, find the next unfinished Sunday quiz for zero-friction Continue flow
+    let nextUnfinishedQuiz: {
+      id: number;
+      title: string;
+      sermonDate: string;
+      nextDayNumber: number;
+      remainingCount: number;
+    } | null = null;
+
+    if (openAccess) {
+      const allQuizzes = await db.sermonQuiz.findMany({
+        where: { status: { in: ["published", "completed"] } },
+        orderBy: { sermonDate: "desc" },
+        select: {
+          id: true,
+          title: true,
+          sermonDate: true,
+          questions: {
+            orderBy: { dayNumber: "asc" },
+            select: { id: true, dayNumber: true },
+          },
+          submissions: {
+            where: { memberId },
+            select: { questionId: true },
+          },
+        },
+      });
+
+      const currentIdx = allQuizzes.findIndex((q) => q.id === quiz.id);
+      // Check quizzes after currentIdx first, then wrap around before currentIdx
+      const orderedCandidates =
+        currentIdx >= 0
+          ? [...allQuizzes.slice(currentIdx + 1), ...allQuizzes.slice(0, currentIdx)]
+          : allQuizzes.filter((q) => q.id !== quiz.id);
+
+      for (const cand of orderedCandidates) {
+        const answeredIds = new Set(cand.submissions.map((s) => s.questionId));
+        const unanswered = cand.questions.filter((q) => !answeredIds.has(q.id));
+        if (unanswered.length > 0) {
+          nextUnfinishedQuiz = {
+            id: cand.id,
+            title: cand.title,
+            sermonDate: cand.sermonDate.toISOString(),
+            nextDayNumber: unanswered[0].dayNumber,
+            remainingCount: unanswered.length,
+          };
+          break;
+        }
+      }
+    }
+
     return NextResponse.json({
       active: true,
       attended,
       openAccess,
+      nextUnfinishedQuiz,
       isActiveQuiz,
       isExpired,
       isCatchup: isCatchupActive,
