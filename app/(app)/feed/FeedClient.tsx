@@ -32,8 +32,26 @@ interface Post {
 }
 
 // GCash-style horizontal scrollable shortcuts
-const SHORTCUTS = [
+const SHORTCUTS: Array<{
+  icon: React.ReactNode;
+  label: string;
+  href: string;
+  color: string;
+  iconBg: string;
+}> = [
   { icon: "✍️", label: "Write", href: "/feed/create", color: "#e0f2fe", iconBg: "#0ea5e9" },
+  {
+    icon: (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0891b2" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M9 11l3 3L22 4" />
+        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+      </svg>
+    ),
+    label: "Quizzes",
+    href: "/quiz/hub?tab=quizzes",
+    color: "#ecfeff",
+    iconBg: "#0891b2",
+  },
   { icon: "📅", label: "Events", href: "/events", color: "#fef3c7", iconBg: "#f59e0b" },
   { icon: "🙏", label: "Ask for Prayer", href: "/feed/create?tab=prayer", color: "#faf5ff", iconBg: "#a855f7" },
   { icon: "🤝", label: "StewardShop", href: "/stewardshop", color: "#f0f9ff", iconBg: PRIMARY },

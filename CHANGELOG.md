@@ -1,3 +1,17 @@
+## [v2.100.0] — 2026-11-26
+### Added
+- **Quizzes Quick-Action Shortcut Next to Write (`app/(app)/feed/FeedClient.tsx`)**:
+  - Added a dedicated **Quizzes** shortcut right beside **Write** on the home feed action bar, linking directly to `/quiz/hub?tab=quizzes` so members can discover and join quizzes in one tap.
+- **Instant Sunday 12:00 PM Auto-Quiz Pipeline Without YouTube Dependency (`app/api/quiz/auto-generate-sunday/route.ts`, `scripts/sunday-quiz-cron.mjs`, `lib/quiz-helpers.ts`, `app/api/quiz/generate/route.ts`)**:
+  - Added `POST /api/quiz/auto-generate-sunday` and `scripts/sunday-quiz-cron.mjs` (scheduled every Sunday at 12:00 PM Manila / `04:00 UTC`) to automatically generate and publish all 7 progressive questions from the Sunday Service event's slide commentary, description, or title — no YouTube script or video upload required.
+  - Updated `getQuizDayForDate()` so Day 1 unlocks immediately on Sunday (`diffDays === 0`) right after service.
+- **Add / Edit YouTube Video Replay Anytime (`app/api/quiz/admin/update-video/route.ts`, `app/(app)/quiz/admin/page.tsx`)**:
+  - Added `POST /api/quiz/admin/update-video` and an inline **`+ Add YouTube Replay` / `Edit YouTube Replay`** editor on every quiz card in Quiz Admin so pastors can attach YouTube sermon replays to any generated Sunday quiz later whenever time permits.
+### Changed / Improved
+- **Reframed Quiz Hub for Clear Participation (`app/(app)/quiz/hub/page.tsx`, `app/api/quiz/history/route.ts`)**:
+  - Defaulted `/quiz/hub` to the **All Quizzes** tab first (ahead of **Leaderboard**) with clean filter pills (`All`, `Open`, `In Progress`, `Completed`), replacing punitive "Missed Quiz" / "Past Quizzes" framing with inviting **`Open to Take`** badges and clear single-line **`Take Quiz`** / **`Continue Quiz`** actions.
+  - Fixed weekly leaderboard denominator display from `/5` to `/7` and added a subtle `Video Replay` badge when a YouTube replay is attached.
+
 ## [v2.99.0] — 2026-11-26
 ### Changed / Improved
 - **Facebook-Style Community Feed Layout — Separated Captions, "See more" Truncation & Full Uncropped Images (`components/feed/ExpandableCaption.tsx`, `components/feed/PostCard.tsx`)**:

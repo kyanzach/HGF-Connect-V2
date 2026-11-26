@@ -194,6 +194,11 @@ export default function QuizAdminPage() {
   const [existingQuizzes, setExistingQuizzes] = useState<any[]>([]);
   const [loadingQuizzes, setLoadingQuizzes] = useState(true);
 
+  // ── Inline YouTube Replay editor for existing quizzes ──
+  const [editingVideoQuizId, setEditingVideoQuizId] = useState<number | null>(null);
+  const [videoUrlDraft, setVideoUrlDraft] = useState<string>("");
+  const [savingVideo, setSavingVideo] = useState<boolean>(false);
+
   // ── Rewards ──
   const [rewards, setRewards] = useState<any[]>([]);
   const [selectedQuizForRewards, setSelectedQuizForRewards] = useState<number | null>(null);
@@ -306,6 +311,33 @@ export default function QuizAdminPage() {
   useEffect(() => { loadQuizzes(); }, [loadQuizzes]);
 
   const [backfilling, setBackfilling] = useState(false);
+
+  async function handleSaveQuizVideo(quizId: number) {
+    setSavingVideo(true);
+    try {
+      const res = await fetch("/api/quiz/admin/update-video", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quizId, youtubeUrl: videoUrlDraft }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update YouTube replay");
+      showAlert(
+        "Success",
+        videoUrlDraft.trim()
+          ? "YouTube replay linked to this quiz! Members can now watch it right inside the quiz."
+          : "YouTube replay removed from this quiz.",
+        "success"
+      );
+      setEditingVideoQuizId(null);
+      setVideoUrlDraft("");
+      loadQuizzes();
+    } catch (err: any) {
+      showAlert("Error", err.message || "Failed to save YouTube URL", "error");
+    } finally {
+      setSavingVideo(false);
+    }
+  }
   async function handleBackfill() {
     setBackfilling(true);
     try {
@@ -1559,12 +1591,26 @@ export default function QuizAdminPage() {
                 marginBottom: "12px",
               }}
             >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px" }}>
                 <div>
                   <strong style={{ color: "#1a202c" }}>{quiz.title}</strong>
                   <br />
                   <span style={{ color: "#a0aec0", fontSize: "0.8rem" }}>
                     {new Date(quiz.sermonDate).toLocaleDateString()}
+                  </span>
+                  <span
+                    style={{
+                      marginLeft: "8px",
+                      fontSize: "0.72rem",
+                      fontWeight: 700,
+                      padding: "2px 7px",
+                      borderRadius: "999px",
+                      background: quiz.youtubeVideoId ? "#ecfeff" : "#f8fafc",
+                      color: quiz.youtubeVideoId ? "#0e7490" : "#64748b",
+                      border: quiz.youtubeVideoId ? "1px solid #bae6fd" : "1px solid #e2e8f0",
+                    }}
+                  >
+                    {quiz.youtubeVideoId ? "Video Linked" : "No Video Yet"}
                   </span>
                 </div>
                 <span style={S.statusBadge(quiz.status)}>{quiz.status}</span>
@@ -1640,7 +1686,109 @@ export default function QuizAdminPage() {
                     🏆 View Rewards ({quiz._count?.rewards || 0})
                   </button>
                 )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (editingVideoQuizId === quiz.id) {
+                      setEditingVideoQuizId(null);
+                      setVideoUrlDraft("");
+                    } else {
+                      setEditingVideoQuizId(quiz.id);
+                      setVideoUrlDraft(quiz.youtubeUrl || "");
+                    }
+                  }}
+                  style={{
+                    background: quiz.youtubeVideoId ? "#ecfeff" : "#fff7ed",
+                    border: quiz.youtubeVideoId ? "1px solid #bae6fd" : "1px solid #fed7aa",
+                    borderRadius: "8px",
+                    padding: "8px 14px",
+                    fontSize: "0.85rem",
+                    cursor: "pointer",
+                    color: quiz.youtubeVideoId ? "#0e7490" : "#c2410c",
+                    fontWeight: 700,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {quiz.youtubeVideoId ? "Edit YouTube Replay" : "+ Add YouTube Replay"}
+                </button>
               </div>
+
+              {editingVideoQuizId === quiz.id && (
+                <div
+                  style={{
+                    marginTop: "12px",
+                    padding: "12px",
+                    background: "#f8fafc",
+                    borderRadius: "10px",
+                    border: "1px solid #e2e8f0",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "8px",
+                  }}
+                >
+                  <label style={{ fontSize: "0.78rem", fontWeight: 700, color: "#334155" }}>
+                    YouTube Sermon Replay URL
+                  </label>
+                  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                    <input
+                      type="url"
+                      value={videoUrlDraft}
+                      onChange={(e) => setVideoUrlDraft(e.target.value)}
+                      placeholder="https://www.youtube.com/watch?v=..."
+                      style={{
+                        flex: 1,
+                        minWidth: "200px",
+                        padding: "9px 12px",
+                        borderRadius: "8px",
+                        border: "1px solid #cbd5e1",
+                        fontSize: "0.85rem",
+                        background: "white",
+                      }}
+                    />
+                    <button
+                      type="button"
+                      disabled={savingVideo}
+                      onClick={() => handleSaveQuizVideo(quiz.id)}
+                      style={{
+                        background: "#4EB1CB",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "8px",
+                        padding: "9px 16px",
+                        fontSize: "0.84rem",
+                        fontWeight: 700,
+                        cursor: savingVideo ? "not-allowed" : "pointer",
+                        opacity: savingVideo ? 0.65 : 1,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {savingVideo ? "Saving..." : "Save Video"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={savingVideo}
+                      onClick={() => {
+                        setEditingVideoQuizId(null);
+                        setVideoUrlDraft("");
+                      }}
+                      style={{
+                        background: "white",
+                        color: "#475569",
+                        border: "1px solid #cbd5e1",
+                        borderRadius: "8px",
+                        padding: "9px 12px",
+                        fontSize: "0.84rem",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {selectedQuizForRewards === quiz.id && (
                 <div style={{ marginTop: "12px", padding: "12px", background: "#f7fafc", borderRadius: "10px" }}>

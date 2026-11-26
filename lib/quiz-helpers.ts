@@ -72,6 +72,7 @@ export function isQuizWeekExpired(sermonDate: Date | string): boolean {
 
 /**
  * Get the quiz day number (1–7) relative to the quiz's actual week.
+ * On Sunday itself (diffDays === 0, e.g. right after service at 12pm), Day 1 is already unlocked.
  */
 export function getQuizDayForDate(sermonDate: Date | string, now?: Date): number {
   const sermon = new Date(sermonDate);
@@ -81,6 +82,7 @@ export function getQuizDayForDate(sermonDate: Date | string, now?: Date): number
   const sermonDay = new Date(sermon.toLocaleDateString("en-US"));
   const diffMs = manilaDate.getTime() - sermonDay.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return 1; // Sunday right after service -> Day 1 unlocked immediately
   return diffDays; // 1=Day1, 2=Day2, ..., 7=Day7, 8+=expired
 }
 
@@ -102,7 +104,13 @@ export const REWARD_DISPLAY: Record<string, { label: string; description: string
 // ── Generate quiz prompt ─────────────────────────────────────────────────────
 export async function generateQuiz(
   rawTranscript: string,
-  sermonDate: string
+  sermonDate: string,
+  options?: {
+    titleHint?: string;
+    speaker?: string | null;
+    skipCleanup?: boolean;
+    hasVideo?: boolean;
+  }
 ): Promise<{
   title: string;
   announcementCaption: string;
@@ -117,11 +125,15 @@ export async function generateQuiz(
   }>;
 }> {
   const formattedSermonDate = formatDate(sermonDate);
+  const hasVideo = options?.hasVideo ?? true;
 
-  // PHASE 1: Clean and format raw transcript using the cheap model
-  const cheapModel = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
+  let cleanSummary = rawTranscript;
 
-  const cleanPrompt = `You are a sermon transcription assistant for House of Grace Fellowship.
+  // PHASE 1: Clean and format raw transcript using the cheap model (skip if already clean English notes/slides)
+  if (!options?.skipCleanup && rawTranscript.length > 2500) {
+    const cheapModel = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
+
+    const cleanPrompt = `You are a sermon transcription assistant for House of Grace Fellowship.
 Analyze the following raw, unformatted sermon transcript. It contains a mix of English (~70%) and Tagalog/Bisaya (~30%).
 Your task is to translate all Tagalog and Bisaya parts to English and compile a highly structured, comprehensive, and detailed English sermon outline/summary.
 
@@ -137,35 +149,45 @@ RAW TRANSCRIPT:
 ${rawTranscript}
 """`;
 
-  console.log(`[quiz-helpers] Starting Phase 1: Clean up via ${cheapModel}...`);
-  const cleanSummary = await callOpenAI({
-    userPrompt: cleanPrompt,
-    model: cheapModel,
-    temperature: 0.3,
-    timeoutMs: 90000,
-  });
-  console.log(`[quiz-helpers] Phase 1 complete. Summary length: ${cleanSummary.length} chars.`);
+    console.log(`[quiz-helpers] Starting Phase 1: Clean up via ${cheapModel}...`);
+    cleanSummary = await callOpenAI({
+      userPrompt: cleanPrompt,
+      model: cheapModel,
+      temperature: 0.3,
+      timeoutMs: 90000,
+    });
+    console.log(`[quiz-helpers] Phase 1 complete. Summary length: ${cleanSummary.length} chars.`);
+  }
 
   // PHASE 2: Generate the quiz from the summary using the smart model
   const smartModel = process.env.OPENAI_SMART_MODEL ?? process.env.OPENAI_MODEL ?? "gpt-4o-mini";
+  const titleInstruction = options?.titleHint
+    ? `Use the sermon title "${options.titleHint}" formatted as '${options.titleHint} — ${formattedSermonDate}' (keep it clean and concise).`
+    : `A concise title summarizing the sermon theme, formatted as 'Topic — Month Day, Year' (e.g. 'Walking by Faith — June 1, 2026') using the provided sermon date: ${formattedSermonDate}.`;
+
+  const captionOpening = hasVideo
+    ? `- Starts with "Here's a replay of Sunday's sermon from ${formattedSermonDate}!"`
+    : `- Starts with "Sunday's Quiz for Christ (${formattedSermonDate}) is now LIVE!"`;
 
   const quizPrompt = `You are an AI assistant for House of Grace Fellowship, a Christian church.
 You are creating a weekly "Quiz for Christ" based on a Sunday sermon.
 
 SERMON DATE: ${formattedSermonDate}
-SERMON SUMMARY:
+${options?.speaker ? `PREACHER: ${options.speaker}\n` : ""}SERMON MATERIAL:
 """
 ${cleanSummary}
 """
 
-TASK: Generate THREE things from this sermon summary:
+NOTE: If the sermon material is brief (e.g. sermon title and description without a full transcript), craft deeply biblical, sound, grace-centered Christian questions directly aligned with the sermon title, theme, and relevant Bible scriptures. Never complain about missing details or mention missing transcripts.
 
-1. A SUITABLE QUIZ TITLE — A concise title summarizing the sermon theme, formatted as 'Topic — Month Day, Year' (e.g. 'Walking by Faith — June 1, 2026') using the provided sermon date: ${formattedSermonDate}.
+TASK: Generate THREE things from this sermon material:
+
+1. A SUITABLE QUIZ TITLE — ${titleInstruction}
 
 2. An ANNOUNCEMENT CAPTION — A compelling, uplifting social media-style post that:
-   - Starts with "Here's a replay of Sunday's sermon from ${formattedSermonDate}!"
+   ${captionOpening}
    - Includes 2-3 key takeaways from the sermon (highly brief, only 1 sentence each, do NOT expose any quiz answers)
-   - Ends with a call to action: "Get ready for the quiz! 🧠✨"
+   - Ends with a call to action: "Jump into the quiz now and grow in the Word!"
    - Tone: warm, encouraging, Bisaya-friendly (but written in English)
    - Max 150 words
 

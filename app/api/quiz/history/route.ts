@@ -90,6 +90,7 @@ export async function GET() {
         isExpired,
         catchupStatus,
         catchupExpiresAt: catchup ? catchup.expiresAt.toISOString() : null,
+        hasVideo: Boolean(q.youtubeVideoId),
       };
     });
 

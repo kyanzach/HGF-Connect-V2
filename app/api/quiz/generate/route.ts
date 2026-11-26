@@ -69,15 +69,28 @@ export async function POST(request: Request) {
       }
     }
 
-    // If still empty, try linked presentation slides commentary
+    let titleHint: string | undefined;
+    let speaker: string | null = null;
+
+    // If still empty, try linked presentation slides commentary, description, or title
     if ((!sourceText || !sourceText.trim()) && eventId) {
       const event = await db.event.findUnique({
         where: { id: eventId },
-        select: { commentary: true },
+        select: { title: true, speaker: true, commentary: true, description: true },
       });
-      if (event && event.commentary && event.commentary.trim()) {
-        sourceText = event.commentary;
-        transcriptSource = "slides";
+      if (event) {
+        titleHint = event.title;
+        speaker = event.speaker;
+        if (event.commentary && event.commentary.trim()) {
+          sourceText = `Sermon Title: ${event.title}\n${event.speaker ? `Speaker: ${event.speaker}\n` : ""}${event.description ? `Description: ${event.description}\n` : ""}\nSermon Summary:\n${event.commentary}`;
+          transcriptSource = "slides";
+        } else if (event.description && event.description.trim()) {
+          sourceText = `Sermon Title: ${event.title}\n${event.speaker ? `Speaker: ${event.speaker}\n` : ""}Description:\n${event.description}`;
+          transcriptSource = "event_description";
+        } else if (event.title && event.title.trim()) {
+          sourceText = `Sunday Worship Service Sermon Title: ${event.title}${event.speaker ? `\nSpeaker: ${event.speaker}` : ""}`;
+          transcriptSource = "event_title";
+        }
       }
     }
 
@@ -85,14 +98,19 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            "Sermon material is required: please provide sermon notes, a YouTube URL with captions/CC, or link an event with slides.",
+            "Sermon material is required: please link a Sunday Service event, provide sermon notes, or paste a YouTube URL.",
         },
         { status: 400 }
       );
     }
 
     // Generate quiz via AI
-    const result = await generateQuiz(sourceText, sermonDate);
+    const result = await generateQuiz(sourceText, sermonDate, {
+      titleHint,
+      speaker,
+      skipCleanup: transcriptSource !== "youtube" && transcriptSource !== "manual",
+      hasVideo: Boolean(videoId),
+    });
 
     return NextResponse.json({
       success: true,
