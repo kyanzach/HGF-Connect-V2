@@ -75,6 +75,29 @@ export default function FeedClient() {
 
   const [hasNewPosts, setHasNewPosts] = useState(false);
   const [scrolledDown, setScrolledDown] = useState(false);
+  const [pulseQuiz, setPulseQuiz] = useState(false);
+
+  // Subtle daily-reset glow reminder on the Quizzes shortcut (resets each midnight Manila time)
+  useEffect(() => {
+    try {
+      const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(new Date());
+      const lastSeen = window.localStorage.getItem("hgf_quiz_shortcut_seen_date");
+      if (lastSeen !== todayKey) {
+        setPulseQuiz(true);
+      }
+    } catch {
+      setPulseQuiz(true);
+    }
+  }, []);
+
+  const handleShortcutClick = (label: string) => {
+    if (label !== "Quizzes") return;
+    try {
+      const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(new Date());
+      window.localStorage.setItem("hgf_quiz_shortcut_seen_date", todayKey);
+    } catch {}
+    setPulseQuiz(false);
+  };
 
   const firstName = session?.user?.firstName ?? session?.user?.name?.split(" ")[0] ?? "Friend";
 
@@ -281,68 +304,116 @@ export default function FeedClient() {
           from { transform: translate(-50%, -20px); opacity: 0; }
           to { transform: translate(-50%, 0); opacity: 1; }
         }
+        @keyframes quizTileGlow {
+          0%, 100% {
+            box-shadow: 0 0 0 0 rgba(78, 177, 203, 0.5), 0 2px 8px rgba(8, 145, 178, 0.22);
+            transform: scale(1);
+          }
+          50% {
+            box-shadow: 0 0 0 7px rgba(78, 177, 203, 0), 0 4px 14px rgba(8, 145, 178, 0.36);
+            transform: scale(1.03);
+          }
+        }
+        @keyframes quizDotPulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.6; transform: scale(1.25); }
+        }
+        .hgf-quiz-glow {
+          animation: quizTileGlow 2.4s ease-in-out infinite;
+        }
+        .hgf-quiz-dot {
+          animation: quizDotPulse 2.4s ease-in-out infinite;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .hgf-quiz-glow, .hgf-quiz-dot { animation: none !important; }
+        }
       `}} />
 
       {/* ── Hero Carousel ── */}
       <HeroCarousel firstName={firstName} />
 
       {/* ── GCash-style Horizontal Shortcut Scroll ── */}
-      <div style={{ background: "white", paddingTop: "1rem", paddingBottom: "0.875rem", boxShadow: "0 1px 0 #f1f5f9" }}>
+      <div style={{ background: "white", paddingTop: "0.875rem", paddingBottom: "0.875rem", boxShadow: "0 1px 0 #f1f5f9" }}>
         <div
           style={{
             display: "flex",
             overflowX: "auto",
             gap: "0",
+            paddingTop: "6px",
+            paddingBottom: "2px",
             paddingLeft: "1rem",
             paddingRight: "1rem",
             scrollbarWidth: "none",
             WebkitOverflowScrolling: "touch" as any,
           }}
         >
-          {SHORTCUTS.map((item) => (
-            <Link
-              key={item.label}
-              href={item.href}
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: "0.375rem",
-                textDecoration: "none",
-                minWidth: "68px",
-                flexShrink: 0,
-                padding: "0 0.25rem",
-              }}
-            >
-              {/* Icon circle */}
-              <div
+          {SHORTCUTS.map((item) => {
+            const isQuizGlow = item.label === "Quizzes" && pulseQuiz;
+            return (
+              <Link
+                key={item.label}
+                href={item.href}
+                onClick={() => handleShortcutClick(item.label)}
                 style={{
-                  width: 52,
-                  height: 52,
-                  borderRadius: "16px",
-                  background: item.color,
                   display: "flex",
+                  flexDirection: "column",
                   alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "1.375rem",
+                  gap: "0.375rem",
+                  textDecoration: "none",
+                  minWidth: "68px",
+                  flexShrink: 0,
+                  padding: "0 0.25rem",
                 }}
               >
-                {item.icon}
-              </div>
-              <span
-                style={{
-                  fontSize: "0.65rem",
-                  fontWeight: 600,
-                  color: "#475569",
-                  textAlign: "center",
-                  lineHeight: 1.2,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {item.label}
-              </span>
-            </Link>
-          ))}
+                {/* Icon circle */}
+                <div
+                  className={isQuizGlow ? "hgf-quiz-glow" : undefined}
+                  style={{
+                    position: "relative",
+                    width: 52,
+                    height: 52,
+                    borderRadius: "16px",
+                    background: item.color,
+                    border: isQuizGlow ? "1.5px solid #4EB1CB" : "1.5px solid transparent",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "1.375rem",
+                  }}
+                >
+                  {item.icon}
+                  {isQuizGlow && (
+                    <span
+                      className="hgf-quiz-dot"
+                      aria-hidden="true"
+                      style={{
+                        position: "absolute",
+                        top: -3,
+                        right: -3,
+                        width: 10,
+                        height: 10,
+                        borderRadius: "50%",
+                        background: "#0891b2",
+                        border: "2px solid white",
+                      }}
+                    />
+                  )}
+                </div>
+                <span
+                  style={{
+                    fontSize: "0.65rem",
+                    fontWeight: isQuizGlow ? 700 : 600,
+                    color: isQuizGlow ? "#0e7490" : "#475569",
+                    textAlign: "center",
+                    lineHeight: 1.2,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {item.label}
+                </span>
+              </Link>
+            );
+          })}
         </div>
       </div>
 

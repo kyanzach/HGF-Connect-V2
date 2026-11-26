@@ -1,3 +1,8 @@
+## [v2.100.1] — 2026-11-26
+### Improved
+- **Daily-Reset Subtle Glow & Pulse on Feed Quizzes Shortcut (`app/(app)/feed/FeedClient.tsx`)**:
+  - Added a subtle breathing teal glow (`#4EB1CB` / `#0891b2`) and top-right indicator dot on the **Quizzes** quick-action button that activates automatically on each new day (Asia/Manila midnight reset via `localStorage`), gently drawing members' attention until tapped for the day.
+
 ## [v2.100.0] — 2026-11-26
 ### Added
 - **Quizzes Quick-Action Shortcut Next to Write (`app/(app)/feed/FeedClient.tsx`)**:
