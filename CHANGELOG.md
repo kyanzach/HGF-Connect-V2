@@ -1,3 +1,14 @@
+## [v2.101.0] — 2026-11-26
+### Added
+- **Admin Toggle for Drip Delay & 1-Quiz Limit — Open Access by Default (`lib/quiz-settings.ts`, `app/api/quiz/admin/settings/route.ts`, `app/(app)/quiz/admin/page.tsx`)**:
+  - Added a persistent `quiz_drip_enabled` setting (in `church_settings`) with a 1-click toggle card at the top of `/quiz/admin`.
+  - Defaults to **Disabled (All Unlocked)** so members can take any Sunday quiz and any of its 7 items immediately with zero daily drip delay and no 1-quiz-at-a-time lock; pastors can re-enable Classic Drip & 1-Quiz Mode anytime after the Thanksgiving Party.
+### Changed / Improved
+- **Thanksgiving Mystery Prize Challenge Hub & Direct 7-Item Preview (`app/(app)/quiz/hub/page.tsx`, `app/api/quiz/history/route.ts`, `app/api/quiz/status/route.ts`, `app/api/quiz/question/route.ts`, `app/api/quiz/submit/route.ts`, `app/(app)/quiz/page.tsx`)**:
+  - Reconstructed `/quiz/hub` with a spoiler-free **Thanksgiving Party Mystery Prize Challenge** hero card highlighting **1 Mystery Grand Prize** (live tie-breaker for qualifiers) and **4 Surprise Prizes** for top finishers, alongside personal points and progress.
+  - Added a tappable **7-item quick-jump strip (`1`–`7`)** and expandable **`Preview 7 Items`** drawer on every sermon quiz card so members can preview every question and jump straight into playing any item immediately (`/quiz?quizId=ID&day=N`).
+  - Promoted **Thanksgiving Qualifiers — All-Time Standings** to the top of the Leaderboard tab and bypassed the 7-day pass modal and past-quiz lock whenever Open Access Mode is active.
+
 ## [v2.100.1] — 2026-11-26
 ### Improved
 - **Daily-Reset Subtle Glow & Pulse on Feed Quizzes Shortcut (`app/(app)/feed/FeedClient.tsx`)**:

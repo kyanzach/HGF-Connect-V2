@@ -11,6 +11,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { createNotification } from "@/lib/notify";
 import { getQuizDayForDate, isQuizWeekExpired, canAccessDay, getRewardTier, gradeEssay } from "@/lib/quiz-helpers";
+import { isQuizDripEnabled } from "@/lib/quiz-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -37,11 +38,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Quiz not active" }, { status: 400 });
     }
 
-    // Check day access & catch-up session
-    let isCatchup = false;
+    // Check day access & catch-up session (skipped when Open Access Mode is active)
+    const dripEnabled = await isQuizDripEnabled();
+    let isCatchup = !dripEnabled;
     let catchupSession = null;
 
-    if (isQuizWeekExpired(question.quiz.sermonDate)) {
+    if (dripEnabled && isQuizWeekExpired(question.quiz.sermonDate)) {
       catchupSession = await db.quizCatchupSession.findUnique({
         where: { quizId_memberId: { quizId: question.quiz.id, memberId } },
       });
@@ -53,7 +55,7 @@ export async function POST(request: Request) {
       }
     }
 
-    if (!isCatchup) {
+    if (dripEnabled && !isCatchup) {
       const quizRelativeDay = getQuizDayForDate(question.quiz.sermonDate);
       const currentDay = Math.min(Math.max(quizRelativeDay, 0), 7);
       if (!canAccessDay(question.dayNumber, currentDay)) {

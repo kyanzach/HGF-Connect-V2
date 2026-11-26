@@ -10,7 +10,7 @@
  * - Perfect score reward claim modal (t-shirt size selection)
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import QuizPlayer from "@/components/quiz/QuizPlayer";
@@ -39,6 +39,7 @@ interface QuizDay {
 interface QuizStatus {
   active: boolean;
   attended?: boolean;
+  openAccess?: boolean;
   message?: string;
   isActiveQuiz?: boolean;
   isCatchup?: boolean;
@@ -285,8 +286,12 @@ export default function MemberQuizPage() {
       return;
     }
 
-    // Block play from past quiz archive view unless an active catch-up pass is running
-    const isPastQuizView = !!(new URLSearchParams(window.location.search).get("quizId")) && !quizStatus?.isActiveQuiz && !quizStatus?.isCatchup;
+    // Block play from past quiz archive view unless Open Access Mode is on or an active catch-up pass is running
+    const isPastQuizView =
+      !quizStatus?.openAccess &&
+      !!(new URLSearchParams(window.location.search).get("quizId")) &&
+      !quizStatus?.isActiveQuiz &&
+      !quizStatus?.isCatchup;
     if (isPastQuizView) {
       setInfoModal({
         open: true,
@@ -333,14 +338,17 @@ export default function MemberQuizPage() {
     }
   }
 
+  const autoLaunchedDayRef = useRef<string | null>(null);
   useEffect(() => {
     if (typeof window === "undefined" || !quizStatus) return;
     const params = new URLSearchParams(window.location.search);
     const targetDay = params.get("day");
-    if (targetDay) {
+    const targetKey = `${quizStatus.quiz?.id || ""}:${targetDay || ""}`;
+    if (targetDay && autoLaunchedDayRef.current !== targetKey) {
       const dayNum = parseInt(targetDay, 10);
       const matchedDay = quizStatus.days?.find((d) => d.dayNumber === dayNum);
       if (matchedDay && matchedDay.status !== "locked" && matchedDay.status !== "completed") {
+        autoLaunchedDayRef.current = targetKey;
         handleStartDay(matchedDay);
       }
     }

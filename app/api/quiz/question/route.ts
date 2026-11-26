@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getQuizDayForDate, isQuizWeekExpired, canAccessDay } from "@/lib/quiz-helpers";
+import { isQuizDripEnabled } from "@/lib/quiz-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -34,10 +35,11 @@ export async function GET(request: Request) {
     }
 
     const memberId = parseInt(session.user.id, 10);
-    let isCatchup = false;
+    const dripEnabled = await isQuizDripEnabled();
+    let isCatchup = !dripEnabled; // Open Access Mode unlocks all quizzes & items
 
-    // Enforce day access checks (including 7-day Catch-Up pass)
-    if (isQuizWeekExpired(question.quiz.sermonDate)) {
+    // Enforce day access checks only when Drip Mode is enabled
+    if (dripEnabled && isQuizWeekExpired(question.quiz.sermonDate)) {
       if (!isNaN(memberId)) {
         const catchupSession = await db.quizCatchupSession.findUnique({
           where: { quizId_memberId: { quizId: question.quiz.id, memberId } },
@@ -55,7 +57,7 @@ export async function GET(request: Request) {
       }
     }
 
-    if (!isCatchup) {
+    if (dripEnabled && !isCatchup) {
       const quizRelativeDay = getQuizDayForDate(question.quiz.sermonDate);
       const currentDay = Math.min(Math.max(quizRelativeDay, 0), 7);
       if (!canAccessDay(question.dayNumber, currentDay)) {

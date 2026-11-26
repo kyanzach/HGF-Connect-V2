@@ -11,6 +11,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getDayNumber, getQuizDayForDate, isQuizWeekExpired, QUIZ_DAYS, QUIZ_TYPE_LABELS, REWARD_DISPLAY, getRewardTier } from "@/lib/quiz-helpers";
+import { isQuizDripEnabled } from "@/lib/quiz-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -99,11 +100,14 @@ export async function GET(request: Request) {
     });
 
     const submissionMap = new Map(submissions.map((s) => [s.questionId, s]));
+    const dripEnabled = await isQuizDripEnabled();
+    const openAccess = !dripEnabled;
+
     // Use quiz-relative day number instead of raw weekday to prevent re-locking
     const quizRelativeDay = getQuizDayForDate(quiz.sermonDate);
     // Clamp to 1–7 for active week, >7 means expired
-    const currentDay = Math.min(Math.max(quizRelativeDay, 0), 7);
-    const isExpired = isQuizWeekExpired(quiz.sermonDate);
+    const currentDay = openAccess ? 7 : Math.min(Math.max(quizRelativeDay, 0), 7);
+    const isExpired = openAccess ? false : isQuizWeekExpired(quiz.sermonDate);
 
     // Check if user has an active catch-up session for this quiz
     const catchupSession = await db.quizCatchupSession.findUnique({
@@ -124,8 +128,8 @@ export async function GET(request: Request) {
       let status: "completed" | "available" | "locked" | "today" | "expired";
       if (sub) {
         status = "completed";
-      } else if (isCatchupActive) {
-        // Active catch-up session: drip gating removed, all unplayed challenges are available!
+      } else if (openAccess || isCatchupActive) {
+        // Open Access Mode (default) or active catch-up: all 7 challenges unlocked immediately!
         status = "available";
       } else if (isExpired) {
         // Week is over — unplayed days are permanently expired
@@ -195,6 +199,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       active: true,
       attended,
+      openAccess,
       isActiveQuiz,
       isExpired,
       isCatchup: isCatchupActive,

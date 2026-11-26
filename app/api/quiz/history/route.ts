@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { isQuizWeekExpired } from "@/lib/quiz-helpers";
+import { isQuizWeekExpired, QUIZ_TYPE_LABELS } from "@/lib/quiz-helpers";
+import { isQuizDripEnabled } from "@/lib/quiz-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -17,10 +18,22 @@ export async function GET() {
   }
 
   try {
+    const dripEnabled = await isQuizDripEnabled();
+    const openAccess = !dripEnabled;
+
     const quizzes = await db.sermonQuiz.findMany({
       where: { status: { in: ["published", "completed"] } },
       orderBy: { sermonDate: "desc" },
       include: {
+        questions: {
+          orderBy: { dayNumber: "asc" },
+          select: {
+            id: true,
+            dayNumber: true,
+            questionType: true,
+            questionText: true,
+          },
+        },
         rewards: {
           where: { memberId },
           select: {
@@ -32,6 +45,7 @@ export async function GET() {
         submissions: {
           where: { memberId },
           select: {
+            questionId: true,
             isCorrect: true,
           },
         },
@@ -52,7 +66,9 @@ export async function GET() {
       const played = q.submissions.length > 0;
       const submissionsCount = q.submissions.length;
       const isExpired = isQuizWeekExpired(q.sermonDate);
-      
+
+      const subByQuestion = new Map(q.submissions.map((s) => [s.questionId, s]));
+
       // Catch-up status calculation
       const catchup = q.catchupSessions[0] || null;
       let catchupStatus: "none" | "active" | "completed" | "expired" = "none";
@@ -66,10 +82,8 @@ export async function GET() {
         }
       }
 
-      // Compute score: count how many of the user's submissions are correct
       const score = reward ? reward.totalScore : q.submissions.filter((s) => s.isCorrect).length;
-      
-      // Map score to tier if not explicitly saved in reward
+
       let tier = reward?.rewardTier || null;
       if (played && !tier) {
         if (score >= 7) tier = "PERFECT";
@@ -77,6 +91,21 @@ export async function GET() {
         else if (score >= 4) tier = "GOOD";
         else tier = "PARTICIPANT";
       }
+
+      const items = q.questions.map((item) => {
+        const sub = subByQuestion.get(item.id);
+        const typeInfo = QUIZ_TYPE_LABELS[item.questionType];
+        return {
+          questionId: item.id,
+          dayNumber: item.dayNumber,
+          questionType: item.questionType,
+          typeLabel: typeInfo?.label || item.questionType,
+          difficulty: typeInfo?.difficulty || "Medium",
+          previewText: item.questionText,
+          answered: Boolean(sub),
+          isCorrect: sub ? sub.isCorrect : null,
+        };
+      });
 
       return {
         id: q.id,
@@ -88,9 +117,11 @@ export async function GET() {
         tier,
         submissionsCount,
         isExpired,
+        openAccess,
         catchupStatus,
         catchupExpiresAt: catchup ? catchup.expiresAt.toISOString() : null,
         hasVideo: Boolean(q.youtubeVideoId),
+        items,
       };
     });
 

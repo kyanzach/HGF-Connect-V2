@@ -199,6 +199,11 @@ export default function QuizAdminPage() {
   const [videoUrlDraft, setVideoUrlDraft] = useState<string>("");
   const [savingVideo, setSavingVideo] = useState<boolean>(false);
 
+  // ── Quiz Access Mode (Drip & 1-Quiz Lock vs Open Access) ──
+  const [dripEnabled, setDripEnabled] = useState<boolean>(false);
+  const [loadingSettings, setLoadingSettings] = useState<boolean>(true);
+  const [savingDripToggle, setSavingDripToggle] = useState<boolean>(false);
+
   // ── Rewards ──
   const [rewards, setRewards] = useState<any[]>([]);
   const [selectedQuizForRewards, setSelectedQuizForRewards] = useState<number | null>(null);
@@ -308,7 +313,44 @@ export default function QuizAdminPage() {
     }
   }, []);
 
-  useEffect(() => { loadQuizzes(); }, [loadQuizzes]);
+  useEffect(() => {
+    loadQuizzes();
+    fetch("/api/quiz/admin/settings")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && typeof data.dripEnabled === "boolean") {
+          setDripEnabled(data.dripEnabled);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoadingSettings(false));
+  }, [loadQuizzes]);
+
+  async function handleToggleDripMode() {
+    const nextValue = !dripEnabled;
+    setSavingDripToggle(true);
+    try {
+      const res = await fetch("/api/quiz/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dripEnabled: nextValue }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update access mode");
+      setDripEnabled(Boolean(data.dripEnabled));
+      showAlert(
+        "Quiz Access Updated",
+        data.dripEnabled
+          ? "Classic Drip & 1-Quiz-at-a-Time Mode enabled. Questions unlock daily and past quizzes use a 7-day pass."
+          : "Open Access Mode enabled! All quizzes and all 7 items are unlocked simultaneously.",
+        "success"
+      );
+    } catch (err: any) {
+      showAlert("Error", err.message || "Failed to save setting", "error");
+    } finally {
+      setSavingDripToggle(false);
+    }
+  }
 
   const [backfilling, setBackfilling] = useState(false);
 
@@ -806,9 +848,74 @@ export default function QuizAdminPage() {
       <h1 style={{ fontSize: "1.5rem", fontWeight: 800, color: "#1a202c", marginBottom: "4px" }}>
         🧠 Quiz for Christ
       </h1>
-      <p style={{ color: "#718096", fontSize: "0.9rem", marginBottom: "24px" }}>
+      <p style={{ color: "#718096", fontSize: "0.9rem", marginBottom: "20px" }}>
         Create and manage weekly sermon-based quizzes
       </p>
+
+      {/* ═══ Quiz Access Mode Toggle ═══ */}
+      <div
+        style={{
+          ...S.section,
+          border: dripEnabled ? "1.5px solid #e2e8f0" : "1.5px solid #4EB1CB",
+          background: dripEnabled ? "#ffffff" : "#f0fdfa",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "16px",
+          flexWrap: "wrap",
+          padding: "18px 20px",
+        }}
+      >
+        <div style={{ flex: 1, minWidth: "220px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+            <strong style={{ fontSize: "0.98rem", color: "#0f172a" }}>
+              Drip Delay &amp; 1-Quiz Limit
+            </strong>
+            <span
+              style={{
+                fontSize: "0.72rem",
+                fontWeight: 700,
+                padding: "2px 9px",
+                borderRadius: "999px",
+                background: dripEnabled ? "#fef3c7" : "#ccfbf1",
+                color: dripEnabled ? "#92400e" : "#0f766e",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {loadingSettings ? "Loading..." : dripEnabled ? "Enabled (Drip Mode)" : "Disabled (All Unlocked)"}
+            </span>
+          </div>
+          <p style={{ margin: 0, fontSize: "0.82rem", color: "#475569", lineHeight: 1.45 }}>
+            {dripEnabled
+              ? "Questions unlock 1 per day and members can take 1 active quiz at a time."
+              : "All quizzes and all 7 items are open right now with zero waiting."}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          disabled={loadingSettings || savingDripToggle}
+          onClick={handleToggleDripMode}
+          style={{
+            background: dripEnabled ? "#0f172a" : "#4EB1CB",
+            color: "#ffffff",
+            border: "none",
+            borderRadius: "10px",
+            padding: "10px 16px",
+            fontSize: "0.85rem",
+            fontWeight: 700,
+            cursor: loadingSettings || savingDripToggle ? "not-allowed" : "pointer",
+            opacity: loadingSettings || savingDripToggle ? 0.65 : 1,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {savingDripToggle
+            ? "Saving..."
+            : dripEnabled
+              ? "Disable Drip (Unlock All)"
+              : "Enable Drip & 1-Quiz Lock"}
+        </button>
+      </div>
 
       {/* ═══ Section 1: Create New Quiz ═══ */}
       <div style={S.section}>
