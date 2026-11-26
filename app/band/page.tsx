@@ -35,6 +35,7 @@ const AudioChaptersModal = dynamic(() => import('./components/modals/AudioChapte
 const DurationPickerModal = dynamic(() => import('./components/modals/DurationPickerModal').then((m) => m.DurationPickerModal), { ssr: false });
 const BandInstallModal = dynamic(() => import('./components/modals/BandInstallModal').then((m) => m.BandInstallModal), { ssr: false });
 const GuitarChordPopover = dynamic(() => import('./components/GuitarChordPopover').then((m) => m.GuitarChordPopover), { ssr: false });
+const SetlistPickerModal = dynamic(() => import('./components/modals/SetlistPickerModal').then((m) => m.SetlistPickerModal), { ssr: false });
 
 import { BandUser, Song, Setlist, AudioTrack, AudioMarker, DrawingStroke } from './types/band';
 import { getCachedAudioMarkers, saveCachedAudioMarkers } from './lib/audioAnalysis';
@@ -454,6 +455,7 @@ export default function BandStagePage() {
   const [isMetronomeModalOpen, setIsMetronomeModalOpen] = useState<boolean>(false);
   const [isAudioChaptersModalOpen, setIsAudioChaptersModalOpen] = useState<boolean>(false);
   const [isDurationModalOpen, setIsDurationModalOpen] = useState<boolean>(false);
+  const [isSetlistPickerOpen, setIsSetlistPickerOpen] = useState<boolean>(false);
   const [isInstallModalOpen, setIsInstallModalOpen] = useState<boolean>(false);
 
   // Auto-scroll pacing & duration mode (default is speed mode)
@@ -464,46 +466,23 @@ export default function BandStagePage() {
   const [isCopiedProPresenter, setIsCopiedProPresenter] = useState<boolean>(false);
   const [isCleaningProPresenter, setIsCleaningProPresenter] = useState<boolean>(false);
 
-  const handleCopyProPresenter = useCallback(async (forceRefresh = false, linesPerSlide: 1 | 2 = 2) => {
-    if (!currentSong) return;
+  // 100% local, zero-API-cost, instant ProPresenter 7 lyrics formatter (2 lines/slide or 1 line/slide)
+  const handleCopyProPresenter = useCallback(async (_forceRefresh = false, linesPerSlide: 1 | 2 = 2) => {
+    const sourceSong = effectiveSong || currentSong;
+    if (!sourceSong) return;
 
-    // 1. If already cleaned & saved and not forcing refresh, sanitize + format to chosen slide layout & copy immediately (0 AI requests)
-    if (!forceRefresh && currentSong.proPresenterLyrics && currentSong.proPresenterLyrics.trim()) {
-      const formatted = formatProPresenterSlideLayout(currentSong.proPresenterLyrics, linesPerSlide);
-      const success = await copyTextToClipboard(formatted);
-      if (success) {
-        setIsCopiedProPresenter(true);
-        setRefreshToast(`Copied for ProPresenter (${linesPerSlide === 1 ? '1 line / no spacing' : '2 lines / slide'})`);
-        setTimeout(() => setIsCopiedProPresenter(false), 2500);
-        setTimeout(() => setRefreshToast(null), 2500);
-      }
-      return;
+    const rawFormatted = formatSongForProPresenter(sourceSong);
+    const formatted = formatProPresenterSlideLayout(rawFormatted, linesPerSlide);
+    if (!formatted) return;
+
+    const success = await copyTextToClipboard(formatted);
+    if (success) {
+      setIsCopiedProPresenter(true);
+      setRefreshToast(`Copied for ProPresenter (${linesPerSlide === 1 ? '1 line / no spacing' : '2 lines / slide'})`);
+      setTimeout(() => setIsCopiedProPresenter(false), 2500);
+      setTimeout(() => setRefreshToast(null), 2500);
     }
-
-    // 2. 1 process when clicked: AI cleans, saves separately to server, formats to chosen layout, and copies to clipboard
-    setIsCleaningProPresenter(true);
-    try {
-      const { text } = await cleanSongWithAi(currentSong, forceRefresh);
-      if (text) {
-        const canonicalTwoLine = formatProPresenterSlideLayout(text, 2);
-        const updatedSong = { ...currentSong, proPresenterLyrics: canonicalTwoLine };
-        updateSongInMemory(updatedSong);
-
-        const formatted = formatProPresenterSlideLayout(canonicalTwoLine, linesPerSlide);
-        const success = await copyTextToClipboard(formatted);
-        if (success) {
-          setIsCopiedProPresenter(true);
-          setRefreshToast(`Copied for ProPresenter (${linesPerSlide === 1 ? '1 line / no spacing' : '2 lines / slide'})`);
-          setTimeout(() => setIsCopiedProPresenter(false), 2500);
-          setTimeout(() => setRefreshToast(null), 2500);
-        }
-      }
-    } catch (err) {
-      console.error('[handleCopyProPresenter] AI clean error:', err);
-    } finally {
-      setIsCleaningProPresenter(false);
-    }
-  }, [currentSong, updateSongInMemory]);
+  }, [effectiveSong, currentSong]);
 
   const handleReCleanProPresenter = useCallback((linesPerSlide: 1 | 2 = 2) => {
     handleCopyProPresenter(true, linesPerSlide);
@@ -1796,11 +1775,12 @@ export default function BandStagePage() {
           setlists={setlists}
           activeSetlistId={activeSetlistId}
           onSelectSetlist={handleSelectSetlist}
+          onOpenSetlistPicker={() => setIsSetlistPickerOpen(true)}
           currentUser={currentUser}
           isUserMD={isUserMD}
           onOpenAuthModal={() => setIsAuthModalOpen(true)}
           onOpenEditSong={() => {
-            setEditingSong(currentSong);
+            setEditingSong(effectiveSong || currentSong);
             setIsEditModalOpen(true);
           }}
           isDrawingActive={isDrawingActive}
@@ -2120,6 +2100,7 @@ export default function BandStagePage() {
         currentSongId={currentSong?.id || null}
         onSelectSong={selectSong}
         onSelectSetlist={handleSelectSetlist}
+        onOpenSetlistPicker={() => setIsSetlistPickerOpen(true)}
         onOpenNewSongModal={() => {
           if (!currentUser) {
             setLoginPrompt({ open: true, feature: 'add_song' });
@@ -2155,7 +2136,7 @@ export default function BandStagePage() {
         <SongEditorModal
           isOpen={isEditModalOpen}
           onClose={() => setIsEditModalOpen(false)}
-          song={editingSong || effectiveSong}
+          song={editingSong}
           onSaveSong={async (saved) => {
             await handleSaveSong(saved);
             selectSong(saved.id);
@@ -2200,6 +2181,17 @@ export default function BandStagePage() {
           onStopPad={stopPad}
           onTogglePad={togglePad}
           onChangeVolume={setPadVolume}
+        />
+      )}
+
+      {isSetlistPickerOpen && (
+        <SetlistPickerModal
+          isOpen={isSetlistPickerOpen}
+          onClose={() => setIsSetlistPickerOpen(false)}
+          setlists={setlists}
+          activeSetlistId={activeSetlistId}
+          totalSongCount={songs.length}
+          onSelectSetlist={handleSelectSetlist}
         />
       )}
 

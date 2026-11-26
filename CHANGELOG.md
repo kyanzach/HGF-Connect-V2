@@ -1,3 +1,16 @@
+## [v2.98.0] — 2026-11-26
+### Added
+- **Touch-Friendly Setlist Picker Modal with Search, Filters & Sort (`app/band/components/modals/SetlistPickerModal.tsx`, `app/band/components/StageTopBar.tsx`, `app/band/components/SetlistSidebar.tsx`, `app/band/page.tsx`)**:
+  - Replaced tiny native `<select>` setlist dropdowns in both the top header and sidebar with a spacious, big-finger-friendly picker featuring a `44px` search bar, filter pills (`All`, `Upcoming`, `Sunday Service`, `Grace Night`), sort toggle (`By Date`, `A–Z`, `By Leader`), and `58px` touch cards.
+### Changed / Fixed
+- **Zero-Cost Instant Local ProPresenter Engine (`app/band/page.tsx`, `app/band/components/StageTopBar.tsx`)**:
+  - Replaced OpenAI API calls during ProPresenter copy with our instant, zero-token deterministic local formatter (`formatSongForProPresenter` + `formatProPresenterSlideLayout`), removed `Re-clean with AI`, and shifted the `ProPresenter ▾` popover clear of the right Song Sections rail.
+- **Toolbar & Sidebar Polish (`app/band/components/StageTopBar.tsx`, `app/band/components/SetlistSidebar.tsx`)**:
+  - Moved **`Draw`** next to **`Notes`** in `StageTopBar`.
+  - Removed the redundant **`Online`** button from the `SetlistSidebar` footer so **`+ New Song`** and **`Setlists`** have bigger, roomier `42px` touch targets.
+- **Fixed `+ New Song` Opening Existing Song (`app/band/page.tsx`)**:
+  - Removed the `editingSong || effectiveSong` fallback on `<SongEditorModal>` so tapping **`+ New Song`** always opens a fresh blank song form instead of editing the currently viewed song.
+
 ## [v2.97.0] — 2026-11-26
 ### Added
 - **ProPresenter 2-Line vs 1-Line Copy Options (`app/band/lib/propresenterExport.ts`, `app/band/components/StageTopBar.tsx`, `app/band/page.tsx`)**:

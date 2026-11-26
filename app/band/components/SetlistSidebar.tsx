@@ -97,6 +97,7 @@ interface SetlistSidebarProps {
   currentSongId: string | null;
   onSelectSong: (id: string) => void;
   onSelectSetlist: (id: string | null) => void;
+  onOpenSetlistPicker?: () => void;
   onOpenNewSongModal: () => void;
   onOpenSetlistAdmin: () => void;
   onOpenScraper: (initialQuery?: string) => void;
@@ -117,6 +118,7 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
   currentSongId,
   onSelectSong,
   onSelectSetlist,
+  onOpenSetlistPicker,
   onOpenNewSongModal,
   onOpenSetlistAdmin,
   onOpenScraper,
@@ -590,34 +592,45 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
 
         {/* SETLIST PICKER & SEARCH */}
         <div style={{ padding: '12px 14px', borderBottom: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '9px' }}>
-          <select
-            value={activeSetlistId || ''}
-            onChange={(e) => onSelectSetlist(e.target.value ? e.target.value : null)}
-            aria-label="Switch setlist"
-            style={{
-              width: '100%',
-              height: '38px',
-              borderRadius: '10px',
-              background: '#131c2e',
-              border: '1px solid #26354d',
-              color: '#f1f5f9',
-              padding: '0 10px',
-              fontSize: '13px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              outline: 'none',
-            }}
-          >
-            <option value="">All Songs ({songs.length})</option>
-            {sortedSetlists.map((s) => {
-              const isUpcoming = Boolean(s.serviceDate && s.serviceDate >= todayStr);
-              return (
-                <option key={s.id} value={s.id}>
-                  {isUpcoming ? '★ ' : ''}{formatSetlistLabel(s, { includeCount: true })}
-                </option>
-              );
-            })}
-          </select>
+          {(() => {
+            const isUpcoming = Boolean(activeSetlist?.serviceDate && activeSetlist.serviceDate >= todayStr);
+            const label = activeSetlist
+              ? `${isUpcoming ? '★ ' : ''}${formatSetlistLabel(activeSetlist, { includeCount: true })}`
+              : `All Songs (${songs.length})`;
+            return (
+              <button
+                type="button"
+                onClick={() => onOpenSetlistPicker?.()}
+                aria-label="Switch setlist"
+                title={label}
+                style={{
+                  width: '100%',
+                  height: '42px',
+                  borderRadius: '10px',
+                  background: '#131c2e',
+                  border: '1px solid #26354d',
+                  color: '#f1f5f9',
+                  padding: '0 12px',
+                  fontSize: '13.5px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  outline: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '8px',
+                  textAlign: 'left',
+                }}
+              >
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                  {label}
+                </span>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </button>
+            );
+          })()}
 
           {/* Unified Search Input with leading SVG icon & inline clear button */}
           <form
@@ -1439,11 +1452,11 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
         {/* FOOTER ACTIONS */}
         <div
           style={{
-            padding: '10px 14px',
+            padding: '12px 14px',
             borderTop: '1px solid #1e293b',
             display: 'flex',
-            gap: '6px',
-            paddingBottom: 'max(10px, env(safe-area-inset-bottom))',
+            gap: '10px',
+            paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
           }}
         >
           <button
@@ -1455,55 +1468,25 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
             title={currentUser ? 'Add a new song to the church library' : 'Login required to add songs'}
             style={{
               flex: 1,
-              height: '38px',
-              borderRadius: '9px',
+              height: '42px',
+              borderRadius: '10px',
               background: currentUser ? '#4EB1CB' : 'rgba(78, 177, 203, 0.15)',
               border: currentUser ? 'none' : '1px dashed rgba(78, 177, 203, 0.4)',
               color: currentUser ? '#000' : '#4EB1CB',
               fontWeight: 800,
-              fontSize: '11.5px',
+              fontSize: '13px',
               cursor: 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '5px',
+              gap: '6px',
               whiteSpace: 'nowrap',
             }}
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
               <path d="M12 5v14M5 12h14" />
             </svg>
             <span>New Song</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              if (currentUser) onClose();
-              onOpenScraper('');
-            }}
-            title={currentUser ? 'Search Ultimate Guitar chord charts' : 'Login required to search online chords'}
-            style={{
-              flex: 1,
-              height: '38px',
-              borderRadius: '9px',
-              background: 'rgba(56, 189, 248, 0.12)',
-              border: '1px solid rgba(56, 189, 248, 0.3)',
-              color: '#7dd3fc',
-              fontWeight: 700,
-              fontSize: '11.5px',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '5px',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <circle cx="11" cy="11" r="8" />
-              <path d="m21 21-4.3-4.3" />
-            </svg>
-            <span>Online</span>
           </button>
           <button
             type="button"
@@ -1514,22 +1497,22 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
             title={currentUser ? 'Manage & create setlists' : 'Login required to manage setlists'}
             style={{
               flex: 1,
-              height: '38px',
-              borderRadius: '9px',
+              height: '42px',
+              borderRadius: '10px',
               background: '#131c2e',
               border: '1px solid #26354d',
               color: '#e2e8f0',
               fontWeight: 700,
-              fontSize: '11.5px',
+              fontSize: '13px',
               cursor: 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '5px',
+              gap: '6px',
               whiteSpace: 'nowrap',
             }}
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <line x1="8" y1="6" x2="21" y2="6" />
               <line x1="8" y1="12" x2="21" y2="12" />
               <line x1="8" y1="18" x2="21" y2="18" />
