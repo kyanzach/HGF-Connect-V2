@@ -1,3 +1,8 @@
+## [v2.95.2] — 2026-11-26
+### Removed
+- **Redundant Setlist Name Presets (`app/band/components/modals/SetlistAdminModal.tsx`)**:
+  - Removed the `+Sunday Service`, `+Midweek Service`, `+Youth Service`, and `+Worship Night` quick-preset chips under Setlist Name since service type labels are now inferred automatically from the Service Date.
+
 ## [v2.95.1] — 2026-11-26
 ### Improved
 - **Prominent Search Bar in Setlist Sidebar (`app/band/components/SetlistSidebar.tsx`)**:

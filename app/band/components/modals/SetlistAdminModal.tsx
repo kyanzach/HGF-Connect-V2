@@ -218,31 +218,6 @@ export const SetlistAdminModal: React.FC<SetlistAdminModalProps> = ({
                     outline: 'none',
                   }}
                 />
-                {/* Quick Name Presets */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
-                  {['Sunday Service', 'Midweek Service', 'Youth Service', 'Worship Night'].map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => {
-                        const d = serviceDate ? new Date(serviceDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
-                        setName(d ? `${preset} - ${d}` : preset);
-                      }}
-                      style={{
-                        padding: '3px 8px',
-                        borderRadius: '6px',
-                        background: 'rgba(78, 177, 203, 0.08)',
-                        border: '1px solid rgba(78, 177, 203, 0.25)',
-                        color: '#4EB1CB',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      +{preset}
-                    </button>
-                  ))}
-                </div>
               </div>
 
               {/* Service Date & Worship Leader in Clean, Non-overlapping Stack / Grid */}
