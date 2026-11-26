@@ -14,6 +14,11 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import Confetti from "./Confetti";
 import TreeOfWisdomStage from "./TreeOfWisdomStage";
+import MillionaireStage from "./MillionaireStage";
+import LanternCatchStage from "./LanternCatchStage";
+import ScaleOfTruthStage from "./ScaleOfTruthStage";
+import WordHarvestTreeStage from "./WordHarvestTreeStage";
+import LanternOfGraceStage from "./LanternOfGraceStage";
 
 interface QuizQuestion {
   questionId: number;
@@ -22,6 +27,8 @@ interface QuizQuestion {
   questionText: string;
   options?: string[];
   hint?: string;
+  lifelineEliminate?: number[];
+  wordChunks?: string[];
 }
 
 interface QuizResult {
@@ -150,13 +157,13 @@ export default function QuizPlayer({ question, openAccess = true, onComplete, on
 
   const unit = openAccess ? "Quiz" : "Day";
   const dayLabels: Record<number, string> = {
-    1: `🎈 ${unit} 1 — Balloon Pop`,
-    2: `🌳 ${unit} 2 — Tree of Wisdom`,
-    3: `🎈 ${unit} 3 — Scripture Trivia`,
-    4: `🌳 ${unit} 4 — Tree of Wisdom`,
-    5: `⚖️ ${unit} 5 — Defend Your Faith`,
-    6: `📝 ${unit} 6 — In Your Own Words`,
-    7: `📝 ${unit} 7 — Heart Reflection`,
+    1: `${unit} 1 — Balloon Pop`,
+    2: `${unit} 2 — Tree of Wisdom`,
+    3: `${unit} 3 — Spotlight 50:50`,
+    4: `${unit} 4 — Floating Lanterns`,
+    5: `${unit} 5 — Scale of Truth`,
+    6: `${unit} 6 — 3D Word Harvest`,
+    7: `${unit} 7 — Lantern of Grace`,
   };
 
   async function submitAnswer(answer: string) {
@@ -262,80 +269,47 @@ export default function QuizPlayer({ question, openAccess = true, onComplete, on
       );
     }
 
-    // ── Quiz type renderers ──
+    // ── 7-for-7 Unique Game Dispatcher (routes by dayNumber so every item Q1–Q7 feels unique) ──
+    const sharedProps = {
+      question,
+      onSubmit: submitAnswer,
+      submitting,
+      dayLabel: dayLabels[question.dayNumber] || `${unit} ${question.dayNumber}`,
+      showHint,
+      setShowHint,
+      onClose,
+    };
+
+    if (question.dayNumber === 3 && question.options && question.options.length >= 2) {
+      return <MillionaireStage {...sharedProps} />;
+    }
+    if (question.dayNumber === 4 && question.options && question.options.length >= 2) {
+      return <LanternCatchStage {...sharedProps} />;
+    }
+    if (question.dayNumber === 5 && question.type === "TRUE_FALSE_EXPLAIN") {
+      return <ScaleOfTruthStage {...sharedProps} />;
+    }
+    if (question.dayNumber === 6) {
+      return <WordHarvestTreeStage {...sharedProps} />;
+    }
+    if (question.dayNumber === 7 && question.type === "SHORT_ANSWER") {
+      return <LanternOfGraceStage {...sharedProps} />;
+    }
+
+    // ── Standard renderers (Q1 Balloon Pop, Q2 Tree of Wisdom, plus fallbacks) ──
     switch (question.type) {
       case "MULTIPLE_CHOICE":
-        return (
-          <BalloonPop
-            question={question}
-            onSubmit={submitAnswer}
-            submitting={submitting}
-            dayLabel={dayLabels[question.dayNumber]}
-            showHint={showHint}
-            setShowHint={setShowHint}
-            onClose={onClose}
-          />
-        );
+        return <BalloonPop {...sharedProps} />;
       case "TREE_OF_LIFE":
-        return (
-          <TreeOfWisdomStage
-            question={question}
-            onSubmit={submitAnswer}
-            submitting={submitting}
-            dayLabel={dayLabels[question.dayNumber] || `🌳 ${unit} ${question.dayNumber} — Tree of Wisdom`}
-            showHint={showHint}
-            setShowHint={setShowHint}
-            onClose={onClose}
-          />
-        );
+        return <TreeOfWisdomStage {...sharedProps} />;
       case "FILL_IN_BLANKS":
-        return (
-          <FillBlanks
-            question={question}
-            onSubmit={submitAnswer}
-            submitting={submitting}
-            dayLabel={dayLabels[question.dayNumber]}
-            showHint={showHint}
-            setShowHint={setShowHint}
-            onClose={onClose}
-          />
-        );
+        return <FillBlanks {...sharedProps} />;
       case "SHORT_ANSWER":
-        return (
-          <ShortAnswer
-            question={question}
-            onSubmit={submitAnswer}
-            submitting={submitting}
-            dayLabel={dayLabels[question.dayNumber]}
-            showHint={showHint}
-            setShowHint={setShowHint}
-            onClose={onClose}
-          />
-        );
+        return <ShortAnswer {...sharedProps} />;
       case "SCRIPTURE_ORDERING":
-        return (
-          <ScriptureOrder
-            question={question}
-            onSubmit={submitAnswer}
-            submitting={submitting}
-            dayLabel={dayLabels[question.dayNumber]}
-            showHint={showHint}
-            setShowHint={setShowHint}
-            onClose={onClose}
-          />
-        );
+        return <ScriptureOrder {...sharedProps} />;
       case "TRUE_FALSE_EXPLAIN":
-        return (
-          <TrueFalseExplain
-            question={question}
-            onSubmit={submitAnswer}
-            submitting={submitting}
-            dayLabel={dayLabels[question.dayNumber]}
-            showHint={showHint}
-            setShowHint={setShowHint}
-            onClose={onClose}
-          />
-        );
+        return <TrueFalseExplain {...sharedProps} />;
       default:
         return <div>Unknown quiz type</div>;
     }

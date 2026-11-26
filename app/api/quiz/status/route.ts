@@ -142,13 +142,24 @@ export async function GET(request: Request) {
         status = "locked";
       }
 
+      const slotGameLabels: Record<number, { label: string; emoji: string }> = {
+        1: { label: "Balloon Pop", emoji: "🎈" },
+        2: { label: "Tree of Wisdom", emoji: "🌳" },
+        3: { label: "Spotlight 50:50", emoji: "✨" },
+        4: { label: "Floating Lanterns", emoji: "🏮" },
+        5: { label: "Scale of Truth", emoji: "⚖️" },
+        6: { label: "3D Word Harvest", emoji: "🌿" },
+        7: { label: "Lantern of Grace", emoji: "🕯️" },
+      };
+      const slotMeta = slotGameLabels[q.dayNumber];
+
       return {
         questionId: q.id,
         dayNumber: q.dayNumber,
         label: openAccess ? `Quiz ${q.dayNumber}` : (dayMeta?.label || `Day ${q.dayNumber}`),
         type: q.questionType,
-        typeLabel: typeInfo?.label || q.questionType,
-        typeEmoji: typeInfo?.emoji || "🧠",
+        typeLabel: slotMeta?.label || typeInfo?.label || q.questionType,
+        typeEmoji: slotMeta?.emoji || typeInfo?.emoji || "🧠",
         difficulty: typeInfo?.difficulty || "Unknown",
         status,
         score: sub?.score ?? null,

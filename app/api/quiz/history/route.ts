@@ -92,6 +92,16 @@ export async function GET() {
         else tier = "PARTICIPANT";
       }
 
+      const slotGameNames: Record<number, string> = {
+        1: "Balloon Pop",
+        2: "Tree of Wisdom",
+        3: "Spotlight 50:50",
+        4: "Floating Lanterns",
+        5: "Scale of Truth",
+        6: "3D Word Harvest",
+        7: "Lantern of Grace",
+      };
+
       const items = q.questions.map((item) => {
         const sub = subByQuestion.get(item.id);
         const typeInfo = QUIZ_TYPE_LABELS[item.questionType];
@@ -99,7 +109,7 @@ export async function GET() {
           questionId: item.id,
           dayNumber: item.dayNumber,
           questionType: item.questionType,
-          typeLabel: typeInfo?.label || item.questionType,
+          typeLabel: slotGameNames[item.dayNumber] || typeInfo?.label || item.questionType,
           difficulty: typeInfo?.difficulty || "Medium",
           previewText: item.questionText,
           answered: Boolean(sub),

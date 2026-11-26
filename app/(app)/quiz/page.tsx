@@ -314,6 +314,8 @@ export default function MemberQuizPage() {
           questionText: qData.questionText,
           options: qData.options,
           hint: qData.hint,
+          lifelineEliminate: qData.lifelineEliminate,
+          wordChunks: qData.wordChunks,
         });
       } else {
         const errData = await res.json().catch(() => ({}));

@@ -1,3 +1,18 @@
+## [v2.102.0] — 2026-11-26
+### Added
+- **7-for-7 Unique Interactive Quiz Game Lineup — Zero Repeats (`components/quiz/MillionaireStage.tsx`, `components/quiz/LanternCatchStage.tsx`, `components/quiz/ScaleOfTruthStage.tsx`, `components/quiz/WordHarvestTreeStage.tsx`, `components/quiz/LanternOfGraceStage.tsx`, `components/quiz/QuizPlayer.tsx`)**:
+  - **Quiz 1**: **Balloon Pop** (floating bubble tap)
+  - **Quiz 2**: **Tree of Wisdom** (3D rotating golden tree)
+  - **Quiz 3**: **Spotlight 50:50** (Millionaire spotlight stage with server-computed cheat-proof 50:50 lifeline & final-answer lock-in)
+  - **Quiz 4**: **Floating Lanterns** (3D perspective glowing lantern/leaf canvas + floating answer lanterns)
+  - **Quiz 5**: **Scale of Truth** (animated spring-physics golden balance scale + optional 1-line defense)
+  - **Quiz 6**: **3D Word Harvest** (3D rotating blooming tree where players pluck glowing word-leaves in order to assemble the sermon truth, with optional Type Own Words fallback)
+  - **Quiz 7**: **Lantern of Grace** (3D starry night-sky lantern release for personal heart reflection)
+  - Preserves 100% of all existing participant submissions, scores, and questions with zero retakes needed.
+### Security / Anti-Cheat
+- **Strict 1-Take Per Quiz Item Gate (`app/api/quiz/question/route.ts`)**:
+  - Blocked re-opening or re-fetching any already-answered `questionId` (`HTTP 409`), reinforcing the database `@@unique([questionId, memberId])` constraint and `/api/quiz/submit` duplicate guard so every participant strictly gets 1 play, 1 chance per item.
+
 ## [v2.101.1] — 2026-11-26
 ### Changed
 - **Dynamic `Quiz 1–7` vs `Day 1–7` Labels Based on Drip Mode (`components/quiz/QuizPlayer.tsx`, `app/(app)/quiz/page.tsx`, `app/api/quiz/status/route.ts`)**:

@@ -35,6 +35,21 @@ export async function GET(request: Request) {
     }
 
     const memberId = parseInt(session.user.id, 10);
+
+    // Strict 1-take anti-cheat gate: block re-opening an already answered question
+    if (!isNaN(memberId)) {
+      const existingSub = await db.quizSubmission.findUnique({
+        where: { questionId_memberId: { questionId: question.id, memberId } },
+        select: { id: true, isCorrect: true },
+      });
+      if (existingSub) {
+        return NextResponse.json(
+          { error: "Already answered — only 1 attempt is allowed per quiz item." },
+          { status: 409 }
+        );
+      }
+    }
+
     const dripEnabled = await isQuizDripEnabled();
     let isCatchup = !dripEnabled; // Open Access Mode unlocks all quizzes & items
 
@@ -65,6 +80,55 @@ export async function GET(request: Request) {
       }
     }
 
+    // Build safe game-specific helpers (never exposing correctAnswer directly)
+    let lifelineEliminate: number[] | undefined;
+    let wordChunks: string[] | undefined;
+
+    if (question.dayNumber === 3 && Array.isArray(question.options) && question.options.length >= 4) {
+      const opts = question.options as string[];
+      const wrongIndices = opts
+        .map((opt, idx) => ({ opt, idx }))
+        .filter(({ opt }) => String(opt).trim().toLowerCase() !== question.correctAnswer.trim().toLowerCase())
+        .map(({ idx }) => idx);
+      // Deterministically pick 2 wrong indices to eliminate for the 50:50 lifeline
+      if (wrongIndices.length >= 2) {
+        const seed = question.id % wrongIndices.length;
+        lifelineEliminate = [
+          wrongIndices[seed],
+          wrongIndices[(seed + 1) % wrongIndices.length],
+        ];
+      }
+    }
+
+    if (question.dayNumber === 6) {
+      if (question.questionType === "SCRIPTURE_ORDERING" && Array.isArray(question.options)) {
+        const raw = (question.options as string[]).map((s) => String(s).trim()).filter(Boolean);
+        wordChunks = [...raw].sort((a, b) => ((a.length * 13 + question.id) % 17) - ((b.length * 13 + question.id) % 17));
+      } else if (question.correctAnswer && question.correctAnswer.trim().length > 10) {
+        // Split ideal answer into 5-7 clean phrase chunks for the 3D Word Harvest Tree
+        const words = question.correctAnswer.trim().replace(/\s+/g, " ").split(" ");
+        const targetChunks = Math.min(7, Math.max(4, Math.ceil(words.length / 3)));
+        const chunkSize = Math.max(1, Math.ceil(words.length / targetChunks));
+        const chunks: string[] = [];
+        for (let i = 0; i < words.length; i += chunkSize) {
+          chunks.push(words.slice(i, i + chunkSize).join(" "));
+        }
+        if (chunks.length >= 3) {
+          // Deterministic shuffle so order is scrambled but stable on reload
+          const shuffled = [...chunks];
+          for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = (question.id * 31 + i * 7) % (i + 1);
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+          }
+          // Ensure it's not accidentally in exact original order
+          if (shuffled.every((c, idx) => c === chunks[idx]) && shuffled.length > 1) {
+            [shuffled[0], shuffled[shuffled.length - 1]] = [shuffled[shuffled.length - 1], shuffled[0]];
+          }
+          wordChunks = shuffled;
+        }
+      }
+    }
+
     // Safely return only what the client needs to render the form
     return NextResponse.json({
       id: question.id,
@@ -73,6 +137,8 @@ export async function GET(request: Request) {
       questionText: question.questionText,
       options: question.options,
       hint: question.hint,
+      lifelineEliminate,
+      wordChunks,
     });
   } catch (error: any) {
     console.error("[api/quiz/question]", error?.message);
