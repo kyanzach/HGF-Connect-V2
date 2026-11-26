@@ -43,6 +43,9 @@ interface SongScraperModalProps {
   onClose: () => void;
   initialQuery?: string;
   activeSetlist?: Setlist | null;
+  existingSongs?: Song[];
+  onAddExistingSongToSetlist?: (songId: string, setlistId?: string) => void;
+  onSelectExistingSong?: (songId: string) => void;
   onImportSong: (song: Song, addToSetlist?: boolean) => Promise<void>;
   onOverwriteChords?: (chords: string, title?: string, artist?: string, key?: string, tempo?: number) => void;
   isEditingExisting?: boolean;
@@ -77,6 +80,9 @@ export const SongScraperModal: React.FC<SongScraperModalProps> = ({
   onClose,
   initialQuery = '',
   activeSetlist,
+  existingSongs = [],
+  onAddExistingSongToSetlist,
+  onSelectExistingSong,
   onImportSong,
   onOverwriteChords,
   isEditingExisting = false,
@@ -85,6 +91,7 @@ export const SongScraperModal: React.FC<SongScraperModalProps> = ({
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [results, setResults] = useState<ScrapedResult[]>([]);
   const [statusText, setStatusText] = useState<string>('');
+  const [addedExistingIds, setAddedExistingIds] = useState<Record<string, boolean>>({});
   
   // Preview state
   const [previewData, setPreviewData] = useState<ScrapedDetail | null>(null);
@@ -106,6 +113,21 @@ export const SongScraperModal: React.FC<SongScraperModalProps> = ({
   }, [isOpen, initialQuery]);
 
   if (!isOpen) return null;
+
+  const activeSetlistSongIds = new Set(
+    (activeSetlist?.songs || []).map((it) => (typeof it === 'string' ? it : it.id))
+  );
+  const normalizedQuery = query.trim().toLowerCase();
+  const localMatches =
+    !isEditingExisting && normalizedQuery.length >= 2
+      ? existingSongs
+          .filter(
+            (s) =>
+              s.title.toLowerCase().includes(normalizedQuery) ||
+              (s.artist && s.artist.toLowerCase().includes(normalizedQuery))
+          )
+          .slice(0, 5)
+      : [];
 
   const handleSearch = async (searchPhrase = query) => {
     const q = searchPhrase.trim();
@@ -343,6 +365,101 @@ export const SongScraperModal: React.FC<SongScraperModalProps> = ({
                   }}
                 >
                   {statusText}
+                </div>
+              )}
+
+              {/* Already in Songbook Library Banner (Prevents Duplicate Imports) */}
+              {localMatches.length > 0 && (
+                <div
+                  style={{
+                    marginBottom: '12px',
+                    padding: '10px 12px',
+                    borderRadius: '10px',
+                    background: 'rgba(16, 185, 129, 0.08)',
+                    border: '1px solid rgba(16, 185, 129, 0.32)',
+                  }}
+                >
+                  <div style={{ fontSize: '12px', fontWeight: 800, color: '#10b981', marginBottom: '8px' }}>
+                    Already in Songbook ({localMatches.length})
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {localMatches.map((song) => {
+                      const alreadyInSet = activeSetlistSongIds.has(song.id) || Boolean(addedExistingIds[song.id]);
+                      return (
+                        <div
+                          key={`local-match-${song.id}`}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: '8px',
+                            padding: '6px 8px',
+                            borderRadius: '8px',
+                            background: 'rgba(15, 23, 42, 0.75)',
+                            border: '1px solid #1e293b',
+                          }}
+                        >
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ fontSize: '13px', fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {song.title}
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {song.artist || 'Unknown Artist'} • Key: {song.key || 'C'}
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                            {activeSetlist && onAddExistingSongToSetlist && (
+                              <button
+                                type="button"
+                                disabled={alreadyInSet}
+                                onClick={() => {
+                                  onAddExistingSongToSetlist(song.id, activeSetlist.id);
+                                  setAddedExistingIds((prev) => ({ ...prev, [song.id]: true }));
+                                }}
+                                style={{
+                                  height: '28px',
+                                  padding: '0 10px',
+                                  borderRadius: '6px',
+                                  border: alreadyInSet ? '1px solid rgba(16, 185, 129, 0.4)' : 'none',
+                                  background: alreadyInSet ? 'rgba(16, 185, 129, 0.16)' : '#4EB1CB',
+                                  color: alreadyInSet ? '#10b981' : '#000',
+                                  fontSize: '11.5px',
+                                  fontWeight: 800,
+                                  cursor: alreadyInSet ? 'default' : 'pointer',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {alreadyInSet ? '✓ Added' : '+ Add'}
+                              </button>
+                            )}
+                            {onSelectExistingSong && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  onSelectExistingSong(song.id);
+                                  onClose();
+                                }}
+                                style={{
+                                  height: '28px',
+                                  padding: '0 10px',
+                                  borderRadius: '6px',
+                                  border: '1px solid #334155',
+                                  background: '#1e293b',
+                                  color: '#e2e8f0',
+                                  fontSize: '11.5px',
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                Open
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 

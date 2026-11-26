@@ -1,3 +1,13 @@
+## [v2.92.0] — 2026-11-26
+### Added
+- **Smart Cross-Library Search Inside Setlists (`app/band/components/SetlistSidebar.tsx`)**:
+  - Searching inside an active setlist now also searches the full Songbook Library and lists matching database songs under **In Songbook (N)** with a 1-tap **`+ Add`** button to add them straight to the current setlist without creating duplicates.
+  - Pressing Enter / mobile Search key only opens Ultimate Guitar when no match exists in either the active setlist or the Songbook Library.
+- **Multi-Setlist Toggle Picker (`app/band/components/SetlistSidebar.tsx`)**:
+  - Upgraded the **`+ Set`** popover in **All Songs** view into a multi-select toggle list showing `✓ Added` / `+ Add` per setlist and staying open until **`Done`** is tapped, so any song can be added to multiple setlists in seconds.
+- **Duplicate Song Detection in Ultimate Guitar Search (`app/band/components/modals/SongScraperModal.tsx`, `app/band/page.tsx`)**:
+  - Added an **Already in Songbook** banner above online search results whenever the searched song already exists in the church database, with 1-tap **`+ Add`** (to the active setlist) and **`Open`** buttons to prevent duplicate imports.
+
 ## [v2.91.7] — 2026-11-25
 ### Fixed
 - **iOS Safari Top Header Clipped Under Dynamic Island (`app/band/layout.tsx`, `app/band/page.tsx`, `app/band/components/StageTopBar.tsx`)**:

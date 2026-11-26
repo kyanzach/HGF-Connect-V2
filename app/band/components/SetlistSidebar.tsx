@@ -394,6 +394,40 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
     return new Set(activeSetlist.songs.map((s) => (typeof s === 'string' ? s : s.id)));
   }, [activeSetlist]);
 
+  // Smart cross-library search: when viewing a specific setlist and searching,
+  // also find matching songs already in the full Songbook Library so users can
+  // add existing DB songs in 1 tap instead of re-importing duplicates.
+  const libraryMatches = useMemo(() => {
+    if (!activeSetlist || !searchQuery.trim()) return [];
+    const q = searchQuery.trim().toLowerCase();
+    return songs
+      .filter(
+        (s) =>
+          !activeSetlistSongIds.has(s.id) &&
+          (s.title.toLowerCase().includes(q) ||
+            (s.artist && s.artist.toLowerCase().includes(q)) ||
+            (s.key && s.key.toLowerCase().includes(q)))
+      )
+      .sort((a, b) => a.title.localeCompare(b.title));
+  }, [activeSetlist, searchQuery, songs, activeSetlistSongIds]);
+
+  // Precompute setlist membership count per song for multi-setlist badges
+  const songSetlistIdsMap = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    setlists.forEach((st) => {
+      (st.songs || []).forEach((it) => {
+        const sId = typeof it === 'string' ? it : it.id;
+        let bucket = map.get(sId);
+        if (!bucket) {
+          bucket = new Set<string>();
+          map.set(sId, bucket);
+        }
+        bucket.add(st.id);
+      });
+    });
+    return map;
+  }, [setlists]);
+
   if (!isOpen) return null;
 
   return (
@@ -496,7 +530,7 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
             onSubmit={(e) => {
               e.preventDefault();
               const q = searchQuery.trim();
-              if (q && displayList.length === 0) {
+              if (q && displayList.length === 0 && libraryMatches.length === 0) {
                 (document.activeElement as HTMLElement | null)?.blur?.();
                 onClose();
                 onOpenScraper(q);
@@ -651,7 +685,7 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
 
         {/* SONG LIST */}
         <div ref={listContainerRef} style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
-          {displayList.length === 0 ? (
+          {displayList.length === 0 && libraryMatches.length === 0 ? (
             <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
               <div>No songs found matching &quot;{searchQuery}&quot;.</div>
               <button
@@ -669,13 +703,15 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
                   fontSize: '12px',
                   fontWeight: 800,
                   cursor: 'pointer',
+                  whiteSpace: 'nowrap',
                 }}
               >
-                🔍 Search on Ultimate Guitar
+                Search on Ultimate Guitar
               </button>
             </div>
           ) : (
-            displayList.map((song, idx) => {
+            <>
+            {displayList.map((song, idx) => {
               const isActive = song.id === currentSongId;
               const inCurSetlist = activeSetlistSongIds.has(song.id);
               const isCurrentlyDragged = draggedIndex === idx;
@@ -914,13 +950,18 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
                         </button>
                       )
                     ) : (
-                      /* In "All Songs" view: allow adding to active setlist or picking one */
+                      /* In "All Songs" view: multi-setlist toggle picker */
+                      (() => {
+                        const memberSetIds = songSetlistIdsMap.get(song.id);
+                        const memberCount = memberSetIds ? memberSetIds.size : 0;
+                        return (
                       <div style={{ position: 'relative' }}>
                         <button
-                          title="Add song to a setlist"
+                          type="button"
+                          title={memberCount > 0 ? `In ${memberCount} setlist${memberCount > 1 ? 's' : ''} — tap to add or remove` : 'Add song to setlists'}
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (setlists.length === 1 && onAddSongToSetlist) {
+                            if (setlists.length === 1 && memberCount === 0 && onAddSongToSetlist) {
                               onAddSongToSetlist(song.id, setlists[0].id);
                             } else {
                               setPickerSongId(pickerSongId === song.id ? null : song.id);
@@ -930,18 +971,19 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
                             height: '22px',
                             padding: '0 6px',
                             borderRadius: '5px',
-                            border: '1px solid #334155',
-                            background: '#1e293b',
-                            color: '#cbd5e1',
+                            border: memberCount > 0 ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid #334155',
+                            background: memberCount > 0 ? 'rgba(16, 185, 129, 0.14)' : '#1e293b',
+                            color: memberCount > 0 ? '#10b981' : '#cbd5e1',
                             fontSize: '10px',
                             fontWeight: 700,
                             cursor: 'pointer',
+                            whiteSpace: 'nowrap',
                           }}
                         >
-                          + Set
+                          {memberCount > 0 ? `✓ ${memberCount} Set${memberCount > 1 ? 's' : ''}` : '+ Set'}
                         </button>
 
-                        {/* Setlist picker popup */}
+                        {/* Multi-Setlist toggle picker popup */}
                         {pickerSongId === song.id && (
                           <>
                             {/* Backdrop to close when clicking outside */}
@@ -968,8 +1010,10 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
                                 border: '1px solid #334155',
                                 borderRadius: '8px',
                                 padding: '6px',
-                                minWidth: '180px',
+                                minWidth: '210px',
                                 maxWidth: '280px',
+                                maxHeight: '280px',
+                                overflowY: 'auto',
                                 boxShadow: '0 10px 25px rgba(0,0,0,0.85)',
                               }}
                             >
@@ -984,8 +1028,8 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
                                   marginBottom: '4px',
                                 }}
                               >
-                                <span style={{ fontSize: '10px', fontWeight: 800, color: '#64748b', letterSpacing: '0.04em' }}>
-                                  ADD TO SETLIST:
+                                <span style={{ fontSize: '10px', fontWeight: 800, color: '#94a3b8' }}>
+                                  Add to setlists
                                 </span>
                                 <button
                                   type="button"
@@ -993,28 +1037,22 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
                                     e.stopPropagation();
                                     setPickerSongId(null);
                                   }}
-                                  title="Close popup"
+                                  title="Done"
                                   style={{
-                                    background: '#ef4444',
+                                    background: '#4EB1CB',
                                     border: 'none',
-                                    color: '#ffffff',
+                                    color: '#000',
                                     fontSize: '10px',
                                     fontWeight: 800,
                                     padding: '2px 8px',
                                     borderRadius: '4px',
                                     cursor: 'pointer',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '3px',
                                     lineHeight: '16px',
                                     flexShrink: 0,
                                     whiteSpace: 'nowrap',
-                                    boxShadow: '0 2px 6px rgba(239, 68, 68, 0.4)',
                                   }}
-                                  onMouseEnter={(e) => (e.currentTarget.style.background = '#dc2626')}
-                                  onMouseLeave={(e) => (e.currentTarget.style.background = '#ef4444')}
                                 >
-                                  ✕ Close
+                                  Done
                                 </button>
                               </div>
                               {sortedSetlists.length === 0 ? (
@@ -1023,67 +1061,68 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
                                 </div>
                               ) : (
                                 sortedSetlists.map((st) => {
-                                  const isUpcoming = Boolean(st.serviceDate && st.serviceDate >= todayStr);
+                                  const isInSet = Boolean(memberSetIds?.has(st.id));
                                   const dateTag = formatServiceDate(st.serviceDate);
                                   const hasDateInName = dateTag && st.name.toLowerCase().includes(dateTag.toLowerCase());
                                   return (
                                     <button
                                       key={st.id}
+                                      type="button"
                                       onClick={() => {
-                                        if (onAddSongToSetlist) {
-                                          onAddSongToSetlist(song.id, st.id);
+                                        if (isInSet) {
+                                          onRemoveSongFromSetlist?.(song.id, st.id);
+                                        } else {
+                                          onAddSongToSetlist?.(song.id, st.id);
                                         }
-                                        setPickerSongId(null);
                                       }}
                                       style={{
                                         width: '100%',
                                         textAlign: 'left',
                                         padding: '6px 8px',
-                                        background: 'transparent',
-                                        border: 'none',
-                                        color: '#fff',
+                                        marginBottom: '2px',
+                                        background: isInSet ? 'rgba(16, 185, 129, 0.14)' : 'transparent',
+                                        border: isInSet ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid transparent',
+                                        color: isInSet ? '#a7f3d0' : '#f8fafc',
                                         fontSize: '11px',
-                                        fontWeight: 600,
-                                        borderRadius: '4px',
+                                        fontWeight: isInSet ? 700 : 600,
+                                        borderRadius: '5px',
                                         cursor: 'pointer',
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis',
-                                        whiteSpace: 'nowrap',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        gap: '6px',
                                       }}
-                                      onMouseEnter={(e) => (e.currentTarget.style.background = '#1e293b')}
-                                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                      onMouseEnter={(e) => {
+                                        if (!isInSet) e.currentTarget.style.background = '#1e293b';
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        if (!isInSet) e.currentTarget.style.background = 'transparent';
+                                      }}
                                     >
-                                      {isUpcoming ? '✨ ' : '🎼 '}{st.name}{dateTag && !hasDateInName ? ` • ${dateTag}` : ''}
+                                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        {st.name}{dateTag && !hasDateInName ? ` • ${dateTag}` : ''}
+                                      </span>
+                                      <span
+                                        style={{
+                                          flexShrink: 0,
+                                          fontSize: '10px',
+                                          fontWeight: 800,
+                                          color: isInSet ? '#10b981' : '#4EB1CB',
+                                          whiteSpace: 'nowrap',
+                                        }}
+                                      >
+                                        {isInSet ? '✓ Added' : '+ Add'}
+                                      </span>
                                     </button>
                                   );
                                 })
                               )}
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setPickerSongId(null);
-                                }}
-                                style={{
-                                  width: '100%',
-                                  marginTop: '6px',
-                                  padding: '5px 8px',
-                                  background: 'rgba(239, 68, 68, 0.15)',
-                                  border: '1px solid rgba(239, 68, 68, 0.35)',
-                                  borderRadius: '4px',
-                                  color: '#f87171',
-                                  fontSize: '11px',
-                                  fontWeight: 700,
-                                  cursor: 'pointer',
-                                  textAlign: 'center',
-                                }}
-                              >
-                                ✕ Close
-                              </button>
                             </div>
                           </>
                         )}
                       </div>
+                        );
+                      })()
                     )}
 
                     {/* If inside an active setlist: show 'Remove from Setlist' button (keeps song in library!) */}
@@ -1154,7 +1193,118 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
                   </div>
                 </div>
               );
-            })
+            })}
+
+            {/* SMART CROSS-LIBRARY MATCHES WHEN SEARCHING INSIDE AN ACTIVE SETLIST */}
+            {activeSetlist && libraryMatches.length > 0 && (
+              <div style={{ marginTop: displayList.length > 0 ? '12px' : '2px' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '6px 8px',
+                    marginBottom: '6px',
+                    borderTop: displayList.length > 0 ? '1px solid #1e293b' : 'none',
+                    paddingTop: displayList.length > 0 ? '10px' : '4px',
+                  }}
+                >
+                  <span style={{ fontSize: '11px', fontWeight: 800, color: '#4EB1CB' }}>
+                    In Songbook ({libraryMatches.length})
+                  </span>
+                  <span style={{ fontSize: '10px', color: '#64748b' }}>
+                    Already in library
+                  </span>
+                </div>
+                {libraryMatches.map((song) => (
+                  <div
+                    key={`lib-${song.id}`}
+                    onClick={() => {
+                      onSelectSong(song.id);
+                      onClose();
+                    }}
+                    style={{
+                      padding: '8px 10px',
+                      borderRadius: '8px',
+                      background: 'rgba(15, 23, 42, 0.65)',
+                      border: '1px solid #1e293b',
+                      marginBottom: '6px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '8px',
+                    }}
+                  >
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div
+                        style={{
+                          fontSize: '13px',
+                          fontWeight: 700,
+                          color: '#f8fafc',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {song.title}
+                      </div>
+                      {song.artist && (
+                        <div
+                          style={{
+                            fontSize: '11px',
+                            color: '#64748b',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            marginTop: '1px',
+                          }}
+                        >
+                          {song.artist}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 800,
+                          color: '#facc15',
+                          background: '#1e293b',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                        }}
+                      >
+                        {song.key || 'C'}
+                      </span>
+                      <button
+                        type="button"
+                        title={`Add "${song.title}" to ${activeSetlist.name}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAddSongToSetlist?.(song.id, activeSetlist.id);
+                        }}
+                        style={{
+                          height: '28px',
+                          padding: '0 10px',
+                          borderRadius: '6px',
+                          border: 'none',
+                          background: '#4EB1CB',
+                          color: '#000',
+                          fontSize: '11.5px',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        + Add
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            </>
           )}
         </div>
 

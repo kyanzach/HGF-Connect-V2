@@ -2345,6 +2345,9 @@ export default function BandStagePage() {
           onClose={() => setIsScraperOpen(false)}
           initialQuery={scraperQuery}
           activeSetlist={activeSetlist}
+          existingSongs={songs}
+          onAddExistingSongToSetlist={addSongToSetlist}
+          onSelectExistingSong={(songId) => selectSong(songId)}
           onImportSong={handleImportScrapedSong}
           isEditingExisting={isEditModalOpen && !!editingSong}
           onOverwriteChords={(chords, title, artist, key, tempo) => {
