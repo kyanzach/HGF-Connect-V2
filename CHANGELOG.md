@@ -1,3 +1,13 @@
+## [v2.95.0] — 2026-11-26
+### Added
+- **Interactive Tap-to-View Guitar Chord Diagrams & Web Audio Strum Player (`app/band/lib/guitarChords.ts`, `app/band/components/GuitarChordPopover.tsx`, `app/band/components/SongSheet.tsx`, `app/band/page.tsx`)**:
+  - Tapping or clicking any chord on the song sheet opens a dark-glass HGF guitar chord diagram showing exact finger positions (`1–4`), barre bars, open (`○`) and muted (`×`) strings, and fret indicators (`3fr`, etc.).
+  - Supports multiple voicings per chord (Open, Worship, and CAGED Barre shapes) via `<` `>` switcher, covering all roots (sharps & flats), qualities, and common worship slash chords.
+  - Built-in zero-asset Web Audio acoustic guitar synthesizer with **Strum** and **Pick (Arpeggio)** playback plus real-time animated glowing strings as each string rings.
+### Changed
+- **Setlist Label Order (`app/band/lib/sortSetlists.ts`)**:
+  - Moved **Sunday Service** and **Grace Night** to the end of the setlist label (after the date), e.g., `Ryan • Nov 29 • Sunday Service (5)`.
+
 ## [v2.94.0] — 2026-11-26
 ### Changed / Improved
 - **Floating Backing Track Player Hidden by Default (`app/band/page.tsx`, `app/band/components/modals/AudioStorageModal.tsx`)**:

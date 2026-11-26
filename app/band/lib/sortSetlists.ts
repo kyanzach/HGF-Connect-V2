@@ -56,6 +56,9 @@ export function formatSetlistMeta(setlist: Pick<Setlist, 'name' | 'serviceDate'>
   const dateTag = formatServiceDate(setlist.serviceDate);
 
   const parts: string[] = [];
+  if (dateTag && !lowerName.includes(dateTag.toLowerCase())) {
+    parts.push(dateTag);
+  }
   if (serviceType) {
     const alreadyMentionsType =
       (serviceType === 'Sunday Service' && lowerName.includes('sunday')) ||
@@ -63,9 +66,6 @@ export function formatSetlistMeta(setlist: Pick<Setlist, 'name' | 'serviceDate'>
     if (!alreadyMentionsType) {
       parts.push(serviceType);
     }
-  }
-  if (dateTag && !lowerName.includes(dateTag.toLowerCase())) {
-    parts.push(dateTag);
   }
   return parts.join(' • ');
 }

@@ -1187,7 +1187,16 @@ export const SongSheet: React.FC<SongSheetProps> = ({
                 }}
               >
                 <span
-                  onClick={() => token.chord && onOpenChordDiagram && onOpenChordDiagram(token.chord)}
+                  data-interactive={token.chord ? 'true' : undefined}
+                  onClick={(e) => {
+                    if (!token.chord || !onOpenChordDiagram) return;
+                    e.stopPropagation();
+                    onOpenChordDiagram(token.chord);
+                  }}
+                  onDoubleClick={(e) => {
+                    if (token.chord) e.stopPropagation();
+                  }}
+                  title={token.chord ? `View guitar chord for ${token.chord}` : undefined}
                   style={{
                     fontSize: '0.82em',
                     fontWeight: 800,
@@ -1239,7 +1248,13 @@ export const SongSheet: React.FC<SongSheetProps> = ({
               item.isChord ? (
                 <span
                   key={iIdx}
-                  onClick={() => onOpenChordDiagram && onOpenChordDiagram(item.text)}
+                  data-interactive="true"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenChordDiagram?.(item.text);
+                  }}
+                  onDoubleClick={(e) => e.stopPropagation()}
+                  title={`View guitar chord for ${item.text}`}
                   style={{
                     fontWeight: 800,
                     color: '#f59e0b',
@@ -1249,6 +1264,7 @@ export const SongSheet: React.FC<SongSheetProps> = ({
                     cursor: 'pointer',
                     display: 'inline-block',
                     marginRight: '2px',
+                    userSelect: 'none',
                   }}
                 >
                   {item.text}

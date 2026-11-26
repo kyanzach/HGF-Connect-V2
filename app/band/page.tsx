@@ -34,6 +34,7 @@ const SongScraperModal = dynamic(() => import('./components/modals/SongScraperMo
 const AudioChaptersModal = dynamic(() => import('./components/modals/AudioChaptersModal').then((m) => m.AudioChaptersModal), { ssr: false });
 const DurationPickerModal = dynamic(() => import('./components/modals/DurationPickerModal').then((m) => m.DurationPickerModal), { ssr: false });
 const BandInstallModal = dynamic(() => import('./components/modals/BandInstallModal').then((m) => m.BandInstallModal), { ssr: false });
+const GuitarChordPopover = dynamic(() => import('./components/GuitarChordPopover').then((m) => m.GuitarChordPopover), { ssr: false });
 
 import { BandUser, Song, Setlist, AudioTrack, AudioMarker, DrawingStroke } from './types/band';
 import { getCachedAudioMarkers, saveCachedAudioMarkers } from './lib/audioAnalysis';
@@ -249,6 +250,7 @@ export default function BandStagePage() {
 
   // Floating backing track player dock is hidden by default; toggled via Backing Tracks & Audio Manager modal
   const [showAudioDock, setShowAudioDock] = useState<boolean>(false);
+  const [activeChordDiagram, setActiveChordDiagram] = useState<string | null>(null);
 
   // Scope backtrack playback dock: visible only when explicitly shown by user and audio track is present
   const isPlaybackDockVisible = useMemo(() => {
@@ -1841,6 +1843,7 @@ export default function BandStagePage() {
         onToggleAutoScroll={handleToggleAutoScroll}
         onSwipeLeft={nextSong}
         onSwipeRight={prevSong}
+        onOpenChordDiagram={(chord) => setActiveChordDiagram(chord)}
         onRevertToMasterLyrics={() => handleRevertToMasterLyrics(currentSong?.id)}
         plannedDuration={currentSongDuration}
         onOpenDurationPicker={() => setIsDurationModalOpen(true)}
@@ -2191,6 +2194,13 @@ export default function BandStagePage() {
           onStopPad={stopPad}
           onTogglePad={togglePad}
           onChangeVolume={setPadVolume}
+        />
+      )}
+
+      {activeChordDiagram && (
+        <GuitarChordPopover
+          chordName={activeChordDiagram}
+          onClose={() => setActiveChordDiagram(null)}
         />
       )}
 
