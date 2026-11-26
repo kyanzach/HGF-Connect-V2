@@ -34,6 +34,7 @@ interface QuizResult {
 
 interface QuizPlayerProps {
   question: QuizQuestion;
+  openAccess?: boolean;
   onComplete: (result: QuizResult) => void;
   onClose: () => void;
 }
@@ -136,7 +137,7 @@ const S = {
   },
 };
 
-export default function QuizPlayer({ question, onComplete, onClose }: QuizPlayerProps) {
+export default function QuizPlayer({ question, openAccess = true, onComplete, onClose }: QuizPlayerProps) {
   const [showConfetti, setShowConfetti] = useState(false);
   const [result, setResult] = useState<QuizResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -147,14 +148,15 @@ export default function QuizPlayer({ question, onComplete, onClose }: QuizPlayer
     setMounted(true);
   }, []);
 
+  const unit = openAccess ? "Quiz" : "Day";
   const dayLabels: Record<number, string> = {
-    1: "🎈 Day 1 — Balloon Pop",
-    2: "🌳 Day 2 — Tree of Wisdom",
-    3: "🎈 Day 3 — Scripture Trivia",
-    4: "🌳 Day 4 — Tree of Wisdom",
-    5: "⚖️ Day 5 — Defend Your Faith",
-    6: "📝 Day 6 — In Your Own Words",
-    7: "📝 Day 7 — Heart Reflection",
+    1: `🎈 ${unit} 1 — Balloon Pop`,
+    2: `🌳 ${unit} 2 — Tree of Wisdom`,
+    3: `🎈 ${unit} 3 — Scripture Trivia`,
+    4: `🌳 ${unit} 4 — Tree of Wisdom`,
+    5: `⚖️ ${unit} 5 — Defend Your Faith`,
+    6: `📝 ${unit} 6 — In Your Own Words`,
+    7: `📝 ${unit} 7 — Heart Reflection`,
   };
 
   async function submitAnswer(answer: string) {
@@ -280,7 +282,7 @@ export default function QuizPlayer({ question, onComplete, onClose }: QuizPlayer
             question={question}
             onSubmit={submitAnswer}
             submitting={submitting}
-            dayLabel={dayLabels[question.dayNumber] || `🌳 Day ${question.dayNumber} — Tree of Wisdom`}
+            dayLabel={dayLabels[question.dayNumber] || `🌳 ${unit} ${question.dayNumber} — Tree of Wisdom`}
             showHint={showHint}
             setShowHint={setShowHint}
             onClose={onClose}

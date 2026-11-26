@@ -1,3 +1,9 @@
+## [v2.101.1] — 2026-11-26
+### Changed
+- **Dynamic `Quiz 1–7` vs `Day 1–7` Labels Based on Drip Mode (`components/quiz/QuizPlayer.tsx`, `app/(app)/quiz/page.tsx`, `app/api/quiz/status/route.ts`)**:
+  - When Drip Delay is disabled (Open Access default), the quiz player badge and challenge cards display **`Quiz 1 — Balloon Pop`** through **`Quiz 7`** instead of `Day 1` / weekday labels.
+  - Automatically switches back to **`Day 1 — Balloon Pop`** and weekday labels (`Monday`–`Sunday`) whenever Drip Mode is re-enabled in `/quiz/admin`.
+
 ## [v2.101.0] — 2026-11-26
 ### Added
 - **Admin Toggle for Drip Delay & 1-Quiz Limit — Open Access by Default (`lib/quiz-settings.ts`, `app/api/quiz/admin/settings/route.ts`, `app/(app)/quiz/admin/page.tsx`)**:

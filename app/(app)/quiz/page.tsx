@@ -1195,6 +1195,7 @@ export default function MemberQuizPage() {
       {activeQuestion && (
         <QuizPlayer
           question={activeQuestion}
+          openAccess={quizStatus?.openAccess ?? true}
           onComplete={() => {
             setActiveQuestion(null);
             loadStatus();

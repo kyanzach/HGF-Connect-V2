@@ -145,7 +145,7 @@ export async function GET(request: Request) {
       return {
         questionId: q.id,
         dayNumber: q.dayNumber,
-        label: dayMeta?.label || `Day ${q.dayNumber}`,
+        label: openAccess ? `Quiz ${q.dayNumber}` : (dayMeta?.label || `Day ${q.dayNumber}`),
         type: q.questionType,
         typeLabel: typeInfo?.label || q.questionType,
         typeEmoji: typeInfo?.emoji || "🧠",
