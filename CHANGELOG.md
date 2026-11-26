@@ -1,3 +1,14 @@
+## [v2.99.0] — 2026-11-26
+### Changed / Improved
+- **Facebook-Style Community Feed Layout — Separated Captions, "See more" Truncation & Full Uncropped Images (`components/feed/ExpandableCaption.tsx`, `components/feed/PostCard.tsx`)**:
+  - Separated Event post captions from their cover posters instead of overlaying white text on top of artwork, eliminating visual clutter and double typography.
+  - Added a reusable `ExpandableCaption` component following Facebook's feed standard: clamps captions to **3 lines** on media posts (**4 lines** for event posts with posters, **5 lines** for text-only posts) using `ResizeObserver` overflow detection, revealing clean **`See more`** / **`See less`** toggles only when text overflows.
+  - Updated single feed images (event posters, standard `imageUrl` posts, and single-photo `post.photos`) to render edge-to-edge at full natural aspect ratio (`width: 100%; height: auto`) with zero `maxHeight: 300px` or `objectFit: cover` cropping, so both landscape and portrait graphics display in full.
+  - Added a clean Facebook-style Event Attachment Footer Bar below event posts with the event title, date, and a single-line **`View Event`** button.
+### Fixed
+- **Duplicate `AM PM` / `AM AM` Event Time Display (`components/feed/PostCard.tsx`)**:
+  - Fixed the event time regex in `PostCard.tsx` so already-formatted 12-hour times (e.g. `4:00 PM`, `10:00 AM`) are not re-formatted into `4:00 AM PM` or `10:00 AM AM`.
+
 ## [v2.98.1] — 2026-11-26
 ### Added
 - **Quick `+ New Setlist` Button in Setlist Picker Header (`app/band/components/modals/SetlistPickerModal.tsx`, `app/band/page.tsx`)**:

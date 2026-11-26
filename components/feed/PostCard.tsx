@@ -10,8 +10,22 @@ import QuizPlayer from "@/components/quiz/QuizPlayer";
 import ConfirmModal from "@/components/ConfirmModal";
 import BirthdayCircle from "@/components/feed/BirthdayCircle";
 import ImageLightbox from "@/components/ImageLightbox";
+import ExpandableCaption from "@/components/feed/ExpandableCaption";
 
 const PRIMARY = "#4EB1CB";
+
+function formatEventLine(line: string): string {
+  if (!line.includes("🕒")) return line;
+  // Clean any already-doubled "AM PM" / "PM PM" artifacts
+  const cleaned = line.replace(/\b(AM|PM)\s+(AM|PM)\b/gi, "$2");
+  // Only convert bare 24-hour times (not already followed by AM/PM)
+  return cleaned.replace(/\b(\d{1,2}):(\d{2})\b(?!\s*(?:AM|PM))/gi, (_match, hh, mm) => {
+    const h = parseInt(hh, 10);
+    const ampm = h >= 12 ? "PM" : "AM";
+    const displayHours = h % 12 || 12;
+    return `${displayHours}:${mm} ${ampm}`;
+  });
+}
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -643,46 +657,112 @@ export default function PostCard({ post }: PostCardProps) {
           // Extract event ID from [event:123] marker
           const eventMatch = post.content.match(/\[event:(\d+)\]/);
           const eventId = eventMatch ? eventMatch[1] : null;
-          const displayContent = post.content.replace(/\n?\[event:\d+\]/, "").trim();
+          const rawDisplay = post.content.replace(/\n?\[event:\d+\]/, "").trim();
+          const formattedLines = rawDisplay.split("\n").map(formatEventLine);
+          const formattedCaption = formattedLines.join("\n").trim();
+          const nonEmptyLines = formattedLines.map((l) => l.trim()).filter(Boolean);
+          const eventTitle = (nonEmptyLines[0] || "Church Event")
+            .replace(/^📅\s*/, "")
+            .replace(/^(?:New\s+)?Event:\s*/i, "")
+            .trim();
+          const eventDateLine = nonEmptyLines.find((l) => l.startsWith("🗓"))?.replace(/^🗓️?\s*/, "").trim() || "";
           const eventHref = eventId ? `/event/${eventId}` : "/events";
+          const eventImgSrc = post.imageUrl
+            ? (post.imageUrl.startsWith("http") || post.imageUrl.startsWith("/")
+                ? post.imageUrl
+                : post.imageUrl.startsWith("uploads/")
+                ? `/${post.imageUrl}`
+                : `/uploads/${post.imageUrl}`)
+            : null;
 
           return (
-            <a href={eventHref} style={{ display: "block", margin: "0 0.75rem 0.5rem", borderRadius: "14px", overflow: "hidden", position: "relative", textDecoration: "none", cursor: "pointer" }}>
-              {/* Background — cover photo or gradient */}
-              <div style={{
-                background: post.imageUrl
-                  ? `url(${post.imageUrl.startsWith("/") ? post.imageUrl : `/${post.imageUrl}`})`
-                  : "linear-gradient(135deg, #0f2d3d 0%, #1a5276 50%, #2980b9 100%)",
-                backgroundSize: "cover", backgroundPosition: "center",
-                padding: "1.5rem 1.125rem 1.25rem", position: "relative",
-                minHeight: "290px", display: "flex", flexDirection: "column", justifyContent: "space-between",
-              }}>
-                {/* Dark overlay for readability */}
-                <div style={{ position: "absolute", inset: 0, background: post.imageUrl ? "rgba(0,0,0,0.55)" : "rgba(0,0,0,0.15)", borderRadius: "14px" }} />
-                <div style={{ position: "relative", zIndex: 1, color: "white" }}>
-                  {displayContent.split("\n").filter(Boolean).map((line, i) => (
-                    <div key={i} style={{
-                      fontSize: i === 0 ? "1rem" : "0.82rem",
-                      fontWeight: i === 0 ? 800 : 500,
-                      marginBottom: i === 0 ? "0.625rem" : "0.25rem",
-                      opacity: i === 0 ? 1 : 0.92,
-                      lineHeight: 1.4,
-                      textShadow: "0 1px 4px rgba(0,0,0,0.3)",
-                    }}>
-                      {line.includes("🕒") ? line.replace(/\b(\d{1,2}):(\d{2})\b/g, (match, hh, mm) => {
-                        const h = parseInt(hh, 10);
-                        const ampm = h >= 12 ? "PM" : "AM";
-                        const displayHours = h % 12 || 12;
-                        return `${displayHours}:${mm} ${ampm}`;
-                      }) : line}
-                    </div>
-                  ))}
-                  <div style={{ marginTop: "0.75rem", fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", opacity: 0.8 }}>
-                    View Event →
-                  </div>
+            <div>
+              {/* Separated Caption Above Media (Facebook Standard) */}
+              {formattedCaption && (
+                <ExpandableCaption
+                  text={formattedCaption}
+                  maxLines={eventImgSrc ? 4 : 5}
+                  boldFirstLine
+                />
+              )}
+
+              {/* Full Uncropped Event Poster (Landscape & Portrait) */}
+              {eventImgSrc && (
+                <div style={{ width: "100%", background: "#f8fafc" }}>
+                  <img
+                    src={eventImgSrc}
+                    alt={eventTitle}
+                    style={{
+                      width: "100%",
+                      height: "auto",
+                      display: "block",
+                      cursor: "zoom-in",
+                    }}
+                    loading="lazy"
+                    onClick={() => setActiveLightboxImg(eventImgSrc)}
+                  />
                 </div>
+              )}
+
+              {/* Clean Facebook-Style Event Footer Bar */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "0.75rem",
+                  padding: "0.75rem 1rem",
+                  background: "#f8fafc",
+                  borderTop: "1px solid #f1f5f9",
+                  borderBottom: "1px solid #f1f5f9",
+                }}
+              >
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div
+                    style={{
+                      fontSize: "0.875rem",
+                      fontWeight: 700,
+                      color: "#0f172a",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    {eventTitle}
+                  </div>
+                  {eventDateLine && (
+                    <div
+                      style={{
+                        fontSize: "0.75rem",
+                        color: "#64748b",
+                        marginTop: "0.125rem",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {eventDateLine}
+                    </div>
+                  )}
+                </div>
+                <a
+                  href={eventHref}
+                  style={{
+                    flexShrink: 0,
+                    background: PRIMARY,
+                    color: "#ffffff",
+                    padding: "0.45rem 0.9rem",
+                    borderRadius: "8px",
+                    fontSize: "0.8rem",
+                    fontWeight: 700,
+                    textDecoration: "none",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  View Event
+                </a>
               </div>
-            </a>
+            </div>
           );
         })() : (
           <>
@@ -714,9 +794,16 @@ export default function PostCard({ post }: PostCardProps) {
               </div>
             ) : (
               post.content && post.type !== "BIRTHDAY_MONTHLY" && post.type !== "BIRTHDAY_DAILY" && (
-                <div style={{ padding: "0 1rem 0.5rem", fontSize: "0.9375rem", color: "#334155", lineHeight: 1.65, whiteSpace: "pre-line" }}>
-                  {post.content}
-                </div>
+                <ExpandableCaption
+                  text={post.content}
+                  maxLines={
+                    (post.imageUrl && !post.imageUrl.startsWith("bg:")) ||
+                    (post.photos && post.photos.length > 0) ||
+                    post.linkUrl
+                      ? 3
+                      : 5
+                  }
+                />
               )
             )}
 
@@ -1068,11 +1155,12 @@ export default function PostCard({ post }: PostCardProps) {
               return post.imageUrl && !post.imageUrl.startsWith("bg:") ? (() => {
                 const src = post.imageUrl.startsWith("http") || post.imageUrl.startsWith("/") ? post.imageUrl : `/uploads/${post.imageUrl}`;
                 return (
-                  <div style={{ margin: "0.25rem 0" }}>
+                  <div style={{ width: "100%", background: "#f8fafc" }}>
                     <img
                       src={src}
                       alt="Post image"
-                      style={{ width: "100%", height: "auto", maxHeight: "300px", objectFit: "cover", cursor: "zoom-in" }}
+                      style={{ width: "100%", height: "auto", display: "block", cursor: "zoom-in" }}
+                      loading="lazy"
                       onClick={() => setActiveLightboxImg(src)}
                     />
                   </div>
@@ -1087,26 +1175,45 @@ export default function PostCard({ post }: PostCardProps) {
                     ? `/${post.imageUrl}`
                     : `/uploads/${post.imageUrl}`;
                   return (
-                    <div style={{ margin: "0.25rem 0" }}>
+                    <div style={{ width: "100%", background: "#f8fafc" }}>
                       <img
                         src={src}
                         alt="Post image"
-                        style={{ width: "100%", height: "auto", maxHeight: "300px", objectFit: "cover", cursor: "zoom-in" }}
+                        style={{ width: "100%", height: "auto", display: "block", cursor: "zoom-in" }}
+                        loading="lazy"
                         onClick={() => setActiveLightboxImg(src)}
                       />
                     </div>
                   );
                 })()}
 
-                {post.photos && post.photos.length > 0 && (
-                  <div style={{ margin: "0.5rem 0", width: "100%" }}>
+                {post.photos && post.photos.length === 1 && (() => {
+                  const photo = post.photos[0];
+                  const src = photo.photoPath.startsWith("http") || photo.photoPath.startsWith("/")
+                    ? photo.photoPath
+                    : `/uploads/posts/${photo.photoPath}`;
+                  return (
+                    <div style={{ width: "100%", background: "#f8fafc" }}>
+                      <img
+                        src={src}
+                        alt="Post photo"
+                        style={{ width: "100%", height: "auto", display: "block", cursor: "zoom-in" }}
+                        loading="lazy"
+                        onClick={() => setActiveLightboxImg(src)}
+                      />
+                    </div>
+                  );
+                })()}
+
+                {post.photos && post.photos.length > 1 && (
+                  <div style={{ margin: "0.25rem 0", width: "100%" }}>
                     <div
                       className="no-scrollbar"
                       style={{
                         display: "flex",
                         gap: "0.5rem",
                         overflowX: "auto",
-                        paddingBottom: "0.25rem",
+                        padding: "0 1rem 0.25rem",
                         WebkitOverflowScrolling: "touch",
                         scrollbarWidth: "none",
                       }}
@@ -1115,23 +1222,18 @@ export default function PostCard({ post }: PostCardProps) {
                         const src = photo.photoPath.startsWith("http") || photo.photoPath.startsWith("/")
                           ? photo.photoPath
                           : `/uploads/posts/${photo.photoPath}`;
-                        const isSingle = post.photos!.length === 1;
                         return (
                           <div
                             key={photo.id || i}
                             style={{
                               flexShrink: 0,
-                              width: isSingle ? "100%" : "260px",
-                              height: isSingle ? "auto" : "200px",
-                              maxHeight: isSingle ? "500px" : undefined,
+                              width: "260px",
+                              height: "220px",
                               borderRadius: "12px",
                               overflow: "hidden",
                               border: "1px solid #f1f5f9",
                               position: "relative",
-                              background: isSingle ? "#f8fafc" : undefined,
-                              display: isSingle ? "flex" : undefined,
-                              justifyContent: isSingle ? "center" : undefined,
-                              alignItems: isSingle ? "center" : undefined,
+                              background: "#f8fafc",
                             }}
                           >
                             <img
@@ -1139,9 +1241,9 @@ export default function PostCard({ post }: PostCardProps) {
                               alt={`Post photo ${i + 1}`}
                               style={{
                                 width: "100%",
-                                height: isSingle ? "auto" : "100%",
-                                maxHeight: isSingle ? "500px" : "100%",
-                                objectFit: isSingle ? "contain" : "cover",
+                                height: "100%",
+                                objectFit: "cover",
+                                display: "block",
                                 cursor: "zoom-in",
                               }}
                               loading="lazy"
