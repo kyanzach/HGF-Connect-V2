@@ -1,3 +1,12 @@
+## [v2.104.0] — 2026-11-26
+### Improved
+- **Adult-Level Discipleship Quiz Difficulty & Anti-Obvious Distractor Engine (`lib/quiz-helpers.ts`, `app/api/quiz/status/route.ts`)**:
+  - Upgraded the AI quiz generation prompt to forbid cartoonish/obviously wrong options, enforce balanced option lengths, and ensure all 4 options sound biblically plausible.
+  - Added dedicated **Hard / Very Hard Boss Questions** on **Quiz 3 (Spotlight 50:50)**, **Quiz 4 (Floating Lanterns)**, and **Quiz 5 (Scale of Truth)** testing real Scripture knowledge, subtle theological distinctions, and discipleship scenarios, plus crisp 12–16 word truths for **Quiz 6 (3D Word Harvest)**.
+### Added
+- **Safe Difficulty Upgrade Endpoint (`app/api/quiz/admin/upgrade-difficulty/route.ts`)**:
+  - Added `POST /api/quiz/admin/upgrade-difficulty` (cron-secret protected) to regenerate unplayed quiz questions with the upgraded Hard-Mode prompt while strictly preserving any question that already has participant submissions.
+
 ## [v2.103.1] — 2026-11-26
 ### Fixed & Upgraded
 - **Quiz 4 Front-Facing 3D Lantern Crests (`components/quiz/LanternCatchStage.tsx`)**: Centered the `A / B / C / D` option letter crest at `u = 0.5` (`cx = 256`) and aligned default `rotation.y = Math.PI` with a slow `±11°` gentle sway so all 4 letters face cleanly toward the player by default instead of sideways.

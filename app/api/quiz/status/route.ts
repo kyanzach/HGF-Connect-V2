@@ -142,14 +142,14 @@ export async function GET(request: Request) {
         status = "locked";
       }
 
-      const slotGameLabels: Record<number, { label: string; emoji: string }> = {
-        1: { label: "Balloon Pop", emoji: "🎈" },
-        2: { label: "Tree of Wisdom", emoji: "🌳" },
-        3: { label: "Spotlight 50:50", emoji: "✨" },
-        4: { label: "Floating Lanterns", emoji: "🏮" },
-        5: { label: "Scale of Truth", emoji: "⚖️" },
-        6: { label: "3D Word Harvest", emoji: "🌿" },
-        7: { label: "Lantern of Grace", emoji: "🕯️" },
+      const slotGameLabels: Record<number, { label: string; emoji: string; difficulty: string }> = {
+        1: { label: "Balloon Pop", emoji: "🎈", difficulty: "Medium" },
+        2: { label: "Tree of Wisdom", emoji: "🌳", difficulty: "Medium-Hard" },
+        3: { label: "Spotlight 50:50", emoji: "✨", difficulty: "Hard" },
+        4: { label: "Floating Lanterns", emoji: "🏮", difficulty: "Very Hard" },
+        5: { label: "Scale of Truth", emoji: "⚖️", difficulty: "Hard" },
+        6: { label: "3D Word Harvest", emoji: "🌿", difficulty: "Medium-Hard" },
+        7: { label: "Lantern of Grace", emoji: "🕯️", difficulty: "Reflection" },
       };
       const slotMeta = slotGameLabels[q.dayNumber];
 
@@ -160,7 +160,7 @@ export async function GET(request: Request) {
         type: q.questionType,
         typeLabel: slotMeta?.label || typeInfo?.label || q.questionType,
         typeEmoji: slotMeta?.emoji || typeInfo?.emoji || "🧠",
-        difficulty: typeInfo?.difficulty || "Unknown",
+        difficulty: slotMeta?.difficulty || typeInfo?.difficulty || "Medium",
         status,
         score: sub?.score ?? null,
         isCorrect: sub?.isCorrect ?? null,

@@ -23,12 +23,12 @@ export const QUIZ_DAYS = [
 ] as const;
 
 export const QUIZ_TYPE_LABELS: Record<string, { label: string; difficulty: string; emoji: string }> = {
-  MULTIPLE_CHOICE:    { label: "Balloon Pop",       difficulty: "Easy",        emoji: "🎈" },
-  TREE_OF_LIFE:       { label: "Tree of Wisdom",    difficulty: "Medium",      emoji: "🌳" },
-  FILL_IN_BLANKS:     { label: "Fill the Blanks",   difficulty: "Medium-Easy", emoji: "✏️" },
-  SHORT_ANSWER:       { label: "In Your Own Words", difficulty: "Medium",      emoji: "📝" },
-  SCRIPTURE_ORDERING: { label: "Verse Builder",     difficulty: "Medium-Hard", emoji: "🧩" },
-  TRUE_FALSE_EXPLAIN: { label: "Defend Your Faith", difficulty: "Hard",        emoji: "⚖️" },
+  MULTIPLE_CHOICE:    { label: "Balloon Pop",       difficulty: "Medium",      emoji: "🎈" },
+  TREE_OF_LIFE:       { label: "Tree of Wisdom",    difficulty: "Hard",        emoji: "🌳" },
+  FILL_IN_BLANKS:     { label: "Fill the Blanks",   difficulty: "Medium",      emoji: "✏️" },
+  SHORT_ANSWER:       { label: "In Your Own Words", difficulty: "Medium-Hard", emoji: "📝" },
+  SCRIPTURE_ORDERING: { label: "Verse Builder",     difficulty: "Hard",        emoji: "🧩" },
+  TRUE_FALSE_EXPLAIN: { label: "Defend Your Faith", difficulty: "Very Hard",   emoji: "⚖️" },
 };
 
 // ── Get current quiz day number (1–7) ────────────────────────────────────────
@@ -191,45 +191,52 @@ TASK: Generate THREE things from this sermon material:
    - Tone: warm, encouraging, Bisaya-friendly (but written in English)
    - Max 150 words
 
-3. SEVEN QUIZ QUESTIONS — One for each day (Monday to Sunday), getting progressively harder:
+3. SEVEN QUIZ QUESTIONS — Written for thoughtful ADULT church members (NOT children's Sunday school!).
 
-   DAY 1 (Monday) — MULTIPLE_CHOICE:
-   - A straightforward question about the sermon's main point
-   - 4 options (A, B, C, D) — only 1 correct
-   - options: ["Option A text", "Option B text", "Option C text", "Option D text"]
+   CRITICAL QUALITY & ANTI-EASY RULES (MUST FOLLOW FOR EVERY QUESTION):
+   - NEVER write cartoonish, silly, secular, or obviously wrong distractors (e.g., NEVER write "Ignore God", "Do nothing", "Choose battles at random", "Rely on personal pride", or "Only pray when convenient").
+   - EVERY wrong option MUST sound spiritually plausible, respectful, and close to real Christian language — so a member must actually know Scripture or remember the sermon's exact point to pick the right one.
+   - BALANCE OPTION LENGTHS: All 4 options MUST be roughly the same word count and grammatical structure. Never make the correct answer noticeably longer or more detailed than the 3 distractors.
+   - INCLUDE REAL SCRIPTURE & THEOLOGICAL DEPTH: Use exact Bible books, characters, verses, and grace-centered theological distinctions wherever possible.
+
+   ITEM 1 (Balloon Pop — Medium Warm-Up) — MULTIPLE_CHOICE:
+   - Tests the core thesis of the sermon, with 4 plausible Christian-sounding options of equal length (only 1 matches the sermon's true focus).
+   - options: ["Option A", "Option B", "Option C", "Option D"]
    - correctAnswer: the exact text of the correct option
 
-   DAY 2 (Tuesday) — TREE_OF_LIFE:
-   - A clear, encouraging multiple-choice question testing a key Biblical truth or promise from the sermon
-   - 4 options (A, B, C, D) — only 1 correct, with 3 plausible distractors
-   - options: ["Option A text", "Option B text", "Option C text", "Option D text"]
+   ITEM 2 (Tree of Wisdom — Medium-Hard) — TREE_OF_LIFE:
+   - Tests a specific biblical principle, Old/New Testament example, or spiritual contrast from the sermon.
+   - 4 closely matched biblical options — 3 plausible distractors that represent other real-sounding (but less accurate for this sermon) Christian ideas.
+   - options: ["Option A", "Option B", "Option C", "Option D"]
    - correctAnswer: the exact text of the correct option
 
-   DAY 3 (Wednesday) — MULTIPLE_CHOICE:
-   - Scripture Trivia or detailed application question from the sermon
-   - 4 options (A, B, C, D) — only 1 correct
-   - options: ["Option A text", "Option B text", "Option C text", "Option D text"]
+   ITEM 3 (Spotlight 50:50 — HARD BOSS #1) — MULTIPLE_CHOICE:
+   - GENUINELY HARD! Designed so players may actually need their 50:50 lifeline.
+   - Ask a specific Scripture-knowledge or sermon-detail question (e.g., matching a specific Bible passage/book/character, or distinguishing between 4 nuanced theological definitions/promises).
+   - All 4 options MUST look genuinely credible to an average churchgoer.
+   - options: ["Option A", "Option B", "Option C", "Option D"]
    - correctAnswer: the exact text of the correct option
 
-   DAY 4 (Thursday) — TREE_OF_LIFE:
-   - A deeper wisdom or Scripture-application multiple-choice question from the sermon
-   - 4 options (A, B, C, D) — only 1 correct, with 3 thoughtful distractors
-   - options: ["Option A text", "Option B text", "Option C text", "Option D text"]
+   ITEM 4 (Floating Lanterns — VERY HARD BOSS #2) — TREE_OF_LIFE:
+   - GENUINELY VERY HARD! Present a subtle real-life discipleship scenario or doctrinal distinction (e.g., grace vs. self-effort, faith vs. feelings, biblical stewardship vs. legalism) where 3 distractors sound "almost right" or commonly believed, and ONLY 1 option captures the true biblical/sermon teaching.
+   - All 4 options must be balanced in length and tone.
+   - options: ["Option A", "Option B", "Option C", "Option D"]
    - correctAnswer: the exact text of the correct option
 
-   DAY 5 (Friday) — TRUE_FALSE_EXPLAIN:
-   - A statement about the sermon that is either true or false
+   ITEM 5 (Scale of Truth — HARD BOSS #3) — TRUE_FALSE_EXPLAIN:
+   - GENUINELY CHALLENGING subtle True/False statement!
+   - Never make it obviously silly. Craft a nuanced theological or sermon statement that sounds 85% convincing — testing whether the member catches a subtle error (if FALSE) or recognizes a counterintuitive biblical truth (if TRUE).
    - correctAnswer: "TRUE" or "FALSE"
    - options: null
-   - The explanation should explain WHY it is true or false
+   - explanation: clearly explains the biblical reasoning why it is TRUE or FALSE
 
-   DAY 6 (Saturday) — SHORT_ANSWER:
-   - An open-ended question requiring the member to explain a concept in their own words
-   - correctAnswer: the ideal answer (used as reference for AI grading)
+   ITEM 6 (3D Word Harvest — Medium-Hard) — SHORT_ANSWER:
+   - An insightful question whose ideal answer is ONE crisp, memorable 12-16 word biblical truth sentence from the sermon (this sentence is scrambled into 3D tree word-leaves for players to assemble!).
+   - correctAnswer: ONE clean 12-16 word sentence summarizing the key truth (no bullet points, no quotes).
    - options: null
 
-   DAY 7 (Sunday) — SHORT_ANSWER:
-   - Reflection question asking the member how they will apply this sermon's teachings in their daily life.
+   ITEM 7 (Lantern of Grace — Heart Reflection) — SHORT_ANSWER:
+   - A personal, thoughtful reflection question asking how the member will live out this sermon's message this week.
    - correctAnswer: "Any sincere reflection showing personal application is correct."
    - options: null
 
