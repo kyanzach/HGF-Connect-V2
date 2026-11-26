@@ -1,3 +1,9 @@
+## [v2.104.1] — 2026-11-26
+### Fixed
+- **Removed All T-Shirt / Prize Spoilers in Thanksgiving Open Access Mode (`components/quiz/QuizPlayer.tsx`, `app/(app)/quiz/page.tsx`, `app/api/quiz/status/route.ts`, `app/api/quiz/submit/route.ts`)**:
+  - Replaced T-shirt claim copy on the ending confetti screen, weekly progress card, and completion push/bell notification with spoiler-free Dec 13 Thanksgiving Mystery Prize copy whenever Open Access (No Drip) Mode is active.
+  - Hid the `Claim Your T-Shirt!` form on `/quiz` while Open Access Mode is active (restores automatically if Classic Drip Mode is re-enabled).
+
 ## [v2.104.0] — 2026-11-26
 ### Improved
 - **Adult-Level Discipleship Quiz Difficulty & Anti-Obvious Distractor Engine (`lib/quiz-helpers.ts`, `app/api/quiz/status/route.ts`)**:

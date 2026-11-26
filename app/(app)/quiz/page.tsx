@@ -420,7 +420,11 @@ export default function MemberQuizPage() {
   }
 
   const { quiz, days, progress } = quizStatus;
-  const showClaimBox = progress?.isWeekComplete && progress.rewardTier === "PERFECT" && progress.rewardClaim?.claimStatus === "unclaimed";
+  const showClaimBox =
+    !quizStatus.openAccess &&
+    progress?.isWeekComplete &&
+    progress.rewardTier === "PERFECT" &&
+    progress.rewardClaim?.claimStatus === "unclaimed";
 
   const slides = quiz?.presentationSlides;
   const slidesArray: { image: string; video?: string | null; page: number }[] = (

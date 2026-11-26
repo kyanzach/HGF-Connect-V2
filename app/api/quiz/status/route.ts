@@ -207,6 +207,29 @@ export async function GET(request: Request) {
     // Determine week status label for the client
     const quizWeekStatus = isExpired ? "COMPLETED" : "ACTIVE";
 
+    // In Thanksgiving Open Access Mode, keep all reward messages 100% spoiler-free (no T-shirt reveal)
+    if (openAccess && rewardTier) {
+      const mysteryDisplay: Record<string, { label: string; description: string; imageUrl?: string | null }> = {
+        PERFECT: {
+          label: "Perfect Score! (7/7)",
+          description: "All 7 points added to your Dec 13 Thanksgiving Mystery Prize standings!",
+        },
+        EXCELLENT: {
+          label: "Excellent! (6/7)",
+          description: "6 points added to your Dec 13 Thanksgiving Mystery Prize standings!",
+        },
+        GOOD: {
+          label: "Great Job!",
+          description: "Points added to your Dec 13 Thanksgiving Mystery Prize standings!",
+        },
+        PARTICIPANT: {
+          label: "Quiz Complete!",
+          description: "Every point counts toward the Dec 13 Thanksgiving Mystery Prizes!",
+        },
+      };
+      rewardDisplay = mysteryDisplay[rewardTier] || mysteryDisplay.PARTICIPANT;
+    }
+
     // In Open Access Mode, find the next unfinished Sunday quiz for zero-friction Continue flow
     let nextUnfinishedQuiz: {
       id: number;

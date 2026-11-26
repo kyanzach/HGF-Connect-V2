@@ -247,14 +247,18 @@ export default function QuizPlayer({ question, openAccess = true, onComplete, on
             {result.reward && (
               <div style={{ ...S.resultCard, borderColor: "rgba(78,177,203,0.5)", border: "2px solid rgba(78,177,203,0.5)" }}>
                 <p style={{ color: "#4EB1CB", fontSize: "1.1rem", fontWeight: 700 }}>
-                  🏆 Week Complete! Score: {result.reward.totalScore}/7
+                  {openAccess ? `Quiz Complete! Score: ${result.reward.totalScore}/7` : `🏆 Week Complete! Score: ${result.reward.totalScore}/7`}
                 </p>
                 <p style={{ color: "#e2e8f0", fontSize: "0.9rem", marginTop: "8px" }}>
-                  {result.reward.tier === "PERFECT"
-                    ? "PERFECT SCORE! Claim your Christian statement t-shirt! 🎽"
-                    : result.reward.tier === "PARTICIPANT"
-                      ? "Keep growing in the Word! Every quiz makes you stronger. 🙏"
-                      : "🎁 Prize: TBA — to be announced this Sunday!"}
+                  {openAccess
+                    ? result.reward.tier === "PERFECT"
+                      ? "Perfect 7/7! All points added to your Dec 13 Thanksgiving Mystery Prize standings."
+                      : "Points added to your Dec 13 Thanksgiving Mystery Prize standings. Keep going!"
+                    : result.reward.tier === "PERFECT"
+                      ? "PERFECT SCORE! Claim your Christian statement t-shirt! 🎽"
+                      : result.reward.tier === "PARTICIPANT"
+                        ? "Keep growing in the Word! Every quiz makes you stronger. 🙏"
+                        : "🎁 Prize: TBA — to be announced this Sunday!"}
                 </p>
               </div>
             )}

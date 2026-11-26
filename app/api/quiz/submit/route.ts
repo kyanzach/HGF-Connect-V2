@@ -230,21 +230,33 @@ export async function POST(request: Request) {
           },
         });
 
-        // Notify member about their reward (In-App + Expo Push)
-        await createNotification({
-          memberId,
-          type: "quiz_reward",
-          title: tier === "PERFECT"
+        // Notify member about their completion (spoiler-free during Thanksgiving Open Access Mode)
+        const notifTitle = !dripEnabled
+          ? tier === "PERFECT"
+            ? "Perfect 7/7 Score!"
+            : "Quiz Complete!"
+          : tier === "PERFECT"
             ? "🏆 PERFECT SCORE! Claim your reward!"
             : tier === "PARTICIPANT"
               ? "🙏 Quiz for Christ complete!"
-              : "🎁 You earned a prize this week!",
-          body: tier === "PERFECT"
+              : "🎁 You earned a prize this week!";
+
+        const notifBody = !dripEnabled
+          ? tier === "PERFECT"
+            ? "You aced all 7 items! Your points are added to the Dec 13 Thanksgiving Mystery Prize standings."
+            : `You scored ${finalScore}/7! Keep playing more Sunday quizzes to climb the Thanksgiving standings.`
+          : tier === "PERFECT"
             ? "You aced all 7 days! Tap to claim your Christian statement t-shirt."
             : tier === "PARTICIPANT"
               ? `You scored ${finalScore}/7. Keep growing in the Word!`
-              : `You scored ${finalScore}/7! Your prize will be announced this Sunday. 🎁`,
-          link: "/quiz",
+              : `You scored ${finalScore}/7! Your prize will be announced this Sunday. 🎁`;
+
+        await createNotification({
+          memberId,
+          type: "quiz_reward",
+          title: notifTitle,
+          body: notifBody,
+          link: !dripEnabled ? "/quiz/hub" : "/quiz",
         });
 
         reward = { totalScore: finalScore, tier };
