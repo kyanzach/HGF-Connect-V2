@@ -292,29 +292,6 @@ export function useSetlist() {
     return currentLineup.findIndex((s) => s.id === currentSong.id);
   }, [currentSong, currentLineup]);
 
-  // Official MD / Worship Leader defaults for the active song inside the active setlist
-  const activeSongMdDefaults = useMemo(() => {
-    if (!activeSetlist || !currentSong) return null;
-    const item = (activeSetlist.songs || []).find((it) =>
-      typeof it === 'string' ? it === currentSong.id : it.id === currentSong.id
-    );
-    if (!item) return null;
-    const foundInLibrary = songs.find((s) => s.id === currentSong.id);
-    return {
-      key: typeof item === 'object' && item.key ? item.key : foundInLibrary?.key || currentSong.key,
-      tempo: typeof item === 'object' && item.tempo !== undefined ? item.tempo : foundInLibrary?.tempo || currentSong.tempo || 72,
-      timeSignature: typeof item === 'object' && item.timeSignature ? item.timeSignature : foundInLibrary?.timeSignature || currentSong.timeSignature || '4/4',
-      capo: typeof item === 'object' && item.capo !== undefined ? item.capo : foundInLibrary?.capo || currentSong.capo || 0,
-      duration: typeof item === 'object' && item.duration ? item.duration : foundInLibrary?.duration || currentSong.duration || '',
-    };
-  }, [activeSetlist, currentSong, songs]);
-
-  const isCurrentSongSessionOverridden = useMemo(() => {
-    if (!activeSetlist || !currentSong || !activeSongMdDefaults) return false;
-    const override = setlistSessionOverrides[`${activeSetlist.id}_${currentSong.id}`];
-    return Boolean(override?.key && override.key !== activeSongMdDefaults.key);
-  }, [activeSetlist, currentSong, setlistSessionOverrides, activeSongMdDefaults]);
-
   const selectSong = useCallback((songId: string) => {
     setCurrentSongId(songId);
     if (typeof window !== 'undefined') {
@@ -389,20 +366,64 @@ export function useSetlist() {
     }));
   }, [activeSetlistId]);
 
-  const revertToMdDefault = useCallback((songId: string) => {
-    if (!activeSetlistId) return;
-    const token = `${activeSetlistId}_${songId}`;
-    setSetlistSessionOverrides((prev) => {
-      const next = { ...prev };
-      delete next[token];
-      return next;
-    });
-  }, [activeSetlistId]);
+  // Persist a song's key directly at the setlist level (debounced so rapid +/- taps save once)
+  const keySaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const updateSetlistSongKey = useCallback(
+    (songId: string, newKey: string, setlistId?: string) => {
+      const targetSetId = setlistId || activeSetlistId;
+      if (!targetSetId) return;
+      const targetSet = setlists.find((s) => s.id === targetSetId);
+      if (!targetSet) return;
 
-  // Backward compatibility alias
-  const setSongSessionKey = useCallback((songId: string, key: string) => {
-    setSongSessionOverride(songId, { key });
-  }, [setSongSessionOverride]);
+      lastSetlistMutationTimeRef.current = Date.now();
+      const foundSong = songs.find((s) => s.id === songId);
+      const updatedSongs = (targetSet.songs || []).map((it) => {
+        const itId = typeof it === 'string' ? it : it.id;
+        if (itId !== songId) return it;
+        const baseObj: SetlistSongItem =
+          typeof it === 'object'
+            ? it
+            : {
+                id: songId,
+                title: foundSong?.title,
+                capo: foundSong?.capo,
+                tempo: typeof foundSong?.tempo === 'number' ? foundSong.tempo : undefined,
+                timeSignature: foundSong?.timeSignature,
+                chords: foundSong?.chords,
+                duration: foundSong?.duration,
+              };
+        return { ...baseObj, key: newKey };
+      });
+
+      const updatedSetlist: Setlist = {
+        ...targetSet,
+        songs: updatedSongs,
+        updatedAt: Date.now(),
+      };
+
+      const newSetlists = sortSetlistsUpcomingFirst(
+        setlists.map((s) => (s.id === targetSetId ? updatedSetlist : s))
+      );
+      setSetlists(newSetlists);
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(STORAGE_LOCAL_SETLISTS, JSON.stringify(newSetlists));
+        } catch (_) {}
+      }
+
+      if (keySaveTimerRef.current) clearTimeout(keySaveTimerRef.current);
+      keySaveTimerRef.current = setTimeout(() => {
+        fetch('/api/worship/setlists', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedSetlist),
+        }).catch((err) => {
+          console.error('[useSetlist] Failed to persist setlist song key:', err);
+        });
+      }, 250);
+    },
+    [activeSetlistId, setlists, songs]
+  );
 
   const addSongToSetlist = useCallback(async (songId: string, setlistId?: string) => {
     const targetSetId = setlistId || activeSetlistId;
@@ -650,12 +671,9 @@ export function useSetlist() {
     selectSetlist,
     nextSong,
     prevSong,
-    setSongSessionKey,
     setSongSessionOverride,
-    revertToMdDefault,
+    updateSetlistSongKey,
     resetAllSessionOverrides: () => setSetlistSessionOverrides({}),
-    activeSongMdDefaults,
-    isCurrentSongSessionOverridden,
     addSongToSetlist,
     removeSongFromSetlist,
     reorderSongInSetlist,

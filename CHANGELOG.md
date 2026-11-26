@@ -1,3 +1,9 @@
+## [v2.93.0] — 2026-11-26
+### Changed / Removed
+- **Setlist-Level Key Persistence & Removal of Worship Leader Key Lock (`app/band/hooks/useSetlist.ts`, `app/band/page.tsx`, `app/band/components/StageTopBar.tsx`, `app/band/components/SongSheet.tsx`, `app/band/components/modals/KeyPickerModal.tsx`)**:
+  - Changing a song's key inside any setlist (via `−`/`+` or `KeyPickerModal`) now saves directly to that setlist (`updateSetlistSongKey` with 250ms debounced persistence to `/api/worship/setlists`), so each setlist independently remembers its own key for the same song without affecting other setlists or the master library.
+  - Audited and removed the legacy Worship Leader key lock / temporary session key override framework (`WL: X ↺` badge in `StageTopBar`, `(WL: X)` suffix in `SongSheet`, `Save as Official Worship Leader Key for Setlist` button in `KeyPickerModal`, `officialWorshipLeaderKey`, `isKeySessionOverridden`, `handleUnifiedRevertKey`, `handleSaveAsMdKey`, `activeSongMdDefaults`, `isCurrentSongSessionOverridden`, `revertToMdDefault`, `setSongSessionKey`).
+
 ## [v2.92.0] — 2026-11-26
 ### Added
 - **Smart Cross-Library Search Inside Setlists (`app/band/components/SetlistSidebar.tsx`)**:

@@ -71,11 +71,8 @@ export default function BandStagePage() {
     selectSetlist,
     nextSong,
     prevSong,
-    setSongSessionKey,
     setSongSessionOverride,
-    revertToMdDefault,
-    activeSongMdDefaults,
-    isCurrentSongSessionOverridden,
+    updateSetlistSongKey,
     resetAllSessionOverrides,
     addSongToSetlist,
     removeSongFromSetlist,
@@ -1109,7 +1106,7 @@ export default function BandStagePage() {
     const { tempo: resolvedBpm, timeSignature: resolvedSig } = resolveSongMetronome(
       currentSong,
       activeSetlist,
-      activeSongMdDefaults
+      null
     );
     setTempo(resolvedBpm);
     setMetronomeSignature(resolvedSig);
@@ -1118,7 +1115,6 @@ export default function BandStagePage() {
     activeSetlistId,
     resolveSongMetronome,
     activeSetlist,
-    activeSongMdDefaults,
     setTempo,
     setMetronomeSignature,
   ]);
@@ -1232,36 +1228,14 @@ export default function BandStagePage() {
     [handleUpdateSongMetronome, tempo]
   );
 
-  // Official MD / Worship Leader key reference:
-  // When inside a setlist, the MD setlist key is the official worship leader key.
-  // When in All Songs, the master song key is the reference.
-  const officialWorshipLeaderKey = useMemo(() => {
-    return activeSongMdDefaults?.key || currentSong?.originalKey || currentSong?.key || null;
-  }, [activeSongMdDefaults?.key, currentSong?.originalKey, currentSong?.key]);
-
-  const isKeySessionOverridden = useMemo(() => {
-    if (activeSetlistId && activeSongMdDefaults) {
-      return isCurrentSongSessionOverridden || (getRootNote(effectiveKey) !== getRootNote(activeSongMdDefaults.key));
-    }
-    if (currentSong) {
-      const baseKey = currentSong.originalKey || currentSong.key;
-      return Boolean(baseKey && getRootNote(effectiveKey) !== getRootNote(baseKey));
-    }
-    return false;
-  }, [activeSetlistId, activeSongMdDefaults, isCurrentSongSessionOverridden, effectiveKey, currentSong]);
-
-  // Unified Key Change with Worship Leader Setlist Gate
+  // Setlist-level key persistence: when inside a setlist, changing a song's key
+  // saves it directly to that setlist so each setlist remembers its own key independently.
   const handleKeyChangeRequest = (newKey: string) => {
     if (!currentSong) return;
     if (newKey === effectiveKey) return;
 
-    // Apply key instantly; record session override if inside active setlist
-    if (activeSetlistId && activeSongMdDefaults) {
-      if (getRootNote(newKey) === getRootNote(activeSongMdDefaults.key)) {
-        revertToMdDefault(currentSong.id);
-      } else {
-        setSongSessionOverride(currentSong.id, { key: newKey });
-      }
+    if (activeSetlistId) {
+      updateSetlistSongKey(currentSong.id, newKey, activeSetlistId);
     } else {
       try {
         localStorage.setItem(`hgf_device_key_${currentSong.id}`, newKey);
@@ -1283,23 +1257,6 @@ export default function BandStagePage() {
     const nextRoot = transposeNote(currentRoot, delta, isFlats);
     const nextKey = isMinor ? `${nextRoot}m` : nextRoot;
     handleKeyChangeRequest(nextKey);
-  };
-
-  const handleUnifiedRevertKey = () => {
-    if (!currentSong) return;
-    try {
-      localStorage.removeItem(`hgf_device_key_${currentSong.id}`);
-    } catch (_) {}
-
-    if (activeSetlistId && activeSongMdDefaults) {
-      revertToMdDefault(currentSong.id);
-      resetTranspose();
-      setTargetKey(activeSongMdDefaults.key);
-    } else {
-      const origKey = currentSong.originalKey || currentSong.key || 'C';
-      resetTranspose();
-      setTargetKey(origKey);
-    }
   };
 
   // Hydrate user-level personal strokes from server when song/user changes
@@ -1745,32 +1702,6 @@ export default function BandStagePage() {
     };
   }, [currentSong?.id, isUserMD]);
 
-  const handleSaveAsMdKey = async (newKey: string) => {
-    if (!currentSong || (!isUserMD && currentUser?.role !== 'admin')) return;
-
-    if (activeSetlist) {
-      const updatedSongs = (activeSetlist.songs || []).map((s) => {
-        const id = typeof s === 'string' ? s : s.id;
-        if (id === currentSong.id) {
-          return {
-            ...(typeof s === 'object' ? s : { id }),
-            key: newKey,
-          };
-        }
-        return s;
-      });
-      const updated = { ...activeSetlist, songs: updatedSongs };
-      await handleSaveSetlist(updated);
-      setRefreshToast(`⭐ Saved ${newKey} as official Worship Leader key!`);
-      setTimeout(() => setRefreshToast(null), 2500);
-    } else {
-      const updated = { ...currentSong, originalKey: newKey, key: newKey };
-      await handleSaveSong({ ...updated, saveAsMaster: true });
-      setRefreshToast(`⭐ Saved ${newKey} as song original key!`);
-      setTimeout(() => setRefreshToast(null), 2500);
-    }
-  };
-
   const handleApplyDuration = async (newDuration: string, savePermanent?: boolean) => {
     if (!currentSong) return;
 
@@ -1884,9 +1815,6 @@ export default function BandStagePage() {
           }}
           onOpenAmbientPad={() => setIsAmbientPadOpen(true)}
           onToggleSidebar={() => setIsSidebarOpen(true)}
-          isSessionOverridden={isKeySessionOverridden}
-          worshipLeaderKey={officialWorshipLeaderKey || undefined}
-          onRevertKey={handleUnifiedRevertKey}
           onOpenInstallModal={() => setIsInstallModalOpen(true)}
           onCopyProPresenter={() => handleCopyProPresenter(false)}
           isCopiedProPresenter={isCopiedProPresenter}
@@ -1909,8 +1837,6 @@ export default function BandStagePage() {
         onToggleAutoScroll={handleToggleAutoScroll}
         onSwipeLeft={nextSong}
         onSwipeRight={prevSong}
-        isSessionOverridden={isKeySessionOverridden}
-        worshipLeaderKey={officialWorshipLeaderKey || undefined}
         onRevertToMasterLyrics={() => handleRevertToMasterLyrics(currentSong?.id)}
         plannedDuration={currentSongDuration}
         onOpenDurationPicker={() => setIsDurationModalOpen(true)}
@@ -2245,8 +2171,6 @@ export default function BandStagePage() {
           capo={capo}
           onSelectKey={(newKey) => handleKeyChangeRequest(newKey)}
           onSelectCapo={setCapo}
-          isBandAdmin={Boolean(isUserMD || currentUser?.role === 'admin')}
-          onSaveAsMdKey={() => handleSaveAsMdKey(effectiveKey)}
         />
       )}
 

@@ -23,8 +23,6 @@ interface SongSheetProps {
   isMetronomePulsing?: boolean;
   isMetronomeAudioActive?: boolean;
   onOpenMetronomeModal?: () => void;
-  isSessionOverridden?: boolean;
-  worshipLeaderKey?: string;
   plannedDuration?: string;
   onOpenDurationPicker?: () => void;
   scrollMode?: 'duration' | 'speed';
@@ -228,8 +226,6 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   isMetronomePulsing,
   isMetronomeAudioActive,
   onOpenMetronomeModal,
-  isSessionOverridden,
-  worshipLeaderKey,
   plannedDuration,
   onOpenDurationPicker,
   scrollMode = 'speed',
@@ -1440,15 +1436,13 @@ export const SongSheet: React.FC<SongSheetProps> = ({
                 style={{
                   padding: '2px 8px',
                   borderRadius: '6px',
-                  background: isSessionOverridden ? 'rgba(245, 158, 11, 0.2)' : '#1e293b',
-                  border: isSessionOverridden ? '1px solid #f59e0b' : 'none',
-                  color: isSessionOverridden ? '#fbbf24' : '#38bdf8',
+                  background: '#1e293b',
+                  color: '#38bdf8',
                   fontSize: '12px',
                   fontWeight: 700,
                 }}
               >
                 Key: {displayKey}
-                {isSessionOverridden && worshipLeaderKey ? ` (WL: ${worshipLeaderKey})` : ''}
               </span>
               {!isLyricsOnly && song.capo !== undefined && song.capo !== '0' && song.capo !== 0 && (
                 <span

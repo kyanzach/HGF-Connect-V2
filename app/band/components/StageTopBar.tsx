@@ -28,9 +28,6 @@ interface StageTopBarProps {
   onOpenScratchpad: () => void;
   onOpenAmbientPad: () => void;
   onToggleSidebar: () => void;
-  isSessionOverridden?: boolean;
-  worshipLeaderKey?: string;
-  onRevertKey?: () => void;
   onOpenInstallModal?: () => void;
   onCopyProPresenter?: () => void;
   isCopiedProPresenter?: boolean;
@@ -58,9 +55,6 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
   onOpenScratchpad,
   onOpenAmbientPad,
   onToggleSidebar,
-  isSessionOverridden,
-  worshipLeaderKey,
-  onRevertKey,
   onOpenInstallModal,
   onCopyProPresenter,
   isCopiedProPresenter = false,
@@ -355,11 +349,7 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
           </button>
           <div
             onClick={onOpenKeyPicker}
-            title={
-              isSessionOverridden && worshipLeaderKey
-                ? `Temporary key for this session (Worship Leader Key: ${worshipLeaderKey}). Tap to change or restore.`
-                : 'Choose Key / Capo'
-            }
+            title="Choose Key / Capo"
             style={{
               padding: '0 10px',
               height: '32px',
@@ -368,33 +358,12 @@ export const StageTopBar: React.FC<StageTopBarProps> = ({
               gap: '6px',
               fontSize: '13px',
               fontWeight: 800,
-              color: isSessionOverridden ? '#f59e0b' : '#facc15',
+              color: '#facc15',
               cursor: 'pointer',
               whiteSpace: 'nowrap',
             }}
           >
             <span>Key: {displayKey}</span>
-            {isSessionOverridden && worshipLeaderKey && (
-              <span
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRevertKey?.();
-                }}
-                title={`Revert to Worship Leader Key (${worshipLeaderKey})`}
-                style={{
-                  fontSize: '10px',
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  background: 'rgba(245, 158, 11, 0.25)',
-                  border: '1px solid #f59e0b',
-                  color: '#fbbf24',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                WL: {worshipLeaderKey} ↺
-              </span>
-            )}
           </div>
           <button
             onClick={() => onTranspose(1)}

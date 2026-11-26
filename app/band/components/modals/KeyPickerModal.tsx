@@ -11,8 +11,6 @@ interface KeyPickerModalProps {
   capo: number | string;
   onSelectKey: (key: string) => void;
   onSelectCapo: (capo: number) => void;
-  isBandAdmin?: boolean;
-  onSaveAsMdKey?: () => void;
 }
 
 export const KeyPickerModal: React.FC<KeyPickerModalProps> = ({
@@ -22,8 +20,6 @@ export const KeyPickerModal: React.FC<KeyPickerModalProps> = ({
   capo,
   onSelectKey,
   onSelectCapo,
-  isBandAdmin,
-  onSaveAsMdKey,
 }) => {
   if (!isOpen) return null;
 
@@ -154,30 +150,6 @@ export const KeyPickerModal: React.FC<KeyPickerModalProps> = ({
               })}
             </div>
           </div>
-
-          {/* MD Official Key Persistence */}
-          {isBandAdmin && onSaveAsMdKey && (
-            <button
-              onClick={() => {
-                onSaveAsMdKey();
-                onClose();
-              }}
-              style={{
-                width: '100%',
-                height: '40px',
-                borderRadius: '8px',
-                background: 'rgba(245, 158, 11, 0.15)',
-                border: '1px solid #f59e0b',
-                color: '#fbbf24',
-                fontWeight: 700,
-                fontSize: '13px',
-                cursor: 'pointer',
-                marginTop: '4px',
-              }}
-            >
-              ⭐ Save as Official Worship Leader Key for Setlist
-            </button>
-          )}
         </div>
       </div>
     </div>
