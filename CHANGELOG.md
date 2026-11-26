@@ -1,3 +1,9 @@
+## [v2.103.1] — 2026-11-26
+### Fixed & Upgraded
+- **Quiz 4 Front-Facing 3D Lantern Crests (`components/quiz/LanternCatchStage.tsx`)**: Centered the `A / B / C / D` option letter crest at `u = 0.5` (`cx = 256`) and aligned default `rotation.y = Math.PI` with a slow `±11°` gentle sway so all 4 letters face cleanly toward the player by default instead of sideways.
+- **Seamless `Continue →` Flow Between Quiz Items (`app/(app)/quiz/page.tsx`)**: Wired `QuizPlayer`'s `onComplete` (with `key={activeQuestion.questionId}`) to immediately advance straight into the next open uncompleted quiz item in the sermon (e.g. `Quiz 6 → Quiz 7`, wrapping to earliest open item when Open Access is active) instead of kicking the member back to the quiz list.
+- **Quiz 2 — Real Three.js 3D Golden-Sapphire Tree of Wisdom (`components/quiz/TreeOfWisdomStage.tsx`)**: Replaced the 2D stick-figure canvas with an interactive drag-to-spin Three.js 3D sculpted Golden-Sapphire Tree of Wisdom (carved sanctuary dais, double glowing wisdom rings, sculpted golden-bronze trunk/roots/boughs, 64 faceted sapphire-cyan & sunlit-gold canopy crystals, 7 orbiting golden wisdom orbs, rising light motes, and a golden illumination surge + 3D spark burst on answer lock-in).
+
 ## [v2.103.0] — 2026-11-26
 ### Upgraded
 - **Real Three.js 3D Interactive Quiz Stages for Quiz 4 & Quiz 6 (`components/quiz/LanternCatchStage.tsx`, `components/quiz/WordHarvestTreeStage.tsx`, `package.json`)**:

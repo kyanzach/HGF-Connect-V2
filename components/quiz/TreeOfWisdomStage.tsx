@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import * as THREE from "three";
 
 interface TreeOfWisdomStageProps {
   question: {
@@ -19,116 +20,20 @@ interface TreeOfWisdomStageProps {
   onClose: () => void;
 }
 
-interface Branch3D {
-  x1: number;
-  y1: number;
-  z1: number;
-  x2: number;
-  y2: number;
-  z2: number;
-  depth: number;
-  thickness: number;
-}
-
-interface LeafNode3D {
-  x: number;
-  y: number;
-  z: number;
-  radius: number;
-  tier: number;
-}
-
-interface Mote3D {
-  angle: number;
-  radius: number;
-  y: number;
-  speed: number;
-  size: number;
-}
-
-function buildTreeGeometry(): { branches: Branch3D[]; leaves: LeafNode3D[]; motes: Mote3D[] } {
-  const branches: Branch3D[] = [];
-  const leaves: LeafNode3D[] = [];
-
-  // Deterministic pseudo-random so SSR/hydration & frames are rock-solid
-  let seed = 777;
-  const rand = () => {
-    seed = (seed * 16807) % 2147483647;
-    return (seed - 1) / 2147483646;
-  };
-
-  function grow(
-    x: number,
-    y: number,
-    z: number,
-    len: number,
-    pitch: number,
-    yaw: number,
-    depth: number,
-    maxDepth: number
-  ) {
-    const nx = x + Math.sin(pitch) * Math.cos(yaw) * len;
-    const ny = y - Math.cos(pitch) * len;
-    const nz = z + Math.sin(pitch) * Math.sin(yaw) * len;
-
-    branches.push({
-      x1: x,
-      y1: y,
-      z1: z,
-      x2: nx,
-      y2: ny,
-      z2: nz,
-      depth,
-      thickness: Math.max(1.2, (maxDepth - depth + 1) * 1.45),
-    });
-
-    if (depth >= maxDepth) {
-      leaves.push({
-        x: nx,
-        y: ny,
-        z: nz,
-        radius: 3.2 + rand() * 2.6,
-        tier: (leaves.length % 7) + 1,
-      });
-      return;
-    }
-
-    const childCount = depth === 0 ? 4 : 3;
-    for (let i = 0; i < childCount; i++) {
-      const baseYaw = yaw + (i * Math.PI * 2) / childCount + (rand() - 0.5) * 0.45;
-      const nextPitch = 0.36 + depth * 0.11 + rand() * 0.16;
-      const nextLen = len * (0.68 + rand() * 0.08);
-      grow(nx, ny, nz, nextLen, nextPitch, baseYaw, depth + 1, maxDepth);
-    }
-  }
-
-  // Trunk starting from glowing sanctuary base (y = +68 up toward canopy)
-  grow(0, 68, 0, 44, 0.02, 0, 0, 3);
-
-  // Subtle root tendrils at base
-  for (let r = 0; r < 6; r++) {
-    const a = (r * Math.PI * 2) / 6;
-    branches.push({
-      x1: 0,
-      y1: 68,
-      z1: 0,
-      x2: Math.cos(a) * 28,
-      y2: 76,
-      z2: Math.sin(a) * 28,
-      depth: 1,
-      thickness: 2.2,
-    });
-  }
-
-  const motes: Mote3D[] = Array.from({ length: 22 }, (_, i) => ({
-    angle: (i * Math.PI * 2) / 22,
-    radius: 26 + (i % 5) * 14,
-    y: 65 - (i * 6.5) % 135,
-    speed: 0.008 + (i % 4) * 0.003,
-    size: 1.4 + (i % 3) * 0.7,
-  }));
-
-  return { branches, leaves, motes };
+function createWisdomGlowTex(inner: string, mid: string, outer: string): THREE.CanvasTexture {
+  const c = document.createElement("canvas");
+  c.width = 128;
+  c.height = 128;
+  const ctx = c.getContext("2d")!;
+  const grad = ctx.createRadialGradient(64, 64, 2, 64, 64, 64);
+  grad.addColorStop(0, inner);
+  grad.addColorStop(0.4, mid);
+  grad.addColorStop(1, outer);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 128, 128);
+  const tex = new THREE.CanvasTexture(c);
+  tex.needsUpdate = true;
+  return tex;
 }
 
 export default function TreeOfWisdomStage({
@@ -140,15 +45,29 @@ export default function TreeOfWisdomStage({
   onSubmit,
   onClose,
 }: TreeOfWisdomStageProps) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const treeHostRef = useRef<HTMLDivElement | null>(null);
   const podsGridRef = useRef<HTMLDivElement | null>(null);
   const [lockedIdx, setLockedIdx] = useState<number | null>(null);
   const [stagePhase, setStagePhase] = useState<"idle" | "locking">("idle");
+  const [hoveredPod, setHoveredPod] = useState<number | null>(null);
+  const [webglFallback, setWebglFallback] = useState(false);
+
+  const lockingRef = useRef(false);
+  const hoveredPodRef = useRef<number | null>(null);
+  const burstRef = useRef<(() => void) | null>(null);
 
   const options = Array.isArray(question.options) ? question.options : [];
   const LETTERS = ["A", "B", "C", "D"];
 
-  // Progressive fallback for CSS sibling-index() stagger per modern-web-guidance
+  useEffect(() => {
+    lockingRef.current = stagePhase === "locking" || submitting;
+  }, [stagePhase, submitting]);
+
+  useEffect(() => {
+    hoveredPodRef.current = hoveredPod;
+  }, [hoveredPod]);
+
+  // Progressive fallback for CSS sibling-index() stagger
   useEffect(() => {
     if (typeof window === "undefined" || !podsGridRef.current) return;
     if (
@@ -161,166 +80,448 @@ export default function TreeOfWisdomStage({
     }
   }, [options.length]);
 
-  // 3D Perspective Tree of Wisdom Engine (HTML5 Canvas)
+  // Real Three.js 3D Golden-Sapphire Tree of Wisdom
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    const host = treeHostRef.current;
+    if (!host) return;
 
-    const dpr = typeof window !== "undefined" ? Math.min(window.devicePixelRatio || 1, 2) : 1;
-    const W = 320;
-    const H = 200;
-    canvas.width = W * dpr;
-    canvas.height = H * dpr;
-    ctx.scale(dpr, dpr);
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+    } catch {
+      setWebglFallback(true);
+      return;
+    }
 
-    const prefersReduced =
-      typeof window !== "undefined" &&
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    renderer.setPixelRatio(dpr);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+    renderer.domElement.style.display = "block";
+    renderer.domElement.style.width = "100%";
+    renderer.domElement.style.height = "100%";
+    host.innerHTML = "";
+    host.appendChild(renderer.domElement);
 
-    const { branches, leaves, motes } = buildTreeGeometry();
-    let rotY = 0.35;
-    let rafId = 0;
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 80);
 
-    const project = (x: number, y: number, z: number, cosA: number, sinA: number) => {
-      const rx = x * cosA - z * sinA;
-      const rz = x * sinA + z * cosA;
-      const fov = 260;
-      const scale = fov / (fov + rz + 120);
-      return {
-        sx: W / 2 + rx * scale,
-        sy: H / 2 + 12 + y * scale,
-        rz,
-        scale,
-      };
+    // Sanctuary sapphire & warm gold lighting
+    const hemi = new THREE.HemisphereLight(0xbae6fd, 0x082f49, 0.95);
+    scene.add(hemi);
+    const goldKey = new THREE.DirectionalLight(0xfef08a, 1.25);
+    goldKey.position.set(5, 9, 6);
+    scene.add(goldKey);
+    const sapphireRim = new THREE.DirectionalLight(0x38bdf8, 0.75);
+    sapphireRim.position.set(-6, 5, -5);
+    scene.add(sapphireRim);
+    const coreLight = new THREE.PointLight(0x4eb1cb, 2.2, 10);
+    coreLight.position.set(0, 1.5, 1.4);
+    scene.add(coreLight);
+
+    const treeRoot = new THREE.Group();
+    treeRoot.position.y = -1.25;
+    scene.add(treeRoot);
+
+    const goldGlowTex = createWisdomGlowTex(
+      "rgba(255,251,235,0.95)",
+      "rgba(251,191,36,0.48)",
+      "rgba(245,158,11,0)"
+    );
+    const cyanGlowTex = createWisdomGlowTex(
+      "rgba(224,242,254,0.9)",
+      "rgba(78,177,203,0.42)",
+      "rgba(14,116,144,0)"
+    );
+
+    const disposableGeos: THREE.BufferGeometry[] = [];
+    const disposableMats: THREE.Material[] = [];
+
+    // 1. Carved Sanctuary Pedestal Dais + Double Concentric Wisdom Rings
+    const daisGeo = new THREE.CylinderGeometry(1.45, 1.72, 0.28, 32);
+    const daisMat = new THREE.MeshStandardMaterial({
+      color: 0x082638,
+      roughness: 0.42,
+      metalness: 0.55,
+      emissive: 0x0c4a6e,
+      emissiveIntensity: 0.35,
+    });
+    disposableGeos.push(daisGeo);
+    disposableMats.push(daisMat);
+    const dais = new THREE.Mesh(daisGeo, daisMat);
+    dais.position.y = -0.14;
+    treeRoot.add(dais);
+
+    const innerRingGeo = new THREE.TorusGeometry(1.52, 0.032, 10, 48);
+    const outerRingGeo = new THREE.TorusGeometry(2.05, 0.022, 10, 64);
+    const ringMat = new THREE.MeshStandardMaterial({
+      color: 0xfbbf24,
+      emissive: 0xd97706,
+      emissiveIntensity: 0.72,
+      roughness: 0.28,
+      metalness: 0.8,
+    });
+    const outerRingMat = new THREE.MeshStandardMaterial({
+      color: 0x67e8f9,
+      emissive: 0x0284c7,
+      emissiveIntensity: 0.65,
+      roughness: 0.3,
+      metalness: 0.7,
+    });
+    disposableGeos.push(innerRingGeo, outerRingGeo);
+    disposableMats.push(ringMat, outerRingMat);
+
+    const innerRing = new THREE.Mesh(innerRingGeo, ringMat);
+    innerRing.rotation.x = Math.PI / 2;
+    innerRing.position.y = 0.02;
+    treeRoot.add(innerRing);
+
+    const outerRing = new THREE.Mesh(outerRingGeo, outerRingMat);
+    outerRing.rotation.x = Math.PI / 2;
+    outerRing.position.y = -0.04;
+    treeRoot.add(outerRing);
+
+    // 2. Sculpted Golden-Bronze Living Trunk, Roots & Graceful Arching Boughs
+    const trunkMat = new THREE.MeshStandardMaterial({
+      color: 0xb47b38,
+      emissive: 0x5c3610,
+      emissiveIntensity: 0.32,
+      roughness: 0.42,
+      metalness: 0.52,
+    });
+    disposableMats.push(trunkMat);
+
+    const addLimb = (from: THREE.Vector3, to: THREE.Vector3, rBot: number, rTop: number) => {
+      const dir = new THREE.Vector3().subVectors(to, from);
+      const len = dir.length();
+      const geo = new THREE.CylinderGeometry(rTop, rBot, len, 12);
+      disposableGeos.push(geo);
+      const m = new THREE.Mesh(geo, trunkMat);
+      m.position.copy(from).addScaledVector(dir, 0.5);
+      m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+      treeRoot.add(m);
     };
 
-    const renderFrame = () => {
-      ctx.clearRect(0, 0, W, H);
+    const t0 = new THREE.Vector3(0, 0, 0);
+    const t1 = new THREE.Vector3(-0.07, 0.82, 0.05);
+    const t2 = new THREE.Vector3(0.05, 1.58, -0.03);
+    addLimb(t0, t1, 0.27, 0.19);
+    addLimb(t1, t2, 0.19, 0.13);
 
-      const isLocking = stagePhase === "locking" || submitting;
-      const cosA = Math.cos(rotY);
-      const sinA = Math.sin(rotY);
+    // Graceful spreading roots gripping the dais
+    for (let r = 0; r < 6; r++) {
+      const a = (r / 6) * Math.PI * 2 + 0.25;
+      addLimb(
+        new THREE.Vector3(Math.cos(a) * 0.14, 0.25, Math.sin(a) * 0.14),
+        new THREE.Vector3(Math.cos(a) * 0.85, 0.0, Math.sin(a) * 0.85),
+        0.095,
+        0.035
+      );
+    }
 
-      // 1. Sanctuary radial floor halo beneath the 3D Tree
-      const baseGlow = ctx.createRadialGradient(W / 2, H - 22, 4, W / 2, H - 22, 95);
-      if (isLocking) {
-        baseGlow.addColorStop(0, "rgba(251, 191, 36, 0.48)");
-        baseGlow.addColorStop(0.5, "rgba(245, 158, 11, 0.16)");
-        baseGlow.addColorStop(1, "rgba(5, 19, 29, 0)");
-      } else {
-        baseGlow.addColorStop(0, "rgba(78, 177, 203, 0.42)");
-        baseGlow.addColorStop(0.55, "rgba(14, 165, 233, 0.12)");
-        baseGlow.addColorStop(1, "rgba(5, 19, 29, 0)");
-      }
-      ctx.fillStyle = baseGlow;
-      ctx.beginPath();
-      ctx.ellipse(W / 2, H - 22, 92, 22, 0, 0, Math.PI * 2);
-      ctx.fill();
+    // 6 Primary arching boughs + forked sub-branches
+    for (let b = 0; b < 6; b++) {
+      const a = (b / 6) * Math.PI * 2;
+      const mid = new THREE.Vector3(Math.cos(a) * 0.88, 2.08 + (b % 2) * 0.22, Math.sin(a) * 0.85);
+      addLimb(t2, mid, 0.1, 0.06);
+      const tipA = new THREE.Vector3(
+        mid.x + Math.cos(a - 0.42) * 0.72,
+        mid.y + 0.48,
+        mid.z + Math.sin(a - 0.42) * 0.68
+      );
+      const tipB = new THREE.Vector3(
+        mid.x + Math.cos(a + 0.42) * 0.68,
+        mid.y + 0.36,
+        mid.z + Math.sin(a + 0.42) * 0.68
+      );
+      addLimb(mid, tipA, 0.055, 0.025);
+      addLimb(mid, tipB, 0.055, 0.025);
+    }
+    addLimb(t2, new THREE.Vector3(0, 2.9, 0), 0.085, 0.035);
 
-      // 2. Concentric 3D stage rings at root level
-      [34, 56].forEach((ringR, idx) => {
-        ctx.strokeStyle = isLocking
-          ? `rgba(251, 191, 36, ${idx === 0 ? 0.5 : 0.24})`
-          : `rgba(78, 177, 203, ${idx === 0 ? 0.45 : 0.2})`;
-        ctx.lineWidth = 1.2;
-        ctx.beginPath();
-        ctx.ellipse(W / 2, H - 22, ringR, ringR * 0.24, 0, 0, Math.PI * 2);
-        ctx.stroke();
+    // 3. Crystalline Sapphire-Cyan & Sunlit-Gold Faceted Canopy (64 sculptural facets)
+    const crystalGeo = new THREE.OctahedronGeometry(0.28, 1);
+    disposableGeos.push(crystalGeo);
+    const leafNodes: {
+      mesh: THREE.Mesh;
+      mat: THREE.MeshStandardMaterial;
+      baseColor: THREE.Color;
+      phase: number;
+    }[] = [];
+
+    const canopyPalette = [0x0ea5e9, 0x38bdf8, 0x4eb1cb, 0x0284c7, 0xfbbf24];
+    let seed = 7771;
+    const rand = () => {
+      seed = (seed * 16807) % 2147483647;
+      return (seed - 1) / 2147483646;
+    };
+
+    for (let i = 0; i < 64; i++) {
+      const phi = Math.acos(1 - (2 * (i + 0.5)) / 64);
+      const theta = Math.PI * (1 + Math.sqrt(5)) * i;
+      const rad = 1.05 + rand() * 0.72;
+      const baseColor = new THREE.Color(canopyPalette[i % canopyPalette.length]);
+      const mat = new THREE.MeshStandardMaterial({
+        color: baseColor.clone(),
+        emissive: baseColor.clone().multiplyScalar(0.35),
+        emissiveIntensity: 0.65,
+        roughness: 0.26,
+        metalness: 0.25,
+        flatShading: true,
       });
+      disposableMats.push(mat);
 
-      // 3. Project & depth-sort 3D branches (back-to-front)
-      const projectedBranches = branches
-        .map((b) => {
-          const p1 = project(b.x1, b.y1, b.z1, cosA, sinA);
-          const p2 = project(b.x2, b.y2, b.z2, cosA, sinA);
-          return { b, p1, p2, avgZ: (p1.rz + p2.rz) * 0.5 };
-        })
-        .sort((a, b) => b.avgZ - a.avgZ);
+      const m = new THREE.Mesh(crystalGeo, mat);
+      m.position.set(
+        rad * Math.sin(phi) * Math.cos(theta) * 1.18,
+        2.35 + rad * Math.cos(phi) * 0.7,
+        rad * Math.sin(phi) * Math.sin(theta) * 1.12
+      );
+      const s = 0.62 + rand() * 0.65;
+      m.scale.set(s, s * 0.82, s);
+      m.rotation.set(rand() * 3, rand() * 3, rand() * 3);
+      treeRoot.add(m);
+      leafNodes.push({ mesh: m, mat, baseColor, phase: rand() * Math.PI * 2 });
+    }
 
-      for (const item of projectedBranches) {
-        const { b, p1, p2 } = item;
-        const depthAlpha = Math.max(0.28, Math.min(0.95, 0.78 - item.avgZ / 220));
-        const grad = ctx.createLinearGradient(p1.sx, p1.sy, p2.sx, p2.sy);
-        if (isLocking) {
-          grad.addColorStop(0, `rgba(245, 158, 11, ${depthAlpha})`);
-          grad.addColorStop(1, `rgba(253, 224, 71, ${depthAlpha})`);
-        } else {
-          grad.addColorStop(0, `rgba(56, 189, 248, ${depthAlpha * 0.85})`);
-          grad.addColorStop(1, `rgba(251, 191, 36, ${depthAlpha})`);
-        }
-        ctx.strokeStyle = grad;
-        ctx.lineWidth = b.thickness * ((p1.scale + p2.scale) * 0.5);
-        ctx.lineCap = "round";
-        ctx.beginPath();
-        ctx.moveTo(p1.sx, p1.sy);
-        ctx.lineTo(p2.sx, p2.sy);
-        ctx.stroke();
-      }
+    // 4. 7 Glowing Golden Wisdom Orbs (representing the 7 sermon days/truths)
+    const orbGeo = new THREE.SphereGeometry(0.12, 14, 14);
+    const orbMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
+    disposableGeos.push(orbGeo);
+    disposableMats.push(orbMat);
+    const wisdomOrbs: { group: THREE.Group; baseAngle: number; rad: number; y: number }[] = [];
 
-      // 4. Project & draw luminous 3D canopy nodes
-      const projectedLeaves = leaves
-        .map((lf) => ({ lf, p: project(lf.x, lf.y, lf.z, cosA, sinA) }))
-        .sort((a, b) => b.p.rz - a.p.rz);
+    for (let k = 0; k < 7; k++) {
+      const a = (k / 7) * Math.PI * 2;
+      const rad = 1.68 + (k % 2) * 0.24;
+      const y = 1.85 + (k % 3) * 0.42;
+      const g = new THREE.Group();
+      g.add(new THREE.Mesh(orbGeo, orbMat));
+      const spMat = new THREE.SpriteMaterial({
+        map: goldGlowTex,
+        transparent: true,
+        opacity: 0.82,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      });
+      disposableMats.push(spMat);
+      const sp = new THREE.Sprite(spMat);
+      sp.scale.set(0.85, 0.85, 1);
+      g.add(sp);
+      treeRoot.add(g);
+      wisdomOrbs.push({ group: g, baseAngle: a, rad, y });
+    }
 
-      for (const { lf, p } of projectedLeaves) {
-        const isCurrentDayTier = lf.tier === question.dayNumber;
-        const r = lf.radius * p.scale * (isCurrentDayTier ? 1.35 : 1);
-        const glow = ctx.createRadialGradient(p.sx, p.sy, 0.5, p.sx, p.sy, r * 2.4);
-        if (isLocking || isCurrentDayTier) {
-          glow.addColorStop(0, "rgba(254, 243, 199, 0.95)");
-          glow.addColorStop(0.45, "rgba(251, 191, 36, 0.65)");
-          glow.addColorStop(1, "rgba(245, 158, 11, 0)");
-        } else {
-          glow.addColorStop(0, "rgba(224, 242, 254, 0.9)");
-          glow.addColorStop(0.5, "rgba(78, 177, 203, 0.55)");
-          glow.addColorStop(1, "rgba(78, 177, 203, 0)");
-        }
-        ctx.fillStyle = glow;
-        ctx.beginPath();
-        ctx.arc(p.sx, p.sy, r * 2.4, 0, Math.PI * 2);
-        ctx.fill();
-      }
+    // 5. Rising Sanctuary Light Motes
+    const moteCount = 46;
+    const motePos = new Float32Array(moteCount * 3);
+    const moteSeeds = Array.from({ length: moteCount }, () => ({
+      a: rand() * Math.PI * 2,
+      r: 0.9 + rand() * 2.1,
+      y: rand() * 3.8,
+      spd: 0.25 + rand() * 0.45,
+      rise: 0.008 + rand() * 0.012,
+    }));
+    const moteGeo = new THREE.BufferGeometry();
+    moteGeo.setAttribute("position", new THREE.BufferAttribute(motePos, 3));
+    const moteMat = new THREE.PointsMaterial({
+      size: 0.24,
+      map: cyanGlowTex,
+      transparent: true,
+      opacity: 0.85,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    disposableGeos.push(moteGeo);
+    disposableMats.push(moteMat);
+    treeRoot.add(new THREE.Points(moteGeo, moteMat));
 
-      // 5. Rising sanctuary light motes
-      for (const m of motes) {
-        if (!prefersReduced) {
-          m.angle += isLocking ? m.speed * 2.6 : m.speed;
-          m.y -= isLocking ? 0.55 : 0.2;
-          if (m.y < -62) m.y = 68;
-        }
-        const mx = Math.cos(m.angle) * m.radius;
-        const mz = Math.sin(m.angle) * m.radius;
-        const mp = project(mx, m.y, mz, cosA, sinA);
-        ctx.fillStyle = isLocking
-          ? "rgba(253, 224, 71, 0.78)"
-          : "rgba(125, 211, 252, 0.65)";
-        ctx.beginPath();
-        ctx.arc(mp.sx, mp.sy, m.size * mp.scale, 0, Math.PI * 2);
-        ctx.fill();
-      }
+    // Crown ambient glow halo
+    const crownHaloMat = new THREE.SpriteMaterial({
+      map: cyanGlowTex,
+      transparent: true,
+      opacity: 0.52,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    disposableMats.push(crownHaloMat);
+    const crownHalo = new THREE.Sprite(crownHaloMat);
+    crownHalo.position.set(0, 2.3, -0.5);
+    crownHalo.scale.set(6.4, 5.2, 1);
+    treeRoot.add(crownHalo);
 
-      if (!prefersReduced) {
-        rotY += isLocking ? 0.028 : 0.0075;
-        rafId = requestAnimationFrame(renderFrame);
+    // 6. Lock-in Golden Spark Burst Pool
+    const sparkGeo = new THREE.SphereGeometry(0.05, 6, 6);
+    disposableGeos.push(sparkGeo);
+    const sparks: { mesh: THREE.Mesh; vel: THREE.Vector3; life: number; maxLife: number }[] = [];
+
+    burstRef.current = () => {
+      for (let i = 0; i < 32; i++) {
+        const m = new THREE.Mesh(sparkGeo, new THREE.MeshBasicMaterial({ color: 0xfef08a }));
+        m.position.set((Math.random() - 0.5) * 1.4, 2.0 + (Math.random() - 0.5) * 1.0, (Math.random() - 0.5) * 1.4);
+        const a = Math.random() * Math.PI * 2;
+        const spd = 0.04 + Math.random() * 0.085;
+        treeRoot.add(m);
+        sparks.push({
+          mesh: m,
+          vel: new THREE.Vector3(Math.cos(a) * spd, 0.03 + Math.random() * 0.08, Math.sin(a) * spd),
+          life: 0,
+          maxLife: 38 + Math.random() * 24,
+        });
       }
     };
 
-    renderFrame();
+    // Responsive camera fit
+    const fitStage = () => {
+      const w = Math.max(220, host.clientWidth || 360);
+      const h = Math.max(180, host.clientHeight || 220);
+      const aspect = w / h;
+      camera.aspect = aspect;
+      const dist = aspect < 1.25 ? 8.1 : 6.9;
+      camera.position.set(0, 1.85, dist);
+      camera.lookAt(0, 0.9, 0);
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h, false);
+    };
+    fitStage();
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(fitStage) : null;
+    ro?.observe(host);
+    window.addEventListener("resize", fitStage);
+
+    // Drag-to-spin 3D interaction
+    let dragging = false;
+    let lastX = 0;
+    let spinVel = 0.0055;
+    const onDown = (e: PointerEvent) => {
+      dragging = true;
+      lastX = e.clientX;
+      renderer.domElement.style.cursor = "grabbing";
+    };
+    const onMove = (e: PointerEvent) => {
+      if (!dragging) return;
+      const dx = e.clientX - lastX;
+      lastX = e.clientX;
+      treeRoot.rotation.y += dx * 0.011;
+      spinVel = dx * 0.003;
+    };
+    const onUp = () => {
+      dragging = false;
+      renderer.domElement.style.cursor = "grab";
+    };
+
+    const domEl = renderer.domElement;
+    domEl.style.cursor = "grab";
+    domEl.addEventListener("pointerdown", onDown);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+
+    const goldColor = new THREE.Color(0xfbbf24);
+    const clock = new THREE.Clock();
+    let rafId = 0;
+    let surgeMix = 0;
+
+    const animate = () => {
+      rafId = requestAnimationFrame(animate);
+      if (document.hidden) return;
+
+      const t = clock.getElapsedTime();
+      const isLocking = lockingRef.current;
+      const hasHover = hoveredPodRef.current !== null;
+
+      surgeMix += ((isLocking ? 1 : hasHover ? 0.32 : 0) - surgeMix) * 0.08;
+
+      if (!dragging) {
+        const targetSpin = isLocking ? 0.026 : 0.0055;
+        spinVel += (targetSpin - spinVel) * 0.04;
+        treeRoot.rotation.y += spinVel;
+      }
+
+      // Pulse pedestal rings & canopy illumination
+      innerRing.rotation.z = t * 0.35;
+      outerRing.rotation.z = -t * 0.22;
+      coreLight.intensity = 2.0 + surgeMix * 2.8;
+      coreLight.color.setHex(surgeMix > 0.45 ? 0xfde047 : 0x4eb1cb);
+      crownHaloMat.map = surgeMix > 0.5 ? goldGlowTex : cyanGlowTex;
+      crownHaloMat.opacity = 0.48 + surgeMix * 0.36;
+
+      for (let i = 0; i < leafNodes.length; i++) {
+        const ln = leafNodes[i];
+        ln.mat.color.copy(ln.baseColor).lerp(goldColor, surgeMix * 0.85);
+        ln.mat.emissive.copy(ln.mat.color).multiplyScalar(0.35 + surgeMix * 0.45);
+        const pulse = 1 + Math.sin(t * 2.0 + ln.phase) * 0.04 + surgeMix * 0.1;
+        ln.mesh.scale.setScalar(pulse * 0.88);
+      }
+
+      for (const orb of wisdomOrbs) {
+        const a = orb.baseAngle + t * (isLocking ? 1.15 : 0.32);
+        orb.group.position.set(
+          Math.cos(a) * orb.rad,
+          orb.y + Math.sin(t * 1.9 + orb.baseAngle) * 0.16,
+          Math.sin(a) * orb.rad
+        );
+      }
+
+      const mPos = moteGeo.attributes.position as THREE.BufferAttribute;
+      for (let i = 0; i < moteCount; i++) {
+        const s = moteSeeds[i];
+        s.y += isLocking ? s.rise * 2.8 : s.rise;
+        if (s.y > 4.0) s.y = 0.05;
+        const a = s.a + t * s.spd;
+        mPos.setXYZ(i, Math.cos(a) * s.r, s.y, Math.sin(a) * s.r);
+      }
+      mPos.needsUpdate = true;
+
+      for (let i = sparks.length - 1; i >= 0; i--) {
+        const sp = sparks[i];
+        sp.life++;
+        sp.mesh.position.add(sp.vel);
+        sp.vel.multiplyScalar(0.96);
+        sp.mesh.scale.setScalar(Math.max(0.01, 1 - sp.life / sp.maxLife));
+        if (sp.life >= sp.maxLife) {
+          treeRoot.remove(sp.mesh);
+          (sp.mesh.material as THREE.Material).dispose();
+          sparks.splice(i, 1);
+        }
+      }
+
+      renderer.render(scene, camera);
+    };
+
+    rafId = requestAnimationFrame(animate);
+
     return () => {
-      if (rafId) cancelAnimationFrame(rafId);
+      cancelAnimationFrame(rafId);
+      ro?.disconnect();
+      window.removeEventListener("resize", fitStage);
+      domEl.removeEventListener("pointerdown", onDown);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      burstRef.current = null;
+
+      sparks.forEach((sp) => (sp.mesh.material as THREE.Material).dispose());
+      disposableGeos.forEach((g) => g.dispose());
+      disposableMats.forEach((m) => m.dispose());
+      goldGlowTex.dispose();
+      cyanGlowTex.dispose();
+      renderer.dispose();
     };
-  }, [stagePhase, submitting, question.dayNumber]);
+  }, []);
 
   const handleSelectPod = (opt: string, idx: number) => {
     if (submitting || stagePhase === "locking") return;
     setLockedIdx(idx);
     setStagePhase("locking");
-    // 780ms dramatic spotlight lock-in transition before grading reveal
+    burstRef.current?.();
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+      try {
+        navigator.vibrate(14);
+      } catch {
+        // ignore
+      }
+    }
     setTimeout(() => {
       onSubmit(opt);
-    }, 780);
+    }, 760);
   };
 
   return (
@@ -340,19 +541,38 @@ export default function TreeOfWisdomStage({
           zIndex: 2,
         }}
       >
-        <span
-          style={{
-            background: "rgba(78, 177, 203, 0.22)",
-            color: "#7dd3fc",
-            fontSize: "0.82rem",
-            fontWeight: 700,
-            padding: "5px 14px",
-            borderRadius: "999px",
-            border: "1px solid rgba(78, 177, 203, 0.45)",
-          }}
-        >
-          {dayLabel}
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <span
+            style={{
+              background: "rgba(78, 177, 203, 0.22)",
+              color: "#7dd3fc",
+              fontSize: "0.8rem",
+              fontWeight: 800,
+              padding: "5px 14px",
+              borderRadius: "999px",
+              border: "1px solid rgba(78, 177, 203, 0.45)",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {dayLabel}
+          </span>
+          {!webglFallback && (
+            <span
+              style={{
+                background: "rgba(251, 191, 36, 0.14)",
+                border: "1px solid rgba(251, 191, 36, 0.3)",
+                color: "#fde68a",
+                padding: "4px 10px",
+                borderRadius: "999px",
+                fontSize: "0.7rem",
+                fontWeight: 700,
+                whiteSpace: "nowrap",
+              }}
+            >
+              Drag to spin 3D tree
+            </span>
+          )}
+        </div>
 
         <button
           onClick={onClose}
@@ -362,7 +582,7 @@ export default function TreeOfWisdomStage({
             border: "1px solid rgba(255,255,255,0.2)",
             color: "#fff",
             fontSize: "1rem",
-            padding: "7px 15px",
+            padding: "7px 14px",
             borderRadius: "10px",
             cursor: "pointer",
             whiteSpace: "nowrap",
@@ -388,34 +608,38 @@ export default function TreeOfWisdomStage({
           boxSizing: "border-box",
         }}
       >
-        {/* 3D Rotating Tree of Wisdom Stage Centerpiece + 7-Day Ascent Pips */}
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            width: "100%",
-            marginBottom: "8px",
-          }}
-        >
-          <canvas
-            ref={canvasRef}
-            style={{ width: "320px", height: "190px", display: "block" }}
-            aria-label="3D Tree of Wisdom Sanctuary Stage"
-          />
-        </div>
+        {/* Real Three.js 3D Golden-Sapphire Tree of Wisdom */}
+        {!webglFallback && (
+          <div
+            style={{
+              width: "100%",
+              height: "clamp(205px, 31vh, 275px)",
+              marginBottom: "6px",
+              borderRadius: "20px",
+              background: "radial-gradient(ellipse at 50% 62%, rgba(78,177,203,0.16) 0%, rgba(3,14,22,0.12) 72%)",
+              border: "1px solid rgba(78, 177, 203, 0.2)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              ref={treeHostRef}
+              style={{ width: "100%", height: "100%", touchAction: "none" }}
+              aria-label="3D Tree of Wisdom Sanctuary Stage"
+            />
+          </div>
+        )}
 
         {/* Iconic Hexagonal Beveled Question Chamber with Flanking Stage Rails */}
-        <div className="hgf-stage-rail-row" style={{ marginTop: "12px", marginBottom: "14px" }}>
+        <div className="hgf-stage-rail-row" style={{ marginTop: "8px", marginBottom: "14px" }}>
           <div className="hgf-stage-rail" />
           <div className="hgf-hex-question-chamber">
             <div className="hgf-hex-question-inner">
               <p
                 style={{
                   color: "#f8fafc",
-                  fontSize: "1.08rem",
+                  fontSize: "1.06rem",
                   fontWeight: 700,
-                  lineHeight: 1.5,
+                  lineHeight: 1.48,
                   margin: 0,
                   textAlign: "center",
                 }}
@@ -478,6 +702,8 @@ export default function TreeOfWisdomStage({
                   type="button"
                   disabled={submitting || stagePhase === "locking"}
                   onClick={() => handleSelectPod(opt, idx)}
+                  onMouseEnter={() => setHoveredPod(idx)}
+                  onMouseLeave={() => setHoveredPod(null)}
                   className={`hgf-hex-pod-btn ${isLocked ? "is-locked" : ""} ${
                     isDimmed ? "is-dimmed" : ""
                   }`}
@@ -572,7 +798,7 @@ export default function TreeOfWisdomStage({
         .hgf-hex-question-inner {
           background: linear-gradient(180deg, #092536 0%, #051622 100%);
           clip-path: polygon(17px 0%, calc(100% - 17px) 0%, 100% 50%, calc(100% - 17px) 100%, 17px 100%, 0% 50%);
-          padding: 20px 30px;
+          padding: 18px 28px;
         }
 
         .hgf-hex-pods-grid {

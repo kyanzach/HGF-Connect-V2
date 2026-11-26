@@ -112,27 +112,26 @@ function createLanternPaperTexture(letter: string, active: boolean): THREE.Canva
     ctx.stroke();
   }
 
-  // Paint crisp option letter crest on front and back faces
+  // Paint crisp option letter crest centered at u=0.5 (cx=256) so rotation.y=Math.PI faces dead-center front!
   const drawCrest = (cx: number) => {
     ctx.save();
     ctx.beginPath();
-    ctx.arc(cx, 122, 34, 0, Math.PI * 2);
-    ctx.fillStyle = active ? "rgba(120, 53, 15, 0.42)" : "rgba(6, 27, 38, 0.52)";
+    ctx.arc(cx, 122, 42, 0, Math.PI * 2);
+    ctx.fillStyle = active ? "rgba(120, 53, 15, 0.5)" : "rgba(6, 27, 38, 0.58)";
     ctx.fill();
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 3;
     ctx.strokeStyle = active ? "#fef08a" : "#bae6fd";
     ctx.stroke();
 
     ctx.fillStyle = "#ffffff";
-    ctx.font = "800 38px system-ui, -apple-system, sans-serif";
+    ctx.font = "900 46px system-ui, -apple-system, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(letter, cx, 124);
     ctx.restore();
   };
 
-  drawCrest(128);
-  drawCrest(384);
+  drawCrest(256);
 
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -762,9 +761,9 @@ export default function LanternCatchStage({
         ln.group.position.copy(ln.curPos);
         ln.group.scale.setScalar(ln.curScale);
 
-        // Gentle lantern rotation + wind tilt
-        ln.bodyMesh.rotation.y = Math.sin(elapsed * ln.rotSpeed + ln.bobPhase) * 0.35;
-        ln.group.rotation.z = Math.sin(elapsed * 0.9 + ln.bobPhase) * 0.055;
+        // Face letter dead-center front by default with slow, subtle ±11° breathing turn
+        ln.bodyMesh.rotation.y = Math.PI + Math.sin(elapsed * (ln.rotSpeed * 0.75) + ln.bobPhase) * 0.19;
+        ln.group.rotation.z = Math.sin(elapsed * 0.9 + ln.bobPhase) * 0.045;
         ln.tasselGroup.rotation.z = Math.sin(elapsed * 2.1 + ln.bobPhase) * 0.16;
 
         // Swap idle vs radiant golden paper texture + light color

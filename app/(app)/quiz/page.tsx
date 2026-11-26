@@ -1208,15 +1208,37 @@ export default function MemberQuizPage() {
       {/* Active Question Player */}
       {activeQuestion && (
         <QuizPlayer
+          key={activeQuestion.questionId}
           question={activeQuestion}
           openAccess={quizStatus?.openAccess ?? true}
           onComplete={() => {
             const finishedDay = activeQuestion.dayNumber;
-            const willCompleteAll = (quizStatus?.progress?.completed ?? 0) + 1 >= 7;
+            const finishedId = activeQuestion.questionId;
+            const daysList = quizStatus?.days || [];
+            const remainingPlayable = daysList.filter(
+              (d) =>
+                d.questionId !== finishedId &&
+                d.status !== "completed" &&
+                d.status !== "locked" &&
+                d.status !== "expired"
+            );
+            // Prefer next day in sequence (e.g. Q6 -> Q7), otherwise wrap to earliest open item (e.g. Q7 -> Q1)
+            const nextDay =
+              remainingPlayable.find((d) => d.dayNumber > finishedDay) ||
+              (quizStatus?.openAccess ? remainingPlayable[0] : null) ||
+              null;
+
             const nextQuiz = quizStatus?.nextUnfinishedQuiz || null;
-            setActiveQuestion(null);
             loadStatus();
-            if (quizStatus?.openAccess && (finishedDay === 7 || willCompleteAll) && nextQuiz) {
+
+            if (nextDay) {
+              // Seamlessly advance straight to the next open quiz item
+              handleStartDay(nextDay);
+              return;
+            }
+
+            setActiveQuestion(null);
+            if (quizStatus?.openAccess && nextQuiz) {
               setNextQuizModal({ open: true, nextQuiz });
             }
           }}
