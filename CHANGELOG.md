@@ -1,3 +1,8 @@
+## [v2.95.3] — 2026-11-26
+### Improved
+- **Musical Chromatic Key Sorting (`app/band/components/SetlistSidebar.tsx`)**:
+  - Updated the **`Key`** sort mode from raw alphabetical order (`A → G`) to industry-standard musical chromatic order (`C → C#/Db → D → Eb → E → F → F# → G → Ab → A → A#/Bb → B`), grouping enharmonic equivalents (`A#` & `Bb`) together and sorting ties alphabetically by title.
+
 ## [v2.95.2] — 2026-11-26
 ### Removed
 - **Redundant Setlist Name Presets (`app/band/components/modals/SetlistAdminModal.tsx`)**:

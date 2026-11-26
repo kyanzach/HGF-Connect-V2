@@ -8,6 +8,22 @@ import { sortSetlistsUpcomingFirst, formatSetlistLabel, formatSetlistMeta, getTo
 
 type SortOption = 'order' | 'title' | 'key' | 'artist' | 'recent';
 
+// Musical chromatic pitch order (C -> B) with enharmonic grouping (e.g. A# === Bb)
+const KEY_PITCH_RANK: Record<string, number> = {
+  C: 0, 'C#': 1, Db: 1, D: 2, 'D#': 3, Eb: 3, E: 4, F: 5,
+  'F#': 6, Gb: 6, G: 7, 'G#': 8, Ab: 8, A: 9, 'A#': 10, Bb: 10, B: 11,
+};
+
+function getKeySortRank(rawKey?: string): number {
+  if (!rawKey) return 999;
+  const m = rawKey.trim().match(/^([A-G])([#b]?)(m|min)?/i);
+  if (!m) return 999;
+  const root = `${m[1].toUpperCase()}${m[2] ? (m[2] === '#' ? '#' : 'b') : ''}`;
+  const pitch = KEY_PITCH_RANK[root];
+  if (pitch === undefined) return 999;
+  return pitch * 2 + (m[3] ? 1 : 0);
+}
+
 interface TouchDragHandleProps {
   index: number;
   isDragging: boolean;
@@ -361,11 +377,15 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
     }
 
     // Apply sorting
+    const compareByKey = (a: Song, b: Song) => {
+      const diff = getKeySortRank(a.key) - getKeySortRank(b.key);
+      return diff !== 0 ? diff : a.title.localeCompare(b.title);
+    };
     if (activeSetlist) {
       if (sortBy === 'title') {
         list.sort((a, b) => a.title.localeCompare(b.title));
       } else if (sortBy === 'key') {
-        list.sort((a, b) => (a.key || '').localeCompare(b.key || ''));
+        list.sort(compareByKey);
       } else if (sortBy === 'artist') {
         list.sort((a, b) => (a.artist || '').localeCompare(b.artist || ''));
       }
@@ -374,7 +394,7 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
       if (sortBy === 'title') {
         list.sort((a, b) => a.title.localeCompare(b.title));
       } else if (sortBy === 'key') {
-        list.sort((a, b) => (a.key || '').localeCompare(b.key || ''));
+        list.sort(compareByKey);
       } else if (sortBy === 'artist') {
         list.sort((a, b) => (a.artist || '').localeCompare(b.artist || ''));
       } else if (sortBy === 'recent') {
