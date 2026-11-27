@@ -533,22 +533,31 @@ export async function processPresentation(
         }
       }
 
-      // Dynamic Font Detection & Acquisition before LibreOffice conversion
+      // Dynamic Font Detection, Embedded EOT/WOFF Unwrapping & OOXML Normalization before LibreOffice conversion
       onProgress?.(15, "Inspecting typography & acquiring missing presentation fonts...");
+      let pptxToConvert = filePath;
+      const normalizedPptxPath = path.join(tempDir, "normalized_input.pptx");
       try {
         const pyScript = path.join(process.cwd(), "scripts", "ensure_presentation_fonts.py");
         const scanTarget = unpackedDir || filePath;
-        const fontRes = await execFileAsync("python3", [pyScript, scanTarget], {
+        const pyArgs =
+          ext === ".pptx"
+            ? [pyScript, scanTarget, "--normalize-pptx", filePath, normalizedPptxPath]
+            : [pyScript, scanTarget];
+        const fontRes = await execFileAsync("python3", pyArgs, {
           ...EXEC_OPTS,
-          timeout: 45000,
+          timeout: 60000,
         });
         const fontData = JSON.parse(fontRes.stdout || "{}");
         if (fontData.downloaded_files?.length > 0) {
           console.log(
-            `[presentationProcessor] Auto-downloaded ${fontData.downloaded_files.length} missing font(s):`,
+            `[presentationProcessor] Auto-installed ${fontData.downloaded_files.length} presentation font(s):`,
             fontData.downloaded_files
           );
           onProgress?.(18, `Installed ${fontData.downloaded_files.length} presentation font(s)...`);
+        }
+        if (ext === ".pptx" && fontData.normalized_pptx) {
+          pptxToConvert = normalizedPptxPath;
         }
       } catch (fontErr) {
         console.warn("[presentationProcessor] Font discovery warning:", fontErr);
@@ -566,7 +575,7 @@ export async function processPresentation(
             "pdf",
             "--outdir",
             tempDir,
-            filePath,
+            pptxToConvert,
           ],
           { ...EXEC_OPTS, timeout: 180000 }
         );

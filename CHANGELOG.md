@@ -1,3 +1,11 @@
+## [v2.105.5] — 2026-11-27
+### Fixed
+- **Canva & PowerPoint Embedded `.fntdata` EOT Unwrapper, CDNFonts WOFF Decoder & OOXML Layout Normalizer (`scripts/ensure_presentation_fonts.py`, `lib/presentationProcessor.ts`)**:
+  - **Root Cause #1 (Embedded EOT `.fntdata` Skipped + Non-Google Font `Norwester`)**: Canva and PowerPoint wrap embedded fonts inside `ppt/fonts/*.fntdata` with a Microsoft EOT (`0x504C` `"LP"`) header rather than raw SFNT magic bytes at offset `0`, and display fonts like `Norwester` or `The Seasons` are not hosted on Google Fonts. Added native EOT SFNT unwrapping (`flags == 0` / XOR / `eot2ttf` via `libeot-bin`), ODTTF GUID-XOR de-obfuscation, and a secondary `fonts.cdnfonts.com` downloader with a pure-Python W3C WOFF 1.0 → `.ttf`/`.otf` unpacker.
+  - **Root Cause #2 (Canva `typeface="Roboto Bold"` / `"The Seasons Italics"` Fontconfig Mismatch)**: Canva exports full style names (`"Roboto Bold"`, `"The Seasons Italics"`) inside `typeface="..."`, which Linux Fontconfig fails to match against base `family` (`"Roboto"`), falling back to wide `DejaVu Sans Bold`. Added automatic `<a:rPr>` normalization splitting compound style suffixes into base `typeface` + `b="1"` / `i="1"` attributes.
+  - **Root Cause #3 (LibreOffice 7.3 `spc` Right-Edge Clipping & Tight Single-Line Wrapping)**: Fixed LibreOffice 7.3 slicing trailing glyphs on CFF/Type-1 text boxes with positive `spc` tracking (`PROVERBS 27:17` → `PROVERBS 27:1`), locked single-line headings (`cy < 1.85 × font_size`) with `wrap="none"` + `<a:noAutofit/>` (`"IRON"`, `"THE FIVE"`, `"OR"`), and added `+4.5%` alignment-anchored width tolerance on multi-line text boxes.
+  - **Live Backfill**: Re-rendered and updated Events `#119` and `#121` (*"Mens Fellowship"* — `Iron Sharpens Iron.zip`) in production MySQL and ProPresenter 7 ZIP packages in place.
+
 ## [v2.105.4] — 2026-11-27
 ### Fixed
 - **Respect No-Drip (Open Access) Mode Across All Quiz Cron & Publish Endpoints (`app/api/quiz/daily-post/route.ts`, `app/api/quiz/publish/route.ts`, `app/api/quiz/admin/backfill/route.ts`, `app/api/quiz/auto-generate-sunday/route.ts`)**:
