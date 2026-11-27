@@ -12,6 +12,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { generateQuiz, isQuizWeekExpired, QUIZ_DAYS, QUIZ_TYPE_LABELS } from "@/lib/quiz-helpers";
+import { isQuizDripEnabled } from "@/lib/quiz-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -195,11 +196,14 @@ export async function POST(request: Request) {
     let notifiedCount = 0;
 
     if (targetStatus === "published") {
+      const dripEnabled = await isQuizDripEnabled();
       const postContent = [
         createdQuiz.announcementCaption ||
           `Sunday's Quiz for Christ is now LIVE: "${createdQuiz.title}"`,
         "",
-        "7 daily challenges built on Sunday's message — Day 1 is open right now!",
+        dripEnabled
+          ? "7 daily challenges built on Sunday's message — Day 1 is open right now!"
+          : "All 7 interactive quizzes are unlocked right now — play at your own pace!",
         "Tap below to start playing and climb the leaderboard.",
       ].join("\n");
 
@@ -241,7 +245,9 @@ export async function POST(request: Request) {
               memberId: m.id,
               type: "quiz_announcement" as const,
               title: "Sunday's Quiz for Christ is LIVE!",
-              body: `"${targetEvent!.title}" — Day 1 (${day1Type.label}) is ready right now. Tap to play!`,
+              body: dripEnabled
+                ? `"${targetEvent!.title}" — Day 1 (${day1Type.label}) is ready right now. Tap to play!`
+                : `"${targetEvent!.title}" — All 7 interactive quizzes are unlocked now. Tap to play!`,
               link: `/quiz?quizId=${createdQuiz.id}`,
               actorId: creatorId,
             })),

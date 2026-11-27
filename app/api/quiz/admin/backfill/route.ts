@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { QUIZ_DAYS, QUIZ_TYPE_LABELS, getDayNumber } from "@/lib/quiz-helpers";
+import { isQuizDripEnabled } from "@/lib/quiz-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,15 @@ export async function POST() {
   }
 
   try {
+    // Skip daily drip backfill when Drip Mode is disabled (Open Access Mode)
+    const dripEnabled = await isQuizDripEnabled();
+    if (!dripEnabled) {
+      return NextResponse.json({
+        skipped: true,
+        message: "Drip mode is disabled (Open Access Mode active) — daily backfill is not needed.",
+      });
+    }
+
     // Find the currently active published quiz
     const quiz = await db.sermonQuiz.findFirst({
       where: { status: "published" },

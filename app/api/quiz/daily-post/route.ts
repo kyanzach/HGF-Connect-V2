@@ -9,6 +9,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { QUIZ_DAYS, QUIZ_TYPE_LABELS } from "@/lib/quiz-helpers";
+import { isQuizDripEnabled } from "@/lib/quiz-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,14 @@ export async function POST(request: Request) {
   }
 
   try {
+    // Skip daily drip posts when Drip Mode is disabled (Open Access Mode)
+    const dripEnabled = await isQuizDripEnabled();
+    if (!dripEnabled) {
+      return NextResponse.json({
+        skipped: true,
+        message: "Drip mode is disabled (Open Access Mode active) — skipping daily drip post.",
+      });
+    }
     // What day is it in Manila?
     const now = new Date();
     const manila = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Manila" }));

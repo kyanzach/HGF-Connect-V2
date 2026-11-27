@@ -1,3 +1,10 @@
+## [v2.105.4] — 2026-11-27
+### Fixed
+- **Respect No-Drip (Open Access) Mode Across All Quiz Cron & Publish Endpoints (`app/api/quiz/daily-post/route.ts`, `app/api/quiz/publish/route.ts`, `app/api/quiz/admin/backfill/route.ts`, `app/api/quiz/auto-generate-sunday/route.ts`)**:
+  - `POST /api/quiz/daily-post` and `POST /api/quiz/admin/backfill` now check `isQuizDripEnabled()` and skip creating `QUIZ_DAILY` ("Day X Quiz is LIVE!") feed posts and bell notifications while Open Access Mode is active.
+  - `POST /api/quiz/publish` and `POST /api/quiz/auto-generate-sunday` now check `isQuizDripEnabled()` so they skip per-day drip posts and use Open Access copy ("All 7 interactive quizzes are unlocked right now") when Drip Mode is disabled.
+  - Cleaned up the stray `Day 5 Quiz is LIVE!` feed post (`#402`) created by the 7:00 AM Manila cron before this guard was in place.
+
 ## [v2.105.3] — 2026-11-27
 ### Fixed
 - **Direct New Setlist Creation Form (`app/band/components/modals/SetlistAdminModal.tsx`, `app/band/page.tsx`)**:

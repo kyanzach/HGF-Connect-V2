@@ -11,6 +11,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getQuizDayForDate, isQuizWeekExpired, QUIZ_DAYS, QUIZ_TYPE_LABELS } from "@/lib/quiz-helpers";
+import { isQuizDripEnabled } from "@/lib/quiz-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -70,12 +71,17 @@ export async function POST(request: Request) {
       ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
       : null;
 
+    const dripEnabled = await isQuizDripEnabled();
     const postContent = [
       quiz.announcementCaption || `📺 Here's a replay of Sunday's sermon: "${quiz.title}"`,
       "",
       "🧠 Get ready for this week's Quiz for Christ!",
-      "7 daily challenges starting today — from easy to hard.",
-      "Perfect score? You might win a prize! 🎁",
+      dripEnabled
+        ? "7 daily challenges starting today — from easy to hard."
+        : "All 7 interactive quizzes are unlocked right now — play them all at your own pace!",
+      dripEnabled
+        ? "Perfect score? You might win a prize! 🎁"
+        : "Complete all 7 quizzes to climb the leaderboard for Dec 13 Thanksgiving!",
     ].join("\n");
 
     const post = await db.post.create({
@@ -118,65 +124,69 @@ export async function POST(request: Request) {
           memberId: m.id,
           type: "quiz_announcement" as const,
           title: "🧠 This Week's Quiz for Christ is LIVE!",
-          body: `"${quiz.title}" — 7 daily challenges built on Sunday's message. Tap to start and earn points!`,
+          body: dripEnabled
+            ? `"${quiz.title}" — 7 daily challenges built on Sunday's message. Tap to start and earn points!`
+            : `"${quiz.title}" — All 7 interactive quizzes are unlocked now. Tap to play!`,
           link: `/quiz?quizId=${quiz.id}`,
           actorId: memberId,
         })),
       });
     }
 
-    // ── Create Daily Challenge Posts (Day 1 up to currentDay) ──
-    const quizRelativeDay = getQuizDayForDate(quiz.sermonDate);
-    const currentDay = Math.min(Math.max(quizRelativeDay, 1), 7);
+    // ── Create Daily Challenge Posts (Day 1 up to currentDay) ONLY when Drip Mode is enabled ──
+    if (dripEnabled) {
+      const quizRelativeDay = getQuizDayForDate(quiz.sermonDate);
+      const currentDay = Math.min(Math.max(quizRelativeDay, 1), 7);
 
-    for (let dNum = 1; dNum <= currentDay; dNum++) {
-      const dayInfo = QUIZ_DAYS.find((d) => d.dayNumber === dNum);
-      if (!dayInfo) continue;
+      for (let dNum = 1; dNum <= currentDay; dNum++) {
+        const dayInfo = QUIZ_DAYS.find((d) => d.dayNumber === dNum);
+        if (!dayInfo) continue;
 
-      const question = quiz.questions.find((q) => q.dayNumber === dNum);
-      if (!question || (question.feedPostId && question.feedPostId !== post.id)) continue;
+        const question = quiz.questions.find((q) => q.dayNumber === dNum);
+        if (!question || (question.feedPostId && question.feedPostId !== post.id)) continue;
 
-      const typeInfo = QUIZ_TYPE_LABELS[dayInfo.type];
+        const typeInfo = QUIZ_TYPE_LABELS[dayInfo.type];
 
-      // Create feed post for the day
-      const dailyPostContent = [
-        `🧠 Day ${dayInfo.dayNumber} Quiz is LIVE! 🧠`,
-        "",
-        `Topic: "${quiz.title}"`,
-        "",
-        `${typeInfo.emoji} Today's Challenge: ${typeInfo.label}`,
-        `⚡ Difficulty: ${typeInfo.difficulty}`,
-        "",
-        `Let's test our understanding of Sunday's sermon and study the Word together! Tap the play button below to launch today's game and earn points.`,
-      ].join("\n");
+        // Create feed post for the day
+        const dailyPostContent = [
+          `🧠 Day ${dayInfo.dayNumber} Quiz is LIVE! 🧠`,
+          "",
+          `Topic: "${quiz.title}"`,
+          "",
+          `${typeInfo.emoji} Today's Challenge: ${typeInfo.label}`,
+          `⚡ Difficulty: ${typeInfo.difficulty}`,
+          "",
+          `Let's test our understanding of Sunday's sermon and study the Word together! Tap the play button below to launch today's game and earn points.`,
+        ].join("\n");
 
-      const dailyPost = await db.post.create({
-        data: {
-          authorId: memberId,
-          type: "QUIZ_DAILY",
-          content: dailyPostContent,
-          visibility: "MEMBERS_ONLY",
-        },
-      });
-
-      // Link post to question
-      await db.quizQuestion.update({
-        where: { id: question.id },
-        data: { feedPostId: dailyPost.id },
-      });
-
-      // Fire daily notifications to active members (only for today's challenge)
-      if (dNum === currentDay && activeMembers.length > 0) {
-        await db.notification.createMany({
-          data: activeMembers.map((m) => ({
-            memberId: m.id,
-            type: "quiz_daily" as const,
-            title: `🧠 Day ${dayInfo.dayNumber}: ${typeInfo.label}`,
-            body: `Today's challenge from "${quiz.title}" is ready. Can you ace it?`,
-            link: `/quiz?quizId=${quiz.id}&day=${dayInfo.dayNumber}`,
-            actorId: memberId,
-          })),
+        const dailyPost = await db.post.create({
+          data: {
+            authorId: memberId,
+            type: "QUIZ_DAILY",
+            content: dailyPostContent,
+            visibility: "MEMBERS_ONLY",
+          },
         });
+
+        // Link post to question
+        await db.quizQuestion.update({
+          where: { id: question.id },
+          data: { feedPostId: dailyPost.id },
+        });
+
+        // Fire daily notifications to active members (only for today's challenge)
+        if (dNum === currentDay && activeMembers.length > 0) {
+          await db.notification.createMany({
+            data: activeMembers.map((m) => ({
+              memberId: m.id,
+              type: "quiz_daily" as const,
+              title: `🧠 Day ${dayInfo.dayNumber}: ${typeInfo.label}`,
+              body: `Today's challenge from "${quiz.title}" is ready. Can you ace it?`,
+              link: `/quiz?quizId=${quiz.id}&day=${dayInfo.dayNumber}`,
+              actorId: memberId,
+            })),
+          });
+        }
       }
     }
 
