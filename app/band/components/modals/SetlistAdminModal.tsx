@@ -1,7 +1,7 @@
 // app/band/components/modals/SetlistAdminModal.tsx
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Setlist, Song } from '../../types/band';
 import { sortSetlistsUpcomingFirst, getTodayDateString } from '../../lib/sortSetlists';
 
@@ -13,6 +13,7 @@ interface SetlistAdminModalProps {
   onSaveSetlist: (setlist: Setlist) => Promise<void>;
   onDeleteSetlist: (id: string) => Promise<void>;
   onSelectActiveSetlist: (id: string) => void;
+  initialCreateMode?: boolean;
 }
 
 const WORSHIP_LEADERS = ['Ryan', 'Karen', 'Vanneza', 'Darlene', 'Tanna'];
@@ -25,34 +26,54 @@ export const SetlistAdminModal: React.FC<SetlistAdminModalProps> = ({
   onSaveSetlist,
   onDeleteSetlist,
   onSelectActiveSetlist,
+  initialCreateMode = false,
 }) => {
   const sortedSetlists = useMemo(() => sortSetlistsUpcomingFirst(setlists), [setlists]);
   const todayStr = useMemo(() => getTodayDateString(), []);
-  const [editingSet, setEditingSet] = useState<Setlist | null>(null);
+  const [editingSet, setEditingSet] = useState<Setlist | null>(() =>
+    initialCreateMode
+      ? {
+          id: `set-${Date.now()}`,
+          name: '',
+          serviceDate: new Date().toISOString().split('T')[0],
+          leader: '',
+          songs: [],
+        }
+      : null
+  );
   const [name, setName] = useState<string>('');
-  const [serviceDate, setServiceDate] = useState<string>('');
+  const [serviceDate, setServiceDate] = useState<string>(() =>
+    initialCreateMode ? new Date().toISOString().split('T')[0] : ''
+  );
   const [leader, setLeader] = useState<string>('');
   const [isCustomLeader, setIsCustomLeader] = useState<boolean>(false);
   const [selectedSongIds, setSelectedSongIds] = useState<string[]>([]);
   const [errorMsg, setErrorMsg] = useState<string>('');
 
-  if (!isOpen) return null;
-
   const startCreateNew = () => {
+    const today = new Date().toISOString().split('T')[0];
     setEditingSet({
       id: `set-${Date.now()}`,
       name: '',
-      serviceDate: new Date().toISOString().split('T')[0],
+      serviceDate: today,
       leader: '',
       songs: [],
     });
     setName('');
-    setServiceDate(new Date().toISOString().split('T')[0]);
+    setServiceDate(today);
     setLeader('');
     setIsCustomLeader(false);
     setSelectedSongIds([]);
     setErrorMsg('');
   };
+
+  useEffect(() => {
+    if (isOpen && initialCreateMode) {
+      startCreateNew();
+    }
+  }, [isOpen, initialCreateMode]);
+
+  if (!isOpen) return null;
 
   const startEdit = (set: Setlist) => {
     setEditingSet(set);
@@ -114,7 +135,12 @@ export const SetlistAdminModal: React.FC<SetlistAdminModalProps> = ({
     };
 
     await onSaveSetlist(updated);
-    setEditingSet(null);
+    if (initialCreateMode) {
+      onSelectActiveSetlist(updated.id);
+      onClose();
+    } else {
+      setEditingSet(null);
+    }
   };
 
   return (
@@ -156,7 +182,11 @@ export const SetlistAdminModal: React.FC<SetlistAdminModalProps> = ({
           }}
         >
           <div style={{ fontWeight: 800, fontSize: '16px', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>🎼</span> Setlists Manager
+            {editingSet
+              ? setlists.some((s) => s.id === editingSet.id)
+                ? 'Edit Setlist'
+                : 'New Setlist'
+              : 'Setlists Manager'}
           </div>
           <button
             onClick={onClose}
@@ -555,7 +585,7 @@ export const SetlistAdminModal: React.FC<SetlistAdminModalProps> = ({
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px' }}>
                 <button
-                  onClick={() => setEditingSet(null)}
+                  onClick={() => (initialCreateMode ? onClose() : setEditingSet(null))}
                   style={{
                     padding: '8px 14px',
                     borderRadius: '8px',

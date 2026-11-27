@@ -1,3 +1,9 @@
+## [v2.105.3] — 2026-11-27
+### Fixed
+- **Direct New Setlist Creation Form (`app/band/components/modals/SetlistAdminModal.tsx`, `app/band/page.tsx`)**:
+  - Tapping `+ New Setlist` inside **Choose Setlist** now opens directly into a fresh **New Setlist** creation form (via `initialCreateMode`) instead of landing on the setlists manager list.
+  - Saving a newly created setlist from this flow automatically selects it as the active setlist and closes the modal; Cancel closes cleanly.
+
 ## [v2.105.2] — 2026-11-27
 ### Changed
 - **High-Contrast Upcoming Badge (`app/band/components/modals/SetlistPickerModal.tsx`)**:

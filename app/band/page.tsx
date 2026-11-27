@@ -449,6 +449,7 @@ export default function BandStagePage() {
   const [isAmbientPadOpen, setIsAmbientPadOpen] = useState<boolean>(false);
   const [isAudioStorageOpen, setIsAudioStorageOpen] = useState<boolean>(false);
   const [isSetlistAdminOpen, setIsSetlistAdminOpen] = useState<boolean>(false);
+  const [setlistAdminCreateMode, setSetlistAdminCreateMode] = useState<boolean>(false);
   const [isScratchpadOpen, setIsScratchpadOpen] = useState<boolean>(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isBandAdminOpen, setIsBandAdminOpen] = useState<boolean>(false);
@@ -2114,6 +2115,7 @@ export default function BandStagePage() {
             setLoginPrompt({ open: true, feature: 'setlist' });
             return;
           }
+          setSetlistAdminCreateMode(false);
           setIsSetlistAdminOpen(true);
         }}
         onOpenScraper={(initialQ) => {
@@ -2197,6 +2199,7 @@ export default function BandStagePage() {
               setLoginPrompt({ open: true, feature: 'setlist' });
               return;
             }
+            setSetlistAdminCreateMode(true);
             setIsSetlistAdminOpen(true);
           }}
         />
@@ -2224,12 +2227,16 @@ export default function BandStagePage() {
       {isSetlistAdminOpen && (
         <SetlistAdminModal
           isOpen={isSetlistAdminOpen}
-          onClose={() => setIsSetlistAdminOpen(false)}
+          onClose={() => {
+            setIsSetlistAdminOpen(false);
+            setSetlistAdminCreateMode(false);
+          }}
           setlists={setlists}
           allSongs={songs}
           onSaveSetlist={handleSaveSetlist}
           onDeleteSetlist={handleDeleteSetlist}
           onSelectActiveSetlist={handleSelectSetlist}
+          initialCreateMode={setlistAdminCreateMode}
         />
       )}
 
