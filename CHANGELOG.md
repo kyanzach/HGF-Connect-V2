@@ -1,3 +1,9 @@
+## [v2.105.6] — 2026-11-28
+### Improved
+- **Auto-Strip Guitar Tab Guides & Decode HTML Entities in Band Chord Sheets (`app/band/lib/musicTheory.ts`)**:
+  - Automatically detects and strips ASCII guitar/bass tab guides (`e|---`, `B|-1-0---|`, wrapped `---|---` lines, tab symbol legends, and orphan `x2` tokens sandwiched inside tab blocks) before rendering in `/band`, collapsing leftover blank gaps and empty tab-only section headers.
+  - Decodes common HTML entities (such as `&ndash;` → `–`) in rendered chord sheets so scraped song titles and cues display cleanly.
+
 ## [v2.105.5] — 2026-11-27
 ### Fixed
 - **Canva & PowerPoint Embedded `.fntdata` EOT Unwrapper, CDNFonts WOFF Decoder & OOXML Layout Normalizer (`scripts/ensure_presentation_fonts.py`, `lib/presentationProcessor.ts`)**:

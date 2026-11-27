@@ -318,6 +318,137 @@ function parseChordProPairs(
   return { pairs, items, transposedLine };
 }
 
+function decodeCommonHtmlEntities(text: string): string {
+  return text
+    .replace(/&ndash;|&#8211;/gi, '–')
+    .replace(/&mdash;|&#8212;/gi, '—')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;|&rsquo;|&#8217;/gi, "'")
+    .replace(/&lsquo;|&#8216;/gi, "'")
+    .replace(/&nbsp;/gi, ' ');
+}
+
+const TAB_REPEAT_ONLY_REGEX = /^\s*\(?\s*(?:x\s*\d+|\d+\s*x|repeat(?:\s+x?\d+)?)\s*\)?\s*$/i;
+const TAB_LEGEND_REGEX =
+  /^\s*\|?\s*(?:[hpbtrsvx/\\~^]|PM|N\.H\.|A\.H\.)\s*(?:=|-|:|\s{2,})\s*(?:hammer[\s-]*on|pull[\s-]*off|slide\s*(?:up|down)|bend|release|vibrato|palm\s*mute|dead\s*note|mute|harmonic|tap)/i;
+
+/**
+ * Detects ASCII guitar / bass / ukulele tab guide lines (e.g. `e|---0---|`, `B|-1-0---|`,
+ * or wrapped continuation lines like `---|---`).
+ */
+export function isGuitarTabLine(line: string): boolean {
+  const trimmed = line.trim();
+  if (!trimmed) return false;
+
+  // Standard string-prefixed tab line: e|---, B|-1-0---, Eb|---, etc. (optional trailing x2)
+  if (
+    /^[a-gA-G][b#]?\s*\|\|?[-0-9hHpPbBrRsSvVtT/\\~^xX*'()"|=.\s]+(?:\(?\s*(?:x\d+|\d+x)\s*\)?)?$/.test(
+      trimmed
+    ) &&
+    (trimmed.includes('--') || trimmed.includes('|-') || trimmed.includes('-|'))
+  ) {
+    return true;
+  }
+
+  // Wrapped / unprefixed tab continuation line: e.g. `-------------------|--------------------|`
+  if (
+    trimmed.includes('----') &&
+    /^[-=|/\\~^hHpPbBrRsSvVtT0-9xX*'()"\s]+$/.test(trimmed)
+  ) {
+    return true;
+  }
+
+  // Tab symbol legend lines (e.g. `h - hammer-on`, `/ - slide up`)
+  if (TAB_LEGEND_REGEX.test(trimmed)) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Strips ASCII guitar/bass tab guides (and any orphan repeat tokens sandwiched inside a tab block)
+ * while preserving real chord progressions and lyrics, and collapses redundant blank lines.
+ */
+export function stripGuitarTabGuides(text: string): string {
+  const normalized = decodeCommonHtmlEntities(text.replace(/\r\n?/g, '\n'));
+  const rawLines = normalized.split('\n');
+  const isTabFlags = rawLines.map((l) => isGuitarTabLine(l));
+
+  // If no tab lines exist at all, return normalized text directly
+  if (!isTabFlags.some(Boolean)) {
+    return normalized;
+  }
+
+  const findAdjacentNonEmpty = (start: number, step: -1 | 1): number => {
+    for (let j = start + step; j >= 0 && j < rawLines.length; j += step) {
+      if (rawLines[j].trim()) return j;
+    }
+    return -1;
+  };
+
+  // Mark orphan repeat markers (e.g. `x2`) sandwiched between tab lines
+  const dropFlags = [...isTabFlags];
+  for (let i = 0; i < rawLines.length; i++) {
+    if (dropFlags[i]) continue;
+    const trimmed = rawLines[i].trim();
+    if (!trimmed) continue;
+
+    if (TAB_REPEAT_ONLY_REGEX.test(trimmed)) {
+      const prevIdx = findAdjacentNonEmpty(i, -1);
+      const nextIdx = findAdjacentNonEmpty(i, 1);
+      if ((prevIdx !== -1 && isTabFlags[prevIdx]) && (nextIdx !== -1 && isTabFlags[nextIdx])) {
+        dropFlags[i] = true;
+      }
+    }
+  }
+
+  // Build filtered lines while collapsing consecutive blank lines caused by removals
+  const kept: string[] = [];
+  for (let i = 0; i < rawLines.length; i++) {
+    if (dropFlags[i]) continue;
+    const line = rawLines[i];
+    if (!line.trim()) {
+      if (kept.length > 0 && kept[kept.length - 1].trim() === '') {
+        continue;
+      }
+    }
+    kept.push(line);
+  }
+
+  // Remove empty section headers that ONLY held stripped tab lines
+  const isHeaderLine = (line: string): boolean => {
+    const t = line.trim();
+    if (!t) return false;
+    return (
+      SECTION_REGEX.test(t) ||
+      (STANDALONE_CUE_REGEX.test(t) && t.length <= 35 && !CHORD_TOKEN_REGEX.test(t)) ||
+      /^\[[^\]]+\](?:\s*\*.*\*?)?:?$/.test(t)
+    );
+  };
+
+  const finalLines: string[] = [];
+  for (let i = 0; i < kept.length; i++) {
+    if (isHeaderLine(kept[i])) {
+      let nextNonEmpty = i + 1;
+      while (nextNonEmpty < kept.length && !kept[nextNonEmpty].trim()) {
+        nextNonEmpty++;
+      }
+      if (nextNonEmpty >= kept.length || isHeaderLine(kept[nextNonEmpty])) {
+        // Section became completely empty after stripping tab guide
+        continue;
+      }
+    }
+    if (!kept[i].trim() && finalLines.length > 0 && !finalLines[finalLines.length - 1].trim()) {
+      continue;
+    }
+    finalLines.push(kept[i]);
+  }
+
+  return finalLines.join('\n').trim();
+}
+
 export function parseAndTransposeSheetLines(
   text: string,
   semitones: number,
@@ -325,7 +456,8 @@ export function parseAndTransposeSheetLines(
 ): SheetLine[] {
   if (!text) return [];
 
-  const lines = text.split('\n');
+  const cleanedText = stripGuitarTabGuides(text);
+  const lines = cleanedText.split('\n');
   const result: SheetLine[] = [];
 
   for (let i = 0; i < lines.length; i++) {
