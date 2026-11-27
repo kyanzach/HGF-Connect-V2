@@ -1,3 +1,8 @@
+## [v2.106.2] — 2026-11-28
+### Fixed
+- **Auto-Clear Sidebar Search After Adding/Importing a Song (`app/band/components/SetlistSidebar.tsx`)**:
+  - Automatically resets the sidebar search bar whenever a new song is imported from Ultimate Guitar, added to the active setlist, added to the Songbook, or when switching setlists so the full song list under the active setlist is immediately visible.
+
 ## [v2.106.1] — 2026-11-28
 ### Improved
 - **YouTube Playback → Auto-Scroll Sync (`app/band/page.tsx`)**:

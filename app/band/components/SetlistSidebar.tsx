@@ -135,8 +135,9 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
   const sortedSetlists = useMemo(() => sortSetlistsUpcomingFirst(setlists), [setlists]);
   const todayStr = useMemo(() => getTodayDateString(), []);
 
-  // Sync default sort mode when active setlist changes
+  // Sync default sort mode and clear search when active setlist changes
   useEffect(() => {
+    setSearchQuery('');
     if (activeSetlist) {
       setSortBy('order');
       setKeySortMode('fifths');
@@ -145,6 +146,31 @@ export const SetlistSidebar: React.FC<SetlistSidebarProps> = ({
       setKeySortMode('chromatic');
     }
   }, [activeSetlist?.id]);
+
+  // Auto-clear search input whenever a new song is added to the active setlist or songbook
+  const activeSetlistSongCount = activeSetlist?.songs?.length ?? 0;
+  const prevCountsRef = useRef<{ setlistId: string | null; setlistCount: number; songsCount: number }>({
+    setlistId: activeSetlist?.id ?? null,
+    setlistCount: activeSetlistSongCount,
+    songsCount: songs.length,
+  });
+
+  useEffect(() => {
+    const prev = prevCountsRef.current;
+    const sameSetlist = prev.setlistId === (activeSetlist?.id ?? null);
+    const addedToSetlist = sameSetlist && activeSetlistSongCount > prev.setlistCount;
+    const addedToLibrary = songs.length > prev.songsCount;
+
+    if (addedToSetlist || addedToLibrary) {
+      setSearchQuery('');
+    }
+
+    prevCountsRef.current = {
+      setlistId: activeSetlist?.id ?? null,
+      setlistCount: activeSetlistSongCount,
+      songsCount: songs.length,
+    };
+  }, [activeSetlist?.id, activeSetlistSongCount, songs.length]);
 
   // Deletion modal state
   const [songToDelete, setSongToDelete] = useState<Song | null>(null);
