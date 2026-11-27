@@ -1,3 +1,9 @@
+## [v2.106.1] — 2026-11-28
+### Improved
+- **YouTube Playback → Auto-Scroll Sync (`app/band/page.tsx`)**:
+  - Starting playback in either the **Floating YouTube Video** or **Audio-Only (`Listen`)** player automatically starts the chord sheet **Auto-Scroll** (and pausing/closing YouTube pauses auto-scroll).
+  - Stopping or pausing the **Auto-Scroll Bar** manually remains completely independent — YouTube video or audio continues playing uninterrupted.
+
 ## [v2.106.0] — 2026-11-28
 ### Added / Fixed
 - **Auto-Scraped Floating YouTube Video & Hidden Audio-Only Player (`app/api/worship/youtube/route.ts`, `app/band/components/FloatingYouTubePlayer.tsx`, `app/band/components/SongSheet.tsx`, `app/band/page.tsx`)**:

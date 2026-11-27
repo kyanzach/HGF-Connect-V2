@@ -467,6 +467,7 @@ export default function BandStagePage() {
   const [ytSongId, setYtSongId] = useState<string | null>(null);
   const [ytLoading, setYtLoading] = useState<boolean>(false);
   const [ytPlaying, setYtPlaying] = useState<boolean>(false);
+  const prevYtPlayingRef = useRef<boolean>(false);
   const [isInstallModalOpen, setIsInstallModalOpen] = useState<boolean>(false);
 
   // Auto-scroll pacing & duration mode (default is speed mode)
@@ -1756,6 +1757,7 @@ export default function BandStagePage() {
   // Reset YouTube player when switching to a different song
   useEffect(() => {
     if (ytSongId && currentSong?.id !== ytSongId) {
+      prevYtPlayingRef.current = false;
       setYtMode('closed');
       setYtPlaying(false);
       setYtActiveIdx(0);
@@ -1794,34 +1796,78 @@ export default function BandStagePage() {
     }
   };
 
+  const startAutoScrollForYouTube = useCallback(() => {
+    setShowAutoScrollBar(true);
+    setIsAutoScrolling(true);
+    if (targetDurationSec > 0 && elapsedScrollSeconds >= targetDurationSec) {
+      setElapsedScrollSeconds(0);
+    }
+  }, [targetDurationSec, elapsedScrollSeconds]);
+
+  const handleSyncYouTubePlayingState = useCallback(
+    (playing: boolean) => {
+      const prev = prevYtPlayingRef.current;
+      prevYtPlayingRef.current = playing;
+      setYtPlaying(playing);
+      // Only react on real state transitions so stopping auto-scroll manually never gets overridden
+      if (playing && !prev) {
+        startAutoScrollForYouTube();
+      } else if (!playing && prev) {
+        setIsAutoScrolling(false);
+      }
+    },
+    [startAutoScrollForYouTube]
+  );
+
   const handleToggleYouTubeVideo = async () => {
     if (ytMode === 'video') {
+      prevYtPlayingRef.current = false;
       setYtMode('closed');
       setYtPlaying(false);
+      setIsAutoScrolling(false);
       return;
     }
     const vids = await ensureYouTubeVideosForCurrentSong();
     if (vids.length > 0) {
+      const wasPlaying = prevYtPlayingRef.current;
+      prevYtPlayingRef.current = true;
       setYtMode('video');
       setYtPlaying(true);
+      if (!wasPlaying) {
+        startAutoScrollForYouTube();
+      }
     }
   };
 
   const handleToggleYouTubeAudio = async () => {
     if (ytMode === 'audio') {
-      setYtPlaying((prev) => !prev);
+      const nextPlaying = !ytPlaying;
+      prevYtPlayingRef.current = nextPlaying;
+      setYtPlaying(nextPlaying);
+      if (nextPlaying) {
+        startAutoScrollForYouTube();
+      } else {
+        setIsAutoScrolling(false);
+      }
       return;
     }
     if (ytMode === 'video') {
-      // Seamlessly hide the floating video and keep audio playing
+      // Seamlessly hide the floating video and keep audio playing (preserve user's scroll choice)
+      const wasPlaying = prevYtPlayingRef.current;
+      prevYtPlayingRef.current = true;
       setYtMode('audio');
       setYtPlaying(true);
+      if (!wasPlaying) {
+        startAutoScrollForYouTube();
+      }
       return;
     }
     const vids = await ensureYouTubeVideosForCurrentSong();
     if (vids.length > 0) {
+      prevYtPlayingRef.current = true;
       setYtMode('audio');
       setYtPlaying(true);
+      startAutoScrollForYouTube();
     }
   };
 
@@ -2304,18 +2350,23 @@ export default function BandStagePage() {
           activeIndex={ytActiveIdx}
           isPlaying={ytPlaying}
           onChangeIndex={(nextIdx) => {
+            prevYtPlayingRef.current = true;
             setYtActiveIdx(nextIdx);
             setYtPlaying(true);
+            startAutoScrollForYouTube();
           }}
           onSwitchToAudioOnly={() => {
+            prevYtPlayingRef.current = true;
             setYtMode('audio');
             setYtPlaying(true);
           }}
           onClose={() => {
+            prevYtPlayingRef.current = false;
             setYtMode('closed');
             setYtPlaying(false);
+            setIsAutoScrolling(false);
           }}
-          onSyncPlayingState={setYtPlaying}
+          onSyncPlayingState={handleSyncYouTubePlayingState}
         />
       )}
 
