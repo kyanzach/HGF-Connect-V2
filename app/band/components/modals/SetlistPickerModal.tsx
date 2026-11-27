@@ -21,7 +21,7 @@ interface SetlistPickerModalProps {
 }
 
 type FilterType = 'all' | 'upcoming' | 'sunday' | 'grace';
-type SortType = 'date' | 'name' | 'leader';
+type SortType = 'date' | 'leader';
 
 export const SetlistPickerModal: React.FC<SetlistPickerModalProps> = ({
   isOpen,
@@ -136,9 +136,7 @@ export const SetlistPickerModal: React.FC<SetlistPickerModalProps> = ({
       });
     }
 
-    if (sortBy === 'name') {
-      list = [...list].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-    } else if (sortBy === 'leader' && !selectedLeader) {
+    if (sortBy === 'leader' && !selectedLeader) {
       list = [...list].sort((a, b) => {
         const la = (a.leader || a.name || '').trim();
         const lb = (b.leader || b.name || '').trim();
@@ -386,7 +384,6 @@ export const SetlistPickerModal: React.FC<SetlistPickerModalProps> = ({
             {(
               [
                 { id: 'date' as SortType, label: 'By Date' },
-                { id: 'name' as SortType, label: 'A–Z' },
                 { id: 'leader' as SortType, label: 'By Leader' },
               ] as const
             ).map((s) => {

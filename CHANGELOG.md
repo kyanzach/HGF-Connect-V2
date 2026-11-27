@@ -1,3 +1,8 @@
+## [v2.105.1] — 2026-11-27
+### Changed
+- **Simplified Setlist Picker Sort Bar (`app/band/components/modals/SetlistPickerModal.tsx`)**:
+  - Removed the `A–Z` sort tab so the picker stays focused on **By Date** and **By Leader**.
+
 ## [v2.105.0] — 2026-11-27
 ### Added / Improved
 - **Worship Leader Quick-Select Chips & High-Contrast Service Badges (`app/band/components/modals/SetlistPickerModal.tsx`)**:
