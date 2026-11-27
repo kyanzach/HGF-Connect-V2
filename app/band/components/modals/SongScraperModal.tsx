@@ -772,27 +772,8 @@ export const SongScraperModal: React.FC<SongScraperModalProps> = ({
                   </button>
                 )}
 
-                {activeSetlist && (
-                  <button
-                    onClick={() => handleImport(true)}
-                    disabled={isImporting}
-                    style={{
-                      fontSize: '12px',
-                      fontWeight: 800,
-                      padding: '8px 16px',
-                      background: 'rgba(78, 177, 203, 0.2)',
-                      color: '#4EB1CB',
-                      border: '1px solid #4EB1CB',
-                      borderRadius: '8px',
-                      cursor: isImporting ? 'not-allowed' : 'pointer',
-                    }}
-                  >
-                    ➕ Import in Key {targetKey} & Add to {activeSetlist.name}
-                  </button>
-                )}
-
                 <button
-                  onClick={() => handleImport(false)}
+                  onClick={() => handleImport(Boolean(activeSetlist))}
                   disabled={isImporting}
                   style={{
                     fontSize: '12px',
@@ -803,9 +784,14 @@ export const SongScraperModal: React.FC<SongScraperModalProps> = ({
                     border: 'none',
                     borderRadius: '8px',
                     cursor: isImporting ? 'not-allowed' : 'pointer',
+                    whiteSpace: 'nowrap',
                   }}
                 >
-                  {isImporting ? 'Importing...' : `➕ Import in Key ${targetKey}`}
+                  {isImporting
+                    ? 'Importing...'
+                    : activeSetlist
+                    ? `+ Add to ${activeSetlist.name} (Key ${targetKey})`
+                    : `+ Import in Key ${targetKey}`}
                 </button>
               </div>
             </div>

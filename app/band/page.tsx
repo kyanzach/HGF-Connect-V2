@@ -36,6 +36,8 @@ const DurationPickerModal = dynamic(() => import('./components/modals/DurationPi
 const BandInstallModal = dynamic(() => import('./components/modals/BandInstallModal').then((m) => m.BandInstallModal), { ssr: false });
 const GuitarChordPopover = dynamic(() => import('./components/GuitarChordPopover').then((m) => m.GuitarChordPopover), { ssr: false });
 const SetlistPickerModal = dynamic(() => import('./components/modals/SetlistPickerModal').then((m) => m.SetlistPickerModal), { ssr: false });
+const FloatingYouTubePlayer = dynamic(() => import('./components/FloatingYouTubePlayer').then((m) => m.FloatingYouTubePlayer), { ssr: false });
+import type { YouTubePlayerMode, YouTubeVideoItem } from './components/FloatingYouTubePlayer';
 
 import { BandUser, Song, Setlist, AudioTrack, AudioMarker, DrawingStroke } from './types/band';
 import { getCachedAudioMarkers, saveCachedAudioMarkers } from './lib/audioAnalysis';
@@ -457,6 +459,14 @@ export default function BandStagePage() {
   const [isAudioChaptersModalOpen, setIsAudioChaptersModalOpen] = useState<boolean>(false);
   const [isDurationModalOpen, setIsDurationModalOpen] = useState<boolean>(false);
   const [isSetlistPickerOpen, setIsSetlistPickerOpen] = useState<boolean>(false);
+
+  // Floating YouTube Video & Hidden Audio-Only Player State
+  const [ytMode, setYtMode] = useState<YouTubePlayerMode>('closed');
+  const [ytVideos, setYtVideos] = useState<YouTubeVideoItem[]>([]);
+  const [ytActiveIdx, setYtActiveIdx] = useState<number>(0);
+  const [ytSongId, setYtSongId] = useState<string | null>(null);
+  const [ytLoading, setYtLoading] = useState<boolean>(false);
+  const [ytPlaying, setYtPlaying] = useState<boolean>(false);
   const [isInstallModalOpen, setIsInstallModalOpen] = useState<boolean>(false);
 
   // Auto-scroll pacing & duration mode (default is speed mode)
@@ -550,12 +560,10 @@ export default function BandStagePage() {
     return [...mdStrokes, ...myPersonalStrokes];
   }, [currentUser, isUserMD, mdGlobalStrokesMap, personalStrokesMap, currentSong]);
 
-  const handleImportScrapedSong = async (newSong: Song, addToSetlist = false) => {
-    const targetSetId = addToSetlist && activeSetlistId ? activeSetlistId : undefined;
+  const handleImportScrapedSong = async (newSong: Song, addToSetlist = true) => {
+    // Always add to active setlist (as well as Songbook) and stay in the active setlist
+    const targetSetId = activeSetlistId && addToSetlist !== false ? activeSetlistId : undefined;
     await optimisticAddSong(newSong, targetSetId);
-    if (!addToSetlist && activeSetlistId) {
-      selectSetlist(null);
-    }
     selectSong(newSong.id);
   };
 
@@ -1745,6 +1753,78 @@ export default function BandStagePage() {
     }
   };
 
+  // Reset YouTube player when switching to a different song
+  useEffect(() => {
+    if (ytSongId && currentSong?.id !== ytSongId) {
+      setYtMode('closed');
+      setYtPlaying(false);
+      setYtActiveIdx(0);
+    }
+  }, [currentSong?.id, ytSongId]);
+
+  const ensureYouTubeVideosForCurrentSong = async (): Promise<YouTubeVideoItem[]> => {
+    if (!currentSong) return [];
+    if (ytSongId === currentSong.id && ytVideos.length > 0) {
+      return ytVideos;
+    }
+    setYtLoading(true);
+    try {
+      const params = new URLSearchParams({
+        title: currentSong.title || '',
+        artist: currentSong.artist || '',
+      });
+      const res = await fetch(`/api/worship/youtube?${params.toString()}`);
+      const data = await res.json();
+      const results: YouTubeVideoItem[] = Array.isArray(data?.results) ? data.results : [];
+      if (results.length === 0) {
+        setRefreshToast('No YouTube video found for this song');
+        setTimeout(() => setRefreshToast(null), 2500);
+        return [];
+      }
+      setYtVideos(results);
+      setYtSongId(currentSong.id);
+      setYtActiveIdx(0);
+      return results;
+    } catch {
+      setRefreshToast('Could not load YouTube video right now');
+      setTimeout(() => setRefreshToast(null), 2500);
+      return [];
+    } finally {
+      setYtLoading(false);
+    }
+  };
+
+  const handleToggleYouTubeVideo = async () => {
+    if (ytMode === 'video') {
+      setYtMode('closed');
+      setYtPlaying(false);
+      return;
+    }
+    const vids = await ensureYouTubeVideosForCurrentSong();
+    if (vids.length > 0) {
+      setYtMode('video');
+      setYtPlaying(true);
+    }
+  };
+
+  const handleToggleYouTubeAudio = async () => {
+    if (ytMode === 'audio') {
+      setYtPlaying((prev) => !prev);
+      return;
+    }
+    if (ytMode === 'video') {
+      // Seamlessly hide the floating video and keep audio playing
+      setYtMode('audio');
+      setYtPlaying(true);
+      return;
+    }
+    const vids = await ensureYouTubeVideosForCurrentSong();
+    if (vids.length > 0) {
+      setYtMode('audio');
+      setYtPlaying(true);
+    }
+  };
+
   return (
     <div
       style={{
@@ -1826,6 +1906,11 @@ export default function BandStagePage() {
         parsedLines={parsedLines}
         fontSizePx={fontSizePx}
         isAutoScrolling={isAutoScrolling}
+        youtubeMode={ytMode}
+        youtubeLoading={ytLoading}
+        youtubePlaying={ytPlaying}
+        onToggleYouTubeVideo={handleToggleYouTubeVideo}
+        onToggleYouTubeAudio={handleToggleYouTubeAudio}
         scrollSpeed={autoScrollSpeed}
         onToggleAutoScroll={handleToggleAutoScroll}
         onSwipeLeft={nextSong}
@@ -2209,6 +2294,28 @@ export default function BandStagePage() {
         <GuitarChordPopover
           chordName={activeChordDiagram}
           onClose={() => setActiveChordDiagram(null)}
+        />
+      )}
+
+      {ytMode !== 'closed' && ytVideos.length > 0 && (
+        <FloatingYouTubePlayer
+          mode={ytMode}
+          videos={ytVideos}
+          activeIndex={ytActiveIdx}
+          isPlaying={ytPlaying}
+          onChangeIndex={(nextIdx) => {
+            setYtActiveIdx(nextIdx);
+            setYtPlaying(true);
+          }}
+          onSwitchToAudioOnly={() => {
+            setYtMode('audio');
+            setYtPlaying(true);
+          }}
+          onClose={() => {
+            setYtMode('closed');
+            setYtPlaying(false);
+          }}
+          onSyncPlayingState={setYtPlaying}
         />
       )}
 

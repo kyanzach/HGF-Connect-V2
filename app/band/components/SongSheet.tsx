@@ -42,6 +42,11 @@ interface SongSheetProps {
   hasPlaybackDock?: boolean;
   hasAutoScrollBar?: boolean;
   showStageTools?: boolean;
+  youtubeMode?: 'closed' | 'video' | 'audio';
+  youtubeLoading?: boolean;
+  youtubePlaying?: boolean;
+  onToggleYouTubeVideo?: () => void;
+  onToggleYouTubeAudio?: () => void;
 }
 
 function findSectionElement(
@@ -245,6 +250,11 @@ export const SongSheet: React.FC<SongSheetProps> = ({
   hasPlaybackDock = false,
   hasAutoScrollBar = false,
   showStageTools = false,
+  youtubeMode = 'closed',
+  youtubeLoading = false,
+  youtubePlaying = false,
+  onToggleYouTubeVideo,
+  onToggleYouTubeAudio,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollBodyRef = useRef<HTMLDivElement>(null);
@@ -1573,6 +1583,111 @@ export const SongSheet: React.FC<SongSheetProps> = ({
                 >
                   <span>⏱️</span>
                   <span>Duration</span>
+                </button>
+              )}
+
+              {/* Floating YouTube Video & Audio-Only Reference Buttons */}
+              {onToggleYouTubeVideo && (
+                <button
+                  type="button"
+                  data-interactive="true"
+                  disabled={youtubeLoading}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleYouTubeVideo();
+                  }}
+                  title={
+                    youtubeMode === 'video'
+                      ? 'Hide floating YouTube video'
+                      : 'Auto-find & float YouTube video for this song'
+                  }
+                  style={{
+                    padding: '2px 9px',
+                    borderRadius: '6px',
+                    background:
+                      youtubeMode === 'video'
+                        ? 'rgba(239, 68, 68, 0.22)'
+                        : '#1e293b',
+                    border:
+                      youtubeMode === 'video'
+                        ? '1px solid #ef4444'
+                        : '1px solid rgba(239, 68, 68, 0.35)',
+                    color: youtubeMode === 'video' ? '#fecaca' : '#f87171',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    cursor: youtubeLoading ? 'wait' : 'pointer',
+                    whiteSpace: 'nowrap',
+                    opacity: youtubeLoading ? 0.7 : 1,
+                  }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
+                    <path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2 31.4 31.4 0 0 0 0 12a31.4 31.4 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1A31.4 31.4 0 0 0 24 12a31.4 31.4 0 0 0-.5-5.8zM9.6 15.6V8.4l6.3 3.6-6.3 3.6z" />
+                  </svg>
+                  <span>
+                    {youtubeLoading
+                      ? 'Finding...'
+                      : youtubeMode === 'video'
+                      ? 'Hide Video'
+                      : 'Video'}
+                  </span>
+                </button>
+              )}
+
+              {onToggleYouTubeAudio && (
+                <button
+                  type="button"
+                  data-interactive="true"
+                  disabled={youtubeLoading}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleYouTubeAudio();
+                  }}
+                  title={
+                    youtubeMode === 'audio' && youtubePlaying
+                      ? 'Pause hidden YouTube audio'
+                      : 'Play sound only (hide YouTube video embed)'
+                  }
+                  style={{
+                    padding: '2px 9px',
+                    borderRadius: '6px',
+                    background:
+                      youtubeMode === 'audio' && youtubePlaying
+                        ? 'rgba(78, 177, 203, 0.24)'
+                        : '#1e293b',
+                    border:
+                      youtubeMode === 'audio' && youtubePlaying
+                        ? '1px solid #4EB1CB'
+                        : '1px solid rgba(78, 177, 203, 0.35)',
+                    color:
+                      youtubeMode === 'audio' && youtubePlaying
+                        ? '#a5f3fc'
+                        : '#4EB1CB',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    cursor: youtubeLoading ? 'wait' : 'pointer',
+                    whiteSpace: 'nowrap',
+                    opacity: youtubeLoading ? 0.7 : 1,
+                  }}
+                >
+                  {youtubeMode === 'audio' && youtubePlaying ? (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
+                      <rect x="6" y="4" width="4" height="16" rx="1" />
+                      <rect x="14" y="4" width="4" height="16" rx="1" />
+                    </svg>
+                  ) : (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
+                      <path d="M8 5v14l11-7z" />
+                    </svg>
+                  )}
+                  <span>
+                    {youtubeMode === 'audio' && youtubePlaying ? 'Pause' : 'Listen'}
+                  </span>
                 </button>
               )}
 

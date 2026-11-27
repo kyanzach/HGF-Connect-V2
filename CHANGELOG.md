@@ -1,3 +1,11 @@
+## [v2.106.0] — 2026-11-28
+### Added / Fixed
+- **Auto-Scraped Floating YouTube Video & Hidden Audio-Only Player (`app/api/worship/youtube/route.ts`, `app/band/components/FloatingYouTubePlayer.tsx`, `app/band/components/SongSheet.tsx`, `app/band/page.tsx`)**:
+  - Added two compact action pills right next to the song duration badge (`4:00`): **`Video`** (auto-finds and floats a draggable embedded YouTube video for the current song, with `<` / `>` switcher for alternate recordings) and **`Listen` / `Pause`** (hides the video embed off-screen while playing/pausing the audio seamlessly via YouTube IFrame `postMessage` API).
+  - Built zero-cost server-side YouTube search scraper (`GET /api/worship/youtube`) with 24h in-memory caching and worship-video ranking.
+- **Keep Active Setlist When Importing from Ultimate Guitar (`app/band/components/modals/SongScraperModal.tsx`, `app/band/page.tsx`)**:
+  - Importing a newly scraped song while inside an active setlist now automatically saves it to **both** the church Songbook and the active setlist, and keeps you inside that active setlist instead of kicking you back to All Songs.
+
 ## [v2.105.6] — 2026-11-28
 ### Improved
 - **Auto-Strip Guitar Tab Guides & Decode HTML Entities in Band Chord Sheets (`app/band/lib/musicTheory.ts`)**:
