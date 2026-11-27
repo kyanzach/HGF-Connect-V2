@@ -611,12 +611,13 @@ export const SetlistPickerModal: React.FC<SetlistPickerModalProps> = ({
                       {isUpcoming && (
                         <span
                           style={{
-                            fontSize: '10.5px',
+                            fontSize: '11px',
                             fontWeight: 800,
-                            color: '#10b981',
-                            background: 'rgba(16, 185, 129, 0.14)',
-                            padding: '2px 7px',
+                            color: '#ffffff',
+                            background: '#15803d',
+                            padding: '2px 8px',
                             borderRadius: '999px',
+                            letterSpacing: '0.15px',
                           }}
                         >
                           Upcoming

@@ -1,3 +1,8 @@
+## [v2.105.2] — 2026-11-27
+### Changed
+- **High-Contrast Upcoming Badge (`app/band/components/modals/SetlistPickerModal.tsx`)**:
+  - Updated the `Upcoming` pill to a solid green background (`#15803d`) with bold white text (`#ffffff`) to match the solid `Sunday Service` and `Grace Night` badges.
+
 ## [v2.105.1] — 2026-11-27
 ### Changed
 - **Simplified Setlist Picker Sort Bar (`app/band/components/modals/SetlistPickerModal.tsx`)**:
