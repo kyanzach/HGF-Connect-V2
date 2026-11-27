@@ -1,3 +1,9 @@
+## [v2.105.0] — 2026-11-27
+### Added / Improved
+- **Worship Leader Quick-Select Chips & High-Contrast Service Badges (`app/band/components/modals/SetlistPickerModal.tsx`)**:
+  - Added a scrollable row of **Worship Leader** chips (`All Leaders`, `Ryan (N)`, `Karen (N)`, `Vanneza (N)`, etc.) directly beneath the sort bar when **`By Leader`** is active so users can tap a worship leader to filter their setlists instantly.
+  - Updated **Sunday Service** badges to solid **Royal Blue** (`#1d4ed8`) and **Grace Night** badges to solid **Neon Cyan-Blue** (`#0891b2`), both with crisp bold white text (`#ffffff`).
+
 ## [v2.104.1] — 2026-11-26
 ### Fixed
 - **Removed All T-Shirt / Prize Spoilers in Thanksgiving Open Access Mode (`components/quiz/QuizPlayer.tsx`, `app/(app)/quiz/page.tsx`, `app/api/quiz/status/route.ts`, `app/api/quiz/submit/route.ts`)**:

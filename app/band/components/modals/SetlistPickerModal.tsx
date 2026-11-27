@@ -35,6 +35,7 @@ export const SetlistPickerModal: React.FC<SetlistPickerModalProps> = ({
   const [query, setQuery] = useState('');
   const [filterBy, setFilterBy] = useState<FilterType>('all');
   const [sortBy, setSortBy] = useState<SortType>('date');
+  const [selectedLeader, setSelectedLeader] = useState<string | null>(null);
 
   const todayStr = useMemo(() => getTodayDateString(), []);
 
@@ -47,6 +48,51 @@ export const SetlistPickerModal: React.FC<SetlistPickerModalProps> = ({
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [isOpen, onClose]);
+
+  // Extract unique worship leaders across all setlists (normalized by first name / label)
+  const worshipLeaders = useMemo(() => {
+    const counts = new Map<string, { label: string; count: number }>();
+    const canonicalize = (raw: string) => {
+      const firstWord = raw.trim().split(/\s+/)[0] || '';
+      if (!firstWord) return '';
+      return firstWord.charAt(0).toUpperCase() + firstWord.slice(1).toLowerCase();
+    };
+
+    // First pass: collect explicit leader names
+    const knownKeys = new Set<string>();
+    setlists.forEach((s) => {
+      const c = canonicalize(s.leader || '');
+      if (c) knownKeys.add(c.toLowerCase());
+    });
+
+    const getSetlistLeaderKey = (s: Setlist): string => {
+      const explicit = canonicalize(s.leader || '');
+      if (explicit) return explicit;
+      const lowerName = (s.name || '').toLowerCase();
+      for (const k of knownKeys) {
+        if (new RegExp(`\\b${k}\\b`, 'i').test(lowerName)) {
+          return k.charAt(0).toUpperCase() + k.slice(1);
+        }
+      }
+      return '';
+    };
+
+    setlists.forEach((s) => {
+      const leaderLabel = getSetlistLeaderKey(s);
+      if (!leaderLabel) return;
+      const key = leaderLabel.toLowerCase();
+      const existing = counts.get(key);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        counts.set(key, { label: leaderLabel, count: 1 });
+      }
+    });
+
+    return Array.from(counts.values()).sort((a, b) =>
+      b.count !== a.count ? b.count - a.count : a.label.localeCompare(b.label)
+    );
+  }, [setlists]);
 
   const filteredSetlists = useMemo(() => {
     let list = sortSetlistsUpcomingFirst(setlists);
@@ -66,6 +112,16 @@ export const SetlistPickerModal: React.FC<SetlistPickerModalProps> = ({
       });
     }
 
+    if (sortBy === 'leader' && selectedLeader) {
+      const target = selectedLeader.toLowerCase();
+      const wordRe = new RegExp(`\\b${target}\\b`, 'i');
+      list = list.filter(
+        (s) =>
+          (s.leader || '').toLowerCase().includes(target) ||
+          wordRe.test(s.name || '')
+      );
+    }
+
     const q = query.trim().toLowerCase();
     if (q) {
       list = list.filter((s) => {
@@ -82,7 +138,7 @@ export const SetlistPickerModal: React.FC<SetlistPickerModalProps> = ({
 
     if (sortBy === 'name') {
       list = [...list].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-    } else if (sortBy === 'leader') {
+    } else if (sortBy === 'leader' && !selectedLeader) {
       list = [...list].sort((a, b) => {
         const la = (a.leader || a.name || '').trim();
         const lb = (b.leader || b.name || '').trim();
@@ -91,7 +147,7 @@ export const SetlistPickerModal: React.FC<SetlistPickerModalProps> = ({
     }
 
     return list;
-  }, [setlists, filterBy, sortBy, query, todayStr]);
+  }, [setlists, filterBy, sortBy, selectedLeader, query, todayStr]);
 
   if (!isOpen) return null;
 
@@ -339,7 +395,10 @@ export const SetlistPickerModal: React.FC<SetlistPickerModalProps> = ({
                 <button
                   key={s.id}
                   type="button"
-                  onClick={() => setSortBy(s.id)}
+                  onClick={() => {
+                    setSortBy(s.id);
+                    if (s.id !== 'leader') setSelectedLeader(null);
+                  }}
                   style={{
                     flex: 1,
                     height: '30px',
@@ -358,6 +417,56 @@ export const SetlistPickerModal: React.FC<SetlistPickerModalProps> = ({
               );
             })}
           </div>
+
+          {/* Worship Leader Quick-Select Chips (shown when By Leader is active) */}
+          {sortBy === 'leader' && worshipLeaders.length > 0 && (
+            <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', scrollbarWidth: 'none', paddingTop: '2px' }}>
+              <button
+                type="button"
+                onClick={() => setSelectedLeader(null)}
+                style={{
+                  height: '32px',
+                  padding: '0 12px',
+                  borderRadius: '999px',
+                  border: selectedLeader === null ? '1px solid #4EB1CB' : '1px solid #26354d',
+                  background: selectedLeader === null ? 'rgba(78, 177, 203, 0.18)' : '#131c2e',
+                  color: selectedLeader === null ? '#67e8f9' : '#94a3b8',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                }}
+              >
+                All Leaders
+              </button>
+              {worshipLeaders.map((wl) => {
+                const isSelected = selectedLeader === wl.label;
+                return (
+                  <button
+                    key={wl.label}
+                    type="button"
+                    onClick={() => setSelectedLeader(isSelected ? null : wl.label)}
+                    style={{
+                      height: '32px',
+                      padding: '0 12px',
+                      borderRadius: '999px',
+                      border: isSelected ? '1px solid #4EB1CB' : '1px solid #26354d',
+                      background: isSelected ? '#4EB1CB' : '#131c2e',
+                      color: isSelected ? '#061018' : '#e2e8f0',
+                      fontSize: '12px',
+                      fontWeight: isSelected ? 800 : 700,
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {wl.label} ({wl.count})
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Spacious Touch-Friendly List */}
@@ -372,7 +481,7 @@ export const SetlistPickerModal: React.FC<SetlistPickerModalProps> = ({
           }}
         >
           {/* Pinned All Songs Card */}
-          {!query.trim() && filterBy === 'all' && (
+          {!query.trim() && filterBy === 'all' && !selectedLeader && (
             <button
               type="button"
               onClick={() => handlePick(null)}
@@ -525,14 +634,13 @@ export const SetlistPickerModal: React.FC<SetlistPickerModalProps> = ({
                         <span
                           style={{
                             fontSize: '11px',
-                            fontWeight: 700,
-                            color: serviceType === 'Sunday Service' ? '#4EB1CB' : '#fbbf24',
+                            fontWeight: 800,
+                            color: '#ffffff',
                             background:
-                              serviceType === 'Sunday Service'
-                                ? 'rgba(78, 177, 203, 0.12)'
-                                : 'rgba(245, 158, 11, 0.12)',
-                            padding: '2px 7px',
+                              serviceType === 'Sunday Service' ? '#1d4ed8' : '#0891b2',
+                            padding: '2px 8px',
                             borderRadius: '999px',
+                            letterSpacing: '0.15px',
                           }}
                         >
                           {serviceType}
